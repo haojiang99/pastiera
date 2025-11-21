@@ -101,7 +101,9 @@ class StatusBarController(
     private var wasSymActive: Boolean = false
     private var symShown: Boolean = false
     private val ledStatusView = LedStatusView(context)
-    private val variationBarView: VariationBarView? = if (mode == Mode.FULL) VariationBarView(context) else null
+    // Create variation bar for both FULL and CANDIDATES_ONLY modes (needed for Pinyin candidates)
+    private val variationBarView: VariationBarView? = VariationBarView(context)
+    // variationsWrapper is now a View (could be LinearLayout directly) instead of FrameLayout
     private var variationsWrapper: View? = null
     private var forceMinimalUi: Boolean = false
     fun setForceMinimalUi(force: Boolean) {
@@ -874,14 +876,20 @@ class StatusBarController(
         variationBarView?.onCursorMovedListener = onCursorMovedListener
         variationBarView?.updateInputConnection(inputConnection)
         variationBarView?.setSymModeActive(snapshot.symPage > 0)
-        
+
+        // Always call showVariations() early, before any potential early returns
+        // This ensures the variation bar is updated even if the rest of update() returns early
+        if (snapshot.symPage == 0) { // Only if not in SYM mode
+            variationBarView?.showVariations(snapshot, inputConnection)
+        }
+
         val layout = ensureLayoutCreated(emojiMapText) ?: return
         val modifiersContainerView = modifiersContainer ?: return
         val emojiView = emojiMapTextView ?: return
         val emojiKeyboardView = emojiKeyboardContainer ?: return
 
-        // Show/hide Pinyin buffer text
-        if (snapshot.pinyinModeActive && snapshot.pinyinBuffer.isNotEmpty()) {
+        // Show emoji map text if provided
+        if (emojiMapText.isNotEmpty()) {
             emojiView.text = emojiMapText
             emojiView.visibility = View.VISIBLE
         } else {
@@ -903,7 +911,7 @@ class StatusBarController(
         modifiersContainerView.visibility = View.GONE
         ledStatusView.update(snapshot)
         val variationsBar = if (!forceMinimalUi) variationBarView else null
-        
+
         if (snapshot.symPage > 0 && symMappings != null) {
             updateEmojiKeyboard(symMappings, snapshot.symPage, inputConnection)
             variationsBar?.resetVariationsState()

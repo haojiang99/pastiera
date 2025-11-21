@@ -598,21 +598,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             pinyinModeActive = pinyinSnapshot.isActive,
             pinyinBuffer = pinyinSnapshot.buffer
         )
-        // Passa anche la mappa emoji quando SYM è attivo (solo pagina 1)
-        // Or show Pinyin candidates when Pinyin mode is active
-        val emojiMapText = if (pinyinSnapshot.isActive) {
-            if (pinyinSnapshot.hasCandidates) {
-                // Show numbered candidates (e.g., "1我 2卧 3窝 4沃 5握 6...")
-                pinyinSnapshot.candidates.take(9).mapIndexed { index, candidate ->
-                    "${index + 1}$candidate"
-                }.joinToString(" ")
-            } else {
-                // Just show buffer if no candidates yet
-                pinyinSnapshot.buffer
-            }
-        } else {
-            symLayoutController.emojiMapText()
-        }
+        val emojiMapText = ""
         // Passa le mappature SYM per la griglia emoji/caratteri
         val symMappings = symLayoutController.currentSymMappings()
         // Passa l'inputConnection per rendere i pulsanti clickabili

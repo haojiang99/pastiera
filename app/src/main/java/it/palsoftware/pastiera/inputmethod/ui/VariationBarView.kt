@@ -58,9 +58,9 @@ class VariationBarView(
     private var lastCursorMoveX = 0f
     private var currentInputConnection: android.view.inputmethod.InputConnection? = null
 
-    fun ensureView(): FrameLayout {
-        if (wrapper != null) {
-            return wrapper!!
+    fun ensureView(): View {
+        if (container != null) {
+            return container!!
         }
 
         val leftPadding = TypedValue.applyDimension(
@@ -80,39 +80,26 @@ class VariationBarView(
             context.resources.displayMetrics
         ).toInt()
 
+        // DEBUG: Skip the FrameLayout wrapper entirely - just use container directly
         container = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.START or Gravity.CENTER_VERTICAL
             setPadding(leftPadding, variationsVerticalPadding, rightPadding, variationsVerticalPadding)
+            // Use LinearLayout.LayoutParams since parent is now the statusBarLayout (a LinearLayout)
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 variationsContainerHeight
             )
+            setBackgroundColor(Color.TRANSPARENT)
             visibility = View.GONE
         }
 
-        wrapper = FrameLayout(context).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                variationsContainerHeight
-            )
-            visibility = View.GONE
-            addView(container)
-        }
+        // Use container as wrapper (no FrameLayout)
+        wrapper = container as? FrameLayout  // Will be null, that's OK for this test
 
-        overlay = View(context).apply {
-            background = ColorDrawable(Color.TRANSPARENT)
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            visibility = View.GONE
-        }.also { overlayView ->
-            wrapper?.addView(overlayView)
-            installOverlayTouchListener(overlayView)
-        }
+        overlay = View(context)  // Dummy overlay
 
-        return wrapper!!
+        return container!!
     }
 
     fun getWrapper(): FrameLayout? = wrapper
@@ -178,17 +165,14 @@ class VariationBarView(
 
     fun showVariations(snapshot: StatusBarController.StatusSnapshot, inputConnection: android.view.inputmethod.InputConnection?) {
         val containerView = container ?: return
-        val wrapperView = wrapper ?: return
-        val overlayView = overlay ?: return
 
         currentInputConnection = inputConnection
-
         containerView.visibility = View.VISIBLE
-        wrapperView.visibility = View.VISIBLE
-        overlayView.visibility = if (isSymModeActive) View.GONE else View.VISIBLE
 
-        val limitedVariations = if (snapshot.variations.isNotEmpty() && snapshot.lastInsertedChar != null) {
-            snapshot.variations.take(7)
+        // Show variations if we have any (for accents: need lastInsertedChar; for Pinyin: always show if available)
+        val limitedVariations = if (snapshot.variations.isNotEmpty() &&
+                                    (snapshot.lastInsertedChar != null || snapshot.pinyinModeActive)) {
+            snapshot.variations.take(9) // Show up to 9 for Pinyin or accents
         } else {
             emptyList()
         }
@@ -224,23 +208,42 @@ class VariationBarView(
         val variationsRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            setBackgroundColor(Color.TRANSPARENT)
         }
         currentVariationsRow = variationsRow
 
+        // Calculate explicit width for variationsRow (9 buttons + spacing)
+        val variationsRowWidth = (buttonWidth * 9) + (spacingBetweenButtons * 8)
         val rowLayoutParams = LinearLayout.LayoutParams(
-            0,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            1f
+            variationsRowWidth,
+            buttonWidth  // Use buttonWidth as height instead of WRAP_CONTENT
         )
         containerView.addView(variationsRow, 0, rowLayoutParams)
 
+        // Force measure and layout the variationsRow
+        val widthMeasureSpec = View.MeasureSpec.makeMeasureSpec(variationsRowWidth, View.MeasureSpec.EXACTLY)
+        val heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(buttonWidth, View.MeasureSpec.EXACTLY)
+        variationsRow.measure(widthMeasureSpec, heightMeasureSpec)
+        variationsRow.layout(0, 0, variationsRowWidth, buttonWidth)
+
         lastDisplayedVariations = limitedVariations
 
-        for (variation in limitedVariations) {
-            val button = createVariationButton(variation, inputConnection, buttonWidth)
+        var buttonX = 0
+        for ((index, variation) in limitedVariations.withIndex()) {
+            val button = createVariationButton(variation, inputConnection, buttonWidth, snapshot.pinyinModeActive, index + 1)
             variationButtons.add(button)
             variationsRow.addView(button)
+
+            // Force measure and layout the button
+            val buttonWidthSpec = View.MeasureSpec.makeMeasureSpec(buttonWidth, View.MeasureSpec.EXACTLY)
+            val buttonHeightSpec = View.MeasureSpec.makeMeasureSpec(buttonWidth, View.MeasureSpec.EXACTLY)
+            button.measure(buttonWidthSpec, buttonHeightSpec)
+            button.layout(buttonX, 0, buttonX + buttonWidth, buttonWidth)
+            buttonX += buttonWidth + spacingBetweenButtons
         }
+
+        // Force a layout pass
+        containerView.requestLayout()
 
         val placeholderCount = 7 - limitedVariations.size
         for (i in 0 until placeholderCount) {
@@ -420,7 +423,9 @@ class VariationBarView(
     private fun createVariationButton(
         variation: String,
         inputConnection: android.view.inputmethod.InputConnection?,
-        buttonWidth: Int
+        buttonWidth: Int,
+        isPinyinMode: Boolean = false,
+        candidateNumber: Int = 0
     ): TextView {
         val dp4 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
@@ -453,9 +458,16 @@ class VariationBarView(
             addState(intArrayOf(), drawable)
         }
 
+        // For Pinyin mode, show numbered candidate (e.g., "1我"); for accent mode, just show the character
+        val displayText = if (isPinyinMode && candidateNumber in 1..9) {
+            "$candidateNumber$variation"
+        } else {
+            variation
+        }
+
         return TextView(context).apply {
-            text = variation
-            textSize = 17.6f
+            text = displayText
+            textSize = if (isPinyinMode) 15f else 17.6f  // Slightly smaller for numbered candidates
             setTextColor(Color.WHITE)
             setTypeface(null, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
@@ -468,7 +480,7 @@ class VariationBarView(
             isFocusable = true
             setOnClickListener(
                 VariationButtonHandler.createVariationClickListener(
-                    variation,
+                    variation,  // Pass the original character, not the numbered display text
                     inputConnection,
                     onVariationSelectedListener
                 )
