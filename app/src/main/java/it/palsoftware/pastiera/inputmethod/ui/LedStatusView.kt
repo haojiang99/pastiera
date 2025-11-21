@@ -49,6 +49,7 @@ class LedStatusView(
     private var container: LinearLayout? = null
     private var shiftLed: View? = null
     private var symLed: View? = null
+    private var pinyinLed: View? = null
     private var ctrlLed: View? = null
     private var altLed: View? = null
 
@@ -67,16 +68,16 @@ class LedStatusView(
 
         shiftLed = createLedView(LED_COLOR_GRAY_OFF)
         symLed = createLedView(LED_COLOR_GRAY_OFF)
-        val unused1 = createLedView(LED_COLOR_GRAY_OFF).apply { visibility = View.INVISIBLE }
-        val unused2 = createLedView(LED_COLOR_GRAY_OFF).apply { visibility = View.INVISIBLE }
+        pinyinLed = createLedView(LED_COLOR_GRAY_OFF)
+        val unused = createLedView(LED_COLOR_GRAY_OFF).apply { visibility = View.INVISIBLE }
         ctrlLed = createLedView(LED_COLOR_GRAY_OFF)
         altLed = createLedView(LED_COLOR_GRAY_OFF)
 
         container?.apply {
             addView(shiftLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
             addView(symLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
-            addView(unused1, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
-            addView(unused2, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
+            addView(pinyinLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
+            addView(unused, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
             addView(ctrlLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
             addView(altLed, LinearLayout.LayoutParams(0, ledHeight, 1f))
         }
@@ -98,6 +99,9 @@ class LedStatusView(
         val altLocked = snapshot.altLatchActive
         val altActive = (snapshot.altPhysicallyPressed || snapshot.altOneShot) && !altLocked
         updateLed(altLed, altLocked, altActive)
+
+        // Update Pinyin LED - use locked (red) color when active
+        updateLed(pinyinLed, snapshot.pinyinModeActive, false)
 
         updateSymLed(symLed, snapshot.symPage)
     }

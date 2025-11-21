@@ -45,6 +45,7 @@ The codebase follows a controller-based architecture where `PhysicalKeyboardInpu
 4. **NavModeController** (`core/NavModeController.kt`): Handles navigation mode when Ctrl is double-tapped outside text fields
 5. **InputContextState** (`core/InputContextState.kt`): Tracks current input field state (password field detection, etc.)
 6. **AutoCorrectionManager** (`core/AutoCorrectionManager.kt`): Manages auto-correction dictionaries and language-specific corrections
+7. **PinyinInputController** (`core/PinyinInputController.kt`): Manages Chinese Pinyin input, buffer state, and candidate generation
 
 ### Key Input Flow
 
@@ -53,6 +54,7 @@ The codebase follows a controller-based architecture where `PhysicalKeyboardInpu
 3. Controllers process the event based on their domain:
    - Modifier keys → `ModifierKeyHandler` and `ModifierStateController`
    - Long-press detection → `KeyboardEventTracker`
+   - **Pinyin input** → `PinyinInputController` (when Pinyin mode is active)
    - Text input → `TextInputController` and `AutoCorrector`
    - Navigation mode → `NavModeHandler` and `NavModeController`
    - Launcher shortcuts → `LauncherShortcutController`
@@ -69,6 +71,9 @@ The codebase follows a controller-based architecture where `PhysicalKeyboardInpu
 - **Variations** (`data/variation/`): Character accent variations (à, é, ñ, etc.)
   - Loaded from `app/src/main/assets/common/variations/variations.json`
 - **Auto-corrections** (`app/src/main/assets/common/autocorrect/`): Language-specific auto-correction dictionaries in JSON format
+- **Pinyin dictionary** (`data/pinyin/`): Pinyin-to-Hanzi mappings for Chinese input
+  - Located in `app/src/main/assets/common/pinyin/pinyin_dict.json`
+  - Contains ~400 common syllables with character candidates
 
 ### Settings Management
 
@@ -104,6 +109,43 @@ All three modes are tracked independently and can be combined. The state machine
 ### Long-Press Behavior
 
 Long-press can simulate either Alt+key or Shift+key (configurable). The detection happens in `KeyboardEventTracker` which times key-down events. When long-press threshold is exceeded, it triggers the configured modifier combination.
+
+### Chinese Pinyin Input
+
+The IME supports Chinese Pinyin input for typing Chinese characters using Latin letters:
+
+**Architecture:**
+- `PinyinInputController` (`core/PinyinInputController.kt`): Manages the input buffer and generates candidates
+- `PinyinDictionary` (`data/pinyin/PinyinDictionary.kt`): Loads and provides lookups from the pinyin dictionary
+
+**Usage:**
+- Press `Shift+Enter` to toggle Pinyin mode on/off
+- When active, type pinyin letters (e.g., "ni", "hao")
+- Candidates appear in the status bar (up to 9)
+- Press `Space` to select the first candidate
+- Press number keys `1-9` to select specific candidates
+- Press `Backspace` to delete letters from the buffer
+- Press `ESC` or `Ctrl+Q` to exit Pinyin mode
+
+**Implementation Details:**
+- Dictionary uses longest-match algorithm for syllable parsing (e.g., "nian" not "ni"+"an")
+- Buffer state is tracked independently from normal text input
+- Candidates are displayed in the variation bar (reusing existing UI)
+- Status bar shows "拼" indicator and current buffer content
+- Pinyin handling takes priority in the key event pipeline (before normal text input)
+
+**Dictionary Format:**
+```json
+{
+  "ni": ["你", "尼", "泥", "呢"],
+  "hao": ["好", "号", "毫"],
+  ...
+}
+```
+
+**Settings:**
+- `KEY_PINYIN_ENABLED`: Enable/disable Pinyin input (default: true)
+- `KEY_PINYIN_CHARACTER_SET`: "simplified" or "traditional" (default: "simplified", currently only simplified is implemented)
 
 ### Build Configuration
 

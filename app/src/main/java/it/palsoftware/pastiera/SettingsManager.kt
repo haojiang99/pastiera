@@ -37,7 +37,9 @@ object SettingsManager {
     private const val KEY_SYM_PAGES_CONFIG = "sym_pages_config" // Order/enabled pages for SYM
     private const val KEY_SYM_AUTO_CLOSE = "sym_auto_close" // Auto-close SYM layout after key press
     private const val KEY_DISMISSED_RELEASES = "dismissed_releases" // Set of release tag_names that were dismissed
-    
+    private const val KEY_PINYIN_ENABLED = "pinyin_enabled" // Enable Pinyin input
+    private const val KEY_PINYIN_CHARACTER_SET = "pinyin_character_set" // "simplified" or "traditional"
+
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
     private const val MIN_LONG_PRESS_THRESHOLD = 50L
@@ -54,6 +56,8 @@ object SettingsManager {
     private const val DEFAULT_KEYBOARD_LAYOUT = "qwerty"
     private const val DEFAULT_SYM_AUTO_CLOSE = true
     private val DEFAULT_SYM_PAGES_CONFIG = SymPagesConfig()
+    private const val DEFAULT_PINYIN_ENABLED = true
+    private const val DEFAULT_PINYIN_CHARACTER_SET = "simplified"
     
     /**
      * Returns the SharedPreferences instance for Pastiera.
@@ -917,7 +921,39 @@ object SettingsManager {
             .putString(KEY_KEYBOARD_LAYOUT, layoutName)
             .apply()
     }
-    
+
+    /**
+     * Returns whether Pinyin input is enabled.
+     */
+    fun getPinyinEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_PINYIN_ENABLED, DEFAULT_PINYIN_ENABLED)
+    }
+
+    /**
+     * Sets whether Pinyin input is enabled.
+     */
+    fun setPinyinEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_PINYIN_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns the Pinyin character set ("simplified" or "traditional").
+     */
+    fun getPinyinCharacterSet(context: Context): String {
+        return getPreferences(context).getString(KEY_PINYIN_CHARACTER_SET, DEFAULT_PINYIN_CHARACTER_SET) ?: DEFAULT_PINYIN_CHARACTER_SET
+    }
+
+    /**
+     * Sets the Pinyin character set ("simplified" or "traditional").
+     */
+    fun setPinyinCharacterSet(context: Context, characterSet: String) {
+        getPreferences(context).edit()
+            .putString(KEY_PINYIN_CHARACTER_SET, characterSet)
+            .apply()
+    }
+
     /**
      * Sets the SYM page to restore when returning from settings.
      * @param context The context

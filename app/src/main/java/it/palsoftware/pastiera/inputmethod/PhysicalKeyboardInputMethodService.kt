@@ -22,6 +22,7 @@ import it.palsoftware.pastiera.core.AutoCorrectionManager
 import it.palsoftware.pastiera.core.InputContextState
 import it.palsoftware.pastiera.core.ModifierStateController
 import it.palsoftware.pastiera.core.NavModeController
+import it.palsoftware.pastiera.core.PinyinInputController
 import it.palsoftware.pastiera.core.SymLayoutController
 import it.palsoftware.pastiera.core.TextInputController
 import it.palsoftware.pastiera.data.layout.LayoutMappingRepository
@@ -133,6 +134,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private lateinit var inputEventRouter: InputEventRouter
     private lateinit var keyboardVisibilityController: KeyboardVisibilityController
     private lateinit var launcherShortcutController: LauncherShortcutController
+    private lateinit var pinyinInputController: PinyinInputController
     private var clearAltOnSpaceEnabled: Boolean = false
 
     private val motionEventController = MotionEventController(logTag = TAG)
@@ -331,6 +333,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             doubleTapThreshold = DOUBLE_TAP_THRESHOLD
         )
         autoCorrectionManager = AutoCorrectionManager(this)
+        pinyinInputController = PinyinInputController(this)
         
         candidatesBarController = CandidatesBarController(this)
 
@@ -557,11 +560,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      * Aggiorna la status bar delegando al controller dedicato.
      */
     private fun updateStatusBarText() {
-        val variationSnapshot = variationStateController.refreshFromCursor(
-            currentInputConnection,
-            shouldDisableSmartFeatures
-        )
-        
+        // Check if Pinyin mode is active and use Pinyin candidates instead of variations
+        val pinyinSnapshot = pinyinInputController.getSnapshot()
+        Log.d(TAG, "Pinyin Status - Active: ${pinyinSnapshot.isActive}, Buffer: '${pinyinSnapshot.buffer}', Candidates: ${pinyinSnapshot.candidates.size}, HasCandidates: ${pinyinSnapshot.hasCandidates}")
+
+        val variationSnapshot = if (pinyinSnapshot.isActive) {
+            // When Pinyin is active, always show the variation bar with candidates (or empty if none yet)
+            Log.d(TAG, "Showing Pinyin candidates: ${pinyinSnapshot.candidates.take(9)}")
+            VariationStateController.Snapshot(
+                isActive = true,
+                lastInsertedChar = if (pinyinSnapshot.buffer.isNotEmpty()) pinyinSnapshot.buffer.last() else null,
+                variations = pinyinSnapshot.candidates.take(9) // Show up to 9 candidates
+            )
+        } else {
+            variationStateController.refreshFromCursor(
+                currentInputConnection,
+                shouldDisableSmartFeatures
+            )
+        }
+
         val modifierSnapshot = modifierStateController.snapshot()
         val snapshot = StatusBarController.StatusSnapshot(
             capsLockEnabled = modifierSnapshot.capsLockEnabled,
@@ -577,10 +594,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             symPage = symPage,
             variations = variationSnapshot.variations,
             lastInsertedChar = variationSnapshot.lastInsertedChar,
-            shouldDisableSmartFeatures = shouldDisableSmartFeatures
+            shouldDisableSmartFeatures = shouldDisableSmartFeatures,
+            pinyinModeActive = pinyinSnapshot.isActive,
+            pinyinBuffer = pinyinSnapshot.buffer
         )
         // Passa anche la mappa emoji quando SYM è attivo (solo pagina 1)
-        val emojiMapText = symLayoutController.emojiMapText()
+        // Or show Pinyin candidates when Pinyin mode is active
+        val emojiMapText = if (pinyinSnapshot.isActive) {
+            if (pinyinSnapshot.hasCandidates) {
+                // Show numbered candidates (e.g., "1我 2卧 3窝 4沃 5握 6...")
+                pinyinSnapshot.candidates.take(9).mapIndexed { index, candidate ->
+                    "${index + 1}$candidate"
+                }.joinToString(" ")
+            } else {
+                // Just show buffer if no candidates yet
+                pinyinSnapshot.buffer
+            }
+        } else {
+            symLayoutController.emojiMapText()
+        }
         // Passa le mappature SYM per la griglia emoji/caratteri
         val symMappings = symLayoutController.currentSymMappings()
         // Passa l'inputConnection per rendere i pulsanti clickabili
@@ -818,13 +850,122 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
         
         val ic = currentInputConnection
-        
+
         // Continue with normal IME logic
         KeyboardEventTracker.notifyKeyEvent(keyCode, event, "KEY_DOWN")
         if (!isInputViewShown && isInputViewActive) {
             ensureInputViewCreated()
         }
-        
+
+        // Toggle Pinyin mode with Shift+Enter
+        if (keyCode == KeyEvent.KEYCODE_ENTER && shiftPressed && !ctrlPressed && !altPressed) {
+            pinyinInputController.togglePinyinMode()
+            if (!pinyinInputController.isPinyinMode() && ic != null) {
+                ic.finishComposingText()
+            }
+            updateStatusBarText()
+            return true
+        }
+
+        // Handle Pinyin input mode
+        if (pinyinInputController.isPinyinMode() && ic != null) {
+            // Handle number keys 1-9 for candidate selection FIRST (before other handlers)
+            // This allows number key selection even when Alt is required to type numbers
+            if (pinyinInputController.hasCandidates()) {
+                // Check if it's a number key by keyCode
+                if (keyCode in KeyEvent.KEYCODE_1..KeyEvent.KEYCODE_9) {
+                    val selected = pinyinInputController.handleNumberKey(keyCode)
+                    if (selected != null) {
+                        ic.commitText(selected, 1) // commitText replaces composing text automatically
+
+                        // Set remaining buffer as new composing text
+                        val remainingBuffer = pinyinInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+
+                        updateStatusBarText()
+                        return true
+                    }
+                }
+                // Also check if the unicode char is a digit (for Alt+Key layouts)
+                if (event != null && event.unicodeChar != 0) {
+                    val char = event.unicodeChar.toChar()
+                    if (char.isDigit() && char in '1'..'9') {
+                        val number = char.digitToInt()
+                        val index = number - 1
+                        val selected = pinyinInputController.selectCandidate(index)
+                        if (selected != null) {
+                            ic.commitText(selected, 1)
+
+                            // Set remaining buffer as new composing text
+                            val remainingBuffer = pinyinInputController.getBuffer()
+                            if (remainingBuffer.isNotEmpty()) {
+                                ic.setComposingText(remainingBuffer, 1)
+                            }
+
+                            updateStatusBarText()
+                            return true
+                        }
+                    }
+                }
+            }
+
+            // Handle backspace in Pinyin mode
+            if (keyCode == KeyEvent.KEYCODE_DEL) {
+                if (pinyinInputController.handleBackspace()) {
+                    val buffer = pinyinInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        ic.setComposingText(buffer, 1)
+                    } else {
+                        ic.finishComposingText()
+                    }
+                    updateStatusBarText()
+                    return true
+                }
+                // If buffer was empty, fall through to normal backspace handling
+            }
+
+            // Handle space key - select first candidate
+            if (keyCode == KeyEvent.KEYCODE_SPACE && pinyinInputController.hasCandidates()) {
+                val selected = pinyinInputController.selectFirstCandidate()
+                if (selected != null) {
+                    ic.commitText(selected, 1) // commitText replaces composing text automatically
+
+                    // Set remaining buffer as new composing text
+                    val remainingBuffer = pinyinInputController.getBuffer()
+                    if (remainingBuffer.isNotEmpty()) {
+                        ic.setComposingText(remainingBuffer, 1)
+                    }
+
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // Handle letter keys - add to pinyin buffer
+            if (event != null && event.unicodeChar != 0) {
+                val char = event.unicodeChar.toChar()
+                if (char.isLetter()) {
+                    if (pinyinInputController.handleLetterKey(char)) {
+                        val buffer = pinyinInputController.getBuffer()
+                        ic.setComposingText(buffer, 1)
+                        updateStatusBarText()
+                        return true
+                    }
+                }
+            }
+
+            // ESC key or Ctrl+Q to exit Pinyin mode
+            if (keyCode == KeyEvent.KEYCODE_ESCAPE ||
+                (keyCode == KeyEvent.KEYCODE_Q && ctrlPressed)) {
+                pinyinInputController.setPinyinMode(false)
+                ic.finishComposingText()
+                updateStatusBarText()
+                return true
+            }
+        }
+
         val isAutoCorrectEnabled = SettingsManager.getAutoCorrectEnabled(this) && !shouldDisableSmartFeatures
         if (
             inputEventRouter.handleTextInputPipeline(

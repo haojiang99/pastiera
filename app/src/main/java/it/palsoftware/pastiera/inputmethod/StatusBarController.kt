@@ -83,7 +83,9 @@ class StatusBarController(
         val symPage: Int, // 0=disattivato, 1=pagina1 emoji, 2=pagina2 caratteri
         val variations: List<String> = emptyList(),
         val lastInsertedChar: Char? = null,
-        val shouldDisableSmartFeatures: Boolean = false
+        val shouldDisableSmartFeatures: Boolean = false,
+        val pinyinModeActive: Boolean = false,
+        val pinyinBuffer: String = ""
     ) {
         val navModeActive: Boolean
             get() = ctrlLatchActive && ctrlLatchFromNavMode
@@ -180,16 +182,25 @@ class StatusBarController(
                 visibility = View.GONE
             }
             
-            // Keep the TextView for backward compatibility (hidden)
+            // TextView for Pinyin buffer display
             emojiMapTextView = TextView(context).apply {
+                textSize = 18f
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
                 visibility = View.GONE
             }
 
             variationsWrapper = variationBarView?.ensureView()
             val ledStrip = ledStatusView.ensureView()
-            
+
             statusBarLayout?.apply {
                 addView(modifiersContainer)
+                addView(emojiMapTextView) // Pinyin buffer text
                 variationsWrapper?.let { addView(it) }
                 addView(emojiKeyboardContainer) // Griglia emoji prima dei LED
                 addView(ledStrip) // LED sempre in fondo
@@ -868,7 +879,14 @@ class StatusBarController(
         val modifiersContainerView = modifiersContainer ?: return
         val emojiView = emojiMapTextView ?: return
         val emojiKeyboardView = emojiKeyboardContainer ?: return
-        emojiView.visibility = View.GONE
+
+        // Show/hide Pinyin buffer text
+        if (snapshot.pinyinModeActive && snapshot.pinyinBuffer.isNotEmpty()) {
+            emojiView.text = emojiMapText
+            emojiView.visibility = View.VISIBLE
+        } else {
+            emojiView.visibility = View.GONE
+        }
         
         if (snapshot.navModeActive) {
             layout.visibility = View.GONE
