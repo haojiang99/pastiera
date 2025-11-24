@@ -1002,7 +1002,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 if (buffer.isNotEmpty()) {
                     val committed = pinyinInputController.commitBufferAsIs()
                     if (committed != null && ic != null) {
-                        ic.commitText(committed, 1)
+                        ic.commitText(committed + " ", 1)
                         updateStatusBarText()
                         return true
                     }
@@ -1140,10 +1140,27 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
 
-            // Handle letter keys - add to pinyin buffer
+            // Handle letter keys
             if (event != null && event.unicodeChar != 0) {
                 val char = event.unicodeChar.toChar()
                 if (char.isLetter()) {
+                    // If Shift is pressed, commit buffer and input capital letter directly
+                    if (shiftPressed) {
+                        // Commit any existing buffer first
+                        val buffer = pinyinInputController.getBuffer()
+                        if (buffer.isNotEmpty()) {
+                            val committed = pinyinInputController.commitBufferAsIs()
+                            if (committed != null) {
+                                ic.commitText(committed, 1)
+                            }
+                        }
+                        // Input the capital letter directly
+                        ic.commitText(char.toString(), 1)
+                        updateStatusBarText()
+                        return true
+                    }
+
+                    // Otherwise, add to pinyin buffer (lowercase)
                     if (pinyinInputController.handleLetterKey(char)) {
                         val buffer = pinyinInputController.getBuffer()
                         ic.setComposingText(buffer, 1)
