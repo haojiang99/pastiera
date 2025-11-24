@@ -9,8 +9,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.items
@@ -27,12 +25,21 @@ import androidx.compose.ui.viewinterop.AndroidView
 import it.palsoftware.pastiera.*
 import android.view.KeyEvent
 import android.widget.ImageView
-import android.view.ViewGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.ui.res.stringResource
 import it.palsoftware.pastiera.R
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberModalBottomSheetState
 
 /**
  * Activity per assegnare una scorciatoia del launcher a un tasto.
@@ -42,6 +49,7 @@ import it.palsoftware.pastiera.R
 class LauncherShortcutAssignmentActivity : ComponentActivity() {
     companion object {
         const val EXTRA_KEY_CODE = "key_code"
+        const val EXTRA_SKIP_LAUNCH = "skip_launch"
         const val RESULT_ASSIGNED = 1
     }
     
@@ -50,6 +58,9 @@ class LauncherShortcutAssignmentActivity : ComponentActivity() {
         
         // Disable activity transition animations for instant appearance
         overridePendingTransition(0, 0)
+        
+        // Rimuovi il titolo dalla finestra (deve essere chiamato prima di setContent)
+        window.requestFeature(android.view.Window.FEATURE_NO_TITLE)
         
         // Configure window to be fully transparent and overlay
         window.setFlags(
@@ -64,6 +75,8 @@ class LauncherShortcutAssignmentActivity : ComponentActivity() {
             return
         }
         
+        val skipLaunch = intent.getBooleanExtra(EXTRA_SKIP_LAUNCH, false)
+        
         // Usa un tema trasparente per mostrare il bottom sheet sopra il launcher
         setContent {
             MaterialTheme {
@@ -73,15 +86,9 @@ class LauncherShortcutAssignmentActivity : ComponentActivity() {
                         .clickable { finish() }, // Tocca fuori per chiudere
                     contentAlignment = Alignment.BottomCenter
                 ) {
-                    // Overlay semi-trasparente
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f)
-                    ) {}
-                    
-                    // Bottom Sheet
                     LauncherShortcutAssignmentBottomSheet(
                         keyCode = keyCode,
+                        skipLaunch = skipLaunch,
                         onAppSelected = { app ->
                             // Save the shortcut
                             SettingsManager.setLauncherShortcut(
@@ -91,8 +98,10 @@ class LauncherShortcutAssignmentActivity : ComponentActivity() {
                                 app.appName
                             )
                             
-                            // Launch the app immediately
-                            launchApp(app.packageName)
+                            // Launch the app only if not called from settings screen
+                            if (!skipLaunch) {
+                                launchApp(app.packageName)
+                            }
                             
                             setResult(RESULT_ASSIGNED)
                             finish()
@@ -144,11 +153,15 @@ class LauncherShortcutAssignmentActivity : ComponentActivity() {
 @Composable
 private fun LauncherShortcutAssignmentBottomSheet(
     keyCode: Int,
+    skipLaunch: Boolean = false,
     onAppSelected: (InstalledApp) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    
+    // Focus requester per il campo di ricerca
+    val searchFocusRequester = remember { FocusRequester() }
     
     // Carica le app installate
     val installedApps by remember {
@@ -156,6 +169,14 @@ private fun LauncherShortcutAssignmentBottomSheet(
     }
     
     var searchQuery by remember { mutableStateOf("") }
+    
+    // Dai il focus al campo di ricerca quando il bottom sheet è completamente aperto
+    LaunchedEffect(sheetState.targetValue) {
+        if (sheetState.targetValue == SheetValue.Expanded) {
+            kotlinx.coroutines.delay(100)
+            searchFocusRequester.requestFocus()
+        }
+    }
     
     // Funzione helper per ottenere la lettera del tasto
     fun getKeyLetter(keyCode: Int): Char? {
@@ -254,10 +275,14 @@ private fun LauncherShortcutAssignmentBottomSheet(
         return keyName ?: stringResource(R.string.launcher_shortcut_assignment_key_name, keyCode)
     }
     
+    // Calcola l'altezza massima (75% dello schermo)
+    val configuration = LocalConfiguration.current
+    val screenHeightDp = configuration.screenHeightDp.dp
+    val maxSheetHeight = screenHeightDp * 0.75f
+    
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        modifier = Modifier.fillMaxHeight(1f),
         dragHandle = {
             HorizontalDivider(
                 modifier = Modifier
@@ -266,14 +291,19 @@ private fun LauncherShortcutAssignmentBottomSheet(
             )
         }
     ) {
-        Column(
+        // Box con altezza massima per limitare l'altezza del bottom sheet
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.Bottom
+                .heightIn(max = maxSheetHeight)
         ) {
-            // Header
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.Top
+            ) {
+                // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -310,16 +340,23 @@ private fun LauncherShortcutAssignmentBottomSheet(
             }
             
             Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider()
-            Spacer(modifier = Modifier.height(16.dp))
             
             // Campo di ricerca
-            OutlinedTextField(
+            TextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(searchFocusRequester),
                 placeholder = { Text(stringResource(R.string.launcher_shortcut_assignment_search_placeholder)) },
                 singleLine = true,
+                shape = RoundedCornerShape(28.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent
+                ),
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
@@ -330,11 +367,12 @@ private fun LauncherShortcutAssignmentBottomSheet(
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // Griglia delle app
+            // Griglia delle app - usa weight per espandersi e riempire lo spazio disponibile
             if (filteredApps.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .weight(1f)
                         .padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -353,7 +391,7 @@ private fun LauncherShortcutAssignmentBottomSheet(
                     columns = GridCells.Adaptive(minSize = 100.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 400.dp),
+                        .weight(1f),
                     contentPadding = PaddingValues(vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -372,6 +410,7 @@ private fun LauncherShortcutAssignmentBottomSheet(
                 }
             }
             
+        }
         }
     }
 }

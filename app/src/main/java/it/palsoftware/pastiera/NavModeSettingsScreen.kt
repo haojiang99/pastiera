@@ -24,6 +24,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.activity.compose.BackHandler
 import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
 import it.palsoftware.pastiera.R
 
@@ -55,6 +59,9 @@ fun NavModeSettingsScreen(
         loadAllKeyMappings(context, useDefaults = true)
     }
     
+    // Handle system back button
+    BackHandler { onBack() }
+    
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -62,7 +69,9 @@ fun NavModeSettingsScreen(
     ) {
         // Header
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars),
             tonalElevation = 1.dp
         ) {
             Row(

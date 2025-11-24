@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">Pastiera</string>
     <string name="input_method_name">Pastiera</string>
     <string name="input_method_name_en">English</string>
@@ -33,6 +33,9 @@
     
     <!-- Swipe to Delete Section -->
     <string name="swipe_to_delete_title">Abilita Swipe per Cancellare</string>
+    
+    <!-- Swipe Incremental Threshold Section -->
+    <string name="swipe_incremental_threshold_title">Sensibilità Swipe Bar</string>
     
     <!-- Auto Show Keyboard Section -->
     <string name="auto_show_keyboard_title">Mostra Automaticamente la Tastiera</string>
@@ -161,7 +164,7 @@
     
     <!-- Keyboard Layout Section -->
     <string name="keyboard_layout_title">Layout Tastiera</string>
-    <string name="keyboard_layout_description">Seleziona il layout della tastiera. Le mappature ALT, SYM e Ctrl rimangono basate sulla posizione fisica del tasto.</string>
+    <string name="keyboard_layout_description">Seleziona il layout della tastiera. Le mappature ALT, SYM e Ctrl rimangono basate sulla posizione fisica del tasto. Cambia la mappatura rapidamente con CTRL+SPACE.</string>
     <string name="keyboard_layout_no_conversion">Standard</string>
     <string name="keyboard_layout_no_conversion_description">Layout QWERTY standard (nessuna conversione)</string>
     <string name="keyboard_layout_conversions_title">Conversioni Layout</string>
@@ -174,16 +177,14 @@
     <string name="about_title">Informazioni</string>
     
     <!-- Launcher Shortcuts Section -->
-    <string name="launcher_shortcuts_title">Scorciatoie Launcher</string>
+    <string name="launcher_shortcuts_title">Scorciatoie</string>
     <string name="launcher_shortcuts_experimental">Experimental</string>
-    <string name="launcher_shortcuts_description">Abilita le scorciatoie da tastiera nel launcher</string>
+    <string name="launcher_shortcuts_description">Abilita le scorciatoie da tastiera</string>
     <string name="launcher_shortcuts_configure">Configura scorciatoie</string>
-    <string name="launcher_shortcuts_configure_description">Assegna tasti per aprire app nel launcher</string>
+    <string name="launcher_shortcuts_configure_description">Assegna tasti per aprire app</string>
     
     <!-- Launcher Shortcuts Screen -->
-    <string name="launcher_shortcuts_screen_title">Scorciatoie Launcher</string>
-    <string name="launcher_shortcuts_screen_assign_title">Assegna scorciatoie alle app</string>
-    <string name="launcher_shortcuts_screen_assign_description">Quando sei nel launcher e non in un campo di testo, puoi premere un tasto per aprire un\'app assegnata.</string>
+    <string name="launcher_shortcuts_screen_title">Scorciatoie</string>
     <string name="launcher_shortcuts_not_assigned">Non assegnato</string>
     <string name="launcher_shortcuts_remove">Rimuovi</string>
     <string name="launcher_shortcuts_app_name_unavailable">App (nome non disponibile)</string>
@@ -201,14 +202,28 @@
     <string name="launcher_shortcut_assignment_no_results">Nessun risultato per \"%1$s\"</string>
     <string name="launcher_shortcut_assignment_key_name">Tasto %1$d</string>
     
+    <!-- Power Shortcuts Section -->
+    <string name="power_shortcuts_title">Power Shortcuts</string>
+    <string name="power_shortcuts_description">Premi SYM poi un tasto per lanciare scorciatoie quando non sei in un campo di testo</string>
+    <string name="power_shortcuts_press_key">Premi tasto scorciatoia per lanciare</string>
+    
     <!-- Notification Helper -->
     <string name="notification_nav_mode_channel_name">Pastiera Nav Mode</string>
     <string name="notification_nav_mode_channel_description">Notifiche per il nav mode di Pastiera</string>
     <string name="notification_nav_mode_activated_title">Nav Mode Attivato</string>
     <string name="notification_nav_mode_activated_text">Nav mode attivato</string>
     
+    <!-- Update Notifications -->
+    <string name="notification_update_channel_name">Aggiornamenti Pastiera</string>
+    <string name="notification_update_channel_description">Notifiche sui nuovi aggiornamenti di Pastiera</string>
+    <string name="notification_update_available_title">Pastiera - nuovo aggiornamento disponibile</string>
+    <string name="notification_update_available_text">Una nuova versione di Pastiera è disponibile (%1$s)</string>
+    
     <!-- Speech Recognition -->
     <string name="speech_recognition_prompt">Parla ora...</string>
+    <!-- Static Variation Bar Mode -->
+    <string name="static_variation_bar_mode_title">Barra variazioni statica</string>
+    <string name="static_variation_bar_mode_description">Mostra sempre una serie fissa di tasti di utilità nella barra variazioni invece delle variazioni contestuali. I tasti statici restano disponibili anche quando le smart features sono disabilitate.</string>
     
     <!-- Auto Correct Edit Screen -->
     <string name="auto_correct_search_placeholder">Cerca correzioni...</string>
@@ -245,28 +260,6 @@
     <string name="unicode_category_misc">Varie</string>
     <string name="unicode_category_variations">Variazioni</string>
     
-    <!-- Trackpad Debug Screen -->
-    <string name="trackpad_debug_title">Trackpad Debug</string>
-    <string name="trackpad_debug_motion_events_status">Stato Eventi Motion</string>
-    <string name="trackpad_debug_intercepting_events">Intercettando eventi ✓ (%1$d eventi ricevuti)</string>
-    <string name="trackpad_debug_waiting_events">In attesa di eventi... (Prova a muovere il dito sulla tastiera)</string>
-    <string name="trackpad_debug_test_field_title">Campo di Test</string>
-    <string name="trackpad_debug_test_field_description">Metti a fuoco questo campo e prova a usare il trackpad sulla tua tastiera</string>
-    <string name="trackpad_debug_test_field_placeholder">Digita qui o usa i gesti del trackpad...</string>
-    <string name="trackpad_debug_last_event_title">Ultimo Evento Motion</string>
-    <string name="trackpad_debug_action">Azione:</string>
-    <string name="trackpad_debug_source">Sorgente:</string>
-    <string name="trackpad_debug_device">Dispositivo:</string>
-    <string name="trackpad_debug_device_id">ID Dispositivo: %1$d</string>
-    <string name="trackpad_debug_position">Posizione:</string>
-    <string name="trackpad_debug_scroll">Scroll:</string>
-    <string name="trackpad_debug_pressure">Pressione:</string>
-    <string name="trackpad_debug_size">Dimensione:</string>
-    <string name="trackpad_debug_button_state">Stato Pulsante:</string>
-    <string name="trackpad_debug_timestamp">Timestamp: %1$d</string>
-    <string name="trackpad_debug_no_events">Nessun evento motion rilevato ancora</string>
-    <string name="trackpad_debug_no_events_description">Prova a muovere il dito sulla tastiera touch-sensitive</string>
-    
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
     <string name="sym_tab_characters">Caratteri</string>
@@ -279,15 +272,13 @@
     <!-- Settings Screen -->
     <string name="settings_support_ko_fi">Supporta su Ko-fi</string>
     <string name="settings_nav_mode_configure">Configura le mappature dei tasti della modalità navigazione</string>
-    <string name="settings_trackpad_debug_title">Trackpad Debug</string>
-    <string name="settings_trackpad_debug_description">Testa eventi trackpad/tastiera touch-sensitive</string>
     
     <!-- Auto Correct Settings -->
     <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>
     
     <!-- Settings Categories -->
     <string name="settings_category_keyboard_timing">Tastiera &amp; Temporizzazione</string>
-    <string name="settings_category_text_input">Input Testo</string>
+    <string name="settings_category_text_input">Smart Features</string>
     <string name="settings_category_auto_correction">Auto-correzione</string>
     <string name="settings_category_customization">Personalizzazione</string>
     <string name="settings_category_advanced">Avanzate</string>
@@ -304,6 +295,15 @@
     <string name="layout_save_error">Errore nel salvataggio del layout: %1$s</string>
     <string name="layout_imported_name">Layout Importato</string>
     <string name="layout_imported_description">Importato da file</string>
+    <string name="layout_delete_content_description">Elimina layout</string>
+    <string name="layout_delete_confirmation_title">Elimina Layout</string>
+    <string name="layout_delete_confirmation_message">Sei sicuro di voler eliminare il layout \"%1$s\"? Questa azione non può essere annullata.</string>
+    <string name="layout_delete_success">Layout eliminato con successo</string>
+    <string name="layout_delete_failed">Impossibile eliminare il layout</string>
+    <string name="layout_view_mapping">Visualizza mappa</string>
+    <string name="layout_delete">Elimina</string>
+    <string name="layout_enable_for_cycling">Abilita (Ctrl + Space per cambiare)</string>
+    <string name="layout_select_as_active">Seleziona come layout attivo</string>
     
     <!-- Main Activity Event Display -->
     <string name="modifier_alt">ALT</string>
@@ -329,5 +329,45 @@
     <string name="nav_mode_keycode_escape">Esc</string>
     <string name="nav_mode_keycode_tab">Tab</string>
     <string name="nav_mode_key_unknown">?</string>
+    
+    <!-- Tutorial -->
+    <string name="tutorial_skip">Salta</string>
+    <string name="tutorial_previous">Precedente</string>
+    <string name="tutorial_next">Successivo</string>
+    <string name="tutorial_finish">Fine</string>
+    <string name="tutorial_page_welcome_title">Benvenuto in Pastiera</string>
+    <string name="tutorial_page_welcome_description">Pastiera è una tastiera fisica avanzata per Android con supporto per modificatori, LED indicatori e modalità di navigazione.</string>
+    <string name="tutorial_page_enable_title">Abilita Pastiera</string>
+    <string name="tutorial_page_enable_description">Per iniziare, devi abilitare Pastiera come metodo di input nelle Impostazioni Android. Tocca il pulsante qui sotto per aprire le impostazioni.</string>
+    <string name="tutorial_page_select_title">Seleziona Pastiera</string>
+    <string name="tutorial_page_select_description">Dopo aver abilitato Pastiera, selezionala come tastiera predefinita. Tocca il pulsante qui sotto per scegliere il metodo di input.</string>
+    <string name="tutorial_page_led_title">LED Indicator</string>
+    <string name="tutorial_page_led_description">Pastiera mostra 5 LED nella barra di stato che indicano lo stato dei modificatori:\n\n• Shift: blu quando attivo, rosso quando bloccato\n• SYM: blu per emoji, rosso per caratteri speciali\n• Ctrl: blu quando attivo, rosso quando bloccato\n• Alt: blu quando attivo, rosso quando bloccato\n\nI LED grigi indicano che il modificatore è spento.</string>
+    <string name="tutorial_page_nav_mode_title">Nav Mode</string>
+    <string name="tutorial_page_nav_mode_description">Il Nav Mode permette di navigare usando i tasti alfabetici come scorciatoie.\n\nPer attivarlo:\n• Premi Ctrl due volte rapidamente\n• I tasti alfabetici vengono mappati a funzioni di navigazione\n• Premi Ctrl di nuovo per disattivare\n\nPuoi personalizzare le mappature nelle impostazioni avanzate.</string>
+    <string name="tutorial_page_customization_title">Personalizzazione</string>
+    <string name="tutorial_page_customization_description">Pastiera offre molte opzioni di personalizzazione:\n\n• Layout tastiera personalizzabili\n• Scorciatoie del launcher\n• Correzione automatica\n• Mappature personalizzate per Nav Mode\n\nEsplora le impostazioni per trovare la configurazione perfetta per te!</string>
+    <string name="tutorial_page_ready_title">Pronto per Iniziare</string>
+    <string name="tutorial_page_ready_description">Ora sei pronto a usare Pastiera! Ricorda che puoi sempre tornare alle impostazioni per personalizzare ulteriormente la tastiera secondo le tue esigenze.</string>
+    <string name="tutorial_enable_button">Abilita Pastiera</string>
+    <string name="tutorial_enabled_message">Pastiera è abilitata!</string>
+    <string name="tutorial_select_button">Seleziona Pastiera</string>
+    <string name="tutorial_enable_first_message">Abilita prima Pastiera nella pagina precedente</string>
+    <string name="tutorial_selected_message">Pastiera è selezionata!</string>
+    <string name="tutorial_show">Mostra Tutorial</string>
+    <string name="tutorial_review_description">Rivedi il tutorial introduttivo</string>
+    
+    <!-- Backup & Restore -->
+    <string name="backup_now">Backup ora</string>
+    <string name="backup_now_description">Esporta tutte le impostazioni e i layout personalizzati in un file ZIP</string>
+    <string name="restore_from_file">Ripristina da file</string>
+    <string name="restore_from_file_description">Importa un backup ZIP di Pastiera</string>
+    <string name="backup_completed">Backup completato</string>
+    <string name="restore_completed">Ripristino completato</string>
+    <string name="backup_failed">Backup fallito: %1$s</string>
+    <string name="restore_failed">Ripristino fallito: %1$s</string>
+    
+    <!-- Swipe Incremental Threshold -->
+    <string name="swipe_incremental_threshold_description">Distanza necessaria per spostare il cursore di una posizione. Valori più bassi rendono il cursore più veloce.</string>
+    <string name="dip_unit">DIP</string>
 </resources>
-

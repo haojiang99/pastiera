@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.size
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.activity.compose.BackHandler
 import it.palsoftware.pastiera.R
 
 /**
@@ -58,6 +59,13 @@ fun TextInputSettingsScreen(
     var altCtrlSpeechShortcut by remember {
         mutableStateOf(SettingsManager.getAltCtrlSpeechShortcutEnabled(context))
     }
+
+    var staticVariationBarMode by remember {
+        mutableStateOf(SettingsManager.isStaticVariationBarModeEnabled(context))
+    }
+    
+    // Handle system back button
+    BackHandler { onBack() }
     
     Scaffold(
         topBar = {
@@ -377,7 +385,49 @@ fun TextInputSettingsScreen(
                     )
                 }
             }
+
+            // Static Variation Bar Mode
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.static_variation_bar_mode_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.static_variation_bar_mode_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                    Switch(
+                        checked = staticVariationBarMode,
+                        onCheckedChange = { enabled ->
+                            staticVariationBarMode = enabled
+                            SettingsManager.setStaticVariationBarModeEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
         }
     }
 }
-

@@ -11,7 +11,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +27,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.activity.compose.BackHandler
+import androidx.activity.ComponentActivity
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import android.net.Uri
@@ -43,6 +43,18 @@ import it.palsoftware.pastiera.update.checkForUpdate
 import it.palsoftware.pastiera.update.showUpdateDialog
 
 /**
+ * Sealed class per rappresentare lo stato della navigazione nelle settings.
+ */
+sealed class SettingsDestination {
+    object Main : SettingsDestination()
+    object KeyboardTiming : SettingsDestination()
+    object TextInput : SettingsDestination()
+    object AutoCorrection : SettingsDestination()
+    object Customization : SettingsDestination()
+    object Advanced : SettingsDestination()
+}
+
+/**
  * App settings screen.
  */
 @Composable
@@ -50,8 +62,31 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val activity = context as? ComponentActivity
     
     var checkingForUpdates by remember { mutableStateOf(false) }
+    var navigationDirection by remember { mutableStateOf(NavigationDirection.Push) }
+    val navigationStack = remember {
+        mutableStateListOf<SettingsDestination>(SettingsDestination.Main)
+    }
+    val currentDestination by remember {
+        derivedStateOf { navigationStack.last() }
+    }
+    
+    fun navigateTo(destination: SettingsDestination) {
+        if (currentDestination == destination) return
+        navigationDirection = NavigationDirection.Push
+        navigationStack.add(destination)
+    }
+    
+    fun navigateBack() {
+        if (navigationStack.size > 1) {
+            navigationDirection = NavigationDirection.Pop
+            navigationStack.removeLast()
+        } else {
+            activity?.finish()
+        }
+    }
     
     // Automatic update check on screen open (only once, respecting dismissed releases)
     LaunchedEffect(Unit) {
@@ -66,80 +101,102 @@ fun SettingsScreen(
         }
     }
     
-    // State for navigation to category screens
-    var showKeyboardTimingSettings by remember { mutableStateOf(false) }
-    var showTextInputSettings by remember { mutableStateOf(false) }
-    var showAutoCorrectionCategory by remember { mutableStateOf(false) }
-    var showCustomizationSettings by remember { mutableStateOf(false) }
-    var showAdvancedSettings by remember { mutableStateOf(false) }
-    
     // Handle system back button
-    BackHandler {
-        when {
-            showKeyboardTimingSettings -> {
-                showKeyboardTimingSettings = false
+    BackHandler { navigateBack() }
+    
+    AnimatedContent(
+        targetState = currentDestination,
+        transitionSpec = {
+            if (navigationDirection == NavigationDirection.Push) {
+                // Forward navigation: new screen enters from right, old screen exits to left
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(250)
+                ) togetherWith slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> -fullWidth },
+                    animationSpec = tween(250)
+                )
+            } else {
+                // Back navigation: current screen exits to right, previous screen enters from left
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> -fullWidth },
+                    animationSpec = tween(250)
+                ) togetherWith slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(250)
+                )
             }
-            showTextInputSettings -> {
-                showTextInputSettings = false
+        },
+        label = "settings_navigation",
+        contentKey = { it::class }
+    ) { destination ->
+        when (destination) {
+            is SettingsDestination.Main -> {
+                SettingsMainScreen(
+                    modifier = modifier,
+                    context = context,
+                    checkingForUpdates = checkingForUpdates,
+                    onCheckingForUpdatesChange = { checkingForUpdates = it },
+                    onKeyboardTimingClick = { navigateTo(SettingsDestination.KeyboardTiming) },
+                    onTextInputClick = { navigateTo(SettingsDestination.TextInput) },
+                    onAutoCorrectionClick = { navigateTo(SettingsDestination.AutoCorrection) },
+                    onCustomizationClick = { navigateTo(SettingsDestination.Customization) },
+                    onAdvancedClick = { navigateTo(SettingsDestination.Advanced) },
+                    onBackClick = { navigateBack() }
+                )
             }
-            showAutoCorrectionCategory -> {
-                showAutoCorrectionCategory = false
+            is SettingsDestination.KeyboardTiming -> {
+                KeyboardTimingSettingsScreen(
+                    modifier = modifier,
+                    onBack = { navigateBack() }
+                )
             }
-            showCustomizationSettings -> {
-                showCustomizationSettings = false
+            is SettingsDestination.TextInput -> {
+                TextInputSettingsScreen(
+                    modifier = modifier,
+                    onBack = { navigateBack() }
+                )
             }
-            showAdvancedSettings -> {
-                showAdvancedSettings = false
+            is SettingsDestination.AutoCorrection -> {
+                AutoCorrectionCategoryScreen(
+                    modifier = modifier,
+                    onBack = { navigateBack() }
+                )
             }
-            else -> {
-                // Get activity from context to finish it
-                val activity = (context as? androidx.activity.ComponentActivity)
-                activity?.finish()
+            is SettingsDestination.Customization -> {
+                CustomizationSettingsScreen(
+                    modifier = modifier,
+                    onBack = { navigateBack() }
+                )
+            }
+            is SettingsDestination.Advanced -> {
+                AdvancedSettingsScreen(
+                    modifier = modifier,
+                    onBack = { navigateBack() }
+                )
             }
         }
     }
-    
-    // Navigazione condizionale
-    if (showKeyboardTimingSettings) {
-        KeyboardTimingSettingsScreen(
-            modifier = modifier,
-            onBack = { showKeyboardTimingSettings = false }
-        )
-        return
-    }
-    
-    if (showTextInputSettings) {
-        TextInputSettingsScreen(
-            modifier = modifier,
-            onBack = { showTextInputSettings = false }
-        )
-        return
-    }
-    
-    if (showAutoCorrectionCategory) {
-        AutoCorrectionCategoryScreen(
-            modifier = modifier,
-            onBack = { showAutoCorrectionCategory = false }
-        )
-        return
-    }
-    
-    if (showCustomizationSettings) {
-        CustomizationSettingsScreen(
-            modifier = modifier,
-            onBack = { showCustomizationSettings = false }
-        )
-        return
-    }
-    
-    if (showAdvancedSettings) {
-        AdvancedSettingsScreen(
-            modifier = modifier,
-            onBack = { showAdvancedSettings = false }
-        )
-        return
-    }
-    
+}
+
+private enum class NavigationDirection {
+    Push,
+    Pop
+}
+
+@Composable
+private fun SettingsMainScreen(
+    modifier: Modifier,
+    context: Context,
+    checkingForUpdates: Boolean,
+    onCheckingForUpdatesChange: (Boolean) -> Unit,
+    onKeyboardTimingClick: () -> Unit,
+    onTextInputClick: () -> Unit,
+    onAutoCorrectionClick: () -> Unit,
+    onCustomizationClick: () -> Unit,
+    onAdvancedClick: () -> Unit,
+    onBackClick: () -> Unit
+) {
     Scaffold(
         topBar = {
             Surface(
@@ -154,11 +211,7 @@ fun SettingsScreen(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = {
-                        // Get activity from context to finish it
-                        val activity = (context as? androidx.activity.ComponentActivity)
-                        activity?.finish()
-                    }) {
+                    IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.settings_back_content_description)
@@ -174,26 +227,19 @@ fun SettingsScreen(
             }
         }
     ) { paddingValues ->
-        AnimatedContent(
-            targetState = Unit,
-            transitionSpec = {
-                fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-            },
-            label = "settings_animation"
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
         ) {
-            Column(
-                modifier = modifier
+            // Keyboard & Timing
+            Surface(
+                modifier = Modifier
                     .fillMaxWidth()
-                    .padding(paddingValues)
-                    .verticalScroll(rememberScrollState())
+                    .height(64.dp)
+                    .clickable(onClick = onKeyboardTimingClick)
             ) {
-                // Keyboard & Timing
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .clickable { showKeyboardTimingSettings = true }
-                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -228,7 +274,7 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(64.dp)
-                        .clickable { showTextInputSettings = true }
+                        .clickable(onClick = onTextInputClick)
                 ) {
                     Row(
                         modifier = Modifier
@@ -264,7 +310,7 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(64.dp)
-                        .clickable { showAutoCorrectionCategory = true }
+                        .clickable(onClick = onAutoCorrectionClick)
                 ) {
                     Row(
                         modifier = Modifier
@@ -300,7 +346,7 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(64.dp)
-                        .clickable { showCustomizationSettings = true }
+                        .clickable(onClick = onCustomizationClick)
                 ) {
                     Row(
                         modifier = Modifier
@@ -336,7 +382,7 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(64.dp)
-                        .clickable { showAdvancedSettings = true }
+                        .clickable(onClick = onAdvancedClick)
                 ) {
                     Row(
                         modifier = Modifier
@@ -471,13 +517,13 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(
                             onClick = {
-                                checkingForUpdates = true
+                                onCheckingForUpdatesChange(true)
                                 checkForUpdate(
                                     context = context,
                                     currentVersion = BuildConfig.VERSION_NAME,
                                     ignoreDismissedReleases = false
                                 ) { hasUpdate, latestVersion, downloadUrl ->
-                                    checkingForUpdates = false
+                                    onCheckingForUpdatesChange(false)
                                     when {
                                         latestVersion == null -> {
                                             Toast.makeText(
@@ -575,7 +621,8 @@ fun SettingsScreen(
                             .aspectRatio(1f)
                     )
                 }
+                
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
-}

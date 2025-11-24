@@ -4,6 +4,7 @@ import android.content.Context
 import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
+import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.SettingsManager
 import it.palsoftware.pastiera.core.NavModeController
 import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
@@ -19,7 +20,9 @@ import it.palsoftware.pastiera.inputmethod.KeyboardEventTracker
 import it.palsoftware.pastiera.inputmethod.TextSelectionHelper
 import android.view.inputmethod.ExtractedText
 import android.view.inputmethod.ExtractedTextRequest
+import it.palsoftware.pastiera.data.layout.LayoutMapping
 import it.palsoftware.pastiera.data.layout.LayoutMappingRepository
+import it.palsoftware.pastiera.data.layout.isRealMultiTap
 
 /**
  * Routes IME key events to the appropriate handlers so that the service can
@@ -40,6 +43,8 @@ class InputEventRouter(
         val isAlphabeticKey: (Int) -> Boolean,
         val isLauncherPackage: (String?) -> Boolean,
         val handleLauncherShortcut: (Int) -> Boolean,
+        val handlePowerShortcut: (Int) -> Boolean,
+        val togglePowerShortcutMode: (String, Boolean) -> Unit, // Callback per toast e stato nav mode
         val callSuper: () -> Boolean,
         val currentInputConnection: () -> InputConnection?
     )
@@ -51,14 +56,24 @@ class InputEventRouter(
         callbacks: NoEditableFieldCallbacks,
         ctrlLatchActive: Boolean,
         editorInfo: EditorInfo?,
-        currentPackageName: String?
+        currentPackageName: String?,
+        powerShortcutsEnabled: Boolean
     ): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (navModeController.isNavModeActive()) {
-                navModeController.exitNavMode()
-                return false
-            }
+            // Commented out: Nav mode is now persistent and won't close on back button press
+            // if (navModeController.isNavModeActive()) {
+            //     navModeController.exitNavMode()
+            //     return false
+            // }
             return callbacks.callSuper()
+        }
+
+        // Gestisci SYM per Power Shortcuts (toggle: attiva/disattiva)
+        if (keyCode == KeyEvent.KEYCODE_SYM && powerShortcutsEnabled) {
+            val message = context.getString(R.string.power_shortcuts_press_key)
+            val isNavModeActive = navModeController.isNavModeActive()
+            callbacks.togglePowerShortcutMode(message, isNavModeActive)
+            return true // Consumiamo l'evento
         }
 
         if (navModeController.isNavModeKey(keyCode)) {
@@ -71,6 +86,16 @@ class InputEventRouter(
             )
         }
 
+        // Gestisci Power Shortcuts (SYM premuto + tasto alfabetico)
+        if (!ctrlLatchActive && powerShortcutsEnabled) {
+            if (callbacks.isAlphabeticKey(keyCode)) {
+                if (callbacks.handlePowerShortcut(keyCode)) {
+                    return true
+                }
+            }
+        }
+
+        // Launcher Shortcuts (logica esistente - mantieni per compatibilità)
         if (!ctrlLatchActive && SettingsManager.getLauncherShortcutsEnabled(context)) {
             val packageName = editorInfo?.packageName ?: currentPackageName
             if (callbacks.isLauncherPackage(packageName) && callbacks.isAlphabeticKey(keyCode)) {
@@ -171,7 +196,10 @@ class InputEventRouter(
         val isAlphabeticKey: (Int) -> Boolean,
         val callSuper: () -> Boolean,
         val callSuperWithKey: (Int, KeyEvent?) -> Boolean,
-        val startSpeechRecognition: () -> Unit
+        val startSpeechRecognition: () -> Unit,
+        val getMapping: (Int) -> LayoutMapping?,
+        val handleMultiTapCommit: (Int, LayoutMapping, Boolean, InputConnection?, Boolean) -> Boolean,
+        val isLongPressSuppressed: (Int) -> Boolean
     )
 
     fun routeEditableFieldKeyDown(
@@ -349,11 +377,43 @@ class InputEventRouter(
             }
         }
 
+        val mapping = callbacks.getMapping(keyCode)
+        val resolvedUppercase = mapping?.let {
+            when {
+                shiftOneShotActive -> true
+                params.capsLockEnabled && event?.isShiftPressed != true -> true
+                event?.isShiftPressed == true -> true
+                else -> false
+            }
+        } ?: false
+
+        // Compute long-press eligibility up front so multi-tap can still schedule it.
+        val longPressSuppressed = callbacks.isLongPressSuppressed(keyCode)
         val useShiftForLongPress = SettingsManager.isLongPressShift(context)
         val hasLongPressSupport = if (useShiftForLongPress) {
-            event != null && event.unicodeChar != 0 && event.unicodeChar.toChar().isLetter()
+            !longPressSuppressed && event != null && event.unicodeChar != 0 && event.unicodeChar.toChar().isLetter()
         } else {
-            controllers.altSymManager.hasAltMapping(keyCode)
+            !longPressSuppressed && controllers.altSymManager.hasAltMapping(keyCode)
+        }
+
+        // Ignore system-generated repeats on multi-tap keys so holding the key
+        // won't churn through tap levels. Legacy keys keep their normal repeat.
+        if (mapping?.isRealMultiTap == true && (event?.repeatCount ?: 0) > 0) {
+            return EditableFieldRoutingResult.Consume
+        }
+
+        // Multi-tap: commit immediately and replace within the timeout window.
+        if (mapping?.isRealMultiTap == true && ic != null) {
+            if (callbacks.handleMultiTapCommit(keyCode, mapping, resolvedUppercase, ic, hasLongPressSupport)) {
+                if (shiftOneShotActive) {
+                    callbacks.disableShiftOneShot()
+                    shiftOneShotActive = false
+                }
+                Handler(Looper.getMainLooper()).postDelayed({
+                    callbacks.updateStatusBar()
+                }, params.cursorUpdateDelayMs)
+                return EditableFieldRoutingResult.Consume
+            }
         }
 
         if (hasLongPressSupport) {
@@ -537,14 +597,18 @@ class InputEventRouter(
         val ic = inputConnection ?: return false
 
         // Numeric fields always use the Alt mapping for every key press (short press included).
+        // However, if Ctrl is active, let Ctrl handling take precedence (e.g., for copy/paste).
         if (isNumericField) {
-            val altChar = altSymManager.getAltMappings()[keyCode]
-            if (altChar != null) {
-                ic.commitText(altChar, 1)
-                Handler(Looper.getMainLooper()).postDelayed({
-                    updateStatusBar()
-                }, cursorUpdateDelayMs)
-                return true
+            val isCtrlActive = event?.isCtrlPressed == true || ctrlLatchActive || ctrlOneShot
+            if (!isCtrlActive) {
+                val altChar = altSymManager.getAltMappings()[keyCode]
+                if (altChar != null) {
+                    ic.commitText(altChar, 1)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        updateStatusBar()
+                    }, cursorUpdateDelayMs)
+                    return true
+                }
             }
         }
 
@@ -589,6 +653,43 @@ class InputEventRouter(
         // Consume Alt+Space to avoid Android's symbol picker and just insert a space.
         if (keyCode == KeyEvent.KEYCODE_SPACE) {
             ic.commitText(" ", 1)
+            updateStatusBar()
+            return true
+        }
+
+        // Alt+Backspace: act as forward delete (Delete key)
+        if (keyCode == KeyEvent.KEYCODE_DEL) {
+            val extractedText: ExtractedText? = ic.getExtractedText(
+                ExtractedTextRequest().apply {
+                    flags = ExtractedText.FLAG_SELECTING
+                },
+                0
+            )
+
+            val hasSelection = extractedText?.let {
+                it.selectionStart >= 0 && it.selectionEnd >= 0 && it.selectionStart != it.selectionEnd
+            } ?: false
+
+            if (hasSelection) {
+                KeyboardEventTracker.notifyKeyEvent(
+                    keyCode,
+                    event,
+                    "KEY_DOWN",
+                    outputKeyCode = null,
+                    outputKeyCodeName = "alt_delete_selection_forward"
+                )
+                ic.commitText("", 0)
+            } else {
+                KeyboardEventTracker.notifyKeyEvent(
+                    keyCode,
+                    event,
+                    "KEY_DOWN",
+                    outputKeyCode = null,
+                    outputKeyCodeName = "alt_forward_delete"
+                )
+                ic.deleteSurroundingText(0, 1)
+            }
+
             updateStatusBar()
             return true
         }
@@ -771,4 +872,3 @@ class InputEventRouter(
         return false
     }
 }
-

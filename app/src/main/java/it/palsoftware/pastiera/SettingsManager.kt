@@ -5,9 +5,9 @@ import android.content.SharedPreferences
 import android.util.Log
 import android.view.KeyEvent
 import org.json.JSONObject
+import java.io.InputStream
 import java.io.File
 import java.io.FileOutputStream
-import java.io.InputStream
 
 /**
  * Manages the app settings.
@@ -32,18 +32,29 @@ object SettingsManager {
     private const val KEY_AUTO_CAPITALIZE_AFTER_PERIOD = "auto_capitalize_after_period"
     private const val KEY_LONG_PRESS_MODIFIER = "long_press_modifier" // "alt" or "shift"
     private const val KEY_KEYBOARD_LAYOUT = "keyboard_layout" // "qwerty", "azerty", etc.
+    private const val KEY_KEYBOARD_LAYOUT_LIST = "keyboard_layout_list" // JSON array of layout ids for cycling
     private const val KEY_RESTORE_SYM_PAGE = "restore_sym_page" // SYM page to restore when returning from settings
     private const val KEY_PENDING_RESTORE_SYM_PAGE = "pending_restore_sym_page" // Temporary SYM page state saved when opening settings
     private const val KEY_SYM_PAGES_CONFIG = "sym_pages_config" // Order/enabled pages for SYM
     private const val KEY_SYM_AUTO_CLOSE = "sym_auto_close" // Auto-close SYM layout after key press
     private const val KEY_DISMISSED_RELEASES = "dismissed_releases" // Set of release tag_names that were dismissed
+<<<<<<< HEAD
     private const val KEY_PINYIN_ENABLED = "pinyin_enabled" // Enable Pinyin input
     private const val KEY_PINYIN_CHARACTER_SET = "pinyin_character_set" // "simplified" or "traditional"
 
+=======
+    private const val KEY_TUTORIAL_COMPLETED = "tutorial_completed" // Whether the first-run tutorial has been completed
+    private const val KEY_SWIPE_INCREMENTAL_THRESHOLD = "swipe_incremental_threshold" // Distance in DIP for cursor movement
+    private const val KEY_STATIC_VARIATION_BAR_MODE = "static_variation_bar_mode" // Use static variation bar instead of dynamic cursor-based variations
+    
+>>>>>>> 68a62b5a557c9498db1e930a7c17d753b744580a
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
     private const val MIN_LONG_PRESS_THRESHOLD = 50L
     private const val MAX_LONG_PRESS_THRESHOLD = 1000L
+    private const val DEFAULT_SWIPE_INCREMENTAL_THRESHOLD = 9.6f
+    private const val MIN_SWIPE_INCREMENTAL_THRESHOLD = 3f
+    private const val MAX_SWIPE_INCREMENTAL_THRESHOLD = 25f
     private const val DEFAULT_AUTO_CAPITALIZE_FIRST_LETTER = true
     private const val DEFAULT_DOUBLE_SPACE_TO_PERIOD = true
     private const val DEFAULT_SWIPE_TO_DELETE = false
@@ -56,8 +67,12 @@ object SettingsManager {
     private const val DEFAULT_KEYBOARD_LAYOUT = "qwerty"
     private const val DEFAULT_SYM_AUTO_CLOSE = true
     private val DEFAULT_SYM_PAGES_CONFIG = SymPagesConfig()
+<<<<<<< HEAD
     private const val DEFAULT_PINYIN_ENABLED = true
     private const val DEFAULT_PINYIN_CHARACTER_SET = "simplified"
+=======
+    private const val DEFAULT_STATIC_VARIATION_BAR_MODE = false
+>>>>>>> 68a62b5a557c9498db1e930a7c17d753b744580a
     
     /**
      * Returns the SharedPreferences instance for Pastiera.
@@ -98,6 +113,40 @@ object SettingsManager {
      * Returns the default value for the long-press threshold.
      */
     fun getDefaultLongPressThreshold(): Long = DEFAULT_LONG_PRESS_THRESHOLD
+    
+    /**
+     * Returns the swipe incremental threshold in DIP.
+     * This is the distance that must be traveled to move the cursor one position.
+     */
+    fun getSwipeIncrementalThreshold(context: Context): Float {
+        return getPreferences(context).getFloat(KEY_SWIPE_INCREMENTAL_THRESHOLD, DEFAULT_SWIPE_INCREMENTAL_THRESHOLD)
+    }
+    
+    /**
+     * Sets the swipe incremental threshold in DIP.
+     * The value is automatically clamped between MIN and MAX.
+     */
+    fun setSwipeIncrementalThreshold(context: Context, threshold: Float) {
+        val clampedValue = threshold.coerceIn(MIN_SWIPE_INCREMENTAL_THRESHOLD, MAX_SWIPE_INCREMENTAL_THRESHOLD)
+        getPreferences(context).edit()
+            .putFloat(KEY_SWIPE_INCREMENTAL_THRESHOLD, clampedValue)
+            .apply()
+    }
+    
+    /**
+     * Returns the minimum allowed value for the swipe incremental threshold.
+     */
+    fun getMinSwipeIncrementalThreshold(): Float = MIN_SWIPE_INCREMENTAL_THRESHOLD
+    
+    /**
+     * Returns the maximum allowed value for the swipe incremental threshold.
+     */
+    fun getMaxSwipeIncrementalThreshold(): Float = MAX_SWIPE_INCREMENTAL_THRESHOLD
+    
+    /**
+     * Returns the default value for the swipe incremental threshold.
+     */
+    fun getDefaultSwipeIncrementalThreshold(): Float = DEFAULT_SWIPE_INCREMENTAL_THRESHOLD
     
     /**
      * Returns the state of auto-capitalization for the first letter.
@@ -192,6 +241,24 @@ object SettingsManager {
     fun setAltCtrlSpeechShortcutEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_ALT_CTRL_SPEECH_SHORTCUT, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether the static variation bar mode is enabled.
+     * When enabled, the variation row shows a fixed set of utility keys
+     * instead of dynamic cursor-based character variations.
+     */
+    fun isStaticVariationBarModeEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_STATIC_VARIATION_BAR_MODE, DEFAULT_STATIC_VARIATION_BAR_MODE)
+    }
+
+    /**
+     * Sets whether the static variation bar mode is enabled.
+     */
+    fun setStaticVariationBarModeEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_STATIC_VARIATION_BAR_MODE, enabled)
             .apply()
     }
 
@@ -701,6 +768,40 @@ object SettingsManager {
     }
     
     /**
+     * Scambia le scorciatoie del launcher tra due tasti (operazione atomica).
+     * Se uno dei tasti non ha uno shortcut, lo shortcut viene spostato.
+     */
+    fun swapLauncherShortcuts(context: Context, fromKeyCode: Int, toKeyCode: Int) {
+        val prefs = getPreferences(context)
+        val shortcutsJson = prefs.getString(KEY_LAUNCHER_SHORTCUTS, "{}") ?: "{}"
+        
+        try {
+            val shortcuts = JSONObject(shortcutsJson)
+            
+            // Get current shortcuts (if any)
+            val fromShortcutObj = shortcuts.optJSONObject(fromKeyCode.toString())
+            val toShortcutObj = shortcuts.optJSONObject(toKeyCode.toString())
+            
+            // Swap: remove both first
+            shortcuts.remove(fromKeyCode.toString())
+            shortcuts.remove(toKeyCode.toString())
+            
+            // Add swapped shortcuts
+            if (fromShortcutObj != null) {
+                shortcuts.put(toKeyCode.toString(), fromShortcutObj)
+            }
+            if (toShortcutObj != null) {
+                shortcuts.put(fromKeyCode.toString(), toShortcutObj)
+            }
+            
+            // Save atomically
+            prefs.edit().putString(KEY_LAUNCHER_SHORTCUTS, shortcuts.toString()).apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "Errore nello scambio delle scorciatoie tra tasti $fromKeyCode e $toKeyCode", e)
+        }
+    }
+    
+    /**
      * Ottiene tutte le scorciatoie del launcher salvate.
      */
     fun getLauncherShortcuts(context: Context): Map<Int, LauncherShortcut> {
@@ -754,6 +855,26 @@ object SettingsManager {
     fun setLauncherShortcutsEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_LAUNCHER_SHORTCUTS_ENABLED, enabled)
+            .apply()
+    }
+    
+    // Power Shortcuts settings
+    private const val KEY_POWER_SHORTCUTS_ENABLED = "power_shortcuts_enabled"
+    private const val DEFAULT_POWER_SHORTCUTS_ENABLED = false
+    
+    /**
+     * Restituisce se i Power Shortcuts sono abilitati.
+     */
+    fun getPowerShortcutsEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_POWER_SHORTCUTS_ENABLED, DEFAULT_POWER_SHORTCUTS_ENABLED)
+    }
+    
+    /**
+     * Imposta se i Power Shortcuts sono abilitati.
+     */
+    fun setPowerShortcutsEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_POWER_SHORTCUTS_ENABLED, enabled)
             .apply()
     }
     
@@ -922,6 +1043,7 @@ object SettingsManager {
             .apply()
     }
 
+<<<<<<< HEAD
     /**
      * Returns whether Pinyin input is enabled.
      */
@@ -935,10 +1057,70 @@ object SettingsManager {
     fun setPinyinEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_PINYIN_ENABLED, enabled)
+=======
+    private fun isLayoutAvailable(context: Context, layoutName: String): Boolean {
+        if (it.palsoftware.pastiera.data.layout.LayoutFileStore.layoutExists(context, layoutName)) {
+            return true
+        }
+        return try {
+            val path = "common/layouts/$layoutName.json"
+            context.assets.open(path).close()
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Returns the list of keyboard layouts configured for cycling.
+     * Falls back to a single-entry list using the current layout if no list is stored.
+     */
+    fun getKeyboardLayoutList(context: Context): List<String> {
+        val prefs = getPreferences(context)
+        val jsonString = prefs.getString(KEY_KEYBOARD_LAYOUT_LIST, null) ?: return listOf(getKeyboardLayout(context))
+        return try {
+            val array = org.json.JSONArray(jsonString)
+            val seen = LinkedHashSet<String>()
+            for (i in 0 until array.length()) {
+                val name = array.optString(i, null)?.trim()
+                if (!name.isNullOrEmpty()) {
+                    seen.add(name)
+                }
+            }
+            if (seen.isEmpty()) {
+                listOf(getKeyboardLayout(context))
+            } else {
+                seen.toList()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing keyboard layout list, falling back to single layout", e)
+            listOf(getKeyboardLayout(context))
+        }
+    }
+
+    /**
+     * Saves the list of keyboard layouts used for cycling.
+     * The caller is responsible for also selecting the active layout via setKeyboardLayout().
+     */
+    fun setKeyboardLayoutList(context: Context, layouts: List<String>) {
+        val normalized = layouts.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+        if (normalized.isEmpty()) {
+            // Clear the list to fall back to single-layout behaviour.
+            getPreferences(context).edit()
+                .remove(KEY_KEYBOARD_LAYOUT_LIST)
+                .apply()
+            return
+        }
+        val array = org.json.JSONArray()
+        normalized.forEach { array.put(it) }
+        getPreferences(context).edit()
+            .putString(KEY_KEYBOARD_LAYOUT_LIST, array.toString())
+>>>>>>> 68a62b5a557c9498db1e930a7c17d753b744580a
             .apply()
     }
 
     /**
+<<<<<<< HEAD
      * Returns the Pinyin character set ("simplified" or "traditional").
      */
     fun getPinyinCharacterSet(context: Context): String {
@@ -954,6 +1136,30 @@ object SettingsManager {
             .apply()
     }
 
+=======
+     * Cycles to the next keyboard layout in the configured list and returns its id.
+     * Always loops: even with a single entry we "cycle" back to it, so Ctrl+Space/long press
+     * consistently triggers a layout reload/toast and never becomes a no-op.
+     */
+    fun cycleKeyboardLayout(context: Context): String? {
+        val current = getKeyboardLayout(context)
+        // Normalize list: keep order, drop blanks/duplicates, ensure at least one entry.
+        val baseLayouts = getKeyboardLayoutList(context).ifEmpty { listOf(current) }
+        val normalized = if (baseLayouts.contains(current)) baseLayouts else listOf(current) + baseLayouts
+        val missing = normalized.filterNot { isLayoutAvailable(context, it) }
+        if (missing.isNotEmpty()) {
+            Log.w(TAG, "Skipping missing layouts: ${missing.joinToString()}")
+        }
+        val layouts = normalized.filter { isLayoutAvailable(context, it) }.ifEmpty { listOf(current) }
+
+        val currentIndex = layouts.indexOf(current).let { if (it >= 0) it else 0 }
+        val nextIndex = (currentIndex + 1) % layouts.size
+        val nextLayout = layouts[nextIndex]
+        setKeyboardLayout(context, nextLayout)
+        return nextLayout
+    }
+    
+>>>>>>> 68a62b5a557c9498db1e930a7c17d753b744580a
     /**
      * Sets the SYM page to restore when returning from settings.
      * @param context The context
@@ -1125,5 +1331,33 @@ object SettingsManager {
     fun isReleaseDismissed(context: Context, tagName: String): Boolean {
         return getDismissedReleases(context).contains(tagName)
     }
+    
+    /**
+     * Checks if the tutorial has been completed.
+     * @param context The context
+     * @return true if the tutorial has been completed, false otherwise
+     */
+    fun isTutorialCompleted(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_TUTORIAL_COMPLETED, false)
+    }
+    
+    /**
+     * Marks the tutorial as completed.
+     * @param context The context
+     */
+    fun setTutorialCompleted(context: Context) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_TUTORIAL_COMPLETED, true)
+            .apply()
+    }
+    
+    /**
+     * Resets the tutorial completion status, allowing it to be shown again.
+     * @param context The context
+     */
+    fun resetTutorialCompleted(context: Context) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_TUTORIAL_COMPLETED, false)
+            .apply()
+    }
 }
-

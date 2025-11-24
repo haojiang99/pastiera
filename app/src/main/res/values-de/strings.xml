@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">Pastiera</string>
     <string name="input_method_name">Pastiera Physical Keyboard</string>
     <string name="input_method_name_en">English</string>
@@ -169,8 +169,6 @@
     
     <!-- Launcher Shortcuts Screen -->
     <string name="launcher_shortcuts_screen_title">Launcher-Verknüpfungen</string>
-    <string name="launcher_shortcuts_screen_assign_title">Verknüpfungen Apps zuweisen</string>
-    <string name="launcher_shortcuts_screen_assign_description">Wenn Sie im Launcher sind und nicht in einem Textfeld, können Sie eine Taste drücken, um eine zugewiesene App zu öffnen.</string>
     <string name="launcher_shortcuts_not_assigned">Nicht zugewiesen</string>
     <string name="launcher_shortcuts_remove">Entfernen</string>
     <string name="launcher_shortcuts_app_name_unavailable">App (Name nicht verfügbar)</string>
@@ -232,27 +230,6 @@
     <string name="unicode_category_misc">Verschiedenes</string>
     <string name="unicode_category_variations">Variationen</string>
     
-    <!-- Trackpad Debug Screen -->
-    <string name="trackpad_debug_title">Trackpad-Debug</string>
-    <string name="trackpad_debug_motion_events_status">Status der Motion-Ereignisse</string>
-    <string name="trackpad_debug_intercepting_events">Ereignisse abfangen ✓ (%1$d Ereignisse empfangen)</string>
-    <string name="trackpad_debug_waiting_events">Warten auf Ereignisse… (Versuchen Sie, Ihren Finger auf der Tastatur zu bewegen)</string>
-    <string name="trackpad_debug_test_field_title">Testfeld</string>
-    <string name="trackpad_debug_test_field_description">Fokussieren Sie dieses Feld und versuchen Sie, das Trackpad auf Ihrer Tastatur zu verwenden</string>
-    <string name="trackpad_debug_test_field_placeholder">Hier tippen oder Trackpad-Gesten verwenden…</string>
-    <string name="trackpad_debug_last_event_title">Letztes Motion-Ereignis</string>
-    <string name="trackpad_debug_action">Aktion:</string>
-    <string name="trackpad_debug_source">Quelle:</string>
-    <string name="trackpad_debug_device">Gerät:</string>
-    <string name="trackpad_debug_device_id">Geräte-ID: %1$d</string>
-    <string name="trackpad_debug_position">Position:</string>
-    <string name="trackpad_debug_scroll">Scrollen:</string>
-    <string name="trackpad_debug_pressure">Druck:</string>
-    <string name="trackpad_debug_size">Größe:</string>
-    <string name="trackpad_debug_button_state">Tastenstatus:</string>
-    <string name="trackpad_debug_timestamp">Zeitstempel: %1$d</string>
-    <string name="trackpad_debug_no_events">Noch keine Motion-Ereignisse erkannt</string>
-    <string name="trackpad_debug_no_events_description">Versuchen Sie, Ihren Finger auf der berührungsempfindlichen Tastatur zu bewegen</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
@@ -266,8 +243,6 @@
     <!-- Settings Screen -->
     <string name="settings_support_ko_fi">Auf Ko-fi unterstützen</string>
     <string name="settings_nav_mode_configure">Tastenzuordnungen für Navigationsmodus konfigurieren</string>
-    <string name="settings_trackpad_debug_title">Trackpad-Debug</string>
-    <string name="settings_trackpad_debug_description">Trackpad/berührungsempfindliche Tastatur-Ereignisse testen</string>
     
     <!-- Auto Correct Settings -->
     <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>
@@ -291,6 +266,15 @@
     <string name="layout_save_error">Fehler beim Speichern des Layouts: %1$s</string>
     <string name="layout_imported_name">Importiertes Layout</string>
     <string name="layout_imported_description">Aus Datei importiert</string>
+    <string name="layout_delete_content_description">Layout löschen</string>
+    <string name="layout_delete_confirmation_title">Layout löschen</string>
+    <string name="layout_delete_confirmation_message">Sind Sie sicher, dass Sie das Layout \"%1$s\" löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.</string>
+    <string name="layout_delete_success">Layout erfolgreich gelöscht</string>
+    <string name="layout_delete_failed">Layout konnte nicht gelöscht werden</string>
+    <string name="layout_view_mapping">Zuordnung anzeigen</string>
+    <string name="layout_delete">Löschen</string>
+    <string name="layout_enable_for_cycling">Aktivieren (Strg + Leertaste zum Wechseln)</string>
+    <string name="layout_select_as_active">Als aktives Layout auswählen</string>
     
     <!-- Main Activity Event Display -->
     <string name="modifier_alt">ALT</string>
@@ -316,6 +300,47 @@
     <string name="nav_mode_keycode_escape">Esc</string>
     <string name="nav_mode_keycode_tab">Tab</string>
     <string name="nav_mode_key_unknown">?</string>
+    
+    <!-- Tutorial -->
+    <string name="tutorial_skip">Überspringen</string>
+    <string name="tutorial_previous">Zurück</string>
+    <string name="tutorial_next">Weiter</string>
+    <string name="tutorial_finish">Fertig</string>
+    <string name="tutorial_page_welcome_title">Willkommen bei Pastiera</string>
+    <string name="tutorial_page_welcome_description">Pastiera ist eine erweiterte physische Tastatur für Android mit Unterstützung für Modifikatoren, LED-Anzeigen und Navigationsmodus.</string>
+    <string name="tutorial_page_enable_title">Pastiera aktivieren</string>
+    <string name="tutorial_page_enable_description">Um zu beginnen, müssen Sie Pastiera als Eingabemethode in den Android-Einstellungen aktivieren. Tippen Sie auf die Schaltfläche unten, um die Einstellungen zu öffnen.</string>
+    <string name="tutorial_page_select_title">Pastiera auswählen</string>
+    <string name="tutorial_page_select_description">Nach der Aktivierung von Pastiera wählen Sie es als Standardtastatur aus. Tippen Sie auf die Schaltfläche unten, um die Eingabemethode auszuwählen.</string>
+    <string name="tutorial_page_led_title">LED-Anzeige</string>
+    <string name="tutorial_page_led_description">Pastiera zeigt 5 LEDs in der Statusleiste an, die den Status der Modifikatoren anzeigen:\n\n• Shift: blau wenn aktiv, rot wenn gesperrt\n• SYM: blau für Emoji, rot für Sonderzeichen\n• Ctrl: blau wenn aktiv, rot wenn gesperrt\n• Alt: blau wenn aktiv, rot wenn gesperrt\n\nGraue LEDs zeigen an, dass der Modifikator ausgeschaltet ist.</string>
+    <string name="tutorial_page_nav_mode_title">Nav-Modus</string>
+    <string name="tutorial_page_nav_mode_description">Der Nav-Modus ermöglicht es Ihnen, mit Buchstabentasten als Verknüpfungen zu navigieren.\n\nZum Aktivieren:\n• Drücken Sie zweimal schnell auf Ctrl\n• Buchstabentasten werden Navigationsfunktionen zugeordnet\n• Drücken Sie erneut auf Ctrl zum Deaktivieren\n\nSie können die Zuordnungen in den erweiterten Einstellungen anpassen.</string>
+    <string name="tutorial_page_customization_title">Anpassung</string>
+    <string name="tutorial_page_customization_description">Pastiera bietet viele Anpassungsmöglichkeiten:\n\n• Anpassbare Tastaturlayouts\n• Launcher-Verknüpfungen\n• Autokorrektur\n• Benutzerdefinierte Zuordnungen für den Nav-Modus\n\nDurchsuchen Sie die Einstellungen, um die perfekte Konfiguration für Sie zu finden!</string>
+    <string name="tutorial_page_ready_title">Bereit zum Starten</string>
+    <string name="tutorial_page_ready_description">Sie sind jetzt bereit, Pastiera zu verwenden! Denken Sie daran, dass Sie jederzeit zu den Einstellungen zurückkehren können, um die Tastatur weiter an Ihre Bedürfnisse anzupassen.</string>
+    <string name="tutorial_enable_button">Pastiera aktivieren</string>
+    <string name="tutorial_enabled_message">Pastiera ist aktiviert!</string>
+    <string name="tutorial_select_button">Pastiera auswählen</string>
+    <string name="tutorial_enable_first_message">Aktivieren Sie zuerst Pastiera auf der vorherigen Seite</string>
+    <string name="tutorial_selected_message">Pastiera ist ausgewählt!</string>
+    <string name="tutorial_show">Tutorial anzeigen</string>
+    <string name="tutorial_review_description">Einführungstutorial überprüfen</string>
+    
+    <!-- Backup & Restore -->
+    <string name="backup_now">Jetzt sichern</string>
+    <string name="backup_now_description">Alle Einstellungen und benutzerdefinierten Layouts in eine ZIP-Datei exportieren</string>
+    <string name="restore_from_file">Von Datei wiederherstellen</string>
+    <string name="restore_from_file_description">Eine Pastiera-Sicherungsdatei ZIP importieren</string>
+    <string name="backup_completed">Sicherung abgeschlossen</string>
+    <string name="restore_completed">Wiederherstellung abgeschlossen</string>
+    <string name="backup_failed">Sicherung fehlgeschlagen: %1$s</string>
+    <string name="restore_failed">Wiederherstellung fehlgeschlagen: %1$s</string>
+    
+    <!-- Swipe Incremental Threshold -->
+    <string name="swipe_incremental_threshold_description">Erforderliche Entfernung, um den Cursor um eine Position zu bewegen. Niedrigere Werte lassen den Cursor schneller bewegen.</string>
+    <string name="dip_unit">DIP</string>
 </resources>
 
 

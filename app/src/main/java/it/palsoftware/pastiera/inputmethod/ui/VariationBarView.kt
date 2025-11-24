@@ -22,10 +22,12 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.SettingsActivity
+import it.palsoftware.pastiera.SettingsManager
 import it.palsoftware.pastiera.inputmethod.StatusBarController
 import it.palsoftware.pastiera.inputmethod.TextSelectionHelper
 import it.palsoftware.pastiera.inputmethod.VariationButtonHandler
 import it.palsoftware.pastiera.inputmethod.SpeechRecognitionActivity
+import it.palsoftware.pastiera.data.variation.VariationRepository
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -61,6 +63,9 @@ class VariationBarView(
     private var touchStartY = 0f
     private var lastCursorMoveX = 0f
     private var currentInputConnection: android.view.inputmethod.InputConnection? = null
+    private var staticVariations: List<String> = emptyList()
+    private var lastInputConnectionUsed: android.view.inputmethod.InputConnection? = null
+    private var lastIsStaticContent: Boolean? = null
 
     fun ensureView(): View {
         if (container != null) {
@@ -121,6 +126,8 @@ class VariationBarView(
 
     fun resetVariationsState() {
         lastDisplayedVariations = emptyList()
+        lastInputConnectionUsed = null
+        lastIsStaticContent = null
     }
 
     fun hideImmediate() {
@@ -173,16 +180,41 @@ class VariationBarView(
         currentInputConnection = inputConnection
         containerView.visibility = View.VISIBLE
 
+<<<<<<< HEAD
         // Show variations if we have any:
         // - For accents: need lastInsertedChar
         // - For Pinyin: always show if pinyinModeActive
         // - For word prediction: always show if wordPredictionActive
         val variationsChanged = snapshot.variations != lastDisplayedVariations
+=======
+        // Decide whether to use dynamic variations (from cursor) or static utility keys.
+        val staticModeEnabled = SettingsManager.isStaticVariationBarModeEnabled(context)
+        val useDynamicVariations = !staticModeEnabled && !snapshot.shouldDisableSmartFeatures
+
+        val effectiveVariations: List<String>
+        val isStaticContent: Boolean
+        if (useDynamicVariations && snapshot.variations.isNotEmpty() && snapshot.lastInsertedChar != null) {
+            effectiveVariations = snapshot.variations
+            isStaticContent = false
+        } else {
+            if (staticVariations.isEmpty()) {
+                staticVariations = VariationRepository.loadStaticVariations(context.assets)
+            }
+            effectiveVariations = staticVariations
+            isStaticContent = true
+        }
+
+        val limitedVariations = effectiveVariations.take(7)
+
+        val variationsChanged = limitedVariations != lastDisplayedVariations
+        val inputConnectionChanged = lastInputConnectionUsed !== inputConnection
+        val contentModeChanged = lastIsStaticContent != isStaticContent
+>>>>>>> 68a62b5a557c9498db1e930a7c17d753b744580a
         val hasExistingRow = currentVariationsRow != null &&
             currentVariationsRow?.parent == containerView &&
             currentVariationsRow?.visibility == View.VISIBLE
 
-        if (!variationsChanged && hasExistingRow) {
+        if (!variationsChanged && !inputConnectionChanged && !contentModeChanged && hasExistingRow) {
             return
         }
 
@@ -297,6 +329,7 @@ class VariationBarView(
         )
         containerView.addView(variationsRow, 0, rowLayoutParams)
 
+<<<<<<< HEAD
         // Force measure and layout the variationsRow
         val widthMeasureSpec = View.MeasureSpec.makeMeasureSpec(variationsRowWidth, View.MeasureSpec.EXACTLY)
         val heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(buttonHeight, View.MeasureSpec.EXACTLY)
@@ -313,6 +346,14 @@ class VariationBarView(
                 variation, inputConnection, individualButtonWidth, showNumberedButtons, index + 1,
                 snapshot.wordPredictionActive, wordPredictionPrefixLength
             )
+=======
+        lastDisplayedVariations = limitedVariations
+        lastInputConnectionUsed = inputConnection
+        lastIsStaticContent = isStaticContent
+
+        for (variation in limitedVariations) {
+            val button = createVariationButton(variation, inputConnection, buttonWidth, isStaticContent)
+>>>>>>> 68a62b5a557c9498db1e930a7c17d753b744580a
             variationButtons.add(button)
             variationsRow.addView(button)
 
@@ -449,11 +490,6 @@ class VariationBarView(
             6f,
             context.resources.displayMetrics
         )
-        val incrementalThreshold = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            9.6f,
-            context.resources.displayMetrics
-        )
 
         overlayView.setOnTouchListener { _, motionEvent ->
             if (isSymModeActive) {
@@ -491,6 +527,13 @@ class VariationBarView(
                         if (isSwipeInProgress && swipeDirection != null) {
                             val inputConnection = currentInputConnection
                             if (inputConnection != null) {
+                                // Read the threshold value dynamically to support real-time changes
+                                val incrementalThresholdDp = SettingsManager.getSwipeIncrementalThreshold(context)
+                                val incrementalThreshold = TypedValue.applyDimension(
+                                    TypedValue.COMPLEX_UNIT_DIP,
+                                    incrementalThresholdDp,
+                                    context.resources.displayMetrics
+                                )
                                 val movementInDirection = if (swipeDirection == 1) incrementalDeltaX else -incrementalDeltaX
                                 if (movementInDirection > incrementalThreshold) {
                                     val moved = if (swipeDirection == 1) {
@@ -584,10 +627,14 @@ class VariationBarView(
         variation: String,
         inputConnection: android.view.inputmethod.InputConnection?,
         buttonWidth: Int,
+<<<<<<< HEAD
         showNumbered: Boolean = false,
         candidateNumber: Int = 0,
         isWordPrediction: Boolean = false,
         wordPredictionPrefixLength: Int = 0
+=======
+        isStatic: Boolean
+>>>>>>> 68a62b5a557c9498db1e930a7c17d753b744580a
     ): TextView {
         val dp4 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
@@ -667,7 +714,25 @@ class VariationBarView(
             maxLines = 1
             isClickable = true
             isFocusable = true
+<<<<<<< HEAD
             setOnClickListener(clickListener)
+=======
+            setOnClickListener(
+                if (isStatic) {
+                    VariationButtonHandler.createStaticVariationClickListener(
+                        variation,
+                        inputConnection,
+                        onVariationSelectedListener
+                    )
+                } else {
+                    VariationButtonHandler.createVariationClickListener(
+                        variation,
+                        inputConnection,
+                        onVariationSelectedListener
+                    )
+                }
+            )
+>>>>>>> 68a62b5a557c9498db1e930a7c17d753b744580a
         }
     }
 
@@ -815,4 +880,3 @@ class VariationBarView(
         return if (parent.isClickable) parent else null
     }
 }
-

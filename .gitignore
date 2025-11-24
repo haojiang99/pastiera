@@ -17,5 +17,12 @@ local.properties
 # Keystore files (security)
 *.jks
 *.keystore
+<<<<<<< HEAD
 /releases
 /.kotlin/errors
+=======
+keystore.properties
+
+# Cursor rules (workspace-specific)
+.cursor/
+>>>>>>> 68a62b5a557c9498db1e930a7c17d753b744580a
