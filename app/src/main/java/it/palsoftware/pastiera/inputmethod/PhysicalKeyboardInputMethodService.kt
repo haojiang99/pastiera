@@ -141,18 +141,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private val motionEventController = MotionEventController(logTag = TAG)
     private lateinit var multiTapController: MultiTapController
 
-    // Pagination long press tracking
-    private val paginationHandler = Handler(Looper.getMainLooper())
-    private var altLongPressRunnable: Runnable? = null
-    private var shiftLongPressRunnable: Runnable? = null
-    private var altKeyDownTime = 0L
-    private var shiftKeyDownTime = 0L
+    // Pagination double press tracking
+    private var altLastPressTime = 0L
+    private var shiftLastPressTime = 0L
 
     // Constants
     private val DOUBLE_TAP_THRESHOLD = 500L
     private val CURSOR_UPDATE_DELAY = 50L
     private val MULTI_TAP_TIMEOUT_MS = 800L
-    private val PAGINATION_LONG_PRESS_THRESHOLD = 500L
+    private val PAGINATION_DOUBLE_PRESS_THRESHOLD = 400L
 
     private val symPage: Int
         get() = if (::symLayoutController.isInitialized) symLayoutController.currentSymPage() else 0
@@ -874,7 +871,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             modifierStateController.registerNonModifierKey()
         }
 
-        // Track Alt/Shift long press for pagination
+        // Track Alt/Shift double press for pagination
         val isPinyinMode = pinyinInputController.isPinyinMode()
         val isWordPredictionActive = englishWordPredictionController.hasActivePrediction()
 
@@ -882,11 +879,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             when (keyCode) {
                 KeyEvent.KEYCODE_ALT_LEFT, KeyEvent.KEYCODE_ALT_RIGHT -> {
                     if (event?.repeatCount == 0) {
-                        altKeyDownTime = System.currentTimeMillis()
-                        // Cancel any previous runnable
-                        altLongPressRunnable?.let { paginationHandler.removeCallbacks(it) }
-                        // Schedule pagination after threshold
-                        altLongPressRunnable = Runnable {
+                        val currentTime = System.currentTimeMillis()
+                        val timeSinceLastPress = currentTime - altLastPressTime
+
+                        if (timeSinceLastPress <= PAGINATION_DOUBLE_PRESS_THRESHOLD) {
+                            // Double press detected - go to next page
                             if (isPinyinMode) {
                                 if (pinyinInputController.hasNextPage()) {
                                     pinyinInputController.nextPage()
@@ -898,17 +895,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     updateStatusBarText()
                                 }
                             }
+                            altLastPressTime = 0L // Reset to prevent triple press
+                        } else {
+                            altLastPressTime = currentTime
                         }
-                        paginationHandler.postDelayed(altLongPressRunnable!!, PAGINATION_LONG_PRESS_THRESHOLD)
                     }
                 }
                 KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> {
                     if (event?.repeatCount == 0) {
-                        shiftKeyDownTime = System.currentTimeMillis()
-                        // Cancel any previous runnable
-                        shiftLongPressRunnable?.let { paginationHandler.removeCallbacks(it) }
-                        // Schedule pagination after threshold
-                        shiftLongPressRunnable = Runnable {
+                        val currentTime = System.currentTimeMillis()
+                        val timeSinceLastPress = currentTime - shiftLastPressTime
+
+                        if (timeSinceLastPress <= PAGINATION_DOUBLE_PRESS_THRESHOLD) {
+                            // Double press detected - go to previous page
                             if (isPinyinMode) {
                                 if (pinyinInputController.hasPrevPage()) {
                                     pinyinInputController.prevPage()
@@ -920,8 +919,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     updateStatusBarText()
                                 }
                             }
+                            shiftLastPressTime = 0L // Reset to prevent triple press
+                        } else {
+                            shiftLastPressTime = currentTime
                         }
-                        paginationHandler.postDelayed(shiftLongPressRunnable!!, PAGINATION_LONG_PRESS_THRESHOLD)
                     }
                 }
             }
@@ -1015,25 +1016,33 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             englishWordPredictionController.updateFromCursor(ic)
 
             if (englishWordPredictionController.hasSuggestions()) {
-                // Alt+number (1-5) selects suggestion
-                if (altPressed) {
-                    val number = when (keyCode) {
-                        KeyEvent.KEYCODE_1 -> 1
-                        KeyEvent.KEYCODE_2 -> 2
-                        KeyEvent.KEYCODE_3 -> 3
-                        KeyEvent.KEYCODE_4 -> 4
-                        KeyEvent.KEYCODE_5 -> 5
+                // Alt+letter keys select suggestion (W=1, E=2, R=3, S=4, D=5, F=6, X=7, C=8, V=9)
+                val number = if (altPressed && !ctrlPressed && !shiftPressed) {
+                    when (keyCode) {
+                        KeyEvent.KEYCODE_W -> 1
+                        KeyEvent.KEYCODE_E -> 2
+                        KeyEvent.KEYCODE_R -> 3
+                        KeyEvent.KEYCODE_S -> 4
+                        KeyEvent.KEYCODE_D -> 5
+                        KeyEvent.KEYCODE_F -> 6
+                        KeyEvent.KEYCODE_X -> 7
+                        KeyEvent.KEYCODE_C -> 8
+                        KeyEvent.KEYCODE_V -> 9
                         else -> 0
                     }
-                    if (number in 1..5) {
-                        val result = englishWordPredictionController.selectSuggestion(number - 1)
-                        if (result != null) {
-                            ic.deleteSurroundingText(result.prefixLength, 0)
-                            ic.commitText(result.word + " ", 1)
-                            englishWordPredictionController.clearSuggestions()
-                            updateStatusBarText()
-                            return true
-                        }
+                } else {
+                    0
+                }
+                if (number in 1..9) {
+                    val result = englishWordPredictionController.selectSuggestion(number - 1)
+                    if (result != null) {
+                        ic.deleteSurroundingText(result.prefixLength, 0)
+                        ic.commitText(result.word + " ", 1)
+                        englishWordPredictionController.clearSuggestions()
+                        // Clear Alt modifier so next key doesn't produce alternate character
+                        modifierStateController.clearAltState(resetPressedState = true)
+                        updateStatusBarText()
+                        return true
                     }
                 }
             }
@@ -1056,6 +1065,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             ic.setComposingText(remainingBuffer, 1)
                         }
 
+                        // Clear Alt modifier if it was used
+                        if (altPressed) {
+                            modifierStateController.clearAltState(resetPressedState = true)
+                        }
+
                         updateStatusBarText()
                         return true
                     }
@@ -1074,6 +1088,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             val remainingBuffer = pinyinInputController.getBuffer()
                             if (remainingBuffer.isNotEmpty()) {
                                 ic.setComposingText(remainingBuffer, 1)
+                            }
+
+                            // Clear Alt modifier if it was used
+                            if (altPressed) {
+                                modifierStateController.clearAltState(resetPressedState = true)
                             }
 
                             updateStatusBarText()
@@ -1223,18 +1242,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
-        // Cancel pagination long press tracking
-        when (keyCode) {
-            KeyEvent.KEYCODE_ALT_LEFT, KeyEvent.KEYCODE_ALT_RIGHT -> {
-                altLongPressRunnable?.let { paginationHandler.removeCallbacks(it) }
-                altLongPressRunnable = null
-            }
-            KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> {
-                shiftLongPressRunnable?.let { paginationHandler.removeCallbacks(it) }
-                shiftLongPressRunnable = null
-            }
-        }
-
         // Check if we have an editable field at the start (same logic as onKeyDown)
         val info = currentInputEditorInfo
         val ic = currentInputConnection

@@ -230,8 +230,14 @@ class VariationBarView(
             context.resources.displayMetrics
         ).toInt()
 
-        // Limit suggestions on pages 2+ to 8 to leave room for arrows
-        val maxSuggestionsToShow = if (snapshot.currentPage > 0) 8 else snapshot.variations.size
+        // Limit suggestions on pages 2+ to leave room for arrows
+        // English: 5 on page 1, 4 on pages 2+
+        // Pinyin: 9 on page 1, 8 on pages 2+
+        val maxSuggestionsToShow = if (snapshot.currentPage > 0) {
+            if (snapshot.wordPredictionActive) 4 else 8
+        } else {
+            snapshot.variations.size
+        }
         val variationsToProcess = snapshot.variations.take(maxSuggestionsToShow)
 
         // Calculate required widths for each suggestion
