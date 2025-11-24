@@ -57,6 +57,20 @@ class StatusBarController(
             variationBarView?.onCursorMovedListener = value
         }
 
+    // Listener for navigating to next page of suggestions
+    var onNextPageListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            variationBarView?.onNextPageListener = value
+        }
+
+    // Listener for navigating to previous page of suggestions
+    var onPrevPageListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            variationBarView?.onPrevPageListener = value
+        }
+
     companion object {
         private const val TAG = "StatusBarController"
         private const val NAV_MODE_LABEL = "NAV MODE"
@@ -85,7 +99,14 @@ class StatusBarController(
         val lastInsertedChar: Char? = null,
         val shouldDisableSmartFeatures: Boolean = false,
         val pinyinModeActive: Boolean = false,
-        val pinyinBuffer: String = ""
+        val pinyinBuffer: String = "",
+        val wordPredictionActive: Boolean = false,
+        val wordPredictionPrefix: String = "",
+        // Pagination fields
+        val currentPage: Int = 0,
+        val totalPages: Int = 1,
+        val hasNextPage: Boolean = false,
+        val hasPrevPage: Boolean = false
     ) {
         val navModeActive: Boolean
             get() = ctrlLatchActive && ctrlLatchFromNavMode

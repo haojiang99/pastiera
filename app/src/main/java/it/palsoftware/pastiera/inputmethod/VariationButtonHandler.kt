@@ -22,7 +22,7 @@ object VariationButtonHandler {
     }
     
     /**
-     * Creates a listener for a variation button.
+     * Creates a listener for a variation button (accent variations).
      * When clicked, deletes character before cursor and inserts the variation.
      */
     fun createVariationClickListener(
@@ -32,12 +32,12 @@ object VariationButtonHandler {
     ): View.OnClickListener {
         return View.OnClickListener {
             Log.d(TAG, "Click on variation button: $variation")
-            
+
             if (inputConnection == null) {
                 Log.w(TAG, "No inputConnection available to insert variation")
                 return@OnClickListener
             }
-            
+
             // Delete character before cursor (backspace)
             val deleted = inputConnection.deleteSurroundingText(1, 0)
             if (deleted) {
@@ -45,13 +45,46 @@ object VariationButtonHandler {
             } else {
                 Log.w(TAG, "Unable to delete character before cursor")
             }
-            
+
             // Insert variation
             inputConnection.commitText(variation, 1)
             Log.d(TAG, "Variation '$variation' inserted")
-            
+
             // Notify listener if present
             listener?.onVariationSelected(variation)
+        }
+    }
+
+    /**
+     * Creates a listener for a word prediction button.
+     * When clicked, deletes the prefix being typed and inserts the complete word + space.
+     */
+    fun createWordPredictionClickListener(
+        word: String,
+        prefixLength: Int,
+        inputConnection: InputConnection?,
+        listener: OnVariationSelectedListener? = null
+    ): View.OnClickListener {
+        return View.OnClickListener {
+            Log.d(TAG, "Click on word prediction: $word (prefix length: $prefixLength)")
+
+            if (inputConnection == null) {
+                Log.w(TAG, "No inputConnection available to insert word")
+                return@OnClickListener
+            }
+
+            // Delete the prefix that was typed
+            if (prefixLength > 0) {
+                inputConnection.deleteSurroundingText(prefixLength, 0)
+                Log.d(TAG, "Deleted $prefixLength characters")
+            }
+
+            // Insert the complete word followed by a space
+            inputConnection.commitText("$word ", 1)
+            Log.d(TAG, "Word '$word' inserted")
+
+            // Notify listener if present
+            listener?.onVariationSelected(word)
         }
     }
 }

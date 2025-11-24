@@ -135,6 +135,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private lateinit var keyboardVisibilityController: KeyboardVisibilityController
     private lateinit var launcherShortcutController: LauncherShortcutController
     private lateinit var pinyinInputController: PinyinInputController
+    private lateinit var englishWordPredictionController: it.palsoftware.pastiera.core.EnglishWordPredictionController
     private var clearAltOnSpaceEnabled: Boolean = false
 
     private val motionEventController = MotionEventController(logTag = TAG)
@@ -334,7 +335,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         )
         autoCorrectionManager = AutoCorrectionManager(this)
         pinyinInputController = PinyinInputController(this)
-        
+        englishWordPredictionController = it.palsoftware.pastiera.core.EnglishWordPredictionController(this)
+
         candidatesBarController = CandidatesBarController(this)
 
         // Register listener for variation selection (both controllers)
@@ -351,6 +353,27 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             updateStatusBarText()
         }
         candidatesBarController.onCursorMovedListener = cursorListener
+
+        // Register listeners for page navigation
+        candidatesBarController.onNextPageListener = {
+            // Navigate to next page (Pinyin or word prediction)
+            if (pinyinInputController.isPinyinMode()) {
+                pinyinInputController.nextPage()
+            } else {
+                englishWordPredictionController.nextPage()
+            }
+            updateStatusBarText()
+        }
+        candidatesBarController.onPrevPageListener = {
+            // Navigate to previous page (Pinyin or word prediction)
+            if (pinyinInputController.isPinyinMode()) {
+                pinyinInputController.prevPage()
+            } else {
+                englishWordPredictionController.prevPage()
+            }
+            updateStatusBarText()
+        }
+
         altSymManager = AltSymManager(assets, prefs, this)
         altSymManager.reloadSymMappings() // Load custom mappings for page 1 if present
         altSymManager.reloadSymMappings2() // Load custom mappings for page 2 if present
@@ -562,20 +585,56 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private fun updateStatusBarText() {
         // Check if Pinyin mode is active and use Pinyin candidates instead of variations
         val pinyinSnapshot = pinyinInputController.getSnapshot()
-        Log.d(TAG, "Pinyin Status - Active: ${pinyinSnapshot.isActive}, Buffer: '${pinyinSnapshot.buffer}', Candidates: ${pinyinSnapshot.candidates.size}, HasCandidates: ${pinyinSnapshot.hasCandidates}")
 
-        val variationSnapshot = if (pinyinSnapshot.isActive) {
-            // When Pinyin is active, always show the variation bar with candidates (or empty if none yet)
-            Log.d(TAG, "Showing Pinyin candidates: ${pinyinSnapshot.candidates.take(9)}")
-            VariationStateController.Snapshot(
+        // Update English word prediction from cursor position
+        englishWordPredictionController.updateFromCursor(currentInputConnection)
+        val wordPredictionSnapshot = englishWordPredictionController.getSnapshot()
+
+        // Determine which variations to show:
+        // 1. Pinyin candidates (when Pinyin mode active)
+        // 2. Accent variations (when lastInsertedChar has variations)
+        // 3. English word predictions (when typing and no accent variations)
+        val variationSnapshot: VariationStateController.Snapshot
+        var wordPredictionActive = false
+        var wordPredictionPrefix = ""
+        var currentPage = 0
+        var totalPages = 1
+        var hasNextPage = false
+        var hasPrevPage = false
+
+        if (pinyinSnapshot.isActive) {
+            // Pinyin mode takes priority
+            variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
                 lastInsertedChar = if (pinyinSnapshot.buffer.isNotEmpty()) pinyinSnapshot.buffer.last() else null,
-                variations = pinyinSnapshot.candidates.take(9) // Show up to 9 candidates
+                variations = pinyinSnapshot.candidates.take(9)
             )
+            // Pagination info from Pinyin
+            currentPage = pinyinSnapshot.currentPage
+            totalPages = pinyinSnapshot.totalPages
+            hasNextPage = pinyinSnapshot.hasNextPage
+            hasPrevPage = pinyinSnapshot.hasPrevPage
+        } else if (wordPredictionSnapshot.hasSuggestions && !shouldDisableSmartFeatures) {
+            // Show English word predictions (accent variations disabled)
+            // Limit to 5 suggestions for better readability
+            variationSnapshot = VariationStateController.Snapshot(
+                isActive = true,
+                lastInsertedChar = null,
+                variations = wordPredictionSnapshot.suggestions.take(5)
+            )
+            wordPredictionActive = true
+            wordPredictionPrefix = wordPredictionSnapshot.prefix
+            // Pagination info from word prediction
+            currentPage = wordPredictionSnapshot.currentPage
+            totalPages = wordPredictionSnapshot.totalPages
+            hasNextPage = wordPredictionSnapshot.hasNextPage
+            hasPrevPage = wordPredictionSnapshot.hasPrevPage
         } else {
-            variationStateController.refreshFromCursor(
-                currentInputConnection,
-                shouldDisableSmartFeatures
+            // No variations to show
+            variationSnapshot = VariationStateController.Snapshot(
+                isActive = false,
+                lastInsertedChar = null,
+                variations = emptyList()
             )
         }
 
@@ -596,7 +655,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             lastInsertedChar = variationSnapshot.lastInsertedChar,
             shouldDisableSmartFeatures = shouldDisableSmartFeatures,
             pinyinModeActive = pinyinSnapshot.isActive,
-            pinyinBuffer = pinyinSnapshot.buffer
+            pinyinBuffer = pinyinSnapshot.buffer,
+            wordPredictionActive = wordPredictionActive,
+            wordPredictionPrefix = wordPredictionPrefix,
+            currentPage = currentPage,
+            totalPages = totalPages,
+            hasNextPage = hasNextPage,
+            hasPrevPage = hasPrevPage
         )
         val emojiMapText = ""
         // Passa le mappature SYM per la griglia emoji/caratteri
@@ -851,6 +916,36 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
             updateStatusBarText()
             return true
+        }
+
+        // Handle English word prediction (when NOT in Pinyin mode)
+        if (!pinyinInputController.isPinyinMode() && ic != null) {
+            // Update suggestions from current cursor position
+            englishWordPredictionController.updateFromCursor(ic)
+
+            if (englishWordPredictionController.hasSuggestions()) {
+                // Alt+number (1-5) selects suggestion
+                if (altPressed) {
+                    val number = when (keyCode) {
+                        KeyEvent.KEYCODE_1 -> 1
+                        KeyEvent.KEYCODE_2 -> 2
+                        KeyEvent.KEYCODE_3 -> 3
+                        KeyEvent.KEYCODE_4 -> 4
+                        KeyEvent.KEYCODE_5 -> 5
+                        else -> 0
+                    }
+                    if (number in 1..5) {
+                        val result = englishWordPredictionController.selectSuggestion(number - 1)
+                        if (result != null) {
+                            ic.deleteSurroundingText(result.prefixLength, 0)
+                            ic.commitText(result.word + " ", 1)
+                            englishWordPredictionController.clearSuggestions()
+                            updateStatusBarText()
+                            return true
+                        }
+                    }
+                }
+            }
         }
 
         // Handle Pinyin input mode

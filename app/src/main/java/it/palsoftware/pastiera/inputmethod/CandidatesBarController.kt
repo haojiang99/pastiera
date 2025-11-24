@@ -29,6 +29,20 @@ class CandidatesBarController(
             candidatesStatusBar.onCursorMovedListener = value
         }
 
+    var onNextPageListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onNextPageListener = value
+            candidatesStatusBar.onNextPageListener = value
+        }
+
+    var onPrevPageListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onPrevPageListener = value
+            candidatesStatusBar.onPrevPageListener = value
+        }
+
     fun getInputView(emojiMapText: String = ""): LinearLayout {
         return inputStatusBar.getOrCreateLayout(emojiMapText)
     }

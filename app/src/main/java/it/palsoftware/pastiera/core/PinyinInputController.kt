@@ -15,13 +15,14 @@ class PinyinInputController(
     companion object {
         private const val TAG = "PinyinInputController"
         private const val MAX_BUFFER_LENGTH = 20 // Maximum pinyin buffer length
+        private const val PAGE_SIZE = 9  // Number of candidates per page
     }
 
     // Current pinyin input buffer (e.g., "nihao")
     private var buffer = StringBuilder()
 
-    // Current candidates for the buffer
-    private var currentCandidates: List<String> = emptyList()
+    // All candidates for the buffer (full list from dictionary)
+    private var allCandidates: List<String> = emptyList()
 
     // Whether Pinyin mode is currently active
     private var isPinyinModeActive = false
@@ -29,11 +30,18 @@ class PinyinInputController(
     // Track the matched syllable/phrase for the current candidates
     private var matchedPinyin: String = ""
 
+    // Current page (0-indexed)
+    private var currentPage: Int = 0
+
     data class Snapshot(
         val isActive: Boolean,
         val buffer: String,
         val candidates: List<String>,
-        val hasCandidates: Boolean
+        val hasCandidates: Boolean,
+        val currentPage: Int = 0,
+        val totalPages: Int = 1,
+        val hasNextPage: Boolean = false,
+        val hasPrevPage: Boolean = false
     )
 
     init {
@@ -97,7 +105,7 @@ class PinyinInputController(
 
         buffer.append(lowerChar)
         updateCandidates()
-        Log.d(TAG, "Letter added: '$lowerChar' → Buffer: '$buffer', Candidates: ${currentCandidates.joinToString(", ")}")
+        Log.d(TAG, "Letter added: '$lowerChar' → Buffer: '$buffer', Candidates: ${allCandidates.joinToString(", ")}")
         return true
     }
 
@@ -113,22 +121,23 @@ class PinyinInputController(
 
         buffer.deleteCharAt(buffer.length - 1)
         updateCandidates()
-        Log.d(TAG, "Backspace - Buffer: '$buffer', Candidates: ${currentCandidates.size}")
+        Log.d(TAG, "Backspace - Buffer: '$buffer', Candidates: ${allCandidates.size}")
         return true
     }
 
     /**
-     * Selects a candidate by index and returns the selected character.
+     * Selects a candidate by index on current page and returns the selected character.
      * Only consumes the matched pinyin syllable(s), keeping remaining buffer.
-     * @param index The candidate index (0-based)
+     * @param index The candidate index on current page (0-based)
      * @return The selected Chinese character, or null if index invalid
      */
     fun selectCandidate(index: Int): String? {
-        if (!isPinyinModeActive || index < 0 || index >= currentCandidates.size) {
+        val currentPageCandidates = getCurrentPageCandidates()
+        if (!isPinyinModeActive || index < 0 || index >= currentPageCandidates.size) {
             return null
         }
 
-        val selected = currentCandidates[index]
+        val selected = currentPageCandidates[index]
         Log.d(TAG, "Selected candidate $index: '$selected', matched pinyin: '$matchedPinyin'")
 
         // Remove only the matched pinyin from the buffer
@@ -147,6 +156,60 @@ class PinyinInputController(
     }
 
     /**
+     * Gets candidates for the current page.
+     */
+    private fun getCurrentPageCandidates(): List<String> {
+        val startIndex = currentPage * PAGE_SIZE
+        val endIndex = minOf(startIndex + PAGE_SIZE, allCandidates.size)
+        return if (startIndex < allCandidates.size) {
+            allCandidates.subList(startIndex, endIndex)
+        } else {
+            emptyList()
+        }
+    }
+
+    /**
+     * Calculates total number of pages.
+     */
+    private fun getTotalPages(): Int {
+        return if (allCandidates.isEmpty()) 1 else ((allCandidates.size + PAGE_SIZE - 1) / PAGE_SIZE)
+    }
+
+    /**
+     * Navigates to the next page of candidates.
+     * @return true if navigation was successful, false if already on last page
+     */
+    fun nextPage(): Boolean {
+        val totalPages = getTotalPages()
+        if (currentPage < totalPages - 1) {
+            currentPage++
+            Log.d(TAG, "Moved to page ${currentPage + 1}/$totalPages")
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Navigates to the previous page of candidates.
+     * @return true if navigation was successful, false if already on first page
+     */
+    fun prevPage(): Boolean {
+        if (currentPage > 0) {
+            currentPage--
+            Log.d(TAG, "Moved to page ${currentPage + 1}/${getTotalPages()}")
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Resets to first page.
+     */
+    fun resetPage() {
+        currentPage = 0
+    }
+
+    /**
      * Selects the first candidate (for space key).
      * @return The selected Chinese character, or null if no candidates
      */
@@ -160,7 +223,7 @@ class PinyinInputController(
      * @return The selected character, or null if not applicable
      */
     fun handleNumberKey(keyCode: Int): String? {
-        if (!isPinyinModeActive || currentCandidates.isEmpty()) {
+        if (!isPinyinModeActive || allCandidates.isEmpty()) {
             return null
         }
 
@@ -187,8 +250,9 @@ class PinyinInputController(
      */
     fun clearBuffer() {
         buffer.clear()
-        currentCandidates = emptyList()
+        allCandidates = emptyList()
         matchedPinyin = ""
+        currentPage = 0
         Log.d(TAG, "Buffer cleared")
     }
 
@@ -197,8 +261,10 @@ class PinyinInputController(
      * Uses longest-match strategy and checks for phrase matches.
      */
     private fun updateCandidates() {
+        currentPage = 0  // Reset to first page when candidates change
+
         if (buffer.isEmpty()) {
-            currentCandidates = emptyList()
+            allCandidates = emptyList()
             matchedPinyin = ""
             return
         }
@@ -209,7 +275,7 @@ class PinyinInputController(
         val phraseCandidates = PinyinDictionary.getPhraseCandidates(bufferStr)
         if (phraseCandidates.isNotEmpty()) {
             // Exact phrase match - use the entire buffer
-            currentCandidates = phraseCandidates
+            allCandidates = phraseCandidates
             matchedPinyin = bufferStr
             return
         }
@@ -218,10 +284,10 @@ class PinyinInputController(
         val longestSyllable = PinyinDictionary.findLongestSyllable(bufferStr)
         if (longestSyllable != null) {
             val charCandidates = PinyinDictionary.getCandidates(longestSyllable)
-            currentCandidates = charCandidates
+            allCandidates = charCandidates
             matchedPinyin = longestSyllable
         } else {
-            currentCandidates = emptyList()
+            allCandidates = emptyList()
             matchedPinyin = ""
         }
     }
@@ -230,11 +296,17 @@ class PinyinInputController(
      * Gets current state snapshot for UI updates.
      */
     fun getSnapshot(): Snapshot {
+        val currentPageCandidates = getCurrentPageCandidates()
+        val totalPages = getTotalPages()
         return Snapshot(
             isActive = isPinyinModeActive,
             buffer = buffer.toString(),
-            candidates = currentCandidates,
-            hasCandidates = currentCandidates.isNotEmpty()
+            candidates = currentPageCandidates,
+            hasCandidates = allCandidates.isNotEmpty(),
+            currentPage = currentPage,
+            totalPages = totalPages,
+            hasNextPage = currentPage < totalPages - 1,
+            hasPrevPage = currentPage > 0
         )
     }
 
@@ -244,14 +316,14 @@ class PinyinInputController(
     fun getBuffer(): String = buffer.toString()
 
     /**
-     * Gets the current candidates.
+     * Gets the current page's candidates.
      */
-    fun getCandidates(): List<String> = currentCandidates
+    fun getCandidates(): List<String> = getCurrentPageCandidates()
 
     /**
      * Checks if there are any candidates available.
      */
-    fun hasCandidates(): Boolean = currentCandidates.isNotEmpty()
+    fun hasCandidates(): Boolean = allCandidates.isNotEmpty()
 
     /**
      * Commits the current buffer as-is (without selecting a candidate).
