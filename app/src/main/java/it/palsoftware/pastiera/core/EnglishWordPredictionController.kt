@@ -246,4 +246,22 @@ class EnglishWordPredictionController(
      * Gets the current prefix being typed.
      */
     fun getCurrentPrefix(): String = currentPrefix
+
+    /**
+     * Checks if word prediction is currently active.
+     */
+    fun hasActivePrediction(): Boolean = allSuggestions.isNotEmpty()
+
+    /**
+     * Checks if there is a next page of suggestions.
+     */
+    fun hasNextPage(): Boolean {
+        val totalPages = getTotalPages()
+        return currentPage < totalPages - 1
+    }
+
+    /**
+     * Checks if there is a previous page of suggestions.
+     */
+    fun hasPrevPage(): Boolean = currentPage > 0
 }

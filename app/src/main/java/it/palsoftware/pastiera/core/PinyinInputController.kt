@@ -339,4 +339,17 @@ class PinyinInputController(
         clearBuffer()
         return content
     }
+
+    /**
+     * Checks if there is a next page of candidates.
+     */
+    fun hasNextPage(): Boolean {
+        val totalPages = getTotalPages()
+        return currentPage < totalPages - 1
+    }
+
+    /**
+     * Checks if there is a previous page of candidates.
+     */
+    fun hasPrevPage(): Boolean = currentPage > 0
 }

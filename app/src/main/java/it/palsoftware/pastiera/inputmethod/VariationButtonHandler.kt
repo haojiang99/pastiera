@@ -54,7 +54,6 @@ object VariationButtonHandler {
             listener?.onVariationSelected(variation)
         }
     }
-<<<<<<< HEAD
 
     /**
      * Creates a listener for a word prediction button.
@@ -89,32 +88,4 @@ object VariationButtonHandler {
         }
     }
 }
-=======
->>>>>>> 68a62b5a557c9498db1e930a7c17d753b744580a
 
-    /**
-     * Creates a listener for a static variation button.
-     * When clicked, inserts the variation without deleting the character before the cursor.
-     */
-    fun createStaticVariationClickListener(
-        variation: String,
-        inputConnection: InputConnection?,
-        listener: OnVariationSelectedListener? = null
-    ): View.OnClickListener {
-        return View.OnClickListener {
-            Log.d(TAG, "Click on static variation button: $variation")
-
-            if (inputConnection == null) {
-                Log.w(TAG, "No inputConnection available to insert static variation")
-                return@OnClickListener
-            }
-
-            // Insert variation without deleting previous character
-            inputConnection.commitText(variation, 1)
-            Log.d(TAG, "Static variation '$variation' inserted")
-
-            // Notify listener if present
-            listener?.onVariationSelected(variation)
-        }
-    }
-}

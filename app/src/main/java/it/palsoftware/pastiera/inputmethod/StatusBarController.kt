@@ -73,7 +73,14 @@ class StatusBarController(
 
     companion object {
         private const val TAG = "StatusBarController"
+        private const val NAV_MODE_LABEL = "NAV MODE"
         private val DEFAULT_BACKGROUND = Color.parseColor("#000000")
+        private val NAV_MODE_BACKGROUND = Color.argb(100, 0, 0, 0)
+        
+        // LED colors
+        private val LED_COLOR_GRAY_OFF = Color.argb(26, 255, 255, 255) // Gray when LED is off
+        private val LED_COLOR_RED_LOCKED = Color.rgb(247, 99, 0) // Orange/red when locked
+        private val LED_COLOR_BLUE_ACTIVE = Color.rgb(100, 150, 255) // Blue when active
     }
 
     data class StatusSnapshot(
@@ -112,7 +119,6 @@ class StatusBarController(
     private var emojiKeyButtons: MutableList<View> = mutableListOf()
     private var lastSymPageRendered: Int = 0
     private var lastSymMappingsRendered: Map<Int, String>? = null
-    private var lastInputConnectionUsed: android.view.inputmethod.InputConnection? = null
     private var wasSymActive: Boolean = false
     private var symShown: Boolean = false
     private val ledStatusView = LedStatusView(context)
@@ -325,9 +331,7 @@ class StatusBarController(
      */
     private fun updateEmojiKeyboard(symMappings: Map<Int, String>, page: Int, inputConnection: android.view.inputmethod.InputConnection? = null) {
         val container = emojiKeyboardContainer ?: return
-        val inputConnectionChanged = lastInputConnectionUsed != inputConnection
-        val inputConnectionBecameAvailable = lastInputConnectionUsed == null && inputConnection != null
-        if (lastSymPageRendered == page && lastSymMappingsRendered == symMappings && !inputConnectionChanged && !inputConnectionBecameAvailable) {
+        if (lastSymPageRendered == page && lastSymMappingsRendered == symMappings) {
             return
         }
         
@@ -420,40 +424,35 @@ class StatusBarController(
                 if (content.isNotEmpty() && inputConnection != null) {
                     keyButton.isClickable = true
                     keyButton.isFocusable = true
+                    keyButton.setOnClickListener {
+                        // Inserisci il carattere/emoji quando si clicca
+                        inputConnection.commitText(content, 1)
+                        Log.d(TAG, "Clicked SYM button for keyCode $keyCode: $content")
+                    }
                     
-                    // Usa solo OnTouchListener per feedback + click (più efficiente)
-                    val originalBackground = keyButton.background as? GradientDrawable
-                    if (originalBackground != null) {
-                        val normalColor = Color.argb(40, 255, 255, 255)
-                        val pressedColor = Color.argb(80, 255, 255, 255)
-                        
-                        keyButton.setOnTouchListener { view, motionEvent ->
-                            when (motionEvent.action) {
-                                android.view.MotionEvent.ACTION_DOWN -> {
+                    // Aggiungi feedback visivo quando il pulsante viene premuto
+                    val originalBackground = keyButton.background
+                    keyButton.setOnTouchListener { view, motionEvent ->
+                        when (motionEvent.action) {
+                            android.view.MotionEvent.ACTION_DOWN -> {
+                                // Dimmer lo sfondo quando premuto
+                                if (originalBackground is GradientDrawable) {
+                                    val pressedColor = Color.argb(80, 255, 255, 255) // Più opaco
                                     originalBackground.setColor(pressedColor)
-                                    view.postInvalidate()
-                                    true // Consuma per feedback immediato
                                 }
-                                android.view.MotionEvent.ACTION_UP -> {
+                                view.invalidate()
+                            }
+                            android.view.MotionEvent.ACTION_UP,
+                            android.view.MotionEvent.ACTION_CANCEL -> {
+                                // Ripristina lo sfondo originale
+                                if (originalBackground is GradientDrawable) {
+                                    val normalColor = Color.argb(40, 255, 255, 255) // Sfondo normale
                                     originalBackground.setColor(normalColor)
-                                    view.postInvalidate()
-                                    // Esegui commitText direttamente qui (più veloce)
-                                    inputConnection.commitText(content, 1)
-                                    true
                                 }
-                                android.view.MotionEvent.ACTION_CANCEL -> {
-                                    originalBackground.setColor(normalColor)
-                                    view.postInvalidate()
-                                    true
-                                }
-                                else -> false
+                                view.invalidate()
                             }
                         }
-                    } else {
-                        // Fallback: solo click listener se non c'è background
-                        keyButton.setOnClickListener {
-                            inputConnection.commitText(content, 1)
-                        }
+                        false // Non consumare l'evento, lascia che il click listener funzioni
                     }
                 }
                 
@@ -480,7 +479,6 @@ class StatusBarController(
         // Cache what was rendered to avoid rebuilding on each status refresh
         lastSymPageRendered = page
         lastSymMappingsRendered = HashMap(symMappings)
-        lastInputConnectionUsed = inputConnection
     }
     
     /**
@@ -934,12 +932,7 @@ class StatusBarController(
         modifiersContainerView.visibility = View.GONE
         ledStatusView.update(snapshot)
         val variationsBar = if (!forceMinimalUi) variationBarView else null
-<<<<<<< HEAD
 
-=======
-        val variationsWrapperView = if (!forceMinimalUi) variationsWrapper else null
-        
->>>>>>> 68a62b5a557c9498db1e930a7c17d753b744580a
         if (snapshot.symPage > 0 && symMappings != null) {
             updateEmojiKeyboard(symMappings, snapshot.symPage, inputConnection)
             variationsBar?.resetVariationsState()
@@ -949,7 +942,7 @@ class StatusBarController(
                 layout.background = ColorDrawable(DEFAULT_BACKGROUND)
             }
             (layout.background as? ColorDrawable)?.alpha = 255
-            variationsWrapperView?.apply {
+            variationsWrapper?.apply {
                 visibility = View.INVISIBLE // keep space to avoid shrink/flash
                 isEnabled = false
                 isClickable = false
@@ -979,7 +972,7 @@ class StatusBarController(
         
         if (emojiKeyboardView.visibility == View.VISIBLE) {
             animateEmojiKeyboardOut(emojiKeyboardView, layout) {
-                variationsWrapperView?.apply {
+                variationsWrapper?.apply {
                     visibility = View.VISIBLE
                     isEnabled = true
                     isClickable = true
@@ -990,7 +983,7 @@ class StatusBarController(
             wasSymActive = false
         } else {
             emojiKeyboardView.visibility = View.GONE
-            variationsWrapperView?.apply {
+            variationsWrapper?.apply {
                 visibility = View.VISIBLE
                 isEnabled = true
                 isClickable = true
