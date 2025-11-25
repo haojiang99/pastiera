@@ -30,6 +30,12 @@ class PinyinInputController(
     // Track the matched syllable/phrase for the current candidates
     private var matchedPinyin: String = ""
 
+    // Track how many candidates are phrase candidates (vs single-character candidates)
+    private var phraseCandidateCount: Int = 0
+
+    // Track the first syllable for single-character fallback
+    private var firstSyllable: String = ""
+
     // Current page (0-indexed)
     private var currentPage: Int = 0
 
@@ -138,17 +144,31 @@ class PinyinInputController(
         }
 
         val selected = currentPageCandidates[index]
-        Log.d(TAG, "Selected candidate $index: '$selected', matched pinyin: '$matchedPinyin'")
 
-        // Remove only the matched pinyin from the buffer
-        if (matchedPinyin.isNotEmpty() && buffer.startsWith(matchedPinyin)) {
-            buffer.delete(0, matchedPinyin.length)
-            Log.d(TAG, "Consumed '$matchedPinyin', remaining buffer: '$buffer'")
+        // Calculate the actual index in the full candidate list (accounting for pagination)
+        val actualIndex = currentPage * PAGE_SIZE + index
+
+        // Determine which pinyin to consume based on candidate type
+        val pinyinToConsume = if (actualIndex < phraseCandidateCount) {
+            // Phrase candidate - consume the entire matched buffer
+            matchedPinyin
+        } else {
+            // Single-character candidate - consume only the first syllable
+            firstSyllable
+        }
+
+        Log.d(TAG, "Selected candidate $index (actual: $actualIndex): '$selected', consuming: '$pinyinToConsume' (phrase count: $phraseCandidateCount)")
+
+        // Remove the consumed pinyin from the buffer
+        if (pinyinToConsume.isNotEmpty() && buffer.startsWith(pinyinToConsume)) {
+            buffer.delete(0, pinyinToConsume.length)
+            Log.d(TAG, "Consumed '$pinyinToConsume', remaining buffer: '$buffer'")
 
             // Update candidates for the remaining buffer
             updateCandidates()
         } else {
             // Fallback: clear entire buffer if something went wrong
+            Log.w(TAG, "Failed to consume pinyin, clearing buffer")
             clearBuffer()
         }
 
@@ -252,6 +272,8 @@ class PinyinInputController(
         buffer.clear()
         allCandidates = emptyList()
         matchedPinyin = ""
+        phraseCandidateCount = 0
+        firstSyllable = ""
         currentPage = 0
         Log.d(TAG, "Buffer cleared")
     }
@@ -259,6 +281,8 @@ class PinyinInputController(
     /**
      * Updates candidate list based on current buffer.
      * Uses longest-match strategy and checks for phrase matches.
+     * For multi-syllable inputs, shows both phrase candidates and single-character
+     * candidates for the first syllable to allow character-by-character input.
      */
     private fun updateCandidates() {
         currentPage = 0  // Reset to first page when candidates change
@@ -266,17 +290,33 @@ class PinyinInputController(
         if (buffer.isEmpty()) {
             allCandidates = emptyList()
             matchedPinyin = ""
+            phraseCandidateCount = 0
+            firstSyllable = ""
             return
         }
 
         val bufferStr = buffer.toString()
 
+        // Find the first syllable for fallback options
+        val firstSyl = PinyinDictionary.findLongestSyllable(bufferStr) ?: ""
+        firstSyllable = firstSyl
+
         // Check for exact phrase match first
         val phraseCandidates = PinyinDictionary.getPhraseCandidates(bufferStr)
         if (phraseCandidates.isNotEmpty()) {
-            // Exact phrase match - use the entire buffer
-            allCandidates = phraseCandidates
-            matchedPinyin = bufferStr
+            // Exact phrase match - show phrase candidates
+            // Also add single-character candidates for first syllable as fallback
+            val singleCharCandidates = if (firstSyl.isNotEmpty()) {
+                PinyinDictionary.getCandidates(firstSyl)
+            } else {
+                emptyList()
+            }
+
+            // Combine: phrase candidates first, then single-character candidates
+            allCandidates = phraseCandidates + singleCharCandidates
+            matchedPinyin = bufferStr  // Default to full buffer for phrases
+            phraseCandidateCount = phraseCandidates.size
+            Log.d(TAG, "Phrase match: $bufferStr → ${phraseCandidates.size} phrases + ${singleCharCandidates.size} single chars")
             return
         }
 
@@ -286,9 +326,11 @@ class PinyinInputController(
             val charCandidates = PinyinDictionary.getCandidates(longestSyllable)
             allCandidates = charCandidates
             matchedPinyin = longestSyllable
+            phraseCandidateCount = 0  // No phrases, all single characters
         } else {
             allCandidates = emptyList()
             matchedPinyin = ""
+            phraseCandidateCount = 0
         }
     }
 

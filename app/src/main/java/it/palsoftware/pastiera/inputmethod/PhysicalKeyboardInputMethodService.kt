@@ -355,8 +355,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             override fun onVariationSelected(variation: String) {
                 // Clear suggestion lists after selection
                 if (pinyinInputController.isPinyinMode()) {
-                    // Clear Pinyin buffer and candidates
-                    pinyinInputController.clearBuffer()
+                    // For Pinyin, the buffer is managed by selectCandidate() for keyboard input
+                    // For touch input, the click listener handles it directly
+                    // Just update the UI here
                 } else {
                     // Clear English word prediction suggestions
                     englishWordPredictionController.clearSuggestions()
@@ -366,6 +367,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
         candidatesBarController.onVariationSelectedListener = variationListener
+
+        // Register listener for Pinyin candidate selection (with index)
+        val pinyinListener = object : VariationButtonHandler.OnPinyinCandidateSelectedListener {
+            override fun onPinyinCandidateSelected(candidate: String, candidateIndex: Int) {
+                // Let PinyinInputController handle buffer management based on candidate type
+                pinyinInputController.selectCandidate(candidateIndex)
+                updateStatusBarText()
+            }
+        }
+        candidatesBarController.onPinyinCandidateSelectedListener = pinyinListener
 
         // Register listener for cursor movement (both controllers)
         val cursorListener = {

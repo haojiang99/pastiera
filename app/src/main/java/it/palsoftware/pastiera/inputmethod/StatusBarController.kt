@@ -49,7 +49,14 @@ class StatusBarController(
             field = value
             variationBarView?.onVariationSelectedListener = value
         }
-    
+
+    // Listener for Pinyin candidate selection (with index)
+    var onPinyinCandidateSelectedListener: VariationButtonHandler.OnPinyinCandidateSelectedListener? = null
+        set(value) {
+            field = value
+            variationBarView?.onPinyinCandidateSelectedListener = value
+        }
+
     // Listener for cursor movement (to update variations)
     var onCursorMovedListener: (() -> Unit)? = null
         set(value) {
@@ -894,6 +901,7 @@ class StatusBarController(
 
     fun update(snapshot: StatusSnapshot, emojiMapText: String = "", inputConnection: android.view.inputmethod.InputConnection? = null, symMappings: Map<Int, String>? = null) {
         variationBarView?.onVariationSelectedListener = onVariationSelectedListener
+        variationBarView?.onPinyinCandidateSelectedListener = onPinyinCandidateSelectedListener
         variationBarView?.onCursorMovedListener = onCursorMovedListener
         variationBarView?.updateInputConnection(inputConnection)
         variationBarView?.setSymModeActive(snapshot.symPage > 0)

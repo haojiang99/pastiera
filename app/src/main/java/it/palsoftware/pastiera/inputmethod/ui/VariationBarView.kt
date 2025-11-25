@@ -40,6 +40,7 @@ class VariationBarView(
     }
 
     var onVariationSelectedListener: VariationButtonHandler.OnVariationSelectedListener? = null
+    var onPinyinCandidateSelectedListener: VariationButtonHandler.OnPinyinCandidateSelectedListener? = null
     var onCursorMovedListener: (() -> Unit)? = null
     var onNextPageListener: (() -> Unit)? = null
     var onPrevPageListener: (() -> Unit)? = null
@@ -306,7 +307,8 @@ class VariationBarView(
             val individualButtonWidth = buttonWidths[index]
             val button = createVariationButton(
                 variation, inputConnection, individualButtonWidth, showNumberedButtons, index + 1,
-                snapshot.wordPredictionActive, wordPredictionPrefixLength, snapshot.pinyinModeActive
+                snapshot.wordPredictionActive, wordPredictionPrefixLength, snapshot.pinyinModeActive,
+                candidateIndex = index
             )
             variationButtons.add(button)
             variationsRow.addView(button)
@@ -583,7 +585,8 @@ class VariationBarView(
         candidateNumber: Int = 0,
         isWordPrediction: Boolean = false,
         wordPredictionPrefixLength: Int = 0,
-        isPinyinMode: Boolean = false
+        isPinyinMode: Boolean = false,
+        candidateIndex: Int = 0
     ): TextView {
         val dp4 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
@@ -648,7 +651,9 @@ class VariationBarView(
                 // Pinyin candidate - just commit (replaces composing text automatically)
                 VariationButtonHandler.createPinyinCandidateClickListener(
                     variation,
+                    candidateIndex,
                     inputConnection,
+                    onPinyinCandidateSelectedListener,
                     onVariationSelectedListener
                 )
             }

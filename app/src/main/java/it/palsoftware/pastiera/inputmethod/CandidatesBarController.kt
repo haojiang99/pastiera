@@ -22,6 +22,13 @@ class CandidatesBarController(
             candidatesStatusBar.onVariationSelectedListener = value
         }
 
+    var onPinyinCandidateSelectedListener: VariationButtonHandler.OnPinyinCandidateSelectedListener? = null
+        set(value) {
+            field = value
+            inputStatusBar.onPinyinCandidateSelectedListener = value
+            candidatesStatusBar.onPinyinCandidateSelectedListener = value
+        }
+
     var onCursorMovedListener: (() -> Unit)? = null
         set(value) {
             field = value

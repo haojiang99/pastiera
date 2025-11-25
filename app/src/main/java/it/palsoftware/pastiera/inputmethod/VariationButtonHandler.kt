@@ -56,17 +56,31 @@ object VariationButtonHandler {
     }
 
     /**
+     * Callback for Pinyin candidate selection with index information.
+     */
+    interface OnPinyinCandidateSelectedListener {
+        /**
+         * Called when a Pinyin candidate is selected.
+         * @param candidate The selected candidate text
+         * @param candidateIndex The index of the candidate (accounting for current page)
+         */
+        fun onPinyinCandidateSelected(candidate: String, candidateIndex: Int)
+    }
+
+    /**
      * Creates a listener for a Pinyin candidate button.
-     * When clicked, commits the Chinese character (which automatically replaces composing text).
+     * When clicked, commits the Chinese character and notifies with the candidate index.
      * Does NOT delete any committed text - the Pinyin buffer is shown as composing text.
      */
     fun createPinyinCandidateClickListener(
         candidate: String,
+        candidateIndex: Int,
         inputConnection: InputConnection?,
+        pinyinListener: OnPinyinCandidateSelectedListener? = null,
         listener: OnVariationSelectedListener? = null
     ): View.OnClickListener {
         return View.OnClickListener {
-            Log.d(TAG, "Click on Pinyin candidate: $candidate")
+            Log.d(TAG, "Click on Pinyin candidate $candidateIndex: $candidate")
 
             if (inputConnection == null) {
                 Log.w(TAG, "No inputConnection available to insert candidate")
@@ -77,7 +91,10 @@ object VariationButtonHandler {
             inputConnection.commitText(candidate, 1)
             Log.d(TAG, "Pinyin candidate '$candidate' inserted")
 
-            // Notify listener if present
+            // Notify Pinyin-specific listener with index
+            pinyinListener?.onPinyinCandidateSelected(candidate, candidateIndex)
+
+            // Also notify general listener
             listener?.onVariationSelected(candidate)
         }
     }
