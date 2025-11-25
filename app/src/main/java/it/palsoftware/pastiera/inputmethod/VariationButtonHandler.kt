@@ -56,6 +56,33 @@ object VariationButtonHandler {
     }
 
     /**
+     * Creates a listener for a Pinyin candidate button.
+     * When clicked, commits the Chinese character (which automatically replaces composing text).
+     * Does NOT delete any committed text - the Pinyin buffer is shown as composing text.
+     */
+    fun createPinyinCandidateClickListener(
+        candidate: String,
+        inputConnection: InputConnection?,
+        listener: OnVariationSelectedListener? = null
+    ): View.OnClickListener {
+        return View.OnClickListener {
+            Log.d(TAG, "Click on Pinyin candidate: $candidate")
+
+            if (inputConnection == null) {
+                Log.w(TAG, "No inputConnection available to insert candidate")
+                return@OnClickListener
+            }
+
+            // Commit the Chinese character - this automatically replaces any composing text
+            inputConnection.commitText(candidate, 1)
+            Log.d(TAG, "Pinyin candidate '$candidate' inserted")
+
+            // Notify listener if present
+            listener?.onVariationSelected(candidate)
+        }
+    }
+
+    /**
      * Creates a listener for a word prediction button.
      * When clicked, deletes the prefix being typed and inserts the complete word + space.
      */

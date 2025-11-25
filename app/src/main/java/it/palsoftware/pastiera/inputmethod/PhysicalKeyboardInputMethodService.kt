@@ -353,6 +353,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Register listener for variation selection (both controllers)
         val variationListener = object : VariationButtonHandler.OnVariationSelectedListener {
             override fun onVariationSelected(variation: String) {
+                // Clear suggestion lists after selection
+                if (pinyinInputController.isPinyinMode()) {
+                    // Clear Pinyin buffer and candidates
+                    pinyinInputController.clearBuffer()
+                } else {
+                    // Clear English word prediction suggestions
+                    englishWordPredictionController.clearSuggestions()
+                }
                 // Update variations after one has been selected (refresh view if needed)
                 updateStatusBarText()
             }
@@ -1050,6 +1058,33 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Handle Pinyin input mode
         if (pinyinInputController.isPinyinMode() && ic != null) {
+            // FIRST: Handle Alt modifier - when Alt is active (latched, one-shot, or pressed), input alternate characters
+            if (event != null && (altLatchActive || altOneShot || altPressed)) {
+                // Get the character with Alt modifier applied
+                val altChar = event.getUnicodeChar(KeyEvent.META_ALT_ON)
+                // Only proceed if we get a valid alternate character that's different from the normal one
+                if (altChar != 0 && altChar != event.unicodeChar) {
+                    // Commit any existing buffer first
+                    val buffer = pinyinInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        val committed = pinyinInputController.commitBufferAsIs()
+                        if (committed != null) {
+                            ic.commitText(committed, 1)
+                        }
+                    }
+                    // Input the alternate character directly (symbol or number)
+                    ic.commitText(altChar.toChar().toString(), 1)
+
+                    // Clear Alt state after using it for the alternate character
+                    if (altLatchActive || altOneShot) {
+                        modifierStateController.clearAltState(resetPressedState = false)
+                    }
+
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
             // Handle number keys 1-9 for candidate selection FIRST (before other handlers)
             // This allows number key selection even when Alt is required to type numbers
             if (pinyinInputController.hasCandidates()) {
@@ -1140,9 +1175,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
 
-            // Handle letter keys
+            // Handle letter and symbol keys
             if (event != null && event.unicodeChar != 0) {
                 val char = event.unicodeChar.toChar()
+
                 if (char.isLetter()) {
                     // If Shift is pressed, commit buffer and input capital letter directly
                     if (shiftPressed) {

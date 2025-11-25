@@ -306,7 +306,7 @@ class VariationBarView(
             val individualButtonWidth = buttonWidths[index]
             val button = createVariationButton(
                 variation, inputConnection, individualButtonWidth, showNumberedButtons, index + 1,
-                snapshot.wordPredictionActive, wordPredictionPrefixLength
+                snapshot.wordPredictionActive, wordPredictionPrefixLength, snapshot.pinyinModeActive
             )
             variationButtons.add(button)
             variationsRow.addView(button)
@@ -582,7 +582,8 @@ class VariationBarView(
         showNumbered: Boolean = false,
         candidateNumber: Int = 0,
         isWordPrediction: Boolean = false,
-        wordPredictionPrefixLength: Int = 0
+        wordPredictionPrefixLength: Int = 0,
+        isPinyinMode: Boolean = false
     ): TextView {
         val dp4 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
@@ -633,19 +634,32 @@ class VariationBarView(
         }
 
         // Choose the appropriate click listener based on mode
-        val clickListener = if (isWordPrediction) {
-            VariationButtonHandler.createWordPredictionClickListener(
-                variation,
-                wordPredictionPrefixLength,
-                inputConnection,
-                onVariationSelectedListener
-            )
-        } else {
-            VariationButtonHandler.createVariationClickListener(
-                variation,
-                inputConnection,
-                onVariationSelectedListener
-            )
+        val clickListener = when {
+            isWordPrediction -> {
+                // English word prediction - delete prefix and insert word + space
+                VariationButtonHandler.createWordPredictionClickListener(
+                    variation,
+                    wordPredictionPrefixLength,
+                    inputConnection,
+                    onVariationSelectedListener
+                )
+            }
+            isPinyinMode -> {
+                // Pinyin candidate - just commit (replaces composing text automatically)
+                VariationButtonHandler.createPinyinCandidateClickListener(
+                    variation,
+                    inputConnection,
+                    onVariationSelectedListener
+                )
+            }
+            else -> {
+                // Accent variation - delete 1 char and insert variation
+                VariationButtonHandler.createVariationClickListener(
+                    variation,
+                    inputConnection,
+                    onVariationSelectedListener
+                )
+            }
         }
 
         return TextView(context).apply {

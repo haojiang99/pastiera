@@ -22,8 +22,11 @@ class EnglishWordPredictionController(
     // All word suggestions (up to MAX_SUGGESTIONS)
     private var allSuggestions: List<String> = emptyList()
 
-    // Current word prefix being typed
+    // Current word prefix being typed (lowercase for matching)
     private var currentPrefix: String = ""
+
+    // Original prefix with case preserved
+    private var originalPrefix: String = ""
 
     // Current page (0-indexed)
     private var currentPage: Int = 0
@@ -82,28 +85,30 @@ class EnglishWordPredictionController(
         }
 
         // Extract the current word (characters since last word boundary)
-        val currentWord = extractCurrentWord(textBefore.toString())
+        val (originalWord, lowercaseWord) = extractCurrentWordWithCase(textBefore.toString())
 
-        if (currentWord.length < MIN_PREFIX_LENGTH) {
+        if (lowercaseWord.length < MIN_PREFIX_LENGTH) {
             clearSuggestions()
             return
         }
 
         // Only update if prefix changed
-        if (currentWord != currentPrefix) {
-            currentPrefix = currentWord
+        if (lowercaseWord != currentPrefix) {
+            currentPrefix = lowercaseWord
+            originalPrefix = originalWord
             currentPage = 0  // Reset to first page when prefix changes
-            allSuggestions = EnglishWordDictionary.getSuggestions(currentWord, MAX_SUGGESTIONS)
-            Log.d(TAG, "Prefix: '$currentWord', total suggestions: ${allSuggestions.size}")
+            allSuggestions = EnglishWordDictionary.getSuggestions(lowercaseWord, MAX_SUGGESTIONS)
+            Log.d(TAG, "Prefix: '$originalWord' (lowercase: '$lowercaseWord'), total suggestions: ${allSuggestions.size}")
         }
     }
 
     /**
-     * Extracts the current word being typed from text.
-     * Returns characters since the last word boundary (space, punctuation, etc.)
+     * Extracts the current word being typed from text with case preserved.
+     * Returns a pair of (originalWord, lowercaseWord).
+     * Characters since the last word boundary (space, punctuation, etc.)
      */
-    private fun extractCurrentWord(text: String): String {
-        if (text.isEmpty()) return ""
+    private fun extractCurrentWordWithCase(text: String): Pair<String, String> {
+        if (text.isEmpty()) return Pair("", "")
 
         // Find the last word boundary
         var wordStart = text.length
@@ -118,7 +123,34 @@ class EnglishWordPredictionController(
             }
         }
 
-        return text.substring(wordStart).lowercase()
+        val originalWord = text.substring(wordStart)
+        val lowercaseWord = originalWord.lowercase()
+        return Pair(originalWord, lowercaseWord)
+    }
+
+    /**
+     * Applies the case pattern from the original prefix to a suggestion word.
+     * For example: "He" + "hello" -> "Hello", "HE" + "hello" -> "HELLO"
+     */
+    private fun applyCasePattern(suggestion: String): String {
+        if (originalPrefix.isEmpty() || suggestion.isEmpty()) {
+            return suggestion
+        }
+
+        // Check if original prefix is all uppercase
+        val allUppercase = originalPrefix.all { it.isUpperCase() }
+        if (allUppercase) {
+            return suggestion.uppercase()
+        }
+
+        // Check if first character is uppercase
+        val firstCharUppercase = originalPrefix.first().isUpperCase()
+        if (firstCharUppercase) {
+            return suggestion.replaceFirstChar { it.uppercase() }
+        }
+
+        // Default: return as-is (lowercase)
+        return suggestion
     }
 
     /**
@@ -133,13 +165,15 @@ class EnglishWordPredictionController(
         }
 
         val selectedWord = currentPageSuggestions[index]
-        val prefixLength = currentPrefix.length
+        // Apply the case pattern from the original prefix to the suggestion
+        val casedWord = applyCasePattern(selectedWord)
+        val prefixLength = originalPrefix.length
 
-        Log.d(TAG, "Selected suggestion $index: '$selectedWord', prefix: '$currentPrefix'")
+        Log.d(TAG, "Selected suggestion $index: '$casedWord' (original: '$selectedWord'), prefix: '$originalPrefix'")
 
         // Return both the word and how many chars to delete
         return SelectionResult(
-            word = selectedWord,
+            word = casedWord,
             prefixLength = prefixLength
         )
     }
@@ -211,6 +245,7 @@ class EnglishWordPredictionController(
      */
     fun clearSuggestions() {
         currentPrefix = ""
+        originalPrefix = ""
         allSuggestions = emptyList()
         currentPage = 0
     }
@@ -220,10 +255,12 @@ class EnglishWordPredictionController(
      */
     fun getSnapshot(): Snapshot {
         val currentPageSuggestions = getCurrentPageSuggestions()
+        // Apply case pattern to all suggestions for display
+        val casedSuggestions = currentPageSuggestions.map { applyCasePattern(it) }
         val totalPages = getTotalPages()
         return Snapshot(
-            prefix = currentPrefix,
-            suggestions = currentPageSuggestions,
+            prefix = originalPrefix,
+            suggestions = casedSuggestions,
             hasSuggestions = allSuggestions.isNotEmpty(),
             currentPage = currentPage,
             totalPages = totalPages,
@@ -243,9 +280,9 @@ class EnglishWordPredictionController(
     fun hasSuggestions(): Boolean = allSuggestions.isNotEmpty()
 
     /**
-     * Gets the current prefix being typed.
+     * Gets the current prefix being typed (with original case preserved).
      */
-    fun getCurrentPrefix(): String = currentPrefix
+    fun getCurrentPrefix(): String = originalPrefix
 
     /**
      * Checks if word prediction is currently active.
