@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import android.view.KeyEvent
 import it.palsoftware.pastiera.data.pinyin.PinyinDictionary
+import it.palsoftware.pastiera.data.pinyin.UserPinyinMemory
 
 /**
  * Manages Pinyin input state and generates Chinese character candidates.
@@ -49,6 +50,9 @@ class PinyinInputController(
         val hasNextPage: Boolean = false,
         val hasPrevPage: Boolean = false
     )
+
+    // User memory for learning preferences
+    private val userMemory: UserPinyinMemory = UserPinyinMemory.getInstance(context)
 
     init {
         // Load dictionary if not already loaded
@@ -158,6 +162,9 @@ class PinyinInputController(
         }
 
         Log.d(TAG, "Selected candidate $index (actual: $actualIndex): '$selected', consuming: '$pinyinToConsume' (phrase count: $phraseCandidateCount)")
+
+        // Record the selection in user memory for learning
+        userMemory.recordSelection(pinyinToConsume, selected)
 
         // Remove the consumed pinyin from the buffer
         if (pinyinToConsume.isNotEmpty() && buffer.startsWith(pinyinToConsume)) {
@@ -302,31 +309,37 @@ class PinyinInputController(
         firstSyllable = firstSyl
 
         // Check for exact phrase match first
-        val phraseCandidates = PinyinDictionary.getPhraseCandidates(bufferStr)
-        if (phraseCandidates.isNotEmpty()) {
+        val phraseCandidatesRaw = PinyinDictionary.getPhraseCandidates(bufferStr)
+        if (phraseCandidatesRaw.isNotEmpty()) {
             // Exact phrase match - show phrase candidates
             // Also add single-character candidates for first syllable as fallback
-            val singleCharCandidates = if (firstSyl.isNotEmpty()) {
+            val singleCharCandidatesRaw = if (firstSyl.isNotEmpty()) {
                 PinyinDictionary.getCandidates(firstSyl)
             } else {
                 emptyList()
             }
 
+            // Sort both by user frequency
+            val phraseCandidates = userMemory.sortByFrequency(bufferStr, phraseCandidatesRaw)
+            val singleCharCandidates = userMemory.sortByFrequency(firstSyl, singleCharCandidatesRaw)
+
             // Combine: phrase candidates first, then single-character candidates
             allCandidates = phraseCandidates + singleCharCandidates
             matchedPinyin = bufferStr  // Default to full buffer for phrases
             phraseCandidateCount = phraseCandidates.size
-            Log.d(TAG, "Phrase match: $bufferStr → ${phraseCandidates.size} phrases + ${singleCharCandidates.size} single chars")
+            Log.d(TAG, "Phrase match: $bufferStr → ${phraseCandidates.size} phrases + ${singleCharCandidates.size} single chars (sorted by frequency)")
             return
         }
 
         // Find the longest syllable match
         val longestSyllable = PinyinDictionary.findLongestSyllable(bufferStr)
         if (longestSyllable != null) {
-            val charCandidates = PinyinDictionary.getCandidates(longestSyllable)
-            allCandidates = charCandidates
+            val charCandidatesRaw = PinyinDictionary.getCandidates(longestSyllable)
+            // Sort by user frequency
+            allCandidates = userMemory.sortByFrequency(longestSyllable, charCandidatesRaw)
             matchedPinyin = longestSyllable
             phraseCandidateCount = 0  // No phrases, all single characters
+            Log.d(TAG, "Syllable match: $longestSyllable → ${allCandidates.size} chars (sorted by frequency)")
         } else {
             allCandidates = emptyList()
             matchedPinyin = ""
