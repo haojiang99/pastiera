@@ -1217,6 +1217,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
 
+            // Handle comma and period - automatically add space after in Pinyin mode
+            if (event != null && event.unicodeChar != 0) {
+                val char = event.unicodeChar.toChar()
+                if (char == ',' || char == '.') {
+                    // Commit any existing pinyin buffer first
+                    val buffer = pinyinInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        val committed = pinyinInputController.commitBufferAsIs()
+                        if (committed != null) {
+                            ic.commitText(committed, 1)
+                        }
+                    }
+                    // Commit the punctuation followed by a space
+                    ic.commitText("$char ", 1)
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
             // ESC key or Ctrl+Q to exit Pinyin mode
             if (keyCode == KeyEvent.KEYCODE_ESCAPE ||
                 (keyCode == KeyEvent.KEYCODE_Q && ctrlPressed)) {

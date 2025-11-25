@@ -100,7 +100,13 @@ class AutoCorrectionManager(
         when {
             isSpace -> inputConnection.commitText(" ", 1)
             isPunctuation && event?.unicodeChar != null && event.unicodeChar != 0 -> {
-                inputConnection.commitText(event.unicodeChar.toChar().toString(), 1)
+                val punctChar = event.unicodeChar.toChar()
+                // Automatically add space after comma or period
+                if (punctChar == ',' || punctChar == '.') {
+                    inputConnection.commitText("$punctChar ", 1)
+                } else {
+                    inputConnection.commitText(punctChar.toString(), 1)
+                }
             }
         }
 

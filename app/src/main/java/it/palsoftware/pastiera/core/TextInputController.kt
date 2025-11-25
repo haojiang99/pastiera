@@ -140,4 +140,22 @@ class TextInputController(
             )
         }
     }
+
+    fun handleAutoSpaceAfterPunctuation(
+        event: KeyEvent?,
+        inputConnection: InputConnection?
+    ): Boolean {
+        // Automatically add space after comma or period
+        if (event == null || inputConnection == null || event.unicodeChar == 0) {
+            return false
+        }
+
+        val char = event.unicodeChar.toChar()
+        if (char == ',' || char == '.') {
+            inputConnection.commitText("$char ", 1)
+            return true
+        }
+
+        return false
+    }
 }

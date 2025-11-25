@@ -560,6 +560,12 @@ class InputEventRouter(
             onStatusBarUpdate = updateStatusBar
         )
 
+        // Handle auto-space after comma/period (regardless of auto-correction settings)
+        if (textInputController.handleAutoSpaceAfterPunctuation(event, inputConnection)) {
+            updateStatusBar()
+            return true
+        }
+
         if (
             autoCorrectionManager.handleSpaceOrPunctuation(
                 keyCode,
