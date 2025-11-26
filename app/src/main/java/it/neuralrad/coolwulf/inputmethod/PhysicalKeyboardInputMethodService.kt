@@ -404,6 +404,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             updateStatusBarText()
         }
 
+        // Register listener for language toggle (EN/CN switch)
+        candidatesBarController.onLanguageToggleListener = {
+            togglePinyinMode()
+        }
+
         altSymManager = AltSymManager(assets, prefs, this)
         altSymManager.reloadSymMappings() // Load custom mappings for page 1 if present
         altSymManager.reloadSymMappings2() // Load custom mappings for page 2 if present
@@ -609,6 +614,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private fun ensureInputViewCreated() {
         keyboardVisibilityController.ensureInputViewCreated()
     }
+
+    /**
+     * Toggles Pinyin input mode on/off.
+     * Called from EN/CN toggle button and Shift+Enter shortcut.
+     */
+    private fun togglePinyinMode() {
+        pinyinInputController.togglePinyinMode()
+        if (!pinyinInputController.isPinyinMode()) {
+            currentInputConnection?.finishComposingText()
+        }
+        updateStatusBarText()
+    }
+
     /**
      * Aggiorna la status bar delegando al controller dedicato.
      */
@@ -1007,11 +1025,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         if (keyCode == KeyEvent.KEYCODE_ENTER) {
             // Toggle Pinyin mode with Shift+Enter
             if (shiftPressed && !ctrlPressed && !altPressed) {
-                pinyinInputController.togglePinyinMode()
-                if (!pinyinInputController.isPinyinMode() && ic != null) {
-                    ic.finishComposingText()
-                }
-                updateStatusBarText()
+                togglePinyinMode()
                 return true
             }
 

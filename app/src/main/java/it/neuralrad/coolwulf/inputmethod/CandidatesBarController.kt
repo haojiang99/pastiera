@@ -50,6 +50,13 @@ class CandidatesBarController(
             candidatesStatusBar.onPrevPageListener = value
         }
 
+    var onLanguageToggleListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onLanguageToggleListener = value
+            candidatesStatusBar.onLanguageToggleListener = value
+        }
+
     fun getInputView(emojiMapText: String = ""): LinearLayout {
         return inputStatusBar.getOrCreateLayout(emojiMapText)
     }

@@ -78,6 +78,13 @@ class StatusBarController(
             variationBarView?.onPrevPageListener = value
         }
 
+    // Listener for language toggle (EN/CN switch)
+    var onLanguageToggleListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            variationBarView?.onLanguageToggleListener = value
+        }
+
     companion object {
         private const val TAG = "StatusBarController"
         private const val NAV_MODE_LABEL = "NAV MODE"
@@ -903,8 +910,10 @@ class StatusBarController(
         variationBarView?.onVariationSelectedListener = onVariationSelectedListener
         variationBarView?.onPinyinCandidateSelectedListener = onPinyinCandidateSelectedListener
         variationBarView?.onCursorMovedListener = onCursorMovedListener
+        variationBarView?.onLanguageToggleListener = onLanguageToggleListener
         variationBarView?.updateInputConnection(inputConnection)
         variationBarView?.setSymModeActive(snapshot.symPage > 0)
+        variationBarView?.setPinyinModeActive(snapshot.pinyinModeActive)
 
         // Always call showVariations() early, before any potential early returns
         // This ensures the variation bar is updated even if the rest of update() returns early

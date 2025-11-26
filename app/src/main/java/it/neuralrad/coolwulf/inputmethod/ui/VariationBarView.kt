@@ -45,8 +45,11 @@ class VariationBarView(
     var onCursorMovedListener: (() -> Unit)? = null
     var onNextPageListener: (() -> Unit)? = null
     var onPrevPageListener: (() -> Unit)? = null
+    var onLanguageToggleListener: (() -> Unit)? = null
 
     private var wrapper: FrameLayout? = null
+    private var languageToggleButtonView: TextView? = null
+    private var isPinyinModeActive: Boolean = false
     private var prevArrowButton: ImageView? = null
     private var nextArrowButton: ImageView? = null
     private var container: LinearLayout? = null
@@ -117,6 +120,13 @@ class VariationBarView(
         }
     }
 
+    fun setPinyinModeActive(active: Boolean) {
+        if (isPinyinModeActive != active) {
+            isPinyinModeActive = active
+            updateLanguageToggleButton()
+        }
+    }
+
     fun updateInputConnection(inputConnection: android.view.inputmethod.InputConnection?) {
         currentInputConnection = inputConnection
     }
@@ -133,6 +143,7 @@ class VariationBarView(
         variationButtons.clear()
         removeMicrophoneImmediate()
         removeSettingsImmediate()
+        removeLanguageToggleImmediate()
         container?.visibility = View.GONE
         wrapper?.visibility = View.GONE
         overlay?.visibility = View.GONE
@@ -148,6 +159,7 @@ class VariationBarView(
 
         removeMicrophoneImmediate()
         removeSettingsImmediate()
+        removeLanguageToggleImmediate()
 
         if (row != null && row.parent == containerView && row.visibility == View.VISIBLE) {
             animateVariationsOut(row) {
@@ -188,11 +200,20 @@ class VariationBarView(
             return
         }
 
-        variationButtons.clear()
-        currentVariationsRow?.let {
-            (it.parent as? ViewGroup)?.removeView(it)
+        // Optimization: Don't remove/recreate views if only updating - reuse existing row
+        val reuseExistingRow = hasExistingRow && currentVariationsRow != null
+
+        if (!reuseExistingRow) {
+            variationButtons.clear()
+            currentVariationsRow?.let {
+                (it.parent as? ViewGroup)?.removeView(it)
+            }
+            currentVariationsRow = null
+        } else {
+            // Clear existing buttons from row but keep row
+            currentVariationsRow?.removeAllViews()
+            variationButtons.clear()
         }
-        currentVariationsRow = null
 
         val screenWidth = context.resources.displayMetrics.widthPixels
         val leftPadding = containerView.paddingLeft
@@ -278,23 +299,34 @@ class VariationBarView(
 
         val buttonWidth = if (buttonWidths.isNotEmpty()) buttonWidths[0] else minButtonWidth
 
-        val variationsRow = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.START or Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.TRANSPARENT)
-        }
-        currentVariationsRow = variationsRow
-
         // Calculate explicit width for variationsRow (total width used)
         val variationsRowWidth = totalWidth
         val buttonHeight = buttonWidth // Use first button's width as height for square buttons
-        val rowLayoutParams = LinearLayout.LayoutParams(
-            variationsRowWidth,
-            buttonHeight
-        )
-        containerView.addView(variationsRow, 0, rowLayoutParams)
 
-        // Force measure and layout the variationsRow
+        // Reuse existing row if available, otherwise create new one
+        val variationsRow = if (reuseExistingRow && currentVariationsRow != null) {
+            currentVariationsRow!!.apply {
+                // Update layout params if size changed
+                val lp = layoutParams as? LinearLayout.LayoutParams
+                if (lp != null && (lp.width != variationsRowWidth || lp.height != buttonHeight)) {
+                    lp.width = variationsRowWidth
+                    lp.height = buttonHeight
+                    layoutParams = lp
+                }
+            }
+        } else {
+            LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                setBackgroundColor(Color.TRANSPARENT)
+                layoutParams = LinearLayout.LayoutParams(variationsRowWidth, buttonHeight)
+            }.also {
+                currentVariationsRow = it
+                containerView.addView(it, 0)
+            }
+        }
+
+        // Measure and layout the variationsRow
         val widthMeasureSpec = View.MeasureSpec.makeMeasureSpec(variationsRowWidth, View.MeasureSpec.EXACTLY)
         val heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(buttonHeight, View.MeasureSpec.EXACTLY)
         variationsRow.measure(widthMeasureSpec, heightMeasureSpec)
@@ -337,108 +369,107 @@ class VariationBarView(
         ).toInt()
 
         if (showPagination) {
-            // Count existing children to determine proper insertion points
-            var currentChildCount = containerView.childCount
-
             // Previous page arrow (left) - only show if there's a previous page
             if (snapshot.hasPrevPage) {
-                val prevArrow = prevArrowButton ?: createArrowButton(arrowButtonSize, isNext = false)
-                prevArrowButton = prevArrow
-                (prevArrow.parent as? ViewGroup)?.removeView(prevArrow)
-                val prevParams = LinearLayout.LayoutParams(arrowButtonSize, arrowButtonSize).apply {
-                    marginStart = TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        2f,
-                        context.resources.displayMetrics
-                    ).toInt()
+                val prevArrow = prevArrowButton ?: createArrowButton(arrowButtonSize, isNext = false).also {
+                    prevArrowButton = it
                 }
-                // Insert at the beginning (before variations row)
-                containerView.addView(prevArrow, 0, prevParams)
+                if (prevArrow.parent == null) {
+                    val prevParams = LinearLayout.LayoutParams(arrowButtonSize, arrowButtonSize).apply {
+                        marginStart = TypedValue.applyDimension(
+                            TypedValue.COMPLEX_UNIT_DIP,
+                            2f,
+                            context.resources.displayMetrics
+                        ).toInt()
+                    }
+                    containerView.addView(prevArrow, 0, prevParams)
+                }
                 prevArrow.alpha = 1f
                 prevArrow.isClickable = true
-                prevArrow.setOnClickListener {
-                    onPrevPageListener?.invoke()
-                }
+                prevArrow.setOnClickListener { onPrevPageListener?.invoke() }
                 prevArrow.visibility = View.VISIBLE
             } else {
-                // Hide left arrow on first page
-                prevArrowButton?.let {
-                    (it.parent as? ViewGroup)?.removeView(it)
-                    it.visibility = View.GONE
-                }
+                prevArrowButton?.visibility = View.GONE
             }
 
             // Next page arrow (right) - show if there's a next page
             if (snapshot.hasNextPage) {
-                val nextArrow = nextArrowButton ?: createArrowButton(arrowButtonSize, isNext = true)
-                nextArrowButton = nextArrow
-                (nextArrow.parent as? ViewGroup)?.removeView(nextArrow)
-                val nextParams = LinearLayout.LayoutParams(arrowButtonSize, arrowButtonSize).apply {
-                    marginEnd = TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        2f,
-                        context.resources.displayMetrics
-                    ).toInt()
+                val nextArrow = nextArrowButton ?: createArrowButton(arrowButtonSize, isNext = true).also {
+                    nextArrowButton = it
                 }
-                // Insert after variations row (at index 1 if prevArrow exists, else 0)
-                // But before microphone button which will be added later
-                val insertIndex = if (snapshot.hasPrevPage) 2 else 1
-                containerView.addView(nextArrow, insertIndex, nextParams)
+                if (nextArrow.parent == null) {
+                    val nextParams = LinearLayout.LayoutParams(arrowButtonSize, arrowButtonSize).apply {
+                        marginEnd = TypedValue.applyDimension(
+                            TypedValue.COMPLEX_UNIT_DIP,
+                            2f,
+                            context.resources.displayMetrics
+                        ).toInt()
+                    }
+                    val insertIndex = if (snapshot.hasPrevPage) 2 else 1
+                    containerView.addView(nextArrow, insertIndex, nextParams)
+                }
                 nextArrow.alpha = 1f
                 nextArrow.isClickable = true
-                nextArrow.setOnClickListener {
-                    onNextPageListener?.invoke()
-                }
+                nextArrow.setOnClickListener { onNextPageListener?.invoke() }
                 nextArrow.visibility = View.VISIBLE
             } else {
-                // Hide right arrow on last page
-                nextArrowButton?.let {
-                    (it.parent as? ViewGroup)?.removeView(it)
-                    it.visibility = View.GONE
-                }
+                nextArrowButton?.visibility = View.GONE
             }
         } else {
-            // Remove arrow buttons if not in pagination mode
-            prevArrowButton?.let {
-                (it.parent as? ViewGroup)?.removeView(it)
-                it.visibility = View.GONE
-            }
-            nextArrowButton?.let {
-                (it.parent as? ViewGroup)?.removeView(it)
-                it.visibility = View.GONE
-            }
+            // Hide arrow buttons if not in pagination mode
+            prevArrowButton?.visibility = View.GONE
+            nextArrowButton?.visibility = View.GONE
         }
 
-        val microphoneButton = microphoneButtonView ?: createMicrophoneButton(buttonWidth)
-        microphoneButtonView = microphoneButton
-        (microphoneButton.parent as? ViewGroup)?.removeView(microphoneButton)
-        val micParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth)
-        containerView.addView(microphoneButton, micParams)
-        microphoneButton.setOnClickListener {
-            startSpeechRecognition(inputConnection)
+        // Microphone button - reuse if already attached
+        val microphoneButton = microphoneButtonView ?: createMicrophoneButton(buttonWidth).also {
+            microphoneButtonView = it
         }
+        if (microphoneButton.parent == null) {
+            val micParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth)
+            containerView.addView(microphoneButton, micParams)
+        }
+        microphoneButton.setOnClickListener { startSpeechRecognition(inputConnection) }
         microphoneButton.alpha = 1f
         microphoneButton.visibility = View.VISIBLE
 
-        val settingsButton = settingsButtonView ?: createStatusBarSettingsButton(buttonWidth)
-        settingsButtonView = settingsButton
-        (settingsButton.parent as? ViewGroup)?.removeView(settingsButton)
-        val settingsParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
-            topMargin = (-buttonWidth * 0.1f).toInt()
+        // Settings button - reuse if already attached
+        val settingsButton = settingsButtonView ?: createStatusBarSettingsButton(buttonWidth).also {
+            settingsButtonView = it
         }
-        containerView.addView(settingsButton, settingsParams)
-        settingsButton.setOnClickListener {
-            openSettings()
+        if (settingsButton.parent == null) {
+            val settingsParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
+                topMargin = (-buttonWidth * 0.1f).toInt()
+            }
+            containerView.addView(settingsButton, settingsParams)
         }
+        settingsButton.setOnClickListener { openSettings() }
         settingsButton.alpha = 1f
         settingsButton.visibility = View.VISIBLE
 
-        if (variationsChanged) {
-            animateVariationsIn(variationsRow)
-        } else {
-            variationsRow.alpha = 1f
-            variationsRow.visibility = View.VISIBLE
+        // Language toggle button (EN/CN) - reuse if already attached
+        val languageToggleButton = languageToggleButtonView ?: createLanguageToggleButton(buttonWidth).also {
+            languageToggleButtonView = it
         }
+        if (languageToggleButton.parent == null) {
+            val langParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
+                marginStart = TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_DIP,
+                    4f,
+                    context.resources.displayMetrics
+                ).toInt()
+            }
+            containerView.addView(languageToggleButton, langParams)
+        }
+        languageToggleButton.setOnClickListener {
+            onLanguageToggleListener?.invoke()
+        }
+        languageToggleButton.alpha = 1f
+        languageToggleButton.visibility = View.VISIBLE
+
+        // Skip animation for smoother updates - just set alpha directly
+        variationsRow.alpha = 1f
+        variationsRow.visibility = View.VISIBLE
     }
 
     private fun installOverlayTouchListener(overlayView: View) {
@@ -575,6 +606,14 @@ class VariationBarView(
             (settings.parent as? ViewGroup)?.removeView(settings)
             settings.visibility = View.GONE
             settings.alpha = 1f
+        }
+    }
+
+    private fun removeLanguageToggleImmediate() {
+        languageToggleButtonView?.let { toggle ->
+            (toggle.parent as? ViewGroup)?.removeView(toggle)
+            toggle.visibility = View.GONE
+            toggle.alpha = 1f
         }
     }
 
@@ -754,6 +793,41 @@ class VariationBarView(
             isFocusable = true
             setPadding(dp3, dp3, dp3, dp3)
             layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
+        }
+    }
+
+    private fun createLanguageToggleButton(buttonSize: Int): TextView {
+        val dp2 = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            2f,
+            context.resources.displayMetrics
+        ).toInt()
+        val drawable = GradientDrawable().apply {
+            setColor(Color.rgb(40, 40, 40))
+            cornerRadius = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                4f,
+                context.resources.displayMetrics
+            )
+        }
+        return TextView(context).apply {
+            text = if (isPinyinModeActive) "CN" else "EN"
+            textSize = 12f
+            setTextColor(if (isPinyinModeActive) Color.rgb(100, 200, 255) else Color.WHITE)
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            gravity = Gravity.CENTER
+            background = drawable
+            isClickable = true
+            isFocusable = true
+            setPadding(dp2, dp2, dp2, dp2)
+            layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
+        }
+    }
+
+    private fun updateLanguageToggleButton() {
+        languageToggleButtonView?.apply {
+            text = if (isPinyinModeActive) "CN" else "EN"
+            setTextColor(if (isPinyinModeActive) Color.rgb(100, 200, 255) else Color.WHITE)
         }
     }
 
