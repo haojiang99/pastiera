@@ -41,9 +41,6 @@ import it.palsoftware.pastiera.inputmethod.NotificationHelper
 import it.palsoftware.pastiera.ui.CustomTopBar
 import it.palsoftware.pastiera.ui.theme.PastieraTheme
 import it.palsoftware.pastiera.BuildConfig
-import it.palsoftware.pastiera.update.checkForUpdate
-import it.palsoftware.pastiera.update.showUpdateDialog
-import it.palsoftware.pastiera.update.UpdateCheckWorker
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Settings
@@ -158,10 +155,7 @@ class MainActivity : ComponentActivity() {
             finish()
             return
         }
-        
-        // Schedule periodic background update checks (every 24 hours).
-        UpdateCheckWorker.schedule(applicationContext)
-        
+
         enableEdgeToEdge()
         setContent {
             PastieraTheme {
@@ -264,20 +258,7 @@ fun KeyboardSetupScreen(
             KeyboardEventTracker.unregisterState()
         }
     }
-    
-    // Automatic update check on screen open (only once, respecting dismissed releases)
-    LaunchedEffect(Unit) {
-        checkForUpdate(
-            context = context,
-            currentVersion = BuildConfig.VERSION_NAME,
-            ignoreDismissedReleases = true
-        ) { hasUpdate, latestVersion, downloadUrl ->
-            if (hasUpdate && latestVersion != null) {
-                showUpdateDialog(context, latestVersion, downloadUrl)
-            }
-        }
-    }
-    
+
     // Main screen
     Column(
         modifier = Modifier

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">酷狼输入法</string>
+    <string name="input_method_name">酷狼输入法物理键盘</string>
+    <string name="enable_pastiera">启用酷狼输入法</string>
+</resources>
