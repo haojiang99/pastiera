@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import android.view.inputmethod.InputConnection
 import it.neuralrad.coolwulf.data.english.EnglishWordDictionary
+import it.neuralrad.coolwulf.data.english.UserEnglishMemory
 
 /**
  * Manages English word prediction state and generates word suggestions.
@@ -33,6 +34,9 @@ class EnglishWordPredictionController(
 
     // Whether word prediction is enabled
     private var isEnabled = true
+
+    // User memory for learning preferences
+    private val userMemory: UserEnglishMemory = UserEnglishMemory.getInstance(context)
 
     data class Snapshot(
         val prefix: String,
@@ -97,8 +101,10 @@ class EnglishWordPredictionController(
             currentPrefix = lowercaseWord
             originalPrefix = originalWord
             currentPage = 0  // Reset to first page when prefix changes
-            allSuggestions = EnglishWordDictionary.getSuggestions(lowercaseWord, MAX_SUGGESTIONS)
-            Log.d(TAG, "Prefix: '$originalWord' (lowercase: '$lowercaseWord'), total suggestions: ${allSuggestions.size}")
+            // Get suggestions from dictionary and sort by user frequency
+            val rawSuggestions = EnglishWordDictionary.getSuggestions(lowercaseWord, MAX_SUGGESTIONS)
+            allSuggestions = userMemory.sortByFrequency(lowercaseWord, rawSuggestions)
+            Log.d(TAG, "Prefix: '$originalWord' (lowercase: '$lowercaseWord'), total suggestions: ${allSuggestions.size} (sorted by frequency)")
         }
     }
 
@@ -170,6 +176,9 @@ class EnglishWordPredictionController(
         val prefixLength = originalPrefix.length
 
         Log.d(TAG, "Selected suggestion $index: '$casedWord' (original: '$selectedWord'), prefix: '$originalPrefix'")
+
+        // Record the selection in user memory for learning
+        userMemory.recordSelection(currentPrefix, selectedWord)
 
         // Return both the word and how many chars to delete
         return SelectionResult(

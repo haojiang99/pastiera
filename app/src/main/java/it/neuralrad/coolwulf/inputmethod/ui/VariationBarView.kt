@@ -22,6 +22,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import it.neuralrad.coolwulf.R
 import it.neuralrad.coolwulf.SettingsActivity
+import it.neuralrad.coolwulf.inputmethod.NotificationHelper
 import it.neuralrad.coolwulf.inputmethod.StatusBarController
 import it.neuralrad.coolwulf.inputmethod.TextSelectionHelper
 import it.neuralrad.coolwulf.inputmethod.VariationButtonHandler
@@ -644,7 +645,8 @@ class VariationBarView(
                     variation,
                     wordPredictionPrefixLength,
                     inputConnection,
-                    onVariationSelectedListener
+                    onVariationSelectedListener,
+                    context
                 )
             }
             isPinyinMode -> {
@@ -654,7 +656,8 @@ class VariationBarView(
                     candidateIndex,
                     inputConnection,
                     onPinyinCandidateSelectedListener,
-                    onVariationSelectedListener
+                    onVariationSelectedListener,
+                    context
                 )
             }
             else -> {
@@ -666,6 +669,9 @@ class VariationBarView(
                 )
             }
         }
+
+        // Capture flags for closure
+        val shouldVibrate = isWordPrediction || isPinyinMode
 
         return TextView(context).apply {
             text = displayText
@@ -681,7 +687,19 @@ class VariationBarView(
             maxLines = 1
             isClickable = true
             isFocusable = true
-            setOnClickListener(clickListener)
+            isHapticFeedbackEnabled = true
+            setOnClickListener { view ->
+                // Vibrate for word prediction and pinyin candidate selection
+                if (shouldVibrate) {
+                    // Use View's performHapticFeedback - most reliable for IME
+                    view.performHapticFeedback(
+                        android.view.HapticFeedbackConstants.VIRTUAL_KEY,
+                        android.view.HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
+                        android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+                    )
+                }
+                clickListener.onClick(view)
+            }
         }
     }
 

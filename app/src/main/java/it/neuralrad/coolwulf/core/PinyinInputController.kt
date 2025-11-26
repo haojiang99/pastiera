@@ -290,6 +290,7 @@ class PinyinInputController(
      * Uses longest-match strategy and checks for phrase matches.
      * For multi-syllable inputs, shows both phrase candidates and single-character
      * candidates for the first syllable to allow character-by-character input.
+     * For partial/incomplete syllables (like single letters), shows prefix matches.
      */
     private fun updateCandidates() {
         currentPage = 0  // Reset to first page when candidates change
@@ -341,9 +342,23 @@ class PinyinInputController(
             phraseCandidateCount = 0  // No phrases, all single characters
             Log.d(TAG, "Syllable match: $longestSyllable → ${allCandidates.size} chars (sorted by frequency)")
         } else {
-            allCandidates = emptyList()
-            matchedPinyin = ""
-            phraseCandidateCount = 0
+            // No exact syllable match - try prefix matching for incomplete input
+            // This handles cases like "w" showing candidates from "wa", "wo", "wu", etc.
+            val prefixCandidatesRaw = PinyinDictionary.getCandidatesForPrefix(bufferStr)
+            if (prefixCandidatesRaw.isNotEmpty()) {
+                // Sort by user frequency using the prefix as key
+                allCandidates = userMemory.sortByFrequency(bufferStr, prefixCandidatesRaw)
+                // Use the first matching syllable for consumption
+                matchedPinyin = PinyinDictionary.getFirstSyllableForPrefix(bufferStr) ?: bufferStr
+                firstSyllable = matchedPinyin
+                phraseCandidateCount = 0
+                Log.d(TAG, "Prefix match: $bufferStr → ${allCandidates.size} chars from syllables starting with '$bufferStr'")
+            } else {
+                allCandidates = emptyList()
+                matchedPinyin = ""
+                phraseCandidateCount = 0
+                Log.d(TAG, "No match for: $bufferStr")
+            }
         }
     }
 

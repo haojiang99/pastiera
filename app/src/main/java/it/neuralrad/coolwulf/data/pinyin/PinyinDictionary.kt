@@ -190,6 +190,68 @@ object PinyinDictionary {
     }
 
     /**
+     * Gets candidates for syllables that start with the given prefix.
+     * Useful for single-letter input like "w" -> candidates from "wa", "wo", "wu", "wei", etc.
+     * @param prefix The prefix to search for (e.g., "w")
+     * @param limit Maximum number of candidates to return
+     * @return Combined list of candidates from matching syllables
+     */
+    fun getCandidatesForPrefix(prefix: String, limit: Int = 30): List<String> {
+        if (!isLoaded || prefix.isEmpty()) {
+            return emptyList()
+        }
+
+        val normalized = prefix.lowercase()
+        val results = mutableListOf<String>()
+        val seen = mutableSetOf<String>()
+
+        // Find all syllables starting with this prefix
+        val matchingSyllables = dictionary.keys
+            .filter { it.startsWith(normalized) }
+            .sortedBy { it.length }  // Shorter syllables first (more common)
+
+        // Collect candidates from matching syllables
+        for (syllable in matchingSyllables) {
+            val candidates = dictionary[syllable] ?: continue
+            for (candidate in candidates) {
+                if (candidate !in seen) {
+                    seen.add(candidate)
+                    results.add(candidate)
+                    if (results.size >= limit) {
+                        return results
+                    }
+                }
+            }
+        }
+
+        return results
+    }
+
+    /**
+     * Gets the first matching syllable for a prefix.
+     * Used for determining which pinyin to consume when selecting a candidate.
+     * @param prefix The prefix to search for
+     * @return The shortest syllable starting with the prefix, or null if none found
+     */
+    fun getFirstSyllableForPrefix(prefix: String): String? {
+        if (!isLoaded || prefix.isEmpty()) {
+            return null
+        }
+
+        val normalized = prefix.lowercase()
+
+        // If the prefix itself is a valid syllable, return it
+        if (contains(normalized)) {
+            return normalized
+        }
+
+        // Find the shortest syllable starting with this prefix
+        return dictionary.keys
+            .filter { it.startsWith(normalized) }
+            .minByOrNull { it.length }
+    }
+
+    /**
      * Splits input into valid pinyin syllables using greedy longest-match.
      * For example, "nihao" -> ["ni", "hao"]
      * @param input The complete pinyin string

@@ -1,5 +1,6 @@
 package it.neuralrad.coolwulf.inputmethod
 
+import android.content.Context
 import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputConnection
@@ -71,13 +72,15 @@ object VariationButtonHandler {
      * Creates a listener for a Pinyin candidate button.
      * When clicked, commits the Chinese character and notifies with the candidate index.
      * Does NOT delete any committed text - the Pinyin buffer is shown as composing text.
+     * Note: Vibration is handled by VariationBarView, not here.
      */
     fun createPinyinCandidateClickListener(
         candidate: String,
         candidateIndex: Int,
         inputConnection: InputConnection?,
         pinyinListener: OnPinyinCandidateSelectedListener? = null,
-        listener: OnVariationSelectedListener? = null
+        listener: OnVariationSelectedListener? = null,
+        @Suppress("UNUSED_PARAMETER") context: Context? = null
     ): View.OnClickListener {
         return View.OnClickListener {
             Log.d(TAG, "Click on Pinyin candidate $candidateIndex: $candidate")
@@ -102,12 +105,14 @@ object VariationButtonHandler {
     /**
      * Creates a listener for a word prediction button.
      * When clicked, deletes the prefix being typed and inserts the complete word + space.
+     * Note: Vibration is handled by VariationBarView, not here.
      */
     fun createWordPredictionClickListener(
         word: String,
         prefixLength: Int,
         inputConnection: InputConnection?,
-        listener: OnVariationSelectedListener? = null
+        listener: OnVariationSelectedListener? = null,
+        @Suppress("UNUSED_PARAMETER") context: Context? = null
     ): View.OnClickListener {
         return View.OnClickListener {
             Log.d(TAG, "Click on word prediction: $word (prefix length: $prefixLength)")

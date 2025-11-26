@@ -4,12 +4,15 @@
 
     <!-- Permesso per le notifiche (richiesto da Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    
+
     <!-- Permesso per il riconoscimento vocale -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    
+
     <!-- Permesso per l'accesso a Internet (richiesto per il controllo aggiornamenti) -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Permesso per la vibrazione (feedback tattile) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- Query per vedere tutte le app installate che possono essere avviate -->
     <queries>

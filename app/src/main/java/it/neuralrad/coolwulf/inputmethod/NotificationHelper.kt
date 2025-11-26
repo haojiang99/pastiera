@@ -50,28 +50,53 @@ object NotificationHelper {
      * Triggers a short vibration for nav mode activation, without showing a notification.
      */
     fun vibrateNavModeActivated(context: Context) {
+        vibrateShort(context, 50)
+    }
+
+    /**
+     * Triggers a short vibration for word/candidate selection feedback.
+     */
+    fun vibrateWordSelection(context: Context) {
+        vibrateShort(context, 30)
+    }
+
+    /**
+     * Internal helper for triggering a short vibration.
+     * @param durationMs Duration of the vibration in milliseconds
+     */
+    private fun vibrateShort(context: Context, durationMs: Long) {
         try {
+            // Use applicationContext to ensure we get system services properly
+            val appContext = context.applicationContext
             val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                val vm = appContext.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
                 vm?.defaultVibrator
             } else {
                 @Suppress("DEPRECATION")
-                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                appContext.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
             }
 
-            if (vibrator == null || !vibrator.hasVibrator()) {
+            if (vibrator == null) {
                 return
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val effect = VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE)
+            if (!vibrator.hasVibrator()) {
+                return
+            }
+
+            // Use predefined click effect on Android Q+ for better compatibility
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val effect = VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
+                vibrator.vibrate(effect)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val effect = VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE)
                 vibrator.vibrate(effect)
             } else {
                 @Suppress("DEPRECATION")
-                vibrator.vibrate(50)
+                vibrator.vibrate(durationMs)
             }
         } catch (e: Exception) {
-            android.util.Log.w("NotificationHelper", "Unable to vibrate for nav mode", e)
+            // Silent catch - vibration is not critical
         }
     }
 

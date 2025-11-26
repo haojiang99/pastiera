@@ -1069,6 +1069,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Handle Pinyin input mode
         if (pinyinInputController.isPinyinMode() && ic != null) {
+            // Handle SYM mode - when SYM is active, allow symbol input just like in English mode
+            if (symLayoutController.isSymActive()) {
+                val symResult = symLayoutController.handleKeyWhenActive(
+                    keyCode,
+                    event,
+                    ic,
+                    ctrlLatchActive = ctrlLatchActive,
+                    altLatchActive = altLatchActive,
+                    updateStatusBar = { updateStatusBarText() }
+                )
+                when (symResult) {
+                    SymLayoutController.SymKeyResult.CONSUME -> return true
+                    SymLayoutController.SymKeyResult.CALL_SUPER -> return super.onKeyDown(keyCode, event)
+                    SymLayoutController.SymKeyResult.NOT_HANDLED -> { /* Continue to Pinyin handling */ }
+                }
+            }
+
             // FIRST: Handle Alt modifier - when Alt is active (latched, one-shot, or pressed), input alternate characters
             if (event != null && (altLatchActive || altOneShot || altPressed)) {
                 // Get the character with Alt modifier applied
