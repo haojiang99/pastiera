@@ -1246,9 +1246,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         return true
                     }
                 }
+
+                // Handle apostrophe (') as syllable separator for disambiguation
+                // e.g., "he'ni" means 和你 (he + ni), not 很 (hen) + something
+                if (char == '\'') {
+                    if (pinyinInputController.handleSeparatorKey()) {
+                        val buffer = pinyinInputController.getBuffer()
+                        ic.setComposingText(buffer, 1)
+                        updateStatusBarText()
+                        return true
+                    }
+                }
             }
 
-            // Handle comma and period - automatically add space after in Pinyin mode
+            // Handle comma and period - use Chinese punctuation in Pinyin mode
             if (event != null && event.unicodeChar != 0) {
                 val char = event.unicodeChar.toChar()
                 if (char == ',' || char == '.') {
@@ -1260,8 +1271,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             ic.commitText(committed, 1)
                         }
                     }
-                    // Commit the punctuation followed by a space
-                    ic.commitText("$char ", 1)
+                    // Convert to Chinese punctuation
+                    val chinesePunctuation = if (char == ',') "，" else "。"
+                    ic.commitText(chinesePunctuation, 1)
                     updateStatusBarText()
                     return true
                 }

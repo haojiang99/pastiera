@@ -66,10 +66,11 @@ class VariationBarView(
     private var touchStartY = 0f
     private var lastCursorMoveX = 0f
     private var currentInputConnection: android.view.inputmethod.InputConnection? = null
+    private var swipeIndicator: View? = null
 
     fun ensureView(): View {
-        if (container != null) {
-            return container!!
+        if (wrapper != null) {
+            return wrapper!!
         }
 
         val leftPadding = TypedValue.applyDimension(
@@ -89,26 +90,48 @@ class VariationBarView(
             context.resources.displayMetrics
         ).toInt()
 
-        // DEBUG: Skip the FrameLayout wrapper entirely - just use container directly
+        // Container for suggestion buttons and other controls
         container = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.START or Gravity.CENTER_VERTICAL
             setPadding(leftPadding, variationsVerticalPadding, rightPadding, variationsVerticalPadding)
-            // Use LinearLayout.LayoutParams since parent is now the statusBarLayout (a LinearLayout)
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            setBackgroundColor(Color.TRANSPARENT)
+            visibility = View.VISIBLE
+        }
+
+        // Wrapper FrameLayout to hold both container and overlay
+        wrapper = FrameLayout(context).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 variationsContainerHeight
             )
-            setBackgroundColor(Color.TRANSPARENT)
             visibility = View.GONE
+            addView(container)
         }
 
-        // Use container as wrapper (no FrameLayout)
-        wrapper = container as? FrameLayout  // Will be null, that's OK for this test
+        // Transparent overlay for swipe-to-move-cursor functionality
+        overlay = FrameLayout(context).apply {
+            background = android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            visibility = View.VISIBLE
+        }.also { overlayView ->
+            // Create swipe indicator (yellow gradient bar that follows finger)
+            val indicator = createSwipeIndicator()
+            swipeIndicator = indicator
+            overlayView.addView(indicator)
 
-        overlay = View(context)  // Dummy overlay
+            wrapper?.addView(overlayView)
+            installOverlayTouchListener(overlayView)
+        }
 
-        return container!!
+        return wrapper!!
     }
 
     fun getWrapper(): FrameLayout? = wrapper
@@ -144,9 +167,22 @@ class VariationBarView(
         removeMicrophoneImmediate()
         removeSettingsImmediate()
         removeLanguageToggleImmediate()
+        removeArrowsImmediate()
+        hideSwipeIndicator(immediate = true)
         container?.visibility = View.GONE
         wrapper?.visibility = View.GONE
         overlay?.visibility = View.GONE
+    }
+
+    private fun removeArrowsImmediate() {
+        prevArrowButton?.let { arrow ->
+            (arrow.parent as? ViewGroup)?.removeView(arrow)
+            arrow.visibility = View.GONE
+        }
+        nextArrowButton?.let { arrow ->
+            (arrow.parent as? ViewGroup)?.removeView(arrow)
+            arrow.visibility = View.GONE
+        }
     }
 
     fun hideForSym(onHidden: () -> Unit) {
@@ -160,6 +196,8 @@ class VariationBarView(
         removeMicrophoneImmediate()
         removeSettingsImmediate()
         removeLanguageToggleImmediate()
+        removeArrowsImmediate()
+        hideSwipeIndicator(immediate = true)
 
         if (row != null && row.parent == containerView && row.visibility == View.VISIBLE) {
             animateVariationsOut(row) {
@@ -183,9 +221,15 @@ class VariationBarView(
 
     fun showVariations(snapshot: StatusBarController.StatusSnapshot, inputConnection: android.view.inputmethod.InputConnection?) {
         val containerView = container ?: return
+        val wrapperView = wrapper ?: return
 
         currentInputConnection = inputConnection
+        wrapperView.visibility = View.VISIBLE
         containerView.visibility = View.VISIBLE
+        // Show overlay for swipe functionality (hidden during SYM mode)
+        if (!isSymModeActive) {
+            overlay?.visibility = View.VISIBLE
+        }
 
         // Show variations if we have any:
         // - For accents: need lastInsertedChar
@@ -504,10 +548,15 @@ class VariationBarView(
                     val deltaY = abs(motionEvent.y - touchStartY)
                     val incrementalDeltaX = motionEvent.x - lastCursorMoveX
 
+                    // Update swipe indicator position during move
+                    updateSwipeIndicatorPosition(overlayView, motionEvent.x)
+
                     if (isSwipeInProgress || (abs(deltaX) > swipeThreshold && abs(deltaX) > deltaY)) {
                         if (!isSwipeInProgress) {
                             isSwipeInProgress = true
                             swipeDirection = if (deltaX > 0) 1 else -1
+                            // Show swipe indicator when swipe starts
+                            revealSwipeIndicator(overlayView, motionEvent.x)
                             Log.d(TAG, "Swipe started: ${if (swipeDirection == 1) "RIGHT" else "LEFT"}")
                         } else {
                             val currentDirection = if (incrementalDeltaX > 0) 1 else -1
@@ -543,6 +592,8 @@ class VariationBarView(
                     }
                 }
                 MotionEvent.ACTION_UP -> {
+                    // Hide swipe indicator
+                    hideSwipeIndicator()
                     if (isSwipeInProgress) {
                         isSwipeInProgress = false
                         swipeDirection = null
@@ -559,6 +610,7 @@ class VariationBarView(
                     }
                 }
                 MotionEvent.ACTION_CANCEL -> {
+                    hideSwipeIndicator()
                     isSwipeInProgress = false
                     swipeDirection = null
                     true
@@ -566,6 +618,90 @@ class VariationBarView(
                 else -> true
             }
         }
+    }
+
+    /**
+     * Creates the swipe indicator - a yellow gradient bar that follows the finger.
+     */
+    private fun createSwipeIndicator(): View {
+        val barWidth = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            32f,
+            context.resources.displayMetrics
+        ).toInt().coerceAtLeast(12)
+
+        val drawable = GradientDrawable(
+            GradientDrawable.Orientation.LEFT_RIGHT,
+            intArrayOf(
+                Color.argb(50, 255, 204, 0),   // Semi-transparent yellow
+                Color.argb(170, 255, 221, 0),  // More opaque yellow center
+                Color.argb(50, 255, 204, 0)    // Semi-transparent yellow
+            )
+        )
+
+        return View(context).apply {
+            background = drawable
+            alpha = 0f
+            visibility = View.GONE
+            isClickable = false
+            isFocusable = false
+            layoutParams = FrameLayout.LayoutParams(barWidth, FrameLayout.LayoutParams.MATCH_PARENT).apply {
+                gravity = Gravity.TOP or Gravity.START
+            }
+        }
+    }
+
+    /**
+     * Shows the swipe indicator with a fade-in animation.
+     */
+    private fun revealSwipeIndicator(overlayView: View, x: Float) {
+        val indicator = swipeIndicator ?: return
+        updateSwipeIndicatorPosition(overlayView, x)
+        indicator.animate().cancel()
+        indicator.alpha = 0f
+        indicator.visibility = View.VISIBLE
+        indicator.animate()
+            .alpha(1f)
+            .setDuration(60)
+            .setListener(null)
+            .start()
+    }
+
+    /**
+     * Hides the swipe indicator with a fade-out animation.
+     */
+    private fun hideSwipeIndicator(immediate: Boolean = false) {
+        val indicator = swipeIndicator ?: return
+        indicator.animate().cancel()
+        if (immediate) {
+            indicator.alpha = 0f
+            indicator.visibility = View.GONE
+            return
+        }
+        indicator.animate()
+            .alpha(0f)
+            .setDuration(140)
+            .setListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    indicator.visibility = View.GONE
+                    indicator.alpha = 0f
+                }
+            })
+            .start()
+    }
+
+    /**
+     * Updates the swipe indicator position to follow the finger.
+     */
+    private fun updateSwipeIndicatorPosition(overlayView: View, x: Float) {
+        val indicator = swipeIndicator ?: return
+        val indicatorWidth = if (indicator.width > 0) indicator.width else (indicator.layoutParams?.width ?: 0)
+        if (indicatorWidth <= 0 || overlayView.width <= 0) {
+            return
+        }
+        val clampedX = x.coerceIn(0f, overlayView.width.toFloat())
+        indicator.translationX = clampedX - (indicatorWidth / 2f)
+        indicator.translationY = 0f
     }
 
     private fun startSpeechRecognition(inputConnection: android.view.inputmethod.InputConnection?) {
