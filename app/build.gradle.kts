@@ -38,11 +38,11 @@ tasks.register("incrementBuildNumber") {
 }
 
 android {
-    namespace = "it.palsoftware.pastiera"
+    namespace = "it.neuralrad.coolwulf"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "it.palsoftware.pastiera"
+        applicationId = "it.neuralrad.coolwulf"
         minSdk = 29
         targetSdk = 36
         versionCode = 6

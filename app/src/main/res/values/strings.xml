@@ -58,22 +58,22 @@
     <string name="info_description">Settings are automatically saved and immediately applied to the input method.</string>
     
     <!-- Main Activity -->
-    <string name="keyboard_title">Pastiera Keyboard</string>
+    <string name="keyboard_title">Coolwulf IME</string>
     <string name="keyboard_subtitle">Physical keyboard with long press support</string>
     <string name="settings_content_description">Settings</string>
     
     <!-- Installation Section -->
     <string name="installation_title">Installation</string>
     <string name="installation_step1">1. Click the button below to open settings</string>
-    <string name="installation_step2">2. Enable \'Pastiera Physical Keyboard\'</string>
+    <string name="installation_step2">2. Enable \'Coolwulf IME Physical Keyboard\'</string>
     <string name="installation_step3">3. Come back here and test the keyboard</string>
     <string name="open_keyboard_settings">Open Keyboard Settings</string>
     
     <!-- Main Activity - Enable/Select IME -->
     <string name="enable_pastiera">Enable Coolwulf IME</string>
-    <string name="pastiera_not_enabled">Pastiera is not enabled</string>
+    <string name="pastiera_not_enabled">Coolwulf IME is not enabled</string>
     <string name="choose_input_method">Choose input method</string>
-    <string name="pastiera_not_selected">Pastiera is not selected</string>
+    <string name="pastiera_not_selected">Coolwulf IME is not selected</string>
     
     <!-- Test Section -->
     <string name="test_keyboard_title">Keyboard Test</string>
@@ -228,16 +228,16 @@
     <string name="power_shortcuts_press_key">Press shortcut key to launch</string>
     
     <!-- Notification Helper -->
-    <string name="notification_nav_mode_channel_name">Pastiera Nav Mode</string>
-    <string name="notification_nav_mode_channel_description">Notifications for Pastiera nav mode</string>
+    <string name="notification_nav_mode_channel_name">Coolwulf IME Nav Mode</string>
+    <string name="notification_nav_mode_channel_description">Notifications for Coolwulf IME nav mode</string>
     <string name="notification_nav_mode_activated_title">Nav Mode Activated</string>
     <string name="notification_nav_mode_activated_text">Nav mode activated</string>
     
     <!-- Update Notifications -->
-    <string name="notification_update_channel_name">Pastiera Updates</string>
-    <string name="notification_update_channel_description">Notifications about new Pastiera versions</string>
-    <string name="notification_update_available_title">Pastiera - New update available</string>
-    <string name="notification_update_available_text">A new version of Pastiera is available (%1$s)</string>
+    <string name="notification_update_channel_name">Coolwulf IME Updates</string>
+    <string name="notification_update_channel_description">Notifications about new Coolwulf IME versions</string>
+    <string name="notification_update_available_title">Coolwulf IME - New update available</string>
+    <string name="notification_update_available_text">A new version of Coolwulf IME is available (%1$s)</string>
     
     <!-- Speech Recognition -->
     <string name="speech_recognition_prompt">Speak now...</string>
@@ -359,25 +359,25 @@
     <string name="tutorial_previous">Previous</string>
     <string name="tutorial_next">Next</string>
     <string name="tutorial_finish">Finish</string>
-    <string name="tutorial_page_welcome_title">Welcome to Pastiera</string>
-    <string name="tutorial_page_welcome_description">Pastiera is an advanced physical keyboard for Android with support for modifiers, LED indicators, and navigation mode.</string>
-    <string name="tutorial_page_enable_title">Enable Pastiera</string>
-    <string name="tutorial_page_enable_description">To get started, you need to enable Pastiera as an input method in Android Settings. Tap the button below to open settings.</string>
-    <string name="tutorial_page_select_title">Select Pastiera</string>
-    <string name="tutorial_page_select_description">After enabling Pastiera, select it as your default keyboard. Tap the button below to choose the input method.</string>
+    <string name="tutorial_page_welcome_title">Welcome to Coolwulf IME</string>
+    <string name="tutorial_page_welcome_description">Coolwulf IME is an advanced physical keyboard for Android with support for modifiers, LED indicators, and navigation mode.</string>
+    <string name="tutorial_page_enable_title">Enable Coolwulf IME</string>
+    <string name="tutorial_page_enable_description">To get started, you need to enable Coolwulf IME as an input method in Android Settings. Tap the button below to open settings.</string>
+    <string name="tutorial_page_select_title">Select Coolwulf IME</string>
+    <string name="tutorial_page_select_description">After enabling Coolwulf IME, select it as your default keyboard. Tap the button below to choose the input method.</string>
     <string name="tutorial_page_led_title">LED Indicator</string>
-    <string name="tutorial_page_led_description">Pastiera shows 5 LEDs in the status bar that indicate modifier status:\n\n• Shift: blue when active, red when locked\n• SYM: blue for emoji, red for special characters\n• Ctrl: blue when active, red when locked\n• Alt: blue when active, red when locked\n\nGray LEDs indicate the modifier is off.</string>
+    <string name="tutorial_page_led_description">Coolwulf IME shows 5 LEDs in the status bar that indicate modifier status:\n\n• Shift: blue when active, red when locked\n• SYM: blue for emoji, red for special characters\n• Ctrl: blue when active, red when locked\n• Alt: blue when active, red when locked\n\nGray LEDs indicate the modifier is off.</string>
     <string name="tutorial_page_nav_mode_title">Nav Mode</string>
     <string name="tutorial_page_nav_mode_description">Nav Mode allows you to navigate using letter keys as shortcuts.\n\nTo activate:\n• Press Ctrl twice quickly\n• Letter keys are mapped to navigation functions\n• Press Ctrl again to deactivate\n\nYou can customize the mappings in advanced settings.</string>
     <string name="tutorial_page_customization_title">Customization</string>
-    <string name="tutorial_page_customization_description">Pastiera offers many customization options:\n\n• Customizable keyboard layouts\n• Launcher shortcuts\n• Auto-correction\n• Custom mappings for Nav Mode\n\nExplore the settings to find the perfect configuration for you!</string>
+    <string name="tutorial_page_customization_description">Coolwulf IME offers many customization options:\n\n• Customizable keyboard layouts\n• Launcher shortcuts\n• Auto-correction\n• Custom mappings for Nav Mode\n\nExplore the settings to find the perfect configuration for you!</string>
     <string name="tutorial_page_ready_title">Ready to Start</string>
-    <string name="tutorial_page_ready_description">You are now ready to use Pastiera! Remember that you can always return to settings to further customize the keyboard to your needs.</string>
-    <string name="tutorial_enable_button">Enable Pastiera</string>
-    <string name="tutorial_enabled_message">Pastiera is enabled!</string>
-    <string name="tutorial_select_button">Select Pastiera</string>
-    <string name="tutorial_enable_first_message">Enable Pastiera first on the previous page</string>
-    <string name="tutorial_selected_message">Pastiera is selected!</string>
+    <string name="tutorial_page_ready_description">You are now ready to use Coolwulf IME! Remember that you can always return to settings to further customize the keyboard to your needs.</string>
+    <string name="tutorial_enable_button">Enable Coolwulf IME</string>
+    <string name="tutorial_enabled_message">Coolwulf IME is enabled!</string>
+    <string name="tutorial_select_button">Select Coolwulf IME</string>
+    <string name="tutorial_enable_first_message">Enable Coolwulf IME first on the previous page</string>
+    <string name="tutorial_selected_message">Coolwulf IME is selected!</string>
     <string name="tutorial_show">Show Tutorial</string>
     <string name="tutorial_review_description">Review the introductory tutorial</string>
 
@@ -385,7 +385,7 @@
     <string name="backup_now">Backup now</string>
     <string name="backup_now_description">Export all settings and custom layouts to a ZIP</string>
     <string name="restore_from_file">Restore from file</string>
-    <string name="restore_from_file_description">Import a Pastiera backup ZIP</string>
+    <string name="restore_from_file_description">Import a Coolwulf IME backup ZIP</string>
     <string name="backup_completed">Backup completed</string>
     <string name="restore_completed">Restore completed</string>
     <string name="backup_failed">Backup failed: %1$s</string>

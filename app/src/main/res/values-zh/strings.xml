@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">酷狼输入法</string>
+    <string name="input_method_name">酷狼输入法物理键盘</string>
+
+    <!-- Main Activity -->
+    <string name="keyboard_title">酷狼输入法</string>
+    <string name="keyboard_subtitle">支持长按功能的物理键盘</string>
+
+    <!-- Installation Section -->
+    <string name="installation_step2">2. 启用"酷狼输入法物理键盘"</string>
+
+    <!-- Main Activity - Enable/Select IME -->
+    <string name="enable_pastiera">启用酷狼输入法</string>
+    <string name="pastiera_not_enabled">酷狼输入法未启用</string>
+    <string name="choose_input_method">选择输入法</string>
+    <string name="pastiera_not_selected">酷狼输入法未选中</string>
+
+    <!-- Notification Helper -->
+    <string name="notification_nav_mode_channel_name">酷狼输入法导航模式</string>
+    <string name="notification_nav_mode_channel_description">酷狼输入法导航模式通知</string>
+
+    <!-- Update Notifications -->
+    <string name="notification_update_channel_name">酷狼输入法更新</string>
+    <string name="notification_update_channel_description">酷狼输入法新版本通知</string>
+    <string name="notification_update_available_title">酷狼输入法 - 有新更新</string>
+    <string name="notification_update_available_text">酷狼输入法新版本可用 (%1$s)</string>
+
+    <!-- Tutorial -->
+    <string name="tutorial_page_welcome_title">欢迎使用酷狼输入法</string>
+    <string name="tutorial_page_welcome_description">酷狼输入法是一款高级安卓物理键盘输入法，支持修饰键、LED指示灯和导航模式。</string>
+    <string name="tutorial_page_enable_title">启用酷狼输入法</string>
+    <string name="tutorial_page_enable_description">首先，您需要在安卓设置中启用酷狼输入法。点击下方按钮打开设置。</string>
+    <string name="tutorial_page_select_title">选择酷狼输入法</string>
+    <string name="tutorial_page_select_description">启用酷狼输入法后，将其设为默认键盘。点击下方按钮选择输入法。</string>
+    <string name="tutorial_page_led_title">LED指示灯</string>
+    <string name="tutorial_page_led_description">酷狼输入法在状态栏显示5个LED指示修饰键状态：\n\n• Shift：激活时蓝色，锁定时红色\n• SYM：表情符号蓝色，特殊字符红色\n• Ctrl：激活时蓝色，锁定时红色\n• Alt：激活时蓝色，锁定时红色\n\n灰色LED表示修饰键关闭。</string>
+    <string name="tutorial_page_customization_description">酷狼输入法提供丰富的自定义选项：\n\n• 可自定义键盘布局\n• 启动快捷方式\n• 自动更正\n• 导航模式自定义映射\n\n探索设置找到最适合您的配置！</string>
+    <string name="tutorial_page_ready_description">您现在可以使用酷狼输入法了！记住您可以随时返回设置进一步自定义键盘。</string>
+    <string name="tutorial_enable_button">启用酷狼输入法</string>
+    <string name="tutorial_enabled_message">酷狼输入法已启用！</string>
+    <string name="tutorial_select_button">选择酷狼输入法</string>
+    <string name="tutorial_enable_first_message">请先在上一页启用酷狼输入法</string>
+    <string name="tutorial_selected_message">酷狼输入法已选中！</string>
+
+    <!-- Backup & Restore -->
+    <string name="restore_from_file_description">导入酷狼输入法备份ZIP文件</string>
+</resources>
