@@ -63,7 +63,11 @@ fun TextInputSettingsScreen(
     var staticVariationBarMode by remember {
         mutableStateOf(SettingsManager.isStaticVariationBarModeEnabled(context))
     }
-    
+
+    var chineseInputMethod by remember {
+        mutableStateOf(SettingsManager.getChineseInputMethod(context))
+    }
+
     // Handle system back button
     BackHandler { onBack() }
     
@@ -426,6 +430,61 @@ fun TextInputSettingsScreen(
                             SettingsManager.setStaticVariationBarModeEnabled(context, enabled)
                         }
                     )
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Chinese Input Section Header
+            Text(
+                text = stringResource(R.string.chinese_input_section_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            // Chinese Input Method Selector (Pinyin / Wubi)
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = stringResource(R.string.chinese_input_method_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = stringResource(R.string.chinese_input_method_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = chineseInputMethod == "pinyin",
+                            onClick = {
+                                chineseInputMethod = "pinyin"
+                                SettingsManager.setChineseInputMethod(context, "pinyin")
+                            },
+                            label = { Text(stringResource(R.string.chinese_input_pinyin)) }
+                        )
+                        FilterChip(
+                            selected = chineseInputMethod == "wubi",
+                            onClick = {
+                                chineseInputMethod = "wubi"
+                                SettingsManager.setChineseInputMethod(context, "wubi")
+                            },
+                            label = { Text(stringResource(R.string.chinese_input_wubi)) }
+                        )
+                    }
                 }
             }
         }

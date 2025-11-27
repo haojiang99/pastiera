@@ -52,6 +52,13 @@
     <!-- Static Variation Bar Mode -->
     <string name="static_variation_bar_mode_title">Static Variation Bar</string>
     <string name="static_variation_bar_mode_description">Always show a fixed set of utility keys in the variation row instead of context-based variations. Static keys remain available even when smart features are disabled.</string>
+
+    <!-- Chinese Input Section -->
+    <string name="chinese_input_section_title">Chinese Input</string>
+    <string name="chinese_input_method_title">Input Method</string>
+    <string name="chinese_input_method_description">Choose your preferred Chinese input method</string>
+    <string name="chinese_input_pinyin">Pinyin (拼音)</string>
+    <string name="chinese_input_wubi">Wubi (五笔)</string>
     
     <!-- Info Section -->
     <string name="info_title">Information</string>

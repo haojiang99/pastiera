@@ -50,6 +50,7 @@ class VariationBarView(
     private var wrapper: FrameLayout? = null
     private var languageToggleButtonView: TextView? = null
     private var isPinyinModeActive: Boolean = false
+    private var isWubiModeActive: Boolean = false
     private var prevArrowButton: ImageView? = null
     private var nextArrowButton: ImageView? = null
     private var container: LinearLayout? = null
@@ -146,6 +147,13 @@ class VariationBarView(
     fun setPinyinModeActive(active: Boolean) {
         if (isPinyinModeActive != active) {
             isPinyinModeActive = active
+            updateLanguageToggleButton()
+        }
+    }
+
+    fun setWubiModeActive(active: Boolean) {
+        if (isWubiModeActive != active) {
+            isWubiModeActive = active
             updateLanguageToggleButton()
         }
     }
@@ -947,9 +955,16 @@ class VariationBarView(
             )
         }
         return TextView(context).apply {
-            text = if (isPinyinModeActive) "CN" else "EN"
+            text = when {
+                isPinyinModeActive -> "拼"
+                isWubiModeActive -> "五"
+                else -> "EN"
+            }
             textSize = 12f
-            setTextColor(if (isPinyinModeActive) Color.rgb(100, 200, 255) else Color.WHITE)
+            setTextColor(when {
+                isPinyinModeActive || isWubiModeActive -> Color.rgb(100, 200, 255)
+                else -> Color.WHITE
+            })
             setTypeface(null, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
             background = drawable
@@ -962,8 +977,15 @@ class VariationBarView(
 
     private fun updateLanguageToggleButton() {
         languageToggleButtonView?.apply {
-            text = if (isPinyinModeActive) "CN" else "EN"
-            setTextColor(if (isPinyinModeActive) Color.rgb(100, 200, 255) else Color.WHITE)
+            text = when {
+                isPinyinModeActive -> "拼"
+                isWubiModeActive -> "五"
+                else -> "EN"
+            }
+            setTextColor(when {
+                isPinyinModeActive || isWubiModeActive -> Color.rgb(100, 200, 255)
+                else -> Color.WHITE
+            })
         }
     }
 

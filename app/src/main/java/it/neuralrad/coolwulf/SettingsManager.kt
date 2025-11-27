@@ -39,6 +39,7 @@ object SettingsManager {
     private const val KEY_DISMISSED_RELEASES = "dismissed_releases" // Set of release tag_names that were dismissed
     private const val KEY_PINYIN_ENABLED = "pinyin_enabled" // Enable Pinyin input
     private const val KEY_PINYIN_CHARACTER_SET = "pinyin_character_set" // "simplified" or "traditional"
+    private const val KEY_CHINESE_INPUT_METHOD = "chinese_input_method" // "pinyin" or "wubi"
     private const val KEY_POWER_SHORTCUTS_ENABLED = "power_shortcuts_enabled" // Enable power shortcuts
     private const val KEY_SWIPE_INCREMENTAL_THRESHOLD = "swipe_incremental_threshold" // Swipe incremental threshold
     private const val KEY_STATIC_VARIATION_BAR_MODE = "static_variation_bar_mode" // Static variation bar mode
@@ -62,6 +63,7 @@ object SettingsManager {
     private val DEFAULT_SYM_PAGES_CONFIG = SymPagesConfig()
     private const val DEFAULT_PINYIN_ENABLED = true
     private const val DEFAULT_PINYIN_CHARACTER_SET = "simplified"
+    private const val DEFAULT_CHINESE_INPUT_METHOD = "pinyin" // "pinyin" or "wubi"
     private const val DEFAULT_POWER_SHORTCUTS_ENABLED = false
     private const val DEFAULT_SWIPE_INCREMENTAL_THRESHOLD = 14.0f
     private const val MIN_SWIPE_INCREMENTAL_THRESHOLD = 3.0f
@@ -962,6 +964,29 @@ object SettingsManager {
         getPreferences(context).edit()
             .putString(KEY_PINYIN_CHARACTER_SET, characterSet)
             .apply()
+    }
+
+    /**
+     * Gets the Chinese input method ("pinyin" or "wubi").
+     */
+    fun getChineseInputMethod(context: Context): String {
+        return getPreferences(context).getString(KEY_CHINESE_INPUT_METHOD, DEFAULT_CHINESE_INPUT_METHOD) ?: DEFAULT_CHINESE_INPUT_METHOD
+    }
+
+    /**
+     * Sets the Chinese input method ("pinyin" or "wubi").
+     */
+    fun setChineseInputMethod(context: Context, method: String) {
+        getPreferences(context).edit()
+            .putString(KEY_CHINESE_INPUT_METHOD, method)
+            .apply()
+    }
+
+    /**
+     * Checks if Wubi input method is selected.
+     */
+    fun isWubiInputMethod(context: Context): Boolean {
+        return getChineseInputMethod(context) == "wubi"
     }
 
     /**

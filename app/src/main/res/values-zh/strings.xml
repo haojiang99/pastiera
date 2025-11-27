@@ -45,4 +45,11 @@
 
     <!-- Backup & Restore -->
     <string name="restore_from_file_description">导入酷狼输入法备份ZIP文件</string>
+
+    <!-- Chinese Input Section -->
+    <string name="chinese_input_section_title">中文输入</string>
+    <string name="chinese_input_method_title">输入法</string>
+    <string name="chinese_input_method_description">选择您偏好的中文输入法</string>
+    <string name="chinese_input_pinyin">拼音</string>
+    <string name="chinese_input_wubi">五笔</string>
 </resources>

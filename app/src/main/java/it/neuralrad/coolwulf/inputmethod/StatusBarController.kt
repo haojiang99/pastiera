@@ -114,6 +114,8 @@ class StatusBarController(
         val shouldDisableSmartFeatures: Boolean = false,
         val pinyinModeActive: Boolean = false,
         val pinyinBuffer: String = "",
+        val wubiModeActive: Boolean = false,
+        val wubiBuffer: String = "",
         val wordPredictionActive: Boolean = false,
         val wordPredictionPrefix: String = "",
         // Pagination fields
@@ -914,6 +916,7 @@ class StatusBarController(
         variationBarView?.updateInputConnection(inputConnection)
         variationBarView?.setSymModeActive(snapshot.symPage > 0)
         variationBarView?.setPinyinModeActive(snapshot.pinyinModeActive)
+        variationBarView?.setWubiModeActive(snapshot.wubiModeActive)
 
         // Always call showVariations() early, before any potential early returns
         // This ensures the variation bar is updated even if the rest of update() returns early

@@ -23,6 +23,7 @@ import it.neuralrad.coolwulf.core.InputContextState
 import it.neuralrad.coolwulf.core.ModifierStateController
 import it.neuralrad.coolwulf.core.NavModeController
 import it.neuralrad.coolwulf.core.PinyinInputController
+import it.neuralrad.coolwulf.core.WubiInputController
 import it.neuralrad.coolwulf.core.SymLayoutController
 import it.neuralrad.coolwulf.core.TextInputController
 import it.neuralrad.coolwulf.data.layout.LayoutMappingRepository
@@ -135,6 +136,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private lateinit var keyboardVisibilityController: KeyboardVisibilityController
     private lateinit var launcherShortcutController: LauncherShortcutController
     private lateinit var pinyinInputController: PinyinInputController
+    private lateinit var wubiInputController: WubiInputController
     private lateinit var englishWordPredictionController: it.neuralrad.coolwulf.core.EnglishWordPredictionController
     private var clearAltOnSpaceEnabled: Boolean = false
 
@@ -342,6 +344,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         )
         autoCorrectionManager = AutoCorrectionManager(this)
         pinyinInputController = PinyinInputController(this)
+        wubiInputController = WubiInputController(this)
         englishWordPredictionController = it.neuralrad.coolwulf.core.EnglishWordPredictionController(this)
         multiTapController = MultiTapController(
             handler = Handler(Looper.getMainLooper()),
@@ -362,6 +365,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Clear English word prediction suggestions
                     englishWordPredictionController.clearSuggestions()
                 }
+                // Clear Alt state after touch selection (e.g., after double-tap Alt to navigate pages)
+                modifierStateController.clearAltState(resetPressedState = true)
                 // Update variations after one has been selected (refresh view if needed)
                 updateStatusBarText()
             }
@@ -373,6 +378,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             override fun onPinyinCandidateSelected(candidate: String, candidateIndex: Int) {
                 // Let PinyinInputController handle buffer management based on candidate type
                 pinyinInputController.selectCandidate(candidateIndex)
+                // Clear Alt state after touch selection (e.g., after double-tap Alt to navigate pages)
+                modifierStateController.clearAltState(resetPressedState = true)
                 updateStatusBarText()
             }
         }
@@ -406,7 +413,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Register listener for language toggle (EN/CN switch)
         candidatesBarController.onLanguageToggleListener = {
-            togglePinyinMode()
+            toggleChineseInputMode()
         }
 
         altSymManager = AltSymManager(assets, prefs, this)
@@ -616,23 +623,51 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
 
     /**
-     * Toggles Pinyin input mode on/off.
+     * Toggles Chinese input mode on/off.
+     * Uses either Pinyin or Wubi based on user settings.
      * Called from EN/CN toggle button and Shift+Enter shortcut.
      */
-    private fun togglePinyinMode() {
-        pinyinInputController.togglePinyinMode()
-        if (!pinyinInputController.isPinyinMode()) {
-            currentInputConnection?.finishComposingText()
+    private fun toggleChineseInputMode() {
+        val isWubi = SettingsManager.isWubiInputMethod(this)
+
+        if (isWubi) {
+            // Toggle Wubi mode
+            wubiInputController.toggleWubiMode()
+            // Ensure Pinyin mode is off
+            if (pinyinInputController.isPinyinMode()) {
+                pinyinInputController.setPinyinMode(false)
+            }
+            if (!wubiInputController.isWubiMode()) {
+                currentInputConnection?.finishComposingText()
+            }
+        } else {
+            // Toggle Pinyin mode
+            pinyinInputController.togglePinyinMode()
+            // Ensure Wubi mode is off
+            if (wubiInputController.isWubiMode()) {
+                wubiInputController.setWubiMode(false)
+            }
+            if (!pinyinInputController.isPinyinMode()) {
+                currentInputConnection?.finishComposingText()
+            }
         }
         updateStatusBarText()
+    }
+
+    /**
+     * Checks if any Chinese input mode is active (Pinyin or Wubi).
+     */
+    private fun isChineseInputModeActive(): Boolean {
+        return pinyinInputController.isPinyinMode() || wubiInputController.isWubiMode()
     }
 
     /**
      * Aggiorna la status bar delegando al controller dedicato.
      */
     private fun updateStatusBarText() {
-        // Check if Pinyin mode is active and use Pinyin candidates instead of variations
+        // Check if Pinyin or Wubi mode is active and use their candidates
         val pinyinSnapshot = pinyinInputController.getSnapshot()
+        val wubiSnapshot = wubiInputController.getSnapshot()
 
         // Update English word prediction from cursor position
         englishWordPredictionController.updateFromCursor(currentInputConnection)
@@ -640,8 +675,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Determine which variations to show:
         // 1. Pinyin candidates (when Pinyin mode active)
-        // 2. Accent variations (when lastInsertedChar has variations)
-        // 3. English word predictions (when typing and no accent variations)
+        // 2. Wubi candidates (when Wubi mode active)
+        // 3. Accent variations (when lastInsertedChar has variations)
+        // 4. English word predictions (when typing and no accent variations)
         val variationSnapshot: VariationStateController.Snapshot
         var wordPredictionActive = false
         var wordPredictionPrefix = ""
@@ -662,6 +698,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             totalPages = pinyinSnapshot.totalPages
             hasNextPage = pinyinSnapshot.hasNextPage
             hasPrevPage = pinyinSnapshot.hasPrevPage
+        } else if (wubiSnapshot.isActive) {
+            // Wubi mode
+            variationSnapshot = VariationStateController.Snapshot(
+                isActive = true,
+                lastInsertedChar = if (wubiSnapshot.buffer.isNotEmpty()) wubiSnapshot.buffer.last() else null,
+                variations = wubiSnapshot.candidates.take(9)
+            )
+            // Pagination info from Wubi
+            currentPage = wubiSnapshot.currentPage
+            totalPages = wubiSnapshot.totalPages
+            hasNextPage = wubiSnapshot.hasNextPage
+            hasPrevPage = wubiSnapshot.hasPrevPage
         } else if (wordPredictionSnapshot.hasSuggestions && !shouldDisableSmartFeatures) {
             // Show English word predictions (accent variations disabled)
             // Limit to 5 suggestions for better readability
@@ -704,6 +752,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             shouldDisableSmartFeatures = shouldDisableSmartFeatures,
             pinyinModeActive = pinyinSnapshot.isActive,
             pinyinBuffer = pinyinSnapshot.buffer,
+            wubiModeActive = wubiSnapshot.isActive,
+            wubiBuffer = wubiSnapshot.buffer,
             wordPredictionActive = wordPredictionActive,
             wordPredictionPrefix = wordPredictionPrefix,
             currentPage = currentPage,
@@ -910,9 +960,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Track Alt/Shift double press for pagination
         val isPinyinMode = pinyinInputController.isPinyinMode()
+        val isWubiMode = wubiInputController.isWubiMode()
         val isWordPredictionActive = englishWordPredictionController.hasActivePrediction()
 
-        if (isPinyinMode || isWordPredictionActive) {
+        if (isPinyinMode || isWubiMode || isWordPredictionActive) {
             when (keyCode) {
                 KeyEvent.KEYCODE_ALT_LEFT, KeyEvent.KEYCODE_ALT_RIGHT -> {
                     if (event?.repeatCount == 0) {
@@ -921,15 +972,24 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
                         if (timeSinceLastPress <= PAGINATION_DOUBLE_PRESS_THRESHOLD) {
                             // Double press detected - go to next page
-                            if (isPinyinMode) {
-                                if (pinyinInputController.hasNextPage()) {
-                                    pinyinInputController.nextPage()
-                                    updateStatusBarText()
+                            when {
+                                isPinyinMode -> {
+                                    if (pinyinInputController.hasNextPage()) {
+                                        pinyinInputController.nextPage()
+                                        updateStatusBarText()
+                                    }
                                 }
-                            } else {
-                                if (englishWordPredictionController.hasNextPage()) {
-                                    englishWordPredictionController.nextPage()
-                                    updateStatusBarText()
+                                isWubiMode -> {
+                                    if (wubiInputController.hasNextPage()) {
+                                        wubiInputController.nextPage()
+                                        updateStatusBarText()
+                                    }
+                                }
+                                else -> {
+                                    if (englishWordPredictionController.hasNextPage()) {
+                                        englishWordPredictionController.nextPage()
+                                        updateStatusBarText()
+                                    }
                                 }
                             }
                             altLastPressTime = 0L // Reset to prevent triple press
@@ -945,15 +1005,24 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
                         if (timeSinceLastPress <= PAGINATION_DOUBLE_PRESS_THRESHOLD) {
                             // Double press detected - go to previous page
-                            if (isPinyinMode) {
-                                if (pinyinInputController.hasPrevPage()) {
-                                    pinyinInputController.prevPage()
-                                    updateStatusBarText()
+                            when {
+                                isPinyinMode -> {
+                                    if (pinyinInputController.hasPrevPage()) {
+                                        pinyinInputController.prevPage()
+                                        updateStatusBarText()
+                                    }
                                 }
-                            } else {
-                                if (englishWordPredictionController.hasPrevPage()) {
-                                    englishWordPredictionController.prevPage()
-                                    updateStatusBarText()
+                                isWubiMode -> {
+                                    if (wubiInputController.hasPrevPage()) {
+                                        wubiInputController.prevPage()
+                                        updateStatusBarText()
+                                    }
+                                }
+                                else -> {
+                                    if (englishWordPredictionController.hasPrevPage()) {
+                                        englishWordPredictionController.prevPage()
+                                        updateStatusBarText()
+                                    }
                                 }
                             }
                             shiftLastPressTime = 0L // Reset to prevent triple press
@@ -1023,9 +1092,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Handle Enter key in Pinyin mode
         if (keyCode == KeyEvent.KEYCODE_ENTER) {
-            // Toggle Pinyin mode with Shift+Enter
+            // Toggle Chinese input mode (Pinyin or Wubi) with Shift+Enter
             if (shiftPressed && !ctrlPressed && !altPressed) {
-                togglePinyinMode()
+                toggleChineseInputMode()
                 return true
             }
 
@@ -1041,10 +1110,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
                 }
             }
+
+            // Commit Wubi buffer as-is (without conversion) with plain Enter
+            if (wubiInputController.isWubiMode() && !shiftPressed && !ctrlPressed && !altPressed) {
+                val buffer = wubiInputController.getBuffer()
+                if (buffer.isNotEmpty()) {
+                    val committed = wubiInputController.commitBufferAsIs()
+                    if (committed != null && ic != null) {
+                        ic.commitText(committed + " ", 1)
+                        updateStatusBarText()
+                        return true
+                    }
+                }
+            }
         }
 
-        // Handle English word prediction (when NOT in Pinyin mode)
-        if (!pinyinInputController.isPinyinMode() && ic != null) {
+        // Handle English word prediction (when NOT in Chinese input mode)
+        if (!isChineseInputModeActive() && ic != null) {
             // Update suggestions from current cursor position
             englishWordPredictionController.updateFromCursor(ic)
 
@@ -1142,10 +1224,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             ic.setComposingText(remainingBuffer, 1)
                         }
 
-                        // Clear Alt modifier if it was used
-                        if (altPressed) {
-                            modifierStateController.clearAltState(resetPressedState = true)
-                        }
+                        // Clear Alt modifier (including latch state from double-tap)
+                        modifierStateController.clearAltState(resetPressedState = true)
 
                         updateStatusBarText()
                         return true
@@ -1167,10 +1247,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 ic.setComposingText(remainingBuffer, 1)
                             }
 
-                            // Clear Alt modifier if it was used
-                            if (altPressed) {
-                                modifierStateController.clearAltState(resetPressedState = true)
-                            }
+                            // Clear Alt modifier (including latch state from double-tap)
+                            modifierStateController.clearAltState(resetPressedState = true)
 
                             updateStatusBarText()
                             return true
@@ -1283,6 +1361,135 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (keyCode == KeyEvent.KEYCODE_ESCAPE ||
                 (keyCode == KeyEvent.KEYCODE_Q && ctrlPressed)) {
                 pinyinInputController.setPinyinMode(false)
+                ic.finishComposingText()
+                updateStatusBarText()
+                return true
+            }
+        }
+
+        // Handle Wubi input mode
+        if (wubiInputController.isWubiMode() && ic != null) {
+            // Handle SYM mode - when SYM is active, allow symbol input just like in English mode
+            if (symLayoutController.isSymActive()) {
+                val symResult = symLayoutController.handleKeyWhenActive(
+                    keyCode,
+                    event,
+                    ic,
+                    ctrlLatchActive = ctrlLatchActive,
+                    altLatchActive = altLatchActive,
+                    updateStatusBar = { updateStatusBarText() }
+                )
+                when (symResult) {
+                    SymLayoutController.SymKeyResult.CONSUME -> return true
+                    SymLayoutController.SymKeyResult.CALL_SUPER -> return super.onKeyDown(keyCode, event)
+                    SymLayoutController.SymKeyResult.NOT_HANDLED -> { /* Continue to Wubi handling */ }
+                }
+            }
+
+            // Handle number keys 1-9 for candidate selection
+            if (wubiInputController.hasCandidates()) {
+                if (keyCode in KeyEvent.KEYCODE_1..KeyEvent.KEYCODE_9) {
+                    val selected = wubiInputController.handleNumberKey(keyCode)
+                    if (selected != null) {
+                        ic.commitText(selected, 1)
+                        // Clear Alt modifier (including latch state from double-tap)
+                        modifierStateController.clearAltState(resetPressedState = true)
+                        updateStatusBarText()
+                        return true
+                    }
+                }
+                // Also check unicode char for number selection
+                if (event != null && event.unicodeChar != 0) {
+                    val char = event.unicodeChar.toChar()
+                    if (char.isDigit() && char in '1'..'9') {
+                        val number = char.digitToInt()
+                        val index = number - 1
+                        val selected = wubiInputController.selectCandidate(index)
+                        if (selected != null) {
+                            ic.commitText(selected, 1)
+                            modifierStateController.clearAltState(resetPressedState = true)
+                            updateStatusBarText()
+                            return true
+                        }
+                    }
+                }
+            }
+
+            // Handle backspace in Wubi mode
+            if (keyCode == KeyEvent.KEYCODE_DEL) {
+                if (wubiInputController.handleBackspace()) {
+                    val buffer = wubiInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        ic.setComposingText(buffer, 1)
+                    } else {
+                        ic.finishComposingText()
+                    }
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // Handle space key - select first candidate
+            if (keyCode == KeyEvent.KEYCODE_SPACE && wubiInputController.hasCandidates()) {
+                val selected = wubiInputController.selectFirstCandidate()
+                if (selected != null) {
+                    ic.commitText(selected, 1)
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // Handle letter keys for Wubi code input
+            if (event != null && event.unicodeChar != 0) {
+                val char = event.unicodeChar.toChar()
+
+                if (char.isLetter()) {
+                    // In Wubi mode, capital letters (Shift+key) exit and input directly
+                    if (shiftPressed) {
+                        val buffer = wubiInputController.getBuffer()
+                        if (buffer.isNotEmpty()) {
+                            val committed = wubiInputController.commitBufferAsIs()
+                            if (committed != null) {
+                                ic.commitText(committed, 1)
+                            }
+                        }
+                        ic.commitText(char.toString(), 1)
+                        updateStatusBarText()
+                        return true
+                    }
+
+                    // Add letter to Wubi buffer
+                    if (wubiInputController.handleLetterKey(char)) {
+                        val buffer = wubiInputController.getBuffer()
+                        ic.setComposingText(buffer, 1)
+                        updateStatusBarText()
+                        return true
+                    }
+                }
+            }
+
+            // Handle comma and period - use Chinese punctuation in Wubi mode
+            if (event != null && event.unicodeChar != 0) {
+                val char = event.unicodeChar.toChar()
+                if (char == ',' || char == '.') {
+                    val buffer = wubiInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        val committed = wubiInputController.commitBufferAsIs()
+                        if (committed != null) {
+                            ic.commitText(committed, 1)
+                        }
+                    }
+                    val chinesePunctuation = if (char == ',') "，" else "。"
+                    ic.commitText(chinesePunctuation, 1)
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // ESC key or Ctrl+Q to exit Wubi mode
+            if (keyCode == KeyEvent.KEYCODE_ESCAPE ||
+                (keyCode == KeyEvent.KEYCODE_Q && ctrlPressed)) {
+                wubiInputController.setWubiMode(false)
                 ic.finishComposingText()
                 updateStatusBarText()
                 return true
