@@ -85,6 +85,13 @@ class StatusBarController(
             variationBarView?.onLanguageToggleListener = value
         }
 
+    // Listener for SYM button press
+    var onSymButtonListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            variationBarView?.onSymButtonListener = value
+        }
+
     companion object {
         private const val TAG = "StatusBarController"
         private const val NAV_MODE_LABEL = "NAV MODE"
@@ -913,6 +920,7 @@ class StatusBarController(
         variationBarView?.onPinyinCandidateSelectedListener = onPinyinCandidateSelectedListener
         variationBarView?.onCursorMovedListener = onCursorMovedListener
         variationBarView?.onLanguageToggleListener = onLanguageToggleListener
+        variationBarView?.onSymButtonListener = onSymButtonListener
         variationBarView?.updateInputConnection(inputConnection)
         variationBarView?.setSymModeActive(snapshot.symPage > 0)
         variationBarView?.setPinyinModeActive(snapshot.pinyinModeActive)

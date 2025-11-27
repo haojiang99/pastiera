@@ -57,6 +57,13 @@ class CandidatesBarController(
             candidatesStatusBar.onLanguageToggleListener = value
         }
 
+    var onSymButtonListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onSymButtonListener = value
+            candidatesStatusBar.onSymButtonListener = value
+        }
+
     fun getInputView(emojiMapText: String = ""): LinearLayout {
         return inputStatusBar.getOrCreateLayout(emojiMapText)
     }

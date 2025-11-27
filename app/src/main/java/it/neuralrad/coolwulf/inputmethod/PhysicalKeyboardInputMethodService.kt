@@ -416,6 +416,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             toggleChineseInputMode()
         }
 
+        // Register listener for SYM button press
+        candidatesBarController.onSymButtonListener = {
+            symLayoutController.toggleSymPage()
+            updateStatusBarText()
+        }
+
         altSymManager = AltSymManager(assets, prefs, this)
         altSymManager.reloadSymMappings() // Load custom mappings for page 1 if present
         altSymManager.reloadSymMappings2() // Load custom mappings for page 2 if present
@@ -1352,6 +1358,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Convert to Chinese punctuation
                     val chinesePunctuation = if (char == ',') "，" else "。"
                     ic.commitText(chinesePunctuation, 1)
+                    // Clear Alt one-shot after typing Chinese punctuation (e.g., Alt+B for 。, Alt+N for ，)
+                    if (altOneShot) {
+                        altOneShot = false
+                    }
                     updateStatusBarText()
                     return true
                 }
@@ -1481,6 +1491,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
                     val chinesePunctuation = if (char == ',') "，" else "。"
                     ic.commitText(chinesePunctuation, 1)
+                    // Clear Alt one-shot after typing Chinese punctuation (e.g., Alt+B for 。, Alt+N for ，)
+                    if (altOneShot) {
+                        altOneShot = false
+                    }
                     updateStatusBarText()
                     return true
                 }

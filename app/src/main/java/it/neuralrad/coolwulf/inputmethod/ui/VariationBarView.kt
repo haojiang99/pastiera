@@ -46,8 +46,10 @@ class VariationBarView(
     var onNextPageListener: (() -> Unit)? = null
     var onPrevPageListener: (() -> Unit)? = null
     var onLanguageToggleListener: (() -> Unit)? = null
+    var onSymButtonListener: (() -> Unit)? = null
 
     private var wrapper: FrameLayout? = null
+    private var symButtonView: TextView? = null
     private var languageToggleButtonView: TextView? = null
     private var isPinyinModeActive: Boolean = false
     private var isWubiModeActive: Boolean = false
@@ -174,12 +176,21 @@ class VariationBarView(
         variationButtons.clear()
         removeMicrophoneImmediate()
         removeSettingsImmediate()
+        removeSymButtonImmediate()
         removeLanguageToggleImmediate()
         removeArrowsImmediate()
         hideSwipeIndicator(immediate = true)
         container?.visibility = View.GONE
         wrapper?.visibility = View.GONE
         overlay?.visibility = View.GONE
+    }
+
+    private fun removeSymButtonImmediate() {
+        symButtonView?.let { sym ->
+            (sym.parent as? ViewGroup)?.removeView(sym)
+            sym.visibility = View.GONE
+            sym.alpha = 1f
+        }
     }
 
     private fun removeArrowsImmediate() {
@@ -203,6 +214,7 @@ class VariationBarView(
 
         removeMicrophoneImmediate()
         removeSettingsImmediate()
+        removeSymButtonImmediate()
         removeLanguageToggleImmediate()
         removeArrowsImmediate()
         hideSwipeIndicator(immediate = true)
@@ -498,6 +510,26 @@ class VariationBarView(
         settingsButton.setOnClickListener { openSettings() }
         settingsButton.alpha = 1f
         settingsButton.visibility = View.VISIBLE
+
+        // SYM button - reuse if already attached
+        val symButton = symButtonView ?: createSymButton(buttonWidth).also {
+            symButtonView = it
+        }
+        if (symButton.parent == null) {
+            val symParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
+                marginStart = TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_DIP,
+                    4f,
+                    context.resources.displayMetrics
+                ).toInt()
+            }
+            containerView.addView(symButton, symParams)
+        }
+        symButton.setOnClickListener {
+            onSymButtonListener?.invoke()
+        }
+        symButton.alpha = 1f
+        symButton.visibility = View.VISIBLE
 
         // Language toggle button (EN/CN) - reuse if already attached
         val languageToggleButton = languageToggleButtonView ?: createLanguageToggleButton(buttonWidth).also {
@@ -936,6 +968,34 @@ class VariationBarView(
             isClickable = true
             isFocusable = true
             setPadding(dp3, dp3, dp3, dp3)
+            layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
+        }
+    }
+
+    private fun createSymButton(buttonSize: Int): TextView {
+        val dp2 = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            2f,
+            context.resources.displayMetrics
+        ).toInt()
+        val drawable = GradientDrawable().apply {
+            setColor(Color.rgb(40, 40, 40))
+            cornerRadius = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                4f,
+                context.resources.displayMetrics
+            )
+        }
+        return TextView(context).apply {
+            text = "SYM"
+            textSize = 10f
+            setTextColor(Color.WHITE)
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            gravity = Gravity.CENTER
+            background = drawable
+            isClickable = true
+            isFocusable = true
+            setPadding(dp2, dp2, dp2, dp2)
             layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
         }
     }

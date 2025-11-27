@@ -510,14 +510,31 @@ class PinyinInputController(
         // Find the actual first syllable (not phrase) for single-character fallback
         val bufferWithoutSep = fullBuffer.replace(SEPARATOR.toString(), "")
         val actualFirstSyllable = PinyinDictionary.findLongestSyllable(bufferWithoutSep) ?: ""
-        firstSyllable = actualFirstSyllable
 
         // Get single-character candidates for the first syllable (always needed as fallback)
-        val firstSyllableCharCandidates = if (actualFirstSyllable.isNotEmpty()) {
+        val firstSyllableCharCandidates: List<String>
+        if (actualFirstSyllable.isNotEmpty()) {
+            firstSyllable = actualFirstSyllable
             val rawCandidates = PinyinDictionary.getCandidates(actualFirstSyllable)
-            userMemory.sortByFrequency(actualFirstSyllable, rawCandidates)
+            firstSyllableCharCandidates = userMemory.sortByFrequency(actualFirstSyllable, rawCandidates)
         } else {
-            emptyList()
+            // For partial input (e.g., single letter "w"), use prefix matching
+            // and get candidates from the first parsed segment
+            val firstSegment = segments.firstOrNull()
+            if (firstSegment != null && firstSegment.candidates.isNotEmpty()) {
+                firstSyllable = firstSegment.pinyin
+                firstSyllableCharCandidates = firstSegment.candidates
+            } else {
+                // Last resort: try direct prefix matching
+                val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(bufferWithoutSep)
+                if (prefixCandidates.isNotEmpty()) {
+                    firstSyllable = bufferWithoutSep
+                    firstSyllableCharCandidates = userMemory.sortByFrequency(bufferWithoutSep, prefixCandidates)
+                } else {
+                    firstSyllable = ""
+                    firstSyllableCharCandidates = emptyList()
+                }
+            }
         }
 
         // Check if all segments have candidates
