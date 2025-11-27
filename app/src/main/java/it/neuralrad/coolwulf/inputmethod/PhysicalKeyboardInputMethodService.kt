@@ -630,31 +630,54 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     /**
      * Toggles Chinese input mode on/off.
-     * Uses either Pinyin or Wubi based on user settings.
+     * When both Pinyin and Wubi are enabled, cycles: EN -> Pinyin -> Wubi -> EN
+     * When only one is enabled, toggles that mode on/off.
      * Called from EN/CN toggle button and Shift+Enter shortcut.
      */
     private fun toggleChineseInputMode() {
-        val isWubi = SettingsManager.isWubiInputMethod(this)
+        val enabledMethods = SettingsManager.getEnabledChineseInputMethods(this)
 
-        if (isWubi) {
-            // Toggle Wubi mode
-            wubiInputController.toggleWubiMode()
-            // Ensure Pinyin mode is off
-            if (pinyinInputController.isPinyinMode()) {
-                pinyinInputController.setPinyinMode(false)
-            }
-            if (!wubiInputController.isWubiMode()) {
-                currentInputConnection?.finishComposingText()
+        if (enabledMethods.isEmpty()) {
+            // No Chinese input methods enabled, do nothing
+            updateStatusBarText()
+            return
+        }
+
+        val isPinyinActive = pinyinInputController.isPinyinMode()
+        val isWubiActive = wubiInputController.isWubiMode()
+
+        if (enabledMethods.size == 1) {
+            // Only one method enabled - simple toggle
+            val method = enabledMethods[0]
+            if (method == "pinyin") {
+                pinyinInputController.togglePinyinMode()
+                if (!pinyinInputController.isPinyinMode()) {
+                    currentInputConnection?.finishComposingText()
+                }
+            } else {
+                wubiInputController.toggleWubiMode()
+                if (!wubiInputController.isWubiMode()) {
+                    currentInputConnection?.finishComposingText()
+                }
             }
         } else {
-            // Toggle Pinyin mode
-            pinyinInputController.togglePinyinMode()
-            // Ensure Wubi mode is off
-            if (wubiInputController.isWubiMode()) {
-                wubiInputController.setWubiMode(false)
-            }
-            if (!pinyinInputController.isPinyinMode()) {
-                currentInputConnection?.finishComposingText()
+            // Both methods enabled - cycle: EN -> Pinyin -> Wubi -> EN
+            when {
+                !isPinyinActive && !isWubiActive -> {
+                    // EN -> Pinyin
+                    pinyinInputController.setPinyinMode(true)
+                }
+                isPinyinActive -> {
+                    // Pinyin -> Wubi
+                    pinyinInputController.setPinyinMode(false)
+                    currentInputConnection?.finishComposingText()
+                    wubiInputController.setWubiMode(true)
+                }
+                isWubiActive -> {
+                    // Wubi -> EN
+                    wubiInputController.setWubiMode(false)
+                    currentInputConnection?.finishComposingText()
+                }
             }
         }
         updateStatusBarText()
@@ -1137,20 +1160,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             englishWordPredictionController.updateFromCursor(ic)
 
             if (englishWordPredictionController.hasSuggestions()) {
-                // Alt+letter keys select suggestion (W=1, E=2, R=3, S=4, D=5, F=6, X=7, C=8, V=9)
+                // Alt+letter keys select suggestion - mapping depends on device type
+                // (determined by alt_key_mappings.json for each device)
                 val number = if (altPressed && !ctrlPressed && !shiftPressed) {
-                    when (keyCode) {
-                        KeyEvent.KEYCODE_W -> 1
-                        KeyEvent.KEYCODE_E -> 2
-                        KeyEvent.KEYCODE_R -> 3
-                        KeyEvent.KEYCODE_S -> 4
-                        KeyEvent.KEYCODE_D -> 5
-                        KeyEvent.KEYCODE_F -> 6
-                        KeyEvent.KEYCODE_X -> 7
-                        KeyEvent.KEYCODE_C -> 8
-                        KeyEvent.KEYCODE_V -> 9
-                        else -> 0
-                    }
+                    altSymManager.getAltKeyNumber(keyCode)
                 } else {
                     0
                 }

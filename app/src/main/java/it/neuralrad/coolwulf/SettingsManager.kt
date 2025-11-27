@@ -38,12 +38,14 @@ object SettingsManager {
     private const val KEY_SYM_AUTO_CLOSE = "sym_auto_close" // Auto-close SYM layout after key press
     private const val KEY_DISMISSED_RELEASES = "dismissed_releases" // Set of release tag_names that were dismissed
     private const val KEY_PINYIN_ENABLED = "pinyin_enabled" // Enable Pinyin input
+    private const val KEY_WUBI_ENABLED = "wubi_enabled" // Enable Wubi input
     private const val KEY_PINYIN_CHARACTER_SET = "pinyin_character_set" // "simplified" or "traditional"
-    private const val KEY_CHINESE_INPUT_METHOD = "chinese_input_method" // "pinyin" or "wubi"
+    private const val KEY_CHINESE_INPUT_METHOD = "chinese_input_method" // "pinyin" or "wubi" (legacy, used for last active mode)
     private const val KEY_POWER_SHORTCUTS_ENABLED = "power_shortcuts_enabled" // Enable power shortcuts
     private const val KEY_SWIPE_INCREMENTAL_THRESHOLD = "swipe_incremental_threshold" // Swipe incremental threshold
     private const val KEY_STATIC_VARIATION_BAR_MODE = "static_variation_bar_mode" // Static variation bar mode
     private const val KEY_TUTORIAL_COMPLETED = "tutorial_completed" // Tutorial completion status
+    private const val KEY_DEVICE_TYPE = "device_type" // Device type: "titan2" or "blackberry"
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -62,14 +64,16 @@ object SettingsManager {
     private const val DEFAULT_SYM_AUTO_CLOSE = true
     private val DEFAULT_SYM_PAGES_CONFIG = SymPagesConfig()
     private const val DEFAULT_PINYIN_ENABLED = true
+    private const val DEFAULT_WUBI_ENABLED = false
     private const val DEFAULT_PINYIN_CHARACTER_SET = "simplified"
-    private const val DEFAULT_CHINESE_INPUT_METHOD = "pinyin" // "pinyin" or "wubi"
+    private const val DEFAULT_CHINESE_INPUT_METHOD = "pinyin" // "pinyin" or "wubi" (legacy)
     private const val DEFAULT_POWER_SHORTCUTS_ENABLED = false
     private const val DEFAULT_SWIPE_INCREMENTAL_THRESHOLD = 14.0f
     private const val MIN_SWIPE_INCREMENTAL_THRESHOLD = 3.0f
     private const val MAX_SWIPE_INCREMENTAL_THRESHOLD = 25.0f
     private const val DEFAULT_STATIC_VARIATION_BAR_MODE = false
     private const val DEFAULT_TUTORIAL_COMPLETED = false
+    private const val DEFAULT_DEVICE_TYPE = "titan2"
     
     /**
      * Returns the SharedPreferences instance for Pastiera.
@@ -983,10 +987,44 @@ object SettingsManager {
     }
 
     /**
-     * Checks if Wubi input method is selected.
+     * Checks if Wubi input method is selected (legacy - for backwards compatibility).
      */
     fun isWubiInputMethod(context: Context): Boolean {
         return getChineseInputMethod(context) == "wubi"
+    }
+
+    /**
+     * Returns whether Wubi input is enabled.
+     */
+    fun getWubiEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_WUBI_ENABLED, DEFAULT_WUBI_ENABLED)
+    }
+
+    /**
+     * Sets whether Wubi input is enabled.
+     */
+    fun setWubiEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_WUBI_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether both Pinyin and Wubi are enabled (cycling mode).
+     */
+    fun isBothChineseInputMethodsEnabled(context: Context): Boolean {
+        return getPinyinEnabled(context) && getWubiEnabled(context)
+    }
+
+    /**
+     * Returns the list of enabled Chinese input methods in cycle order.
+     * Returns empty list if neither is enabled.
+     */
+    fun getEnabledChineseInputMethods(context: Context): List<String> {
+        val methods = mutableListOf<String>()
+        if (getPinyinEnabled(context)) methods.add("pinyin")
+        if (getWubiEnabled(context)) methods.add("wubi")
+        return methods
     }
 
     /**
@@ -1291,6 +1329,40 @@ object SettingsManager {
         shortcuts.forEach { (key, shortcut) ->
             setLauncherAction(context, key, shortcut)
         }
+    }
+
+    /**
+     * Returns the device type ("titan2" or "blackberry").
+     */
+    fun getDeviceType(context: Context): String {
+        return getPreferences(context).getString(KEY_DEVICE_TYPE, DEFAULT_DEVICE_TYPE) ?: DEFAULT_DEVICE_TYPE
+    }
+
+    /**
+     * Sets the device type ("titan2" or "blackberry").
+     */
+    fun setDeviceType(context: Context, deviceType: String) {
+        val validType = if (deviceType == "blackberry") "blackberry" else "titan2"
+        getPreferences(context).edit()
+            .putString(KEY_DEVICE_TYPE, validType)
+            .apply()
+    }
+
+    /**
+     * Returns true if BlackBerry device is selected.
+     */
+    fun isBlackBerryDevice(context: Context): Boolean {
+        return getDeviceType(context) == "blackberry"
+    }
+
+    /**
+     * Returns the list of available device types.
+     */
+    fun getAvailableDeviceTypes(): List<Pair<String, String>> {
+        return listOf(
+            "titan2" to "Unihertz Titan 2",
+            "blackberry" to "BlackBerry"
+        )
     }
 }
 

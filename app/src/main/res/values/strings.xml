@@ -58,7 +58,10 @@
     <string name="chinese_input_method_title">Input Method</string>
     <string name="chinese_input_method_description">Choose your preferred Chinese input method</string>
     <string name="chinese_input_pinyin">Pinyin (拼音)</string>
+    <string name="chinese_input_pinyin_description">Enable Pinyin phonetic input</string>
     <string name="chinese_input_wubi">Wubi (五笔)</string>
+    <string name="chinese_input_wubi_description">Enable Wubi shape-based input</string>
+    <string name="chinese_input_both_enabled_info">Both methods enabled: Press Shift+Enter or toggle button to cycle EN → Pinyin → Wubi</string>
     
     <!-- Info Section -->
     <string name="info_title">Information</string>
@@ -400,4 +403,8 @@
     
     <!-- Units -->
     <string name="dip_unit">DIP</string>
+
+    <!-- Device Type -->
+    <string name="device_type_title">Device Type</string>
+    <string name="device_type_description">Choose your device for correct Alt key mappings</string>
 </resources>

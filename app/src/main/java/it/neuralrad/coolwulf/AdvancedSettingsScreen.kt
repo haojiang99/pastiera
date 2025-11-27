@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -78,13 +79,17 @@ fun AdvancedSettingsScreen(
     var launcherShortcutsEnabled by remember { 
         mutableStateOf(SettingsManager.getLauncherShortcutsEnabled(context))
     }
-    var powerShortcutsEnabled by remember { 
+    var powerShortcutsEnabled by remember {
         mutableStateOf(SettingsManager.getPowerShortcutsEnabled(context))
     }
     // Store the actual value (3 to 25), but display it inverted in the slider (25 to 3)
-    var swipeIncrementalThreshold by remember { 
+    var swipeIncrementalThreshold by remember {
         mutableStateOf(SettingsManager.getSwipeIncrementalThreshold(context))
     }
+    var deviceType by remember {
+        mutableStateOf(SettingsManager.getDeviceType(context))
+    }
+    val availableDevices = remember { SettingsManager.getAvailableDeviceTypes() }
     var navigationDirection by remember { mutableStateOf(AdvancedNavigationDirection.Push) }
     val navigationStack = remember {
         mutableStateListOf<AdvancedDestination>(AdvancedDestination.Main)
@@ -213,6 +218,69 @@ fun AdvancedSettingsScreen(
                             .padding(paddingValues)
                             .verticalScroll(rememberScrollState())
                     ) {
+                        // Device Type Selection
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.PhoneAndroid,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.device_type_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = availableDevices.find { it.first == deviceType }?.second ?: deviceType,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    availableDevices.forEach { (type, name) ->
+                                        Surface(
+                                            shape = MaterialTheme.shapes.small,
+                                            color = if (deviceType == type)
+                                                MaterialTheme.colorScheme.primaryContainer
+                                            else
+                                                MaterialTheme.colorScheme.surfaceVariant,
+                                            modifier = Modifier
+                                                .padding(vertical = 4.dp)
+                                                .clickable {
+                                                    deviceType = type
+                                                    SettingsManager.setDeviceType(context, type)
+                                                }
+                                        ) {
+                                            Text(
+                                                text = name,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                color = if (deviceType == type)
+                                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                                else
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // Launcher Shortcuts Enabled Toggle
                         Surface(
                             modifier = Modifier

@@ -64,8 +64,12 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.isStaticVariationBarModeEnabled(context))
     }
 
-    var chineseInputMethod by remember {
-        mutableStateOf(SettingsManager.getChineseInputMethod(context))
+    var pinyinEnabled by remember {
+        mutableStateOf(SettingsManager.getPinyinEnabled(context))
+    }
+
+    var wubiEnabled by remember {
+        mutableStateOf(SettingsManager.getWubiEnabled(context))
     }
 
     // Handle system back button
@@ -444,48 +448,100 @@ fun TextInputSettingsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            // Chinese Input Method Selector (Pinyin / Wubi)
+            // Pinyin Toggle
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .height(64.dp)
             ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.chinese_input_method_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
                     )
-                    Text(
-                        text = stringResource(R.string.chinese_input_method_description),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FilterChip(
-                            selected = chineseInputMethod == "pinyin",
-                            onClick = {
-                                chineseInputMethod = "pinyin"
-                                SettingsManager.setChineseInputMethod(context, "pinyin")
-                            },
-                            label = { Text(stringResource(R.string.chinese_input_pinyin)) }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.chinese_input_pinyin),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
                         )
-                        FilterChip(
-                            selected = chineseInputMethod == "wubi",
-                            onClick = {
-                                chineseInputMethod = "wubi"
-                                SettingsManager.setChineseInputMethod(context, "wubi")
-                            },
-                            label = { Text(stringResource(R.string.chinese_input_wubi)) }
+                        Text(
+                            text = stringResource(R.string.chinese_input_pinyin_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
                         )
                     }
+                    Switch(
+                        checked = pinyinEnabled,
+                        onCheckedChange = { enabled ->
+                            pinyinEnabled = enabled
+                            SettingsManager.setPinyinEnabled(context, enabled)
+                        }
+                    )
                 }
+            }
+
+            // Wubi Toggle
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.chinese_input_wubi),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.chinese_input_wubi_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                    Switch(
+                        checked = wubiEnabled,
+                        onCheckedChange = { enabled ->
+                            wubiEnabled = enabled
+                            SettingsManager.setWubiEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
+
+            // Info text when both are enabled
+            if (pinyinEnabled && wubiEnabled) {
+                Text(
+                    text = stringResource(R.string.chinese_input_both_enabled_info),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
             }
         }
     }

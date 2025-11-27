@@ -15,7 +15,11 @@ object KeyMappingLoader {
     private const val TAG = "KeyMappingLoader"
 
     fun getDeviceName(context: Context? = null): String {
-        return "titan2"
+        return if (context != null) {
+            SettingsManager.getDeviceType(context)
+        } else {
+            "titan2"
+        }
     }
 
     private val keyCodeMap = mapOf(

@@ -96,6 +96,29 @@ class AltSymManager(
         }
     }
 
+    /**
+     * Reloads Alt key mappings from device-specific configuration.
+     * Call this when device type changes.
+     */
+    fun reloadAltMappings() {
+        altKeyMap.clear()
+        altKeyMap.putAll(KeyMappingLoader.loadAltKeyMappings(assets, context))
+        Log.d(TAG, "Reloaded Alt mappings for device: ${KeyMappingLoader.getDeviceName(context)}")
+    }
+
+    /**
+     * Returns the number (1-9) if the given keyCode maps to a digit via Alt mapping.
+     * Returns 0 if the keyCode doesn't map to a digit.
+     */
+    fun getAltKeyNumber(keyCode: Int): Int {
+        val mapping = altKeyMap[keyCode] ?: return 0
+        return if (mapping.length == 1 && mapping[0].isDigit() && mapping[0] in '1'..'9') {
+            mapping[0].digitToInt()
+        } else {
+            0
+        }
+    }
+
     fun hasAltMapping(keyCode: Int): Boolean = altKeyMap.containsKey(keyCode)
 
     fun hasPendingPress(keyCode: Int): Boolean = pressedKeys.containsKey(keyCode)
