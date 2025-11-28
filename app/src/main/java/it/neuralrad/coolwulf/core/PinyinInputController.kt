@@ -47,6 +47,13 @@ class PinyinInputController(
     // Whether we're showing next-word predictions
     private var isShowingNextWordPredictions: Boolean = false
 
+    // Track quote state for alternating between opening and closing Chinese quotes
+    private var nextDoubleQuoteIsOpening: Boolean = true
+    private var nextSingleQuoteIsOpening: Boolean = true
+
+    // Whether to use Chinese punctuation (true) or English punctuation (false)
+    private var useChinesePunctuation: Boolean = true
+
     data class Snapshot(
         val isActive: Boolean,
         val buffer: String,
@@ -878,4 +885,55 @@ class PinyinInputController(
      * Checks if there is a previous page of candidates.
      */
     fun hasPrevPage(): Boolean = currentPage > 0
+
+    /**
+     * Checks if the next double quote should be an opening quote.
+     */
+    fun isNextDoubleQuoteOpening(): Boolean = nextDoubleQuoteIsOpening
+
+    /**
+     * Toggles the double quote state between opening and closing.
+     */
+    fun toggleDoubleQuoteState() {
+        nextDoubleQuoteIsOpening = !nextDoubleQuoteIsOpening
+    }
+
+    /**
+     * Checks if the next single quote should be an opening quote.
+     */
+    fun isNextSingleQuoteOpening(): Boolean = nextSingleQuoteIsOpening
+
+    /**
+     * Toggles the single quote state between opening and closing.
+     */
+    fun toggleSingleQuoteState() {
+        nextSingleQuoteIsOpening = !nextSingleQuoteIsOpening
+    }
+
+    /**
+     * Resets quote states to opening (called when exiting Pinyin mode or starting fresh).
+     */
+    fun resetQuoteStates() {
+        nextDoubleQuoteIsOpening = true
+        nextSingleQuoteIsOpening = true
+    }
+
+    /**
+     * Returns whether Chinese punctuation mode is active.
+     */
+    fun isChinesePunctuationMode(): Boolean = useChinesePunctuation
+
+    /**
+     * Sets whether to use Chinese punctuation.
+     */
+    fun setChinesePunctuationMode(enabled: Boolean) {
+        useChinesePunctuation = enabled
+    }
+
+    /**
+     * Toggles between Chinese and English punctuation modes.
+     */
+    fun togglePunctuationMode() {
+        useChinesePunctuation = !useChinesePunctuation
+    }
 }

@@ -99,6 +99,13 @@ class StatusBarController(
             variationBarView?.onSymButtonListener = value
         }
 
+    // Listener for punctuation toggle (Chinese/English punctuation)
+    var onPunctuationToggleListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            variationBarView?.onPunctuationToggleListener = value
+        }
+
     companion object {
         private const val TAG = "StatusBarController"
         private const val NAV_MODE_LABEL = "NAV MODE"
@@ -136,7 +143,9 @@ class StatusBarController(
         val currentPage: Int = 0,
         val totalPages: Int = 1,
         val hasNextPage: Boolean = false,
-        val hasPrevPage: Boolean = false
+        val hasPrevPage: Boolean = false,
+        // Chinese punctuation mode
+        val chinesePunctuationMode: Boolean = true
     ) {
         val navModeActive: Boolean
             get() = ctrlLatchActive && ctrlLatchFromNavMode
@@ -933,6 +942,7 @@ class StatusBarController(
         variationBarView?.setSymModeActive(snapshot.symPage > 0)
         variationBarView?.setPinyinModeActive(snapshot.pinyinModeActive)
         variationBarView?.setWubiModeActive(snapshot.wubiModeActive)
+        variationBarView?.setChinesePunctuationMode(snapshot.chinesePunctuationMode)
 
         // Always call showVariations() early, before any potential early returns
         // This ensures the variation bar is updated even if the rest of update() returns early

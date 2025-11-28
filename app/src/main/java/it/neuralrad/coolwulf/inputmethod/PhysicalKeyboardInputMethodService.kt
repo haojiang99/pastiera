@@ -438,6 +438,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             updateStatusBarText()
         }
 
+        // Register listener for punctuation toggle (Chinese/English punctuation)
+        candidatesBarController.onPunctuationToggleListener = {
+            togglePunctuationMode()
+        }
+
         altSymManager = AltSymManager(assets, prefs, this)
         altSymManager.reloadSymMappings() // Load custom mappings for page 1 if present
         altSymManager.reloadSymMappings2() // Load custom mappings for page 2 if present
@@ -707,6 +712,39 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
 
     /**
+     * Toggles between Chinese and English punctuation modes.
+     * Both controllers share the same state for consistency.
+     */
+    private fun togglePunctuationMode() {
+        val isPinyinMode = pinyinInputController.isPinyinMode()
+        val isWubiMode = wubiInputController.isWubiMode()
+
+        if (isPinyinMode) {
+            pinyinInputController.togglePunctuationMode()
+            // Sync Wubi controller to match
+            wubiInputController.setChinesePunctuationMode(pinyinInputController.isChinesePunctuationMode())
+        } else if (isWubiMode) {
+            wubiInputController.togglePunctuationMode()
+            // Sync Pinyin controller to match
+            pinyinInputController.setChinesePunctuationMode(wubiInputController.isChinesePunctuationMode())
+        }
+        updateStatusBarText()
+    }
+
+    /**
+     * Returns whether Chinese punctuation mode is currently active.
+     */
+    private fun isChinesePunctuationModeActive(): Boolean {
+        return if (pinyinInputController.isPinyinMode()) {
+            pinyinInputController.isChinesePunctuationMode()
+        } else if (wubiInputController.isWubiMode()) {
+            wubiInputController.isChinesePunctuationMode()
+        } else {
+            true // Default to Chinese punctuation
+        }
+    }
+
+    /**
      * Aggiorna la status bar delegando al controller dedicato.
      */
     private fun updateStatusBarText() {
@@ -804,7 +842,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             currentPage = currentPage,
             totalPages = totalPages,
             hasNextPage = hasNextPage,
-            hasPrevPage = hasPrevPage
+            hasPrevPage = hasPrevPage,
+            chinesePunctuationMode = isChinesePunctuationModeActive()
         )
         val emojiMapText = ""
         // Passa le mappature SYM per la griglia emoji/caratteri
@@ -1004,11 +1043,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
 
         // Track Alt/Shift double press for pagination
+        // Only use pagination behavior when there are candidates to paginate
+        // Otherwise, allow normal Alt/Shift locking behavior
         val isPinyinMode = pinyinInputController.isPinyinMode()
         val isWubiMode = wubiInputController.isWubiMode()
         val isWordPredictionActive = englishWordPredictionController.hasActivePrediction()
 
-        if (isPinyinMode || isWubiMode || isWordPredictionActive) {
+        // Check if we have candidates to paginate (buffer not empty or has candidates)
+        val hasPinyinCandidates = isPinyinMode && pinyinInputController.hasCandidates()
+        val hasWubiCandidates = isWubiMode && wubiInputController.hasCandidates()
+        val hasWordPredictions = isWordPredictionActive && englishWordPredictionController.hasSuggestions()
+        val hasCandidatesToPaginate = hasPinyinCandidates || hasWubiCandidates || hasWordPredictions
+
+        if (hasCandidatesToPaginate) {
             when (keyCode) {
                 KeyEvent.KEYCODE_ALT_LEFT, KeyEvent.KEYCODE_ALT_RIGHT -> {
                     if (event?.repeatCount == 0) {
@@ -1239,11 +1286,47 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             ic.commitText(committed, 1)
                         }
                     }
-                    // Input the alternate character directly (symbol or number)
-                    ic.commitText(altChar.toChar().toString(), 1)
 
-                    // Clear Alt state after using it for the alternate character
-                    if (altLatchActive || altOneShot) {
+                    // Convert punctuation to Chinese if applicable (only when Chinese punctuation mode is enabled)
+                    val char = altChar.toChar()
+                    val chinesePunctuation: String? = if (pinyinInputController.isChinesePunctuationMode()) {
+                        when (char) {
+                            ',' -> "，"
+                            '.' -> "。"
+                            '!' -> "！"
+                            '?' -> "？"
+                            ':' -> "："
+                            ';' -> "；"
+                            '(' -> "（"
+                            ')' -> "）"
+                            '[' -> "【"
+                            ']' -> "】"
+                            '<' -> "《"
+                            '>' -> "》"
+                            '~' -> "～"
+                            '\\' -> "、"
+                            '^' -> "……"
+                            '_' -> "——"
+                            '"' -> {
+                                val result = if (pinyinInputController.isNextDoubleQuoteOpening()) "\u201C" else "\u201D"
+                                pinyinInputController.toggleDoubleQuoteState()
+                                result
+                            }
+                            '\'' -> {
+                                val result = if (pinyinInputController.isNextSingleQuoteOpening()) "\u2018" else "\u2019"
+                                pinyinInputController.toggleSingleQuoteState()
+                                result
+                            }
+                            else -> null
+                        }
+                    } else null
+
+                    // Input Chinese punctuation or the original character
+                    val textToCommit = chinesePunctuation ?: char.toString()
+                    ic.commitText(textToCommit, 1)
+
+                    // Only clear Alt state if it's one-shot mode, keep it if latched (double-click locked)
+                    if (altOneShot && !altLatchActive) {
                         modifierStateController.clearAltState(resetPressedState = false)
                     }
 
@@ -1393,10 +1476,51 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
 
-            // Handle comma and period - use Chinese punctuation in Pinyin mode
-            if (event != null && event.unicodeChar != 0) {
+            // Handle punctuation - use Chinese punctuation in Pinyin mode (only when Chinese punctuation mode is enabled)
+            if (event != null && event.unicodeChar != 0 && pinyinInputController.isChinesePunctuationMode()) {
                 val char = event.unicodeChar.toChar()
-                if (char == ',' || char == '.') {
+                // Check if this is a punctuation that should be converted to Chinese
+                val chinesePunctuation: String? = when (char) {
+                    ',' -> "，"  // 逗号
+                    '.' -> "。"  // 句号
+                    '!' -> "！"  // 感叹号
+                    '?' -> "？"  // 问号
+                    ':' -> "："  // 冒号
+                    ';' -> "；"  // 分号
+                    '(' -> "（"  // 左括号
+                    ')' -> "）"  // 右括号
+                    '[' -> "【"  // 左方括号
+                    ']' -> "】"  // 右方括号
+                    '<' -> "《"  // 左书名号
+                    '>' -> "》"  // 右书名号
+                    '~' -> "～"  // 波浪号
+                    '\\' -> "、" // 顿号
+                    '^' -> "……" // 省略号
+                    '_' -> "——" // 破折号
+                    '"' -> {
+                        // Alternate between opening and closing Chinese double quotes
+                        val result = if (pinyinInputController.isNextDoubleQuoteOpening()) {
+                            "\u201C" // " opening double quote
+                        } else {
+                            "\u201D" // " closing double quote
+                        }
+                        pinyinInputController.toggleDoubleQuoteState()
+                        result
+                    }
+                    '\'' -> {
+                        // Alternate between opening and closing Chinese single quotes
+                        val result = if (pinyinInputController.isNextSingleQuoteOpening()) {
+                            "\u2018" // ' opening single quote
+                        } else {
+                            "\u2019" // ' closing single quote
+                        }
+                        pinyinInputController.toggleSingleQuoteState()
+                        result
+                    }
+                    else -> null
+                }
+
+                if (chinesePunctuation != null) {
                     // Commit any existing pinyin buffer first
                     val buffer = pinyinInputController.getBuffer()
                     if (buffer.isNotEmpty()) {
@@ -1405,12 +1529,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             ic.commitText(committed, 1)
                         }
                     }
-                    // Convert to Chinese punctuation
-                    val chinesePunctuation = if (char == ',') "，" else "。"
                     ic.commitText(chinesePunctuation, 1)
                     // Clear next-word predictions since punctuation ends the phrase context
                     pinyinInputController.onPunctuationInput()
-                    // Clear Alt one-shot after typing Chinese punctuation (e.g., Alt+B for 。, Alt+N for ，)
+                    // Clear Alt one-shot after typing Chinese punctuation
                     if (altOneShot) {
                         altOneShot = false
                     }
@@ -1445,6 +1567,69 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     SymLayoutController.SymKeyResult.CONSUME -> return true
                     SymLayoutController.SymKeyResult.CALL_SUPER -> return super.onKeyDown(keyCode, event)
                     SymLayoutController.SymKeyResult.NOT_HANDLED -> { /* Continue to Wubi handling */ }
+                }
+            }
+
+            // Handle Alt modifier - when Alt is active (latched, one-shot, or pressed), input alternate characters
+            if (event != null && (altLatchActive || altOneShot || altPressed)) {
+                // Get the character with Alt modifier applied
+                val altChar = event.getUnicodeChar(KeyEvent.META_ALT_ON)
+                // Only proceed if we get a valid alternate character that's different from the normal one
+                if (altChar != 0 && altChar != event.unicodeChar) {
+                    // Commit any existing buffer first
+                    val buffer = wubiInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        val committed = wubiInputController.commitBufferAsIs()
+                        if (committed != null) {
+                            ic.commitText(committed, 1)
+                        }
+                    }
+
+                    // Convert punctuation to Chinese if applicable (only when Chinese punctuation mode is enabled)
+                    val char = altChar.toChar()
+                    val chinesePunctuation: String? = if (wubiInputController.isChinesePunctuationMode()) {
+                        when (char) {
+                            ',' -> "，"
+                            '.' -> "。"
+                            '!' -> "！"
+                            '?' -> "？"
+                            ':' -> "："
+                            ';' -> "；"
+                            '(' -> "（"
+                            ')' -> "）"
+                            '[' -> "【"
+                            ']' -> "】"
+                            '<' -> "《"
+                            '>' -> "》"
+                            '~' -> "～"
+                            '\\' -> "、"
+                            '^' -> "……"
+                            '_' -> "——"
+                            '"' -> {
+                                val result = if (wubiInputController.isNextDoubleQuoteOpening()) "\u201C" else "\u201D"
+                                wubiInputController.toggleDoubleQuoteState()
+                                result
+                            }
+                            '\'' -> {
+                                val result = if (wubiInputController.isNextSingleQuoteOpening()) "\u2018" else "\u2019"
+                                wubiInputController.toggleSingleQuoteState()
+                                result
+                            }
+                            else -> null
+                        }
+                    } else null
+
+                    // Input Chinese punctuation or the original character
+                    val textToCommit = chinesePunctuation ?: char.toString()
+                    ic.commitText(textToCommit, 1)
+
+                    // Only clear Alt state if it's one-shot mode, keep it if latched (double-click locked)
+                    if (altOneShot && !altLatchActive) {
+                        modifierStateController.clearAltState(resetPressedState = false)
+                    }
+
+                    updateStatusBarText()
+                    return true
                 }
             }
 
@@ -1543,10 +1728,51 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
 
-            // Handle comma and period - use Chinese punctuation in Wubi mode
-            if (event != null && event.unicodeChar != 0) {
+            // Handle punctuation - use Chinese punctuation in Wubi mode (only when Chinese punctuation mode is enabled)
+            if (event != null && event.unicodeChar != 0 && wubiInputController.isChinesePunctuationMode()) {
                 val char = event.unicodeChar.toChar()
-                if (char == ',' || char == '.') {
+                // Check if this is a punctuation that should be converted to Chinese
+                val chinesePunctuation: String? = when (char) {
+                    ',' -> "，"  // 逗号
+                    '.' -> "。"  // 句号
+                    '!' -> "！"  // 感叹号
+                    '?' -> "？"  // 问号
+                    ':' -> "："  // 冒号
+                    ';' -> "；"  // 分号
+                    '(' -> "（"  // 左括号
+                    ')' -> "）"  // 右括号
+                    '[' -> "【"  // 左方括号
+                    ']' -> "】"  // 右方括号
+                    '<' -> "《"  // 左书名号
+                    '>' -> "》"  // 右书名号
+                    '~' -> "～"  // 波浪号
+                    '\\' -> "、" // 顿号
+                    '^' -> "……" // 省略号
+                    '_' -> "——" // 破折号
+                    '"' -> {
+                        // Alternate between opening and closing Chinese double quotes
+                        val result = if (wubiInputController.isNextDoubleQuoteOpening()) {
+                            "\u201C" // " opening double quote
+                        } else {
+                            "\u201D" // " closing double quote
+                        }
+                        wubiInputController.toggleDoubleQuoteState()
+                        result
+                    }
+                    '\'' -> {
+                        // Alternate between opening and closing Chinese single quotes
+                        val result = if (wubiInputController.isNextSingleQuoteOpening()) {
+                            "\u2018" // ' opening single quote
+                        } else {
+                            "\u2019" // ' closing single quote
+                        }
+                        wubiInputController.toggleSingleQuoteState()
+                        result
+                    }
+                    else -> null
+                }
+
+                if (chinesePunctuation != null) {
                     val buffer = wubiInputController.getBuffer()
                     if (buffer.isNotEmpty()) {
                         val committed = wubiInputController.commitBufferAsIs()
@@ -1554,11 +1780,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             ic.commitText(committed, 1)
                         }
                     }
-                    val chinesePunctuation = if (char == ',') "，" else "。"
                     ic.commitText(chinesePunctuation, 1)
                     // Clear next-word predictions since punctuation ends the phrase context
                     wubiInputController.onPunctuationInput()
-                    // Clear Alt one-shot after typing Chinese punctuation (e.g., Alt+B for 。, Alt+N for ，)
+                    // Clear Alt one-shot after typing Chinese punctuation
                     if (altOneShot) {
                         altOneShot = false
                     }

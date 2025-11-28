@@ -48,12 +48,15 @@ class VariationBarView(
     var onPrevPageListener: (() -> Unit)? = null
     var onLanguageToggleListener: (() -> Unit)? = null
     var onSymButtonListener: (() -> Unit)? = null
+    var onPunctuationToggleListener: (() -> Unit)? = null
 
     private var wrapper: FrameLayout? = null
     private var symButtonView: TextView? = null
     private var languageToggleButtonView: TextView? = null
+    private var punctuationToggleButtonView: TextView? = null
     private var isPinyinModeActive: Boolean = false
     private var isWubiModeActive: Boolean = false
+    private var isChinesePunctuationMode: Boolean = true
     private var prevArrowButton: ImageView? = null
     private var nextArrowButton: ImageView? = null
     private var container: LinearLayout? = null
@@ -158,6 +161,13 @@ class VariationBarView(
         if (isWubiModeActive != active) {
             isWubiModeActive = active
             updateLanguageToggleButton()
+        }
+    }
+
+    fun setChinesePunctuationMode(active: Boolean) {
+        if (isChinesePunctuationMode != active) {
+            isChinesePunctuationMode = active
+            updatePunctuationToggleButton()
         }
     }
 
@@ -551,6 +561,34 @@ class VariationBarView(
         }
         languageToggleButton.alpha = 1f
         languageToggleButton.visibility = View.VISIBLE
+
+        // Punctuation toggle button (中/英 for punctuation) - only show in Chinese mode
+        if (isPinyinModeActive || isWubiModeActive) {
+            val punctuationToggleButton = punctuationToggleButtonView ?: createPunctuationToggleButton(buttonWidth).also {
+                punctuationToggleButtonView = it
+            }
+            if (punctuationToggleButton.parent == null) {
+                val punctParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
+                    marginStart = TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP,
+                        4f,
+                        context.resources.displayMetrics
+                    ).toInt()
+                }
+                containerView.addView(punctuationToggleButton, punctParams)
+            }
+            punctuationToggleButton.setOnClickListener {
+                onPunctuationToggleListener?.invoke()
+            }
+            punctuationToggleButton.alpha = 1f
+            punctuationToggleButton.visibility = View.VISIBLE
+        } else {
+            // Hide punctuation toggle when not in Chinese mode
+            punctuationToggleButtonView?.let { btn ->
+                (btn.parent as? ViewGroup)?.removeView(btn)
+                btn.visibility = View.GONE
+            }
+        }
 
         // Skip animation for smoother updates - just set alpha directly
         variationsRow.alpha = 1f
@@ -1059,6 +1097,41 @@ class VariationBarView(
                 isPinyinModeActive || isWubiModeActive -> Color.rgb(100, 200, 255)
                 else -> Color.WHITE
             })
+        }
+    }
+
+    private fun createPunctuationToggleButton(buttonSize: Int): TextView {
+        val dp2 = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            2f,
+            context.resources.displayMetrics
+        ).toInt()
+        val drawable = GradientDrawable().apply {
+            setColor(Color.rgb(40, 40, 40))
+            cornerRadius = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                4f,
+                context.resources.displayMetrics
+            )
+        }
+        return TextView(context).apply {
+            text = if (isChinesePunctuationMode) "。" else "."
+            textSize = 14f
+            setTextColor(if (isChinesePunctuationMode) Color.rgb(100, 200, 255) else Color.WHITE)
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            gravity = Gravity.CENTER
+            background = drawable
+            isClickable = true
+            isFocusable = true
+            setPadding(dp2, dp2, dp2, dp2)
+            layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
+        }
+    }
+
+    private fun updatePunctuationToggleButton() {
+        punctuationToggleButtonView?.apply {
+            text = if (isChinesePunctuationMode) "。" else "."
+            setTextColor(if (isChinesePunctuationMode) Color.rgb(100, 200, 255) else Color.WHITE)
         }
     }
 
