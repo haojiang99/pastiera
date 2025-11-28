@@ -112,7 +112,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     
     // Flag to track whether we are in a valid input context
     private var isInputViewActive = false
-    
+
+    // Track compact mode state for hiding IME bar
+    private var isCompactModeHidden = false
+
     // Snapshot of the current input context (numeric/password/restricted fields, etc.)
     private var inputContextState: InputContextState = InputContextState.EMPTY
     
@@ -695,9 +698,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      */
     override fun onComputeInsets(outInsets: InputMethodService.Insets?) {
         super.onComputeInsets(outInsets)
-        
-        if (outInsets != null && !isFullscreenMode()) {
-            outInsets.contentTopInsets = outInsets.visibleTopInsets
+
+        if (outInsets != null) {
+            // In compact mode with no suggestions, report zero height to hide system IME bar
+            if (isCompactModeHidden) {
+                outInsets.contentTopInsets = outInsets.visibleTopInsets
+                outInsets.visibleTopInsets = outInsets.visibleTopInsets
+                // Set touchable region to empty so input goes through to the app
+                outInsets.touchableInsets = InputMethodService.Insets.TOUCHABLE_INSETS_CONTENT
+                return
+            }
+
+            if (!isFullscreenMode()) {
+                outInsets.contentTopInsets = outInsets.visibleTopInsets
+            }
         }
     }
 
@@ -932,12 +946,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Compact mode: hide entire status bar when no suggestions
         val compactModeEnabled = SettingsManager.getCompactModeEnabled(this)
+        val hasSuggestions = variationSnapshot.variations.isNotEmpty() ||
+                            pinyinSnapshot.hasCandidates ||
+                            wubiSnapshot.hasCandidates
         if (compactModeEnabled) {
-            val hasSuggestions = variationSnapshot.variations.isNotEmpty() ||
-                                pinyinSnapshot.hasCandidates ||
-                                wubiSnapshot.hasCandidates
-            candidatesBarController.setCompactModeHidden(!hasSuggestions)
+            val shouldHide = !hasSuggestions
+            candidatesBarController.setCompactModeHidden(shouldHide)
+            isCompactModeHidden = shouldHide
         } else {
+            isCompactModeHidden = false
             candidatesBarController.setCompactModeHidden(false)
         }
 

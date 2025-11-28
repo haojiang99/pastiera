@@ -496,13 +496,36 @@ class VariationBarView(
             nextArrowButton?.visibility = View.GONE
         }
 
+        // Determine if we should stretch buttons (when no suggestions)
+        val noSuggestions = snapshot.variations.isEmpty()
+        val stretchButtons = noSuggestions
+
+        // Count visible buttons for weight calculation
+        val visibleButtonCount = if (isPinyinModeActive || isWubiModeActive) 5 else 4
+
         // Microphone button - reuse if already attached
         val microphoneButton = microphoneButtonView ?: createMicrophoneButton(buttonWidth).also {
             microphoneButtonView = it
         }
         if (microphoneButton.parent == null) {
-            val micParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth)
+            val micParams = if (stretchButtons) {
+                LinearLayout.LayoutParams(0, buttonWidth, 1f)
+            } else {
+                LinearLayout.LayoutParams(buttonWidth, buttonWidth)
+            }
             containerView.addView(microphoneButton, micParams)
+        } else if (stretchButtons) {
+            // Update existing params to use weight
+            (microphoneButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                width = 0
+                weight = 1f
+            }
+        } else {
+            // Restore fixed width
+            (microphoneButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                width = buttonWidth
+                weight = 0f
+            }
         }
         microphoneButton.setOnClickListener { startSpeechRecognition(inputConnection) }
         microphoneButton.alpha = 1f
@@ -513,10 +536,26 @@ class VariationBarView(
             settingsButtonView = it
         }
         if (settingsButton.parent == null) {
-            val settingsParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
-                topMargin = (-buttonWidth * 0.1f).toInt()
+            val settingsParams = if (stretchButtons) {
+                LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
+                    topMargin = (-buttonWidth * 0.1f).toInt()
+                }
+            } else {
+                LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
+                    topMargin = (-buttonWidth * 0.1f).toInt()
+                }
             }
             containerView.addView(settingsButton, settingsParams)
+        } else if (stretchButtons) {
+            (settingsButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                width = 0
+                weight = 1f
+            }
+        } else {
+            (settingsButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                width = buttonWidth
+                weight = 0f
+            }
         }
         settingsButton.setOnClickListener { openSettings() }
         settingsButton.alpha = 1f
@@ -527,14 +566,34 @@ class VariationBarView(
             symButtonView = it
         }
         if (symButton.parent == null) {
-            val symParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
-                marginStart = TypedValue.applyDimension(
-                    TypedValue.COMPLEX_UNIT_DIP,
-                    4f,
-                    context.resources.displayMetrics
-                ).toInt()
+            val symParams = if (stretchButtons) {
+                LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
+                    marginStart = TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP,
+                        4f,
+                        context.resources.displayMetrics
+                    ).toInt()
+                }
+            } else {
+                LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
+                    marginStart = TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP,
+                        4f,
+                        context.resources.displayMetrics
+                    ).toInt()
+                }
             }
             containerView.addView(symButton, symParams)
+        } else if (stretchButtons) {
+            (symButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                width = 0
+                weight = 1f
+            }
+        } else {
+            (symButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                width = buttonWidth
+                weight = 0f
+            }
         }
         symButton.setOnClickListener {
             onSymButtonListener?.invoke()
@@ -547,14 +606,34 @@ class VariationBarView(
             languageToggleButtonView = it
         }
         if (languageToggleButton.parent == null) {
-            val langParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
-                marginStart = TypedValue.applyDimension(
-                    TypedValue.COMPLEX_UNIT_DIP,
-                    4f,
-                    context.resources.displayMetrics
-                ).toInt()
+            val langParams = if (stretchButtons) {
+                LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
+                    marginStart = TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP,
+                        4f,
+                        context.resources.displayMetrics
+                    ).toInt()
+                }
+            } else {
+                LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
+                    marginStart = TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP,
+                        4f,
+                        context.resources.displayMetrics
+                    ).toInt()
+                }
             }
             containerView.addView(languageToggleButton, langParams)
+        } else if (stretchButtons) {
+            (languageToggleButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                width = 0
+                weight = 1f
+            }
+        } else {
+            (languageToggleButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                width = buttonWidth
+                weight = 0f
+            }
         }
         languageToggleButton.setOnClickListener {
             onLanguageToggleListener?.invoke()
@@ -568,12 +647,22 @@ class VariationBarView(
                 punctuationToggleButtonView = it
             }
             if (punctuationToggleButton.parent == null) {
-                val punctParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
-                    marginStart = TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        4f,
-                        context.resources.displayMetrics
-                    ).toInt()
+                val punctParams = if (stretchButtons) {
+                    LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
+                        marginStart = TypedValue.applyDimension(
+                            TypedValue.COMPLEX_UNIT_DIP,
+                            4f,
+                            context.resources.displayMetrics
+                        ).toInt()
+                    }
+                } else {
+                    LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
+                        marginStart = TypedValue.applyDimension(
+                            TypedValue.COMPLEX_UNIT_DIP,
+                            4f,
+                            context.resources.displayMetrics
+                        ).toInt()
+                    }
                 }
                 // Insert right after language toggle button (find its index and add after)
                 val langIndex = containerView.indexOfChild(languageToggleButton)
@@ -581,6 +670,16 @@ class VariationBarView(
                     containerView.addView(punctuationToggleButton, langIndex + 1, punctParams)
                 } else {
                     containerView.addView(punctuationToggleButton, punctParams)
+                }
+            } else if (stretchButtons) {
+                (punctuationToggleButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                    width = 0
+                    weight = 1f
+                }
+            } else {
+                (punctuationToggleButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                    width = buttonWidth
+                    weight = 0f
                 }
             }
             punctuationToggleButton.setOnClickListener {
@@ -598,7 +697,13 @@ class VariationBarView(
 
         // Skip animation for smoother updates - just set alpha directly
         variationsRow.alpha = 1f
-        variationsRow.visibility = View.VISIBLE
+        // Hide variationsRow when no suggestions (buttons will fill the space)
+        variationsRow.visibility = if (noSuggestions) View.GONE else View.VISIBLE
+
+        // Request layout update when stretching buttons
+        if (stretchButtons) {
+            containerView.requestLayout()
+        }
     }
 
     private fun installOverlayTouchListener(overlayView: View) {

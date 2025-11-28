@@ -191,11 +191,23 @@ class StatusBarController(
         compactModeHidden = hidden
         if (hidden) {
             // Hide the entire status bar layout in compact mode when no suggestions
-            statusBarLayout?.visibility = View.GONE
+            statusBarLayout?.apply {
+                visibility = View.GONE
+                // Set height to 0 to ensure no space is taken
+                layoutParams = layoutParams?.apply {
+                    height = 0
+                }
+            }
             variationBarView?.hideImmediate()
         } else {
             // Show the status bar layout when there are suggestions
-            statusBarLayout?.visibility = View.VISIBLE
+            statusBarLayout?.apply {
+                visibility = View.VISIBLE
+                // Restore wrap_content height
+                layoutParams = layoutParams?.apply {
+                    height = ViewGroup.LayoutParams.WRAP_CONTENT
+                }
+            }
         }
     }
 
