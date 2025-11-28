@@ -5,10 +5,13 @@ import android.util.Log
 import android.view.KeyEvent
 import it.neuralrad.coolwulf.data.pinyin.PinyinDictionary
 import it.neuralrad.coolwulf.data.pinyin.UserPinyinMemory
+import it.neuralrad.coolwulf.data.NextWordPredictor
+import it.neuralrad.coolwulf.data.UserCustomDictionary
 
 /**
  * Manages Pinyin input state and generates Chinese character candidates.
  * Handles the input buffer and provides methods for candidate selection.
+ * Also provides next-word predictions after a character/phrase is committed.
  */
 class PinyinInputController(
     private val context: Context
@@ -41,6 +44,9 @@ class PinyinInputController(
     // Current page (0-indexed)
     private var currentPage: Int = 0
 
+    // Whether we're showing next-word predictions
+    private var isShowingNextWordPredictions: Boolean = false
+
     data class Snapshot(
         val isActive: Boolean,
         val buffer: String,
@@ -49,11 +55,18 @@ class PinyinInputController(
         val currentPage: Int = 0,
         val totalPages: Int = 1,
         val hasNextPage: Boolean = false,
-        val hasPrevPage: Boolean = false
+        val hasPrevPage: Boolean = false,
+        val isNextWordPrediction: Boolean = false  // True when showing next-word predictions
     )
 
     // User memory for learning preferences
     private val userMemory: UserPinyinMemory = UserPinyinMemory.getInstance(context)
+
+    // Next-word predictor for suggesting words after commit
+    private val nextWordPredictor: NextWordPredictor = NextWordPredictor.getInstance(context)
+
+    // User custom dictionary for user-defined shortcuts
+    private val customDictionary: UserCustomDictionary = UserCustomDictionary.getInstance(context)
 
     init {
         // Load dictionary if not already loaded
@@ -114,6 +127,12 @@ class PinyinInputController(
             return true
         }
 
+        // Clear next-word prediction state when user starts typing
+        if (isShowingNextWordPredictions) {
+            isShowingNextWordPredictions = false
+            nextWordPredictor.onUserStartedTyping()
+        }
+
         buffer.append(lowerChar)
         updateCandidates()
         Log.d(TAG, "Letter added: '$lowerChar' → Buffer: '$buffer', Candidates: ${allCandidates.joinToString(", ")}")
@@ -149,11 +168,25 @@ class PinyinInputController(
 
     /**
      * Handles backspace in Pinyin mode.
-     * Removes the last character from the buffer.
-     * @return true if handled (buffer was not empty), false otherwise
+     * Removes the last character from the buffer, or clears next-word predictions if buffer is empty.
+     * @return true if handled, false otherwise
      */
     fun handleBackspace(): Boolean {
-        if (!isPinyinModeActive || buffer.isEmpty()) {
+        if (!isPinyinModeActive) {
+            return false
+        }
+
+        // If showing next-word predictions and buffer is empty, clear predictions
+        if (buffer.isEmpty() && isShowingNextWordPredictions) {
+            isShowingNextWordPredictions = false
+            allCandidates = emptyList()
+            currentPage = 0
+            nextWordPredictor.clearState()
+            Log.d(TAG, "Backspace cleared next-word predictions")
+            return true
+        }
+
+        if (buffer.isEmpty()) {
             return false
         }
 
@@ -258,10 +291,40 @@ class PinyinInputController(
             }
         }
 
+        // Record the committed word for next-word prediction learning
+        nextWordPredictor.recordCommittedWord(selected)
+
         // Update candidates for the remaining buffer
-        updateCandidates()
+        // If buffer is empty after selection, show next-word predictions
+        if (buffer.isEmpty()) {
+            showNextWordPredictions()
+        } else {
+            isShowingNextWordPredictions = false
+            updateCandidates()
+        }
 
         return selected
+    }
+
+    /**
+     * Shows next-word predictions if available.
+     */
+    private fun showNextWordPredictions() {
+        if (nextWordPredictor.isShowingPredictions()) {
+            val nextWordSuggestions = nextWordPredictor.getSuggestions()
+            if (nextWordSuggestions.isNotEmpty()) {
+                isShowingNextWordPredictions = true
+                allCandidates = nextWordSuggestions
+                currentPage = 0
+                phraseCandidateCount = nextWordSuggestions.size  // All are "phrase" type for selection
+                matchedPinyin = ""
+                firstSyllable = ""
+                Log.d(TAG, "Showing next-word predictions: $nextWordSuggestions")
+                return
+            }
+        }
+        isShowingNextWordPredictions = false
+        updateCandidates()
     }
 
     /**
@@ -496,7 +559,7 @@ class PinyinInputController(
 
     /**
      * Generates combined candidates from multiple segments.
-     * Shows the combined phrase first, then individual character options for first syllable.
+     * Shows custom dictionary phrases first, then combined phrases, then individual character options.
      */
     private fun generateCombinedCandidates(fullBuffer: String, segments: List<ParsedSegment>) {
         if (segments.isEmpty()) {
@@ -509,6 +572,9 @@ class PinyinInputController(
 
         // Find the actual first syllable (not phrase) for single-character fallback
         val bufferWithoutSep = fullBuffer.replace(SEPARATOR.toString(), "")
+
+        // Get custom dictionary phrases for this code (highest priority)
+        val customPhrases = customDictionary.getPinyinPhrases(bufferWithoutSep)
         val actualFirstSyllable = PinyinDictionary.findLongestSyllable(bufferWithoutSep) ?: ""
 
         // Get single-character candidates for the first syllable (always needed as fallback)
@@ -540,20 +606,39 @@ class PinyinInputController(
         // Check if all segments have candidates
         val allHaveCandidates = segments.all { it.candidates.isNotEmpty() }
 
+        val resultCandidates = mutableListOf<String>()
+
+        // Add custom dictionary phrases first (highest priority)
+        if (customPhrases.isNotEmpty()) {
+            resultCandidates.addAll(customPhrases)
+            Log.d(TAG, "Custom dictionary phrases for '$bufferWithoutSep': $customPhrases")
+        }
+
+        // If no regular candidates but we have custom phrases, use them
         if (!allHaveCandidates && firstSyllableCharCandidates.isEmpty()) {
+            if (customPhrases.isNotEmpty()) {
+                // We have custom phrases, use them
+                allCandidates = resultCandidates
+                phraseCandidateCount = resultCandidates.size
+                matchedPinyin = bufferWithoutSep
+                Log.d(TAG, "Using only custom phrases for '$bufferWithoutSep': $customPhrases")
+                return
+            }
             // No candidates at all - fall back to single segment mode
             handleSingleSegmentFallback(segments)
             return
         }
 
-        val resultCandidates = mutableListOf<String>()
-
         // If we have multiple segments, create combined phrase candidates
         if (segments.size > 1) {
             // Generate combined phrases by taking top candidates from each segment
             val combinedPhrases = generateCombinedPhrases(segments)
-            resultCandidates.addAll(combinedPhrases)
-            phraseCandidateCount = combinedPhrases.size
+            for (phrase in combinedPhrases) {
+                if (phrase !in resultCandidates) {
+                    resultCandidates.add(phrase)
+                }
+            }
+            phraseCandidateCount = resultCandidates.size  // All added so far are phrases
 
             // Calculate the pinyin that will be consumed for phrase candidates
             // (all segments combined, without separators)
@@ -565,12 +650,16 @@ class PinyinInputController(
             val phraseCandidates = PinyinDictionary.getPhraseCandidates(bufferWithoutSep)
             if (phraseCandidates.isNotEmpty()) {
                 val sortedPhrases = userMemory.sortByFrequency(bufferWithoutSep, phraseCandidates)
-                resultCandidates.addAll(sortedPhrases)
-                phraseCandidateCount = sortedPhrases.size
+                for (phrase in sortedPhrases) {
+                    if (phrase !in resultCandidates) {
+                        resultCandidates.add(phrase)
+                    }
+                }
+                phraseCandidateCount = resultCandidates.size  // All added so far are phrases
                 matchedPinyin = bufferWithoutSep
             } else {
-                phraseCandidateCount = 0
-                matchedPinyin = actualFirstSyllable
+                phraseCandidateCount = resultCandidates.size  // Only custom phrases if any
+                matchedPinyin = if (customPhrases.isNotEmpty()) bufferWithoutSep else actualFirstSyllable
             }
         }
 
@@ -637,18 +726,41 @@ class PinyinInputController(
 
     /**
      * Handles input that couldn't be fully parsed.
-     * Falls back to prefix matching.
+     * Falls back to prefix matching, but always checks custom dictionary first.
      */
     private fun handleUnparsableInput(bufferStr: String) {
         val cleanBuffer = bufferStr.replace(SEPARATOR.toString(), "")
+
+        val resultCandidates = mutableListOf<String>()
+
+        // Check custom dictionary first (highest priority)
+        val customPhrases = customDictionary.getPinyinPhrases(cleanBuffer)
+        if (customPhrases.isNotEmpty()) {
+            resultCandidates.addAll(customPhrases)
+            Log.d(TAG, "Custom dictionary phrases for unparsable '$cleanBuffer': $customPhrases")
+        }
+
         val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(cleanBuffer)
 
         if (prefixCandidates.isNotEmpty()) {
-            allCandidates = userMemory.sortByFrequency(cleanBuffer, prefixCandidates)
+            val sortedPrefixCandidates = userMemory.sortByFrequency(cleanBuffer, prefixCandidates)
+            for (candidate in sortedPrefixCandidates) {
+                if (candidate !in resultCandidates) {
+                    resultCandidates.add(candidate)
+                }
+            }
+            allCandidates = resultCandidates
             matchedPinyin = PinyinDictionary.getFirstSyllableForPrefix(cleanBuffer) ?: cleanBuffer
             firstSyllable = matchedPinyin
-            phraseCandidateCount = 0
-            Log.d(TAG, "Prefix fallback: $cleanBuffer → ${allCandidates.size} candidates")
+            phraseCandidateCount = customPhrases.size
+            Log.d(TAG, "Prefix fallback: $cleanBuffer → ${allCandidates.size} candidates (${customPhrases.size} custom)")
+        } else if (customPhrases.isNotEmpty()) {
+            // Only custom phrases available
+            allCandidates = resultCandidates
+            matchedPinyin = cleanBuffer
+            firstSyllable = cleanBuffer
+            phraseCandidateCount = customPhrases.size
+            Log.d(TAG, "Only custom phrases for '$cleanBuffer': $customPhrases")
         } else {
             allCandidates = emptyList()
             matchedPinyin = ""
@@ -691,8 +803,37 @@ class PinyinInputController(
             currentPage = currentPage,
             totalPages = totalPages,
             hasNextPage = currentPage < totalPages - 1,
-            hasPrevPage = currentPage > 0
+            hasPrevPage = currentPage > 0,
+            isNextWordPrediction = isShowingNextWordPredictions
         )
+    }
+
+    /**
+     * Returns whether we're currently showing next-word predictions.
+     */
+    fun isShowingNextWordPredictions(): Boolean = isShowingNextWordPredictions
+
+    /**
+     * Clears next-word prediction state.
+     */
+    fun clearNextWordPredictions() {
+        nextWordPredictor.clearState()
+        isShowingNextWordPredictions = false
+    }
+
+    /**
+     * Called when user inputs punctuation (period, comma, etc.).
+     * Clears next-word predictions since punctuation ends the phrase context.
+     */
+    fun onPunctuationInput() {
+        if (isShowingNextWordPredictions) {
+            isShowingNextWordPredictions = false
+            allCandidates = emptyList()
+            currentPage = 0
+            Log.d(TAG, "Cleared next-word predictions due to punctuation input")
+        }
+        // Also clear the predictor state so next sentence starts fresh
+        nextWordPredictor.clearState()
     }
 
     /**

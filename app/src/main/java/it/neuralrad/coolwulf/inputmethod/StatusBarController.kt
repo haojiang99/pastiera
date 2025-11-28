@@ -57,6 +57,13 @@ class StatusBarController(
             variationBarView?.onPinyinCandidateSelectedListener = value
         }
 
+    // Listener for Wubi candidate selection (with index)
+    var onWubiCandidateSelectedListener: VariationButtonHandler.OnWubiCandidateSelectedListener? = null
+        set(value) {
+            field = value
+            variationBarView?.onWubiCandidateSelectedListener = value
+        }
+
     // Listener for cursor movement (to update variations)
     var onCursorMovedListener: (() -> Unit)? = null
         set(value) {
@@ -918,6 +925,7 @@ class StatusBarController(
     fun update(snapshot: StatusSnapshot, emojiMapText: String = "", inputConnection: android.view.inputmethod.InputConnection? = null, symMappings: Map<Int, String>? = null) {
         variationBarView?.onVariationSelectedListener = onVariationSelectedListener
         variationBarView?.onPinyinCandidateSelectedListener = onPinyinCandidateSelectedListener
+        variationBarView?.onWubiCandidateSelectedListener = onWubiCandidateSelectedListener
         variationBarView?.onCursorMovedListener = onCursorMovedListener
         variationBarView?.onLanguageToggleListener = onLanguageToggleListener
         variationBarView?.onSymButtonListener = onSymButtonListener

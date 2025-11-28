@@ -4,10 +4,14 @@ import android.content.Context
 import android.util.Log
 import android.view.KeyEvent
 import it.neuralrad.coolwulf.data.wubi.WubiDictionary
+import it.neuralrad.coolwulf.data.wubi.UserWubiMemory
+import it.neuralrad.coolwulf.data.NextWordPredictor
+import it.neuralrad.coolwulf.data.UserCustomDictionary
 
 /**
  * Manages Wubi 86 input state and generates Chinese character candidates.
  * Handles the input buffer and provides methods for candidate selection.
+ * Also provides next-word predictions after a character is committed.
  *
  * Wubi is a shape-based Chinese input method where characters are
  * encoded using 1-4 letter codes based on their structural components.
@@ -33,6 +37,21 @@ class WubiInputController(
     // Current page (0-indexed)
     private var currentPage: Int = 0
 
+    // Whether we're showing next-word predictions
+    private var isShowingNextWordPredictions: Boolean = false
+
+    // Next-word predictor for suggesting words after commit
+    private val nextWordPredictor: NextWordPredictor = NextWordPredictor.getInstance(context)
+
+    // User memory for learning preferences (prioritize frequently selected characters)
+    private val userMemory: UserWubiMemory = UserWubiMemory.getInstance(context)
+
+    // User custom dictionary for user-defined shortcuts
+    private val customDictionary: UserCustomDictionary = UserCustomDictionary.getInstance(context)
+
+    // Store the Wubi code used for the current selection (for memory recording)
+    private var lastUsedWubiCode: String = ""
+
     data class Snapshot(
         val isActive: Boolean,
         val buffer: String,
@@ -41,7 +60,8 @@ class WubiInputController(
         val currentPage: Int = 0,
         val totalPages: Int = 1,
         val hasNextPage: Boolean = false,
-        val hasPrevPage: Boolean = false
+        val hasPrevPage: Boolean = false,
+        val isNextWordPrediction: Boolean = false  // True when showing next-word predictions
     )
 
     init {
@@ -97,6 +117,12 @@ class WubiInputController(
             return false
         }
 
+        // Clear next-word prediction state when user starts typing
+        if (isShowingNextWordPredictions) {
+            isShowingNextWordPredictions = false
+            nextWordPredictor.onUserStartedTyping()
+        }
+
         // Check buffer length limit - Wubi codes are max 4 characters
         if (buffer.length >= MAX_BUFFER_LENGTH) {
             // In Wubi, if buffer is full but no exact match, we might want to
@@ -131,11 +157,25 @@ class WubiInputController(
 
     /**
      * Handles backspace in Wubi mode.
-     * Removes the last character from the buffer.
-     * @return true if handled (buffer was not empty), false otherwise
+     * Removes the last character from the buffer, or clears next-word predictions if buffer is empty.
+     * @return true if handled, false otherwise
      */
     fun handleBackspace(): Boolean {
-        if (!isWubiModeActive || buffer.isEmpty()) {
+        if (!isWubiModeActive) {
+            return false
+        }
+
+        // If showing next-word predictions and buffer is empty, clear predictions
+        if (buffer.isEmpty() && isShowingNextWordPredictions) {
+            isShowingNextWordPredictions = false
+            allCandidates = emptyList()
+            currentPage = 0
+            nextWordPredictor.clearState()
+            Log.d(TAG, "Backspace cleared next-word predictions")
+            return true
+        }
+
+        if (buffer.isEmpty()) {
             return false
         }
 
@@ -159,11 +199,40 @@ class WubiInputController(
         val selected = currentPageCandidates[index]
         Log.d(TAG, "Selected candidate $index: '$selected'")
 
+        // Record the selection in user memory for learning (only for Wubi code-based selections)
+        if (!isShowingNextWordPredictions && lastUsedWubiCode.isNotEmpty()) {
+            userMemory.recordSelection(lastUsedWubiCode, selected)
+        }
+
+        // Record the committed word for next-word prediction learning
+        nextWordPredictor.recordCommittedWord(selected)
+
         // Clear the buffer after selection (Wubi consumes entire code)
         buffer.clear()
-        updateCandidates()
+        lastUsedWubiCode = ""
+
+        // Show next-word predictions if available
+        showNextWordPredictions()
 
         return selected
+    }
+
+    /**
+     * Shows next-word predictions if available.
+     */
+    private fun showNextWordPredictions() {
+        if (nextWordPredictor.isShowingPredictions()) {
+            val nextWordSuggestions = nextWordPredictor.getSuggestions()
+            if (nextWordSuggestions.isNotEmpty()) {
+                isShowingNextWordPredictions = true
+                allCandidates = nextWordSuggestions
+                currentPage = 0
+                Log.d(TAG, "Showing next-word predictions: $nextWordSuggestions")
+                return
+            }
+        }
+        isShowingNextWordPredictions = false
+        updateCandidates()
     }
 
     /**
@@ -269,21 +338,45 @@ class WubiInputController(
     /**
      * Updates candidate list based on current buffer.
      * Uses prefix matching to show all possible completions.
+     * Custom dictionary phrases appear first, then sorted by user frequency.
      */
     private fun updateCandidates() {
         currentPage = 0  // Reset to first page when candidates change
 
         if (buffer.isEmpty()) {
             allCandidates = emptyList()
+            lastUsedWubiCode = ""
             return
         }
 
         val bufferStr = buffer.toString()
+        lastUsedWubiCode = bufferStr
+
+        val resultCandidates = mutableListOf<String>()
+
+        // Get custom dictionary phrases first (highest priority)
+        val customPhrases = customDictionary.getWubiPhrases(bufferStr)
+        if (customPhrases.isNotEmpty()) {
+            resultCandidates.addAll(customPhrases)
+            Log.d(TAG, "Custom dictionary phrases for '$bufferStr': $customPhrases")
+        }
 
         // Get candidates for the current code (both exact and prefix matches)
-        allCandidates = WubiDictionary.getCandidatesForPrefix(bufferStr, limit = 50)
+        val rawCandidates = WubiDictionary.getCandidatesForPrefix(bufferStr, limit = 50)
 
-        Log.d(TAG, "Updated candidates for '$bufferStr': ${allCandidates.size}")
+        // Sort by user frequency (most frequently selected first)
+        val sortedCandidates = userMemory.sortByFrequency(bufferStr, rawCandidates)
+
+        // Add dictionary candidates (excluding duplicates from custom dictionary)
+        for (candidate in sortedCandidates) {
+            if (candidate !in resultCandidates) {
+                resultCandidates.add(candidate)
+            }
+        }
+
+        allCandidates = resultCandidates
+
+        Log.d(TAG, "Updated candidates for '$bufferStr': ${allCandidates.size} (${customPhrases.size} custom, sorted by frequency)")
     }
 
     /**
@@ -300,8 +393,37 @@ class WubiInputController(
             currentPage = currentPage,
             totalPages = totalPages,
             hasNextPage = currentPage < totalPages - 1,
-            hasPrevPage = currentPage > 0
+            hasPrevPage = currentPage > 0,
+            isNextWordPrediction = isShowingNextWordPredictions
         )
+    }
+
+    /**
+     * Returns whether we're currently showing next-word predictions.
+     */
+    fun isShowingNextWordPredictions(): Boolean = isShowingNextWordPredictions
+
+    /**
+     * Clears next-word prediction state.
+     */
+    fun clearNextWordPredictions() {
+        nextWordPredictor.clearState()
+        isShowingNextWordPredictions = false
+    }
+
+    /**
+     * Called when user inputs punctuation (period, comma, etc.).
+     * Clears next-word predictions since punctuation ends the phrase context.
+     */
+    fun onPunctuationInput() {
+        if (isShowingNextWordPredictions) {
+            isShowingNextWordPredictions = false
+            allCandidates = emptyList()
+            currentPage = 0
+            Log.d(TAG, "Cleared next-word predictions due to punctuation input")
+        }
+        // Also clear the predictor state so next sentence starts fresh
+        nextWordPredictor.clearState()
     }
 
     /**

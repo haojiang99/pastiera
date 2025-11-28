@@ -385,6 +385,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
         candidatesBarController.onPinyinCandidateSelectedListener = pinyinListener
 
+        // Register listener for Wubi candidate selection (with index)
+        val wubiListener = object : VariationButtonHandler.OnWubiCandidateSelectedListener {
+            override fun onWubiCandidateSelected(candidate: String, candidateIndex: Int) {
+                // Let WubiInputController handle buffer management
+                wubiInputController.selectCandidate(candidateIndex)
+                // Clear Alt state after touch selection
+                modifierStateController.clearAltState(resetPressedState = true)
+                updateStatusBarText()
+            }
+        }
+        candidatesBarController.onWubiCandidateSelectedListener = wubiListener
+
         // Register listener for cursor movement (both controllers)
         val cursorListener = {
             updateStatusBarText()
@@ -393,18 +405,22 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Register listeners for page navigation
         candidatesBarController.onNextPageListener = {
-            // Navigate to next page (Pinyin or word prediction)
+            // Navigate to next page (Pinyin, Wubi, or word prediction)
             if (pinyinInputController.isPinyinMode()) {
                 pinyinInputController.nextPage()
+            } else if (wubiInputController.isWubiMode()) {
+                wubiInputController.nextPage()
             } else {
                 englishWordPredictionController.nextPage()
             }
             updateStatusBarText()
         }
         candidatesBarController.onPrevPageListener = {
-            // Navigate to previous page (Pinyin or word prediction)
+            // Navigate to previous page (Pinyin, Wubi, or word prediction)
             if (pinyinInputController.isPinyinMode()) {
                 pinyinInputController.prevPage()
+            } else if (wubiInputController.isWubiMode()) {
+                wubiInputController.prevPage()
             } else {
                 englishWordPredictionController.prevPage()
             }
@@ -1159,6 +1175,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // Update suggestions from current cursor position
             englishWordPredictionController.updateFromCursor(ic)
 
+            // Handle backspace to clear next-word predictions
+            if (keyCode == KeyEvent.KEYCODE_DEL && englishWordPredictionController.isShowingNextWordPredictions()) {
+                englishWordPredictionController.onBackspaceInput()
+                updateStatusBarText()
+                // Don't return true - let the backspace delete character as normal
+            }
+
             if (englishWordPredictionController.hasSuggestions()) {
                 // Alt+letter keys select suggestion - mapping depends on device type
                 // (determined by alt_key_mappings.json for each device)
@@ -1172,7 +1195,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     if (result != null) {
                         ic.deleteSurroundingText(result.prefixLength, 0)
                         ic.commitText(result.word + " ", 1)
-                        englishWordPredictionController.clearSuggestions()
+                        // Update from cursor to trigger next-word predictions
+                        englishWordPredictionController.updateFromCursor(ic)
                         // Clear Alt modifier so next key doesn't produce alternate character
                         modifierStateController.clearAltState(resetPressedState = true)
                         updateStatusBarText()
@@ -1276,6 +1300,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
 
+            // Handle Shift+Del to clear entire Pinyin buffer and remove composing text
+            if (keyCode == KeyEvent.KEYCODE_DEL && shiftPressed) {
+                val buffer = pinyinInputController.getBuffer()
+                if (buffer.isNotEmpty()) {
+                    pinyinInputController.clearBuffer()
+                    // Clear the composing text (the displayed pinyin like "women")
+                    ic.setComposingText("", 1)
+                    ic.finishComposingText()
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
             // Handle backspace in Pinyin mode
             if (keyCode == KeyEvent.KEYCODE_DEL) {
                 val hadBuffer = pinyinInputController.getBuffer().isNotEmpty()
@@ -1371,6 +1408,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Convert to Chinese punctuation
                     val chinesePunctuation = if (char == ',') "，" else "。"
                     ic.commitText(chinesePunctuation, 1)
+                    // Clear next-word predictions since punctuation ends the phrase context
+                    pinyinInputController.onPunctuationInput()
                     // Clear Alt one-shot after typing Chinese punctuation (e.g., Alt+B for 。, Alt+N for ，)
                     if (altOneShot) {
                         altOneShot = false
@@ -1435,6 +1474,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             return true
                         }
                     }
+                }
+            }
+
+            // Handle Shift+Del to clear entire Wubi buffer and remove composing text
+            if (keyCode == KeyEvent.KEYCODE_DEL && shiftPressed) {
+                val buffer = wubiInputController.getBuffer()
+                if (buffer.isNotEmpty()) {
+                    wubiInputController.clearBuffer()
+                    // Clear the composing text (the displayed wubi code)
+                    ic.setComposingText("", 1)
+                    ic.finishComposingText()
+                    updateStatusBarText()
+                    return true
                 }
             }
 
@@ -1504,6 +1556,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
                     val chinesePunctuation = if (char == ',') "，" else "。"
                     ic.commitText(chinesePunctuation, 1)
+                    // Clear next-word predictions since punctuation ends the phrase context
+                    wubiInputController.onPunctuationInput()
                     // Clear Alt one-shot after typing Chinese punctuation (e.g., Alt+B for 。, Alt+N for ，)
                     if (altOneShot) {
                         altOneShot = false

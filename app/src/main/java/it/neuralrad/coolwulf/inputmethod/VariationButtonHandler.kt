@@ -69,6 +69,18 @@ object VariationButtonHandler {
     }
 
     /**
+     * Callback for Wubi candidate selection with index information.
+     */
+    interface OnWubiCandidateSelectedListener {
+        /**
+         * Called when a Wubi candidate is selected.
+         * @param candidate The selected candidate text
+         * @param candidateIndex The index of the candidate (accounting for current page)
+         */
+        fun onWubiCandidateSelected(candidate: String, candidateIndex: Int)
+    }
+
+    /**
      * Creates a listener for a Pinyin candidate button.
      * When clicked, commits the Chinese character and notifies with the candidate index.
      * Does NOT delete any committed text - the Pinyin buffer is shown as composing text.
@@ -96,6 +108,40 @@ object VariationButtonHandler {
 
             // Notify Pinyin-specific listener with index
             pinyinListener?.onPinyinCandidateSelected(candidate, candidateIndex)
+
+            // Also notify general listener
+            listener?.onVariationSelected(candidate)
+        }
+    }
+
+    /**
+     * Creates a listener for a Wubi candidate button.
+     * When clicked, commits the Chinese character and notifies with the candidate index.
+     * Does NOT delete any committed text - the Wubi buffer is shown as composing text.
+     * Note: Vibration is handled by VariationBarView, not here.
+     */
+    fun createWubiCandidateClickListener(
+        candidate: String,
+        candidateIndex: Int,
+        inputConnection: InputConnection?,
+        wubiListener: OnWubiCandidateSelectedListener? = null,
+        listener: OnVariationSelectedListener? = null,
+        @Suppress("UNUSED_PARAMETER") context: Context? = null
+    ): View.OnClickListener {
+        return View.OnClickListener {
+            Log.d(TAG, "Click on Wubi candidate $candidateIndex: $candidate")
+
+            if (inputConnection == null) {
+                Log.w(TAG, "No inputConnection available to insert candidate")
+                return@OnClickListener
+            }
+
+            // Commit the Chinese character - this automatically replaces any composing text
+            inputConnection.commitText(candidate, 1)
+            Log.d(TAG, "Wubi candidate '$candidate' inserted")
+
+            // Notify Wubi-specific listener with index
+            wubiListener?.onWubiCandidateSelected(candidate, candidateIndex)
 
             // Also notify general listener
             listener?.onVariationSelected(candidate)

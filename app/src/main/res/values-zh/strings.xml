@@ -2,13 +2,83 @@
 <resources>
     <string name="app_name">酷狼输入法</string>
     <string name="input_method_name">酷狼输入法物理键盘</string>
+    <string name="input_method_name_en">酷狼输入法物理键盘</string>
+    <string name="input_method_name_it">意大利语</string>
+    <string name="input_method_name_fr">法语</string>
+    <string name="input_method_name_de">德语</string>
+    <string name="input_method_name_pl">波兰语</string>
+    <string name="input_method_name_es">西班牙语</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">设置</string>
+    <string name="back">返回</string>
+    <string name="settings_back_content_description">返回</string>
+
+    <!-- Long Press Section -->
+    <string name="long_press_title">长按</string>
+    <string name="long_press_duration">长按时长：%1$d毫秒</string>
+    <string name="long_press_description">识别长按所需的等待时间。较低的值使长按更灵敏，较高的值需要更长的按压时间。</string>
+    <string name="setting_applied_immediately">设置立即生效</string>
+
+    <!-- Auto Capitalize Section -->
+    <string name="auto_capitalize_title">自动首字母大写</string>
+    <string name="auto_capitalize_description">在空文本框中开始输入时自动将首字母大写。</string>
+
+    <!-- Auto Capitalize After Period Section -->
+    <string name="auto_capitalize_after_period_title">句号后自动大写</string>
+    <string name="auto_capitalize_after_period_description">在句号和空格后自动将下一个字母大写（句末）。</string>
+
+    <!-- Double Space to Period Section -->
+    <string name="double_space_to_period_title">双击空格插入句号</string>
+    <string name="double_space_to_period_description">双击空格插入句号和空格，并将下一个字母大写。</string>
+
+    <!-- Clear Alt on Space Section -->
+    <string name="clear_alt_on_space_title">空格清除Alt状态</string>
+    <string name="clear_alt_on_space_description">按空格时自动取消Alt或Alt锁定状态。</string>
+
+    <!-- Swipe to Delete Section -->
+    <string name="swipe_to_delete_title">启用滑动删除</string>
+
+    <!-- Swipe Incremental Threshold Section -->
+    <string name="swipe_incremental_threshold_title">滑动条灵敏度</string>
+    <string name="swipe_incremental_threshold_description">移动光标一个位置所需的距离。较低的值使光标移动更快。</string>
+
+    <!-- Auto Show Keyboard Section -->
+    <string name="auto_show_keyboard_title">自动显示键盘</string>
+
+    <!-- Alt+Ctrl Speech Recognition Shortcut Section -->
+    <string name="alt_ctrl_speech_shortcut_title">Alt+Ctrl语音识别</string>
+    <string name="alt_ctrl_speech_shortcut_description">启用Alt+Ctrl键盘快捷键启动语音识别</string>
+
+    <!-- Static Variation Bar Mode -->
+    <string name="static_variation_bar_mode_title">静态变体栏</string>
+    <string name="static_variation_bar_mode_description">在变体栏中始终显示固定的实用键，而不是基于上下文的变体。即使智能功能被禁用，静态键仍然可用。</string>
+
+    <!-- Chinese Input Section -->
+    <string name="chinese_input_section_title">中文输入</string>
+    <string name="chinese_input_method_title">输入法</string>
+    <string name="chinese_input_method_description">选择您偏好的中文输入法</string>
+    <string name="chinese_input_pinyin">拼音</string>
+    <string name="chinese_input_pinyin_description">启用拼音语音输入</string>
+    <string name="chinese_input_wubi">五笔</string>
+    <string name="chinese_input_wubi_description">启用五笔形码输入</string>
+    <string name="chinese_input_both_enabled_info">两种方法均已启用：按Shift+Enter或切换按钮循环 英文 → 拼音 → 五笔</string>
+
+    <!-- Info Section -->
+    <string name="info_title">信息</string>
+    <string name="info_description">设置会自动保存并立即应用到输入法。</string>
 
     <!-- Main Activity -->
     <string name="keyboard_title">酷狼输入法</string>
     <string name="keyboard_subtitle">支持长按功能的物理键盘</string>
+    <string name="settings_content_description">设置</string>
 
     <!-- Installation Section -->
+    <string name="installation_title">安装</string>
+    <string name="installation_step1">1. 点击下方按钮打开设置</string>
     <string name="installation_step2">2. 启用"酷狼输入法物理键盘"</string>
+    <string name="installation_step3">3. 返回这里测试键盘</string>
+    <string name="open_keyboard_settings">打开键盘设置</string>
 
     <!-- Main Activity - Enable/Select IME -->
     <string name="enable_pastiera">启用酷狼输入法</string>
@@ -16,9 +86,163 @@
     <string name="choose_input_method">选择输入法</string>
     <string name="pastiera_not_selected">酷狼输入法未选中</string>
 
+    <!-- Test Section -->
+    <string name="test_keyboard_title">键盘测试</string>
+    <string name="test_keyboard_description">连接物理键盘并在下方测试：</string>
+    <string name="test_keyboard_normal">• 普通按键：输入字符</string>
+    <string name="test_keyboard_long_press">• 长按（500毫秒）：输入Alt字符</string>
+    <string name="test_field_label">测试区域</string>
+    <string name="test_field_placeholder">使用物理键盘在此输入…</string>
+
+    <!-- Last Event Section -->
+    <string name="last_keyboard_event_title">最近键盘事件</string>
+    <string name="no_event_yet">暂无事件</string>
+
+    <!-- Long Press Mappings Section -->
+    <string name="long_press_mappings_title">长按映射</string>
+    <string name="long_press_mappings_line1">Q→0, W→1, E→2, R→3, T→(, Y→), U→-, I→_, O→\', P→:</string>
+    <string name="long_press_mappings_line2">A→@, S→4, D→5, F→6, G→*, H→#, J→+, K→\", L→\'</string>
+    <string name="long_press_mappings_line3">Z→!, X→7, C→8, V→9, B→., N→\', M→?</string>
+
+    <!-- Buttons -->
+    <string name="settings_button">设置</string>
+    <string name="change_keyboard_button">切换键盘</string>
+
+    <!-- SYM Customization -->
+    <string name="sym_customization_title">自定义SYM键盘</string>
+    <string name="sym_customization_button">自定义SYM键盘</string>
+    <string name="sym_customization_description">为SYM键盘自定义表情映射。点击任意键更改其表情。</string>
+    <string name="reset_to_default">恢复默认</string>
+    <string name="select_emoji">选择表情</string>
+    <string name="close">关闭</string>
+
+    <!-- Auto-Correction Section -->
+    <string name="auto_correct_title">自动更正</string>
+    <string name="auto_correct_languages_title">语言</string>
+    <string name="auto_correct_settings_title">自动更正语言</string>
+    <string name="auto_correct_settings_description">选择用于自动更正的语言。系统语言显示在顶部。</string>
+    <string name="auto_correct_system_language">系统语言</string>
+    <string name="auto_correct_ricette_pastiera_description">适用于所有语言的自定义设置</string>
+    <string name="auto_correct_other_languages">其他语言</string>
+    <string name="auto_correct_custom_languages">自定义语言</string>
+    <string name="auto_correct_at_least_one_language_required">至少需要一种语言才能运行</string>
+    <string name="auto_correct_edit">编辑</string>
+    <string name="auto_correct_edit_description">点击更正项进行编辑，或使用+按钮添加新项。</string>
+    <string name="auto_correct_add_correction">添加更正</string>
+    <string name="auto_correct_edit_correction">编辑更正</string>
+    <string name="auto_correct_original">原文</string>
+    <string name="auto_correct_corrected">更正</string>
+    <string name="auto_correct_delete">删除</string>
+    <string name="auto_correct_save">保存</string>
+    <string name="auto_correct_cancel">取消</string>
+    <string name="auto_correct_no_corrections">暂无更正。点击+按钮添加。</string>
+    <string name="auto_correct_add_language">添加新语言</string>
+    <string name="auto_correct_language_code">语言代码</string>
+    <string name="auto_correct_language_name">语言名称</string>
+    <string name="auto_correct_language_code_hint">输入自定义语言的代码和名称（例如："fr"/"法语"，"mydict"/"我的词典"）</string>
+    <string name="auto_correct_language_code_required">语言名称为必填项</string>
+    <string name="auto_correct_language_already_exists">该语言已存在</string>
+
+    <!-- SYM Customization Screen -->
+    <string name="sym_customize_title">自定义SYM键盘</string>
+    <string name="sym_auto_close_title">自动关闭SYM布局</string>
+    <string name="sym_auto_close_description">插入字符、按Alt或按Enter后自动关闭SYM布局。按Control或Shift时不会关闭。</string>
+    <string name="sym_enable_emoji_page_title">启用表情页面</string>
+    <string name="sym_enable_emoji_page_description">循环时显示表情SYM布局。</string>
+    <string name="sym_enable_symbols_page_title">启用符号页面</string>
+    <string name="sym_enable_symbols_page_description">循环时显示符号SYM布局。</string>
+    <string name="sym_swap_pages_title">交换SYM页面顺序</string>
+    <string name="sym_swap_pages_description">选择切换时先显示哪个SYM页面。</string>
+    <string name="sym_order_emoji_first">表情优先</string>
+    <string name="sym_order_symbols_first">符号优先</string>
+    <string name="sym_instructions_title">说明</string>
+    <string name="sym_instructions_text">点击下方任意键更改其表情。更改会自动保存。</string>
+    <string name="sym_reset_to_default">恢复默认</string>
+    <string name="sym_reset_confirm_title">恢复默认</string>
+    <string name="sym_reset_confirm_message">确定要将所有SYM映射恢复为默认值吗？此操作无法撤销。</string>
+    <string name="sym_reset_confirm_button">恢复</string>
+    <string name="cancel">取消</string>
+
+    <!-- Emoji Picker Dialog -->
+    <string name="emoji_picker_title">选择表情</string>
+    <string name="emoji_picker_title_for_letter">为字母%1$s选择表情</string>
+    <string name="emoji_picker_close">关闭</string>
+    <string name="emoji_category_smileys">表情与人物</string>
+    <string name="emoji_category_animals">动物与自然</string>
+    <string name="emoji_category_food">食物与饮品</string>
+    <string name="emoji_category_travel">旅行与地点</string>
+    <string name="emoji_category_activities">活动</string>
+    <string name="emoji_category_objects">物品</string>
+    <string name="emoji_category_symbols">符号</string>
+    <string name="emoji_category_flags">旗帜</string>
+
+    <!-- Modifiers -->
+    <string name="modifier_shift">SHIFT</string>
+    <string name="modifier_ctrl">CTRL</string>
+
+    <!-- Long Press Modifier Section -->
+    <string name="long_press_modifier_title">长按修饰键</string>
+    <string name="long_press_modifier_description">选择长按模拟Alt+键还是Shift+键</string>
+    <string name="long_press_modifier_alt">Alt</string>
+    <string name="long_press_modifier_shift">Shift</string>
+
+    <!-- Keyboard Layout Section -->
+    <string name="keyboard_layout_title">键盘布局</string>
+    <string name="keyboard_layout_description">选择您的键盘布局。ALT、SYM和Ctrl映射仍基于物理键位置。使用CTRL+SPACE快速切换映射。</string>
+    <string name="keyboard_layout_no_conversion">标准</string>
+    <string name="keyboard_layout_no_conversion_description">标准QWERTY布局（无转换）</string>
+    <string name="keyboard_layout_conversions_title">布局转换</string>
+    <string name="keyboard_layout_conversions_description">将字母键转换为匹配所选布局</string>
+    <string name="keyboard_layout_viewer_title">键盘映射</string>
+    <string name="keyboard_layout_viewer_subtitle">布局：%1$s</string>
+    <string name="keyboard_layout_viewer_unavailable">无法加载此布局映射。</string>
+    <string name="keyboard_layout_viewer_empty">未找到此布局的键映射。</string>
+    <string name="keyboard_layout_viewer_multitap_on">多击</string>
+    <string name="keyboard_layout_viewer_multitap_off">单击</string>
+    <string name="keyboard_layout_viewer_open">查看映射</string>
+    <string name="keyboard_layout_settings_button">键盘布局设置</string>
+
+    <!-- About Section -->
+    <string name="about_github">GitHub</string>
+    <string name="about_build_info">版本号</string>
+    <string name="about_title">关于</string>
+
+    <!-- Launcher Shortcuts Section -->
+    <string name="launcher_shortcuts_title">快捷方式</string>
+    <string name="launcher_shortcuts_experimental">实验性</string>
+    <string name="launcher_shortcuts_description">启用键盘快捷方式</string>
+    <string name="launcher_shortcuts_configure">配置快捷方式</string>
+    <string name="launcher_shortcuts_configure_description">分配键位打开应用</string>
+
+    <!-- Launcher Shortcuts Screen -->
+    <string name="launcher_shortcuts_screen_title">快捷方式</string>
+    <string name="launcher_shortcuts_not_assigned">未分配</string>
+    <string name="launcher_shortcuts_remove">移除</string>
+    <string name="launcher_shortcuts_app_name_unavailable">应用（名称不可用）</string>
+    <string name="launcher_shortcuts_shortcut_type">快捷方式：%1$s</string>
+    <string name="launcher_shortcuts_shortcut_unknown">未知</string>
+    <string name="launcher_shortcuts_action_type">动作：%1$s</string>
+
+    <!-- Launcher Shortcut Assignment Activity -->
+    <string name="launcher_shortcut_assignment_title">为键位分配应用</string>
+    <string name="launcher_shortcut_assignment_key">键位%1$s</string>
+    <string name="launcher_shortcut_assignment_search_placeholder">搜索应用...</string>
+    <string name="launcher_shortcut_assignment_search_description">搜索</string>
+    <string name="launcher_shortcut_assignment_close">关闭</string>
+    <string name="launcher_shortcut_assignment_no_apps">未找到应用</string>
+    <string name="launcher_shortcut_assignment_no_results">未找到"%1$s"的结果</string>
+    <string name="launcher_shortcut_assignment_key_name">键位%1$d</string>
+
+    <!-- Power Shortcuts Section -->
+    <string name="power_shortcuts_title">电源快捷方式</string>
+    <string name="power_shortcuts_description">不在文本框中时，按SYM然后按键启动快捷方式</string>
+    <string name="power_shortcuts_press_key">按快捷键启动</string>
+
     <!-- Notification Helper -->
     <string name="notification_nav_mode_channel_name">酷狼输入法导航模式</string>
     <string name="notification_nav_mode_channel_description">酷狼输入法导航模式通知</string>
+    <string name="notification_nav_mode_activated_title">导航模式已激活</string>
+    <string name="notification_nav_mode_activated_text">导航模式已激活</string>
 
     <!-- Update Notifications -->
     <string name="notification_update_channel_name">酷狼输入法更新</string>
@@ -26,7 +250,126 @@
     <string name="notification_update_available_title">酷狼输入法 - 有新更新</string>
     <string name="notification_update_available_text">酷狼输入法新版本可用 (%1$s)</string>
 
+    <!-- Speech Recognition -->
+    <string name="speech_recognition_prompt">请开始说话...</string>
+
+    <!-- Auto Correct Edit Screen -->
+    <string name="auto_correct_search_placeholder">搜索更正...</string>
+    <string name="auto_correct_search_description">搜索</string>
+    <string name="auto_correct_clear_search">清除搜索</string>
+    <string name="auto_correct_no_corrections_found">未找到更正</string>
+
+    <!-- Nav Mode Settings -->
+    <string name="nav_mode_title">导航模式</string>
+    <string name="nav_mode_enable_title">启用导航模式</string>
+    <string name="nav_mode_enable_description">双击Ctrl激活导航模式</string>
+    <string name="nav_mode_key_mappings">键位映射</string>
+    <string name="nav_mode_revert_to_default">恢复默认</string>
+    <string name="nav_mode_note">注意：修改导航模式键位也会影响文本框中的Ctrl+键组合。</string>
+    <string name="nav_mode_configure_key">配置%1$s</string>
+    <string name="nav_mode_type">类型</string>
+    <string name="nav_mode_keycode">键码</string>
+    <string name="nav_mode_action">动作</string>
+    <string name="nav_mode_none">无</string>
+    <string name="nav_mode_use_default">使用默认：%1$s</string>
+    <string name="nav_mode_save">保存</string>
+    <string name="nav_mode_cancel">取消</string>
+    <string name="nav_mode_default">默认</string>
+
+    <!-- Unicode Character Picker -->
+    <string name="unicode_picker_title_for_letter">为%1$s选择字符</string>
+    <string name="unicode_picker_title">选择Unicode字符</string>
+    <string name="unicode_picker_close">关闭</string>
+    <string name="unicode_category_punctuation">标点符号</string>
+    <string name="unicode_category_math">数学符号</string>
+    <string name="unicode_category_currency">货币符号</string>
+    <string name="unicode_category_technical">技术符号</string>
+    <string name="unicode_category_arrows">箭头</string>
+    <string name="unicode_category_misc">其他</string>
+    <string name="unicode_category_variations">变体</string>
+
+    <!-- SYM Customization Screen -->
+    <string name="sym_tab_emoji">表情</string>
+    <string name="sym_tab_characters">字符</string>
+
+    <!-- App Picker Dialog -->
+    <string name="app_picker_title">选择应用</string>
+    <string name="app_picker_cancel">取消</string>
+    <string name="app_picker_search_placeholder">搜索应用...</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_support_ko_fi">在Ko-fi上支持</string>
+    <string name="settings_nav_mode_configure">配置导航模式键位映射</string>
+    <string name="settings_update_section_title">更新</string>
+    <string name="settings_update_section_description">在GitHub上检查最新版本。</string>
+    <string name="settings_update_button">检查更新</string>
+    <string name="settings_update_checking">正在检查更新...</string>
+    <string name="settings_update_up_to_date">应用已是最新版本。</string>
+    <string name="settings_update_check_failed">无法连接GitHub。</string>
+
+    <!-- Auto Correct Settings -->
+    <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>
+
+    <!-- Settings Categories -->
+    <string name="settings_category_keyboard_timing">键盘与时间</string>
+    <string name="settings_category_text_input">智能功能</string>
+    <string name="settings_category_auto_correction">自动更正</string>
+    <string name="settings_category_customization">自定义</string>
+    <string name="settings_category_advanced">高级</string>
+
+    <!-- Keyboard Layout Settings -->
+    <string name="layout_save_content_description">保存布局</string>
+    <string name="layout_import_content_description">导入布局</string>
+    <string name="layout_imported_successfully">布局导入成功</string>
+    <string name="layout_import_failed">布局导入失败</string>
+    <string name="layout_invalid_file">无效的布局文件</string>
+    <string name="layout_import_error">导入布局错误：%1$s</string>
+    <string name="layout_save_canceled">保存已取消</string>
+    <string name="layout_saved_successfully">布局保存成功</string>
+    <string name="layout_save_error">保存布局错误：%1$s</string>
+    <string name="layout_imported_name">导入的布局</string>
+    <string name="layout_imported_description">从文件导入</string>
+    <string name="layout_delete_content_description">删除布局</string>
+    <string name="layout_delete_confirmation_title">删除布局</string>
+    <string name="layout_delete_confirmation_message">确定要删除布局"%1$s"吗？此操作无法撤销。</string>
+    <string name="layout_delete_success">布局删除成功</string>
+    <string name="layout_delete_failed">布局删除失败</string>
+    <string name="layout_view_mapping">查看映射</string>
+    <string name="layout_delete">删除</string>
+    <string name="layout_enable_for_cycling">启用（Ctrl + Space切换）</string>
+    <string name="layout_select_as_active">设为当前布局</string>
+    <string name="delete">删除</string>
+
+    <!-- Main Activity Event Display -->
+    <string name="modifier_alt">ALT</string>
+    <string name="event_unicode_label">Unicode：</string>
+    <string name="event_output_label">输出：</string>
+    <string name="event_not_available">不可用</string>
+
+    <!-- Nav Mode Key Labels -->
+    <string name="nav_mode_action_copy">复制</string>
+    <string name="nav_mode_action_paste">粘贴</string>
+    <string name="nav_mode_action_cut">剪切</string>
+    <string name="nav_mode_action_undo">撤销</string>
+    <string name="nav_mode_action_select_all">全选</string>
+    <string name="nav_mode_action_expand_selection_left">←选择</string>
+    <string name="nav_mode_action_expand_selection_right">→选择</string>
+    <string name="nav_mode_keycode_up">↑</string>
+    <string name="nav_mode_keycode_down">↓</string>
+    <string name="nav_mode_keycode_left">←</string>
+    <string name="nav_mode_keycode_right">→</string>
+    <string name="nav_mode_keycode_center">○</string>
+    <string name="nav_mode_keycode_page_up">上页</string>
+    <string name="nav_mode_keycode_page_down">下页</string>
+    <string name="nav_mode_keycode_escape">退出</string>
+    <string name="nav_mode_keycode_tab">Tab</string>
+    <string name="nav_mode_key_unknown">?</string>
+
     <!-- Tutorial -->
+    <string name="tutorial_skip">跳过</string>
+    <string name="tutorial_previous">上一步</string>
+    <string name="tutorial_next">下一步</string>
+    <string name="tutorial_finish">完成</string>
     <string name="tutorial_page_welcome_title">欢迎使用酷狼输入法</string>
     <string name="tutorial_page_welcome_description">酷狼输入法是一款高级安卓物理键盘输入法，支持修饰键、LED指示灯和导航模式。</string>
     <string name="tutorial_page_enable_title">启用酷狼输入法</string>
@@ -35,21 +378,56 @@
     <string name="tutorial_page_select_description">启用酷狼输入法后，将其设为默认键盘。点击下方按钮选择输入法。</string>
     <string name="tutorial_page_led_title">LED指示灯</string>
     <string name="tutorial_page_led_description">酷狼输入法在状态栏显示5个LED指示修饰键状态：\n\n• Shift：激活时蓝色，锁定时红色\n• SYM：表情符号蓝色，特殊字符红色\n• Ctrl：激活时蓝色，锁定时红色\n• Alt：激活时蓝色，锁定时红色\n\n灰色LED表示修饰键关闭。</string>
+    <string name="tutorial_page_nav_mode_title">导航模式</string>
+    <string name="tutorial_page_nav_mode_description">导航模式允许您使用字母键作为快捷方式进行导航。\n\n激活方式：\n• 快速双击Ctrl\n• 字母键映射为导航功能\n• 再次按Ctrl退出\n\n您可以在高级设置中自定义映射。</string>
+    <string name="tutorial_page_customization_title">自定义</string>
     <string name="tutorial_page_customization_description">酷狼输入法提供丰富的自定义选项：\n\n• 可自定义键盘布局\n• 启动快捷方式\n• 自动更正\n• 导航模式自定义映射\n\n探索设置找到最适合您的配置！</string>
+    <string name="tutorial_page_ready_title">准备就绪</string>
     <string name="tutorial_page_ready_description">您现在可以使用酷狼输入法了！记住您可以随时返回设置进一步自定义键盘。</string>
     <string name="tutorial_enable_button">启用酷狼输入法</string>
     <string name="tutorial_enabled_message">酷狼输入法已启用！</string>
     <string name="tutorial_select_button">选择酷狼输入法</string>
     <string name="tutorial_enable_first_message">请先在上一页启用酷狼输入法</string>
     <string name="tutorial_selected_message">酷狼输入法已选中！</string>
+    <string name="tutorial_show">显示教程</string>
+    <string name="tutorial_review_description">查看入门教程</string>
 
     <!-- Backup & Restore -->
+    <string name="backup_now">立即备份</string>
+    <string name="backup_now_description">将所有设置和自定义布局导出为ZIP文件</string>
+    <string name="restore_from_file">从文件恢复</string>
     <string name="restore_from_file_description">导入酷狼输入法备份ZIP文件</string>
+    <string name="backup_completed">备份完成</string>
+    <string name="restore_completed">恢复完成</string>
+    <string name="backup_failed">备份失败：%1$s</string>
+    <string name="restore_failed">恢复失败：%1$s</string>
 
-    <!-- Chinese Input Section -->
-    <string name="chinese_input_section_title">中文输入</string>
-    <string name="chinese_input_method_title">输入法</string>
-    <string name="chinese_input_method_description">选择您偏好的中文输入法</string>
-    <string name="chinese_input_pinyin">拼音</string>
-    <string name="chinese_input_wubi">五笔</string>
+    <!-- Units -->
+    <string name="dip_unit">DIP</string>
+
+    <!-- Device Type -->
+    <string name="device_type_title">设备类型</string>
+    <string name="device_type_description">选择您的设备以正确映射Alt键</string>
+
+    <!-- Custom Dictionary -->
+    <string name="custom_dictionary_title">自定义词典</string>
+    <string name="custom_dictionary_description">定义您自己的快捷码进行快速短语输入。自定义短语优先显示在建议中。</string>
+    <string name="custom_dictionary_pinyin_mode">拼音</string>
+    <string name="custom_dictionary_wubi_mode">五笔</string>
+    <string name="custom_dictionary_add">添加映射</string>
+    <string name="custom_dictionary_add_pinyin">添加拼音映射</string>
+    <string name="custom_dictionary_add_wubi">添加五笔映射</string>
+    <string name="custom_dictionary_code_label">编码</string>
+    <string name="custom_dictionary_code_hint_pinyin">例如：nh</string>
+    <string name="custom_dictionary_code_hint_wubi">例如：wq</string>
+    <string name="custom_dictionary_phrase_label">短语</string>
+    <string name="custom_dictionary_phrase_hint">例如：你好</string>
+    <string name="custom_dictionary_save">保存</string>
+    <string name="custom_dictionary_cancel">取消</string>
+    <string name="custom_dictionary_delete">删除</string>
+    <string name="custom_dictionary_delete_confirm_title">删除映射</string>
+    <string name="custom_dictionary_delete_confirm_message">删除映射"%1$s" → "%2$s"？</string>
+    <string name="custom_dictionary_empty">暂无自定义映射。点击+添加。</string>
+    <string name="custom_dictionary_settings_title">自定义词典</string>
+    <string name="custom_dictionary_settings_description">定义自定义字母 → 短语映射</string>
 </resources>

@@ -50,6 +50,7 @@ sealed class SettingsDestination {
     object AutoCorrection : SettingsDestination()
     object Customization : SettingsDestination()
     object Advanced : SettingsDestination()
+    object CustomDictionary : SettingsDestination()
 }
 
 /**
@@ -135,6 +136,13 @@ fun SettingsScreen(
             }
             is SettingsDestination.TextInput -> {
                 TextInputSettingsScreen(
+                    modifier = modifier,
+                    onBack = { navigateBack() },
+                    onNavigateToCustomDictionary = { navigateTo(SettingsDestination.CustomDictionary) }
+                )
+            }
+            is SettingsDestination.CustomDictionary -> {
+                CustomDictionarySettingsScreen(
                     modifier = modifier,
                     onBack = { navigateBack() }
                 )

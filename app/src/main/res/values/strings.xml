@@ -407,4 +407,26 @@
     <!-- Device Type -->
     <string name="device_type_title">Device Type</string>
     <string name="device_type_description">Choose your device for correct Alt key mappings</string>
+
+    <!-- Custom Dictionary -->
+    <string name="custom_dictionary_title">Custom Dictionary</string>
+    <string name="custom_dictionary_description">Define your own shortcut codes for quick phrase input. Custom phrases appear first in suggestions.</string>
+    <string name="custom_dictionary_pinyin_mode">Pinyin</string>
+    <string name="custom_dictionary_wubi_mode">Wubi</string>
+    <string name="custom_dictionary_add">Add mapping</string>
+    <string name="custom_dictionary_add_pinyin">Add Pinyin Mapping</string>
+    <string name="custom_dictionary_add_wubi">Add Wubi Mapping</string>
+    <string name="custom_dictionary_code_label">Code</string>
+    <string name="custom_dictionary_code_hint_pinyin">e.g. nh</string>
+    <string name="custom_dictionary_code_hint_wubi">e.g. wq</string>
+    <string name="custom_dictionary_phrase_label">Phrase</string>
+    <string name="custom_dictionary_phrase_hint">e.g. 你好</string>
+    <string name="custom_dictionary_save">Save</string>
+    <string name="custom_dictionary_cancel">Cancel</string>
+    <string name="custom_dictionary_delete">Delete</string>
+    <string name="custom_dictionary_delete_confirm_title">Delete Mapping</string>
+    <string name="custom_dictionary_delete_confirm_message">Delete mapping \"%1$s\" → \"%2$s\"?</string>
+    <string name="custom_dictionary_empty">No custom mappings yet. Tap + to add one.</string>
+    <string name="custom_dictionary_settings_title">Custom Dictionary</string>
+    <string name="custom_dictionary_settings_description">Define custom letter → phrase mappings</string>
 </resources>

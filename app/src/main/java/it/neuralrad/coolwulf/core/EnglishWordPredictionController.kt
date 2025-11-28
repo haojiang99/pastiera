@@ -5,10 +5,12 @@ import android.util.Log
 import android.view.inputmethod.InputConnection
 import it.neuralrad.coolwulf.data.english.EnglishWordDictionary
 import it.neuralrad.coolwulf.data.english.UserEnglishMemory
+import it.neuralrad.coolwulf.data.NextWordPredictor
 
 /**
  * Manages English word prediction state and generates word suggestions.
  * Tracks the current word being typed and provides completion candidates.
+ * Also provides next-word predictions after a word is committed.
  */
 class EnglishWordPredictionController(
     private val context: Context
@@ -38,6 +40,12 @@ class EnglishWordPredictionController(
     // User memory for learning preferences
     private val userMemory: UserEnglishMemory = UserEnglishMemory.getInstance(context)
 
+    // Next-word predictor for suggesting words after commit
+    private val nextWordPredictor: NextWordPredictor = NextWordPredictor.getInstance(context)
+
+    // Whether we're currently showing next-word predictions (before user types)
+    private var isShowingNextWordPredictions: Boolean = false
+
     data class Snapshot(
         val prefix: String,
         val suggestions: List<String>,
@@ -45,7 +53,8 @@ class EnglishWordPredictionController(
         val currentPage: Int = 0,
         val totalPages: Int = 1,
         val hasNextPage: Boolean = false,
-        val hasPrevPage: Boolean = false
+        val hasPrevPage: Boolean = false,
+        val isNextWordPrediction: Boolean = false  // True when showing next-word predictions
     )
 
     init {
@@ -73,6 +82,7 @@ class EnglishWordPredictionController(
     /**
      * Updates suggestions based on the current cursor position.
      * Extracts the word being typed from the text before cursor.
+     * Shows next-word predictions if user hasn't started typing a new word.
      * @param inputConnection The input connection to read text from
      */
     fun updateFromCursor(inputConnection: InputConnection?) {
@@ -91,9 +101,51 @@ class EnglishWordPredictionController(
         // Extract the current word (characters since last word boundary)
         val (originalWord, lowercaseWord) = extractCurrentWordWithCase(textBefore.toString())
 
-        if (lowercaseWord.length < MIN_PREFIX_LENGTH) {
+        // Check if text ends with punctuation (period, comma, etc.)
+        // If so, don't show next-word predictions - user is ending a sentence
+        val lastChar = textBefore.lastOrNull()
+        val isPunctuation = lastChar != null && lastChar in ".,;:!?。，；：！？"
+
+        // If no current word (user just finished a word with space/punctuation),
+        // record the previous word for learning and show next-word predictions
+        if (lowercaseWord.isEmpty() || lowercaseWord.length < MIN_PREFIX_LENGTH) {
+            // If punctuation was just typed, clear predictions and don't show new ones
+            if (isPunctuation) {
+                nextWordPredictor.clearState()
+                clearSuggestions()
+                Log.d(TAG, "Cleared predictions due to punctuation: '$lastChar'")
+                return
+            }
+
+            // Extract and record the previous word for learning
+            val previousWord = extractPreviousWord(textBefore.toString())
+            if (previousWord.length >= MIN_PREFIX_LENGTH) {
+                // Only record if we haven't just recorded this word
+                // (avoid double-recording from multiple updateFromCursor calls)
+                nextWordPredictor.recordCommittedWord(previousWord)
+            }
+
+            // Check if we have next-word predictions to show
+            if (nextWordPredictor.isShowingPredictions()) {
+                val nextWordSuggestions = nextWordPredictor.getSuggestions()
+                if (nextWordSuggestions.isNotEmpty()) {
+                    isShowingNextWordPredictions = true
+                    currentPrefix = ""
+                    originalPrefix = ""
+                    allSuggestions = nextWordSuggestions
+                    currentPage = 0
+                    Log.d(TAG, "Showing next-word predictions: $nextWordSuggestions")
+                    return
+                }
+            }
             clearSuggestions()
             return
+        }
+
+        // User started typing - switch to normal prefix-based suggestions
+        if (isShowingNextWordPredictions) {
+            isShowingNextWordPredictions = false
+            nextWordPredictor.onUserStartedTyping()
         }
 
         // Only update if prefix changed
@@ -135,6 +187,31 @@ class EnglishWordPredictionController(
     }
 
     /**
+     * Extracts the previous word (just completed) from text.
+     * This is the word before the last word boundary.
+     * @param text The text before the cursor
+     * @return The previous word, or empty string if not found
+     */
+    private fun extractPreviousWord(text: String): String {
+        if (text.isEmpty()) return ""
+
+        // Find the end of the previous word (skip trailing spaces/punctuation)
+        var wordEnd = text.length - 1
+        while (wordEnd >= 0 && !text[wordEnd].isLetter()) {
+            wordEnd--
+        }
+        if (wordEnd < 0) return ""
+
+        // Find the start of the previous word
+        var wordStart = wordEnd
+        while (wordStart > 0 && text[wordStart - 1].isLetter()) {
+            wordStart--
+        }
+
+        return text.substring(wordStart, wordEnd + 1).lowercase()
+    }
+
+    /**
      * Applies the case pattern from the original prefix to a suggestion word.
      * For example: "He" + "hello" -> "Hello", "HE" + "hello" -> "HELLO"
      */
@@ -173,18 +250,38 @@ class EnglishWordPredictionController(
         val selectedWord = currentPageSuggestions[index]
         // Apply the case pattern from the original prefix to the suggestion
         val casedWord = applyCasePattern(selectedWord)
-        val prefixLength = originalPrefix.length
+        val prefixLength = if (isShowingNextWordPredictions) 0 else originalPrefix.length
 
-        Log.d(TAG, "Selected suggestion $index: '$casedWord' (original: '$selectedWord'), prefix: '$originalPrefix'")
+        Log.d(TAG, "Selected suggestion $index: '$casedWord' (original: '$selectedWord'), prefix: '$originalPrefix', isNextWord: $isShowingNextWordPredictions")
 
-        // Record the selection in user memory for learning
-        userMemory.recordSelection(currentPrefix, selectedWord)
+        // Record the selection in user memory for learning (only for prefix-based suggestions)
+        if (!isShowingNextWordPredictions && currentPrefix.isNotEmpty()) {
+            userMemory.recordSelection(currentPrefix, selectedWord)
+        }
+
+        // Record the committed word for next-word prediction learning
+        nextWordPredictor.recordCommittedWord(selectedWord)
+
+        // Clear the next-word prediction state since we're selecting a word
+        isShowingNextWordPredictions = false
 
         // Return both the word and how many chars to delete
         return SelectionResult(
             word = casedWord,
-            prefixLength = prefixLength
+            prefixLength = prefixLength,
+            isNextWordPrediction = prefixLength == 0 && isShowingNextWordPredictions
         )
+    }
+
+    /**
+     * Records a word that was committed (typed normally without selecting from suggestions).
+     * This helps learn word sequences for next-word prediction.
+     */
+    fun recordCommittedWord(word: String) {
+        if (word.isNotBlank()) {
+            nextWordPredictor.recordCommittedWord(word)
+            Log.d(TAG, "Recorded committed word: '$word'")
+        }
     }
 
     /**
@@ -246,7 +343,8 @@ class EnglishWordPredictionController(
      */
     data class SelectionResult(
         val word: String,           // The complete word to insert
-        val prefixLength: Int       // How many characters of the prefix to delete
+        val prefixLength: Int,      // How many characters of the prefix to delete
+        val isNextWordPrediction: Boolean = false  // True if this was a next-word prediction
     )
 
     /**
@@ -257,6 +355,47 @@ class EnglishWordPredictionController(
         originalPrefix = ""
         allSuggestions = emptyList()
         currentPage = 0
+        isShowingNextWordPredictions = false
+    }
+
+    /**
+     * Clears next-word prediction state (called when input field changes).
+     */
+    fun clearNextWordPredictions() {
+        nextWordPredictor.clearState()
+        isShowingNextWordPredictions = false
+    }
+
+    /**
+     * Called when user inputs punctuation (period, comma, etc.).
+     * Clears next-word predictions since punctuation ends the phrase context.
+     */
+    fun onPunctuationInput() {
+        if (isShowingNextWordPredictions) {
+            isShowingNextWordPredictions = false
+            allSuggestions = emptyList()
+            currentPage = 0
+            Log.d(TAG, "Cleared next-word predictions due to punctuation input")
+        }
+        // Also clear the predictor state so next sentence starts fresh
+        nextWordPredictor.clearState()
+    }
+
+    /**
+     * Called when user presses backspace while showing next-word predictions.
+     * Clears the predictions so the user can continue editing.
+     * @return true if predictions were cleared, false if no predictions were showing
+     */
+    fun onBackspaceInput(): Boolean {
+        if (isShowingNextWordPredictions) {
+            isShowingNextWordPredictions = false
+            allSuggestions = emptyList()
+            currentPage = 0
+            nextWordPredictor.clearState()
+            Log.d(TAG, "Cleared next-word predictions due to backspace input")
+            return true
+        }
+        return false
     }
 
     /**
@@ -264,8 +403,12 @@ class EnglishWordPredictionController(
      */
     fun getSnapshot(): Snapshot {
         val currentPageSuggestions = getCurrentPageSuggestions()
-        // Apply case pattern to all suggestions for display
-        val casedSuggestions = currentPageSuggestions.map { applyCasePattern(it) }
+        // Apply case pattern to all suggestions for display (only for prefix-based suggestions)
+        val casedSuggestions = if (isShowingNextWordPredictions) {
+            currentPageSuggestions  // Next-word predictions don't need case adjustment
+        } else {
+            currentPageSuggestions.map { applyCasePattern(it) }
+        }
         val totalPages = getTotalPages()
         return Snapshot(
             prefix = originalPrefix,
@@ -274,9 +417,15 @@ class EnglishWordPredictionController(
             currentPage = currentPage,
             totalPages = totalPages,
             hasNextPage = currentPage < totalPages - 1,
-            hasPrevPage = currentPage > 0
+            hasPrevPage = currentPage > 0,
+            isNextWordPrediction = isShowingNextWordPredictions
         )
     }
+
+    /**
+     * Returns whether we're currently showing next-word predictions.
+     */
+    fun isShowingNextWordPredictions(): Boolean = isShowingNextWordPredictions
 
     /**
      * Gets the current page's suggestions.

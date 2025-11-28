@@ -42,6 +42,7 @@ class VariationBarView(
 
     var onVariationSelectedListener: VariationButtonHandler.OnVariationSelectedListener? = null
     var onPinyinCandidateSelectedListener: VariationButtonHandler.OnPinyinCandidateSelectedListener? = null
+    var onWubiCandidateSelectedListener: VariationButtonHandler.OnWubiCandidateSelectedListener? = null
     var onCursorMovedListener: (() -> Unit)? = null
     var onNextPageListener: (() -> Unit)? = null
     var onPrevPageListener: (() -> Unit)? = null
@@ -291,7 +292,7 @@ class VariationBarView(
         ).toInt()
 
         // Calculate button widths dynamically based on text content
-        val showNumberedButtons = snapshot.pinyinModeActive || snapshot.wordPredictionActive
+        val showNumberedButtons = snapshot.pinyinModeActive || snapshot.wubiModeActive || snapshot.wordPredictionActive
         val textSizeSp = if (showNumberedButtons) 18f else 17.6f
         val textPaint = android.graphics.Paint().apply {
             textSize = TypedValue.applyDimension(
@@ -405,7 +406,7 @@ class VariationBarView(
             val button = createVariationButton(
                 variation, inputConnection, individualButtonWidth, showNumberedButtons, index + 1,
                 snapshot.wordPredictionActive, wordPredictionPrefixLength, snapshot.pinyinModeActive,
-                candidateIndex = index
+                snapshot.wubiModeActive, candidateIndex = index
             )
             variationButtons.add(button)
             variationsRow.addView(button)
@@ -421,8 +422,8 @@ class VariationBarView(
         // Force a layout pass
         containerView.requestLayout()
 
-        // Add navigation arrows when in Pinyin or word prediction mode with suggestions
-        val showPagination = (snapshot.pinyinModeActive || snapshot.wordPredictionActive) &&
+        // Add navigation arrows when in Pinyin, Wubi, or word prediction mode with suggestions
+        val showPagination = (snapshot.pinyinModeActive || snapshot.wubiModeActive || snapshot.wordPredictionActive) &&
                              snapshot.variations.isNotEmpty()
 
         // Smaller arrow button size
@@ -802,6 +803,7 @@ class VariationBarView(
         isWordPrediction: Boolean = false,
         wordPredictionPrefixLength: Int = 0,
         isPinyinMode: Boolean = false,
+        isWubiMode: Boolean = false,
         candidateIndex: Int = 0
     ): TextView {
         val dp4 = TypedValue.applyDimension(
@@ -875,6 +877,17 @@ class VariationBarView(
                     context
                 )
             }
+            isWubiMode -> {
+                // Wubi candidate - just commit (replaces composing text automatically)
+                VariationButtonHandler.createWubiCandidateClickListener(
+                    variation,
+                    candidateIndex,
+                    inputConnection,
+                    onWubiCandidateSelectedListener,
+                    onVariationSelectedListener,
+                    context
+                )
+            }
             else -> {
                 // Accent variation - delete 1 char and insert variation
                 VariationButtonHandler.createVariationClickListener(
@@ -886,7 +899,7 @@ class VariationBarView(
         }
 
         // Capture flags for closure
-        val shouldVibrate = isWordPrediction || isPinyinMode
+        val shouldVibrate = isWordPrediction || isPinyinMode || isWubiMode
 
         return TextView(context).apply {
             text = displayText
