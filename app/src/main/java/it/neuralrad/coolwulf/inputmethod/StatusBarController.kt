@@ -166,6 +166,8 @@ class StatusBarController(
     // variationsWrapper is now a View (could be LinearLayout directly) instead of FrameLayout
     private var variationsWrapper: View? = null
     private var forceMinimalUi: Boolean = false
+    private var compactModeHidden: Boolean = false
+
     fun setForceMinimalUi(force: Boolean) {
         if (mode != Mode.FULL) {
             return
@@ -176,6 +178,24 @@ class StatusBarController(
         forceMinimalUi = force
         if (force) {
             variationBarView?.hideImmediate()
+        }
+    }
+
+    fun setCompactModeHidden(hidden: Boolean) {
+        if (mode != Mode.FULL) {
+            return
+        }
+        if (compactModeHidden == hidden) {
+            return
+        }
+        compactModeHidden = hidden
+        if (hidden) {
+            // Hide the entire status bar layout in compact mode when no suggestions
+            statusBarLayout?.visibility = View.GONE
+            variationBarView?.hideImmediate()
+        } else {
+            // Show the status bar layout when there are suggestions
+            statusBarLayout?.visibility = View.VISIBLE
         }
     }
 
@@ -964,6 +984,12 @@ class StatusBarController(
         }
         
         if (snapshot.navModeActive) {
+            layout.visibility = View.GONE
+            return
+        }
+
+        // In compact mode with no suggestions, keep layout hidden
+        if (compactModeHidden) {
             layout.visibility = View.GONE
             return
         }

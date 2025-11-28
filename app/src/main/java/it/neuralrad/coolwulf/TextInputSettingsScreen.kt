@@ -66,6 +66,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.isStaticVariationBarModeEnabled(context))
     }
 
+    var compactMode by remember {
+        mutableStateOf(SettingsManager.getCompactModeEnabled(context))
+    }
+
     var pinyinEnabled by remember {
         mutableStateOf(SettingsManager.getPinyinEnabled(context))
     }
@@ -438,6 +442,49 @@ fun TextInputSettingsScreen(
                         onCheckedChange = { enabled ->
                             staticVariationBarMode = enabled
                             SettingsManager.setStaticVariationBarModeEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
+
+            // Compact Mode
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.compact_mode_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.compact_mode_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                    Switch(
+                        checked = compactMode,
+                        onCheckedChange = { enabled ->
+                            compactMode = enabled
+                            SettingsManager.setCompactModeEnabled(context, enabled)
                         }
                     )
                 }

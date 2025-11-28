@@ -929,6 +929,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val symMappings = symLayoutController.currentSymMappings()
         // Passa l'inputConnection per rendere i pulsanti clickabili
         val inputConnection = currentInputConnection
+
+        // Compact mode: hide entire status bar when no suggestions
+        val compactModeEnabled = SettingsManager.getCompactModeEnabled(this)
+        if (compactModeEnabled) {
+            val hasSuggestions = variationSnapshot.variations.isNotEmpty() ||
+                                pinyinSnapshot.hasCandidates ||
+                                wubiSnapshot.hasCandidates
+            candidatesBarController.setCompactModeHidden(!hasSuggestions)
+        } else {
+            candidatesBarController.setCompactModeHidden(false)
+        }
+
         candidatesBarController.updateStatusBars(snapshot, emojiMapText, inputConnection, symMappings)
     }
     

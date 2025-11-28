@@ -90,6 +90,10 @@ class CandidatesBarController(
         inputStatusBar.setForceMinimalUi(force)
     }
 
+    fun setCompactModeHidden(hidden: Boolean) {
+        inputStatusBar.setCompactModeHidden(hidden)
+    }
+
     fun updateStatusBars(
         snapshot: StatusBarController.StatusSnapshot,
         emojiMapText: String,

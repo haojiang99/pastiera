@@ -53,6 +53,10 @@
     <string name="static_variation_bar_mode_title">Static Variation Bar</string>
     <string name="static_variation_bar_mode_description">Always show a fixed set of utility keys in the variation row instead of context-based variations. Static keys remain available even when smart features are disabled.</string>
 
+    <!-- Compact Mode -->
+    <string name="compact_mode_title">Compact Mode</string>
+    <string name="compact_mode_description">Auto-hide status bar when there are no suggestions. Show it when candidates/predictions appear.</string>
+
     <!-- Chinese Input Section -->
     <string name="chinese_input_section_title">Chinese Input</string>
     <string name="chinese_input_method_title">Input Method</string>

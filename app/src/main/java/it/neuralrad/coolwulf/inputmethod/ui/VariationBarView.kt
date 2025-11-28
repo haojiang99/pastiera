@@ -562,7 +562,7 @@ class VariationBarView(
         languageToggleButton.alpha = 1f
         languageToggleButton.visibility = View.VISIBLE
 
-        // Punctuation toggle button (中/英 for punctuation) - only show in Chinese mode
+        // Punctuation toggle button (中/英 for punctuation) - show right after language toggle in Chinese mode
         if (isPinyinModeActive || isWubiModeActive) {
             val punctuationToggleButton = punctuationToggleButtonView ?: createPunctuationToggleButton(buttonWidth).also {
                 punctuationToggleButtonView = it
@@ -575,7 +575,13 @@ class VariationBarView(
                         context.resources.displayMetrics
                     ).toInt()
                 }
-                containerView.addView(punctuationToggleButton, punctParams)
+                // Insert right after language toggle button (find its index and add after)
+                val langIndex = containerView.indexOfChild(languageToggleButton)
+                if (langIndex >= 0) {
+                    containerView.addView(punctuationToggleButton, langIndex + 1, punctParams)
+                } else {
+                    containerView.addView(punctuationToggleButton, punctParams)
+                }
             }
             punctuationToggleButton.setOnClickListener {
                 onPunctuationToggleListener?.invoke()
