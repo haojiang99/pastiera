@@ -675,9 +675,10 @@ class VariationBarView(
                         ).toInt()
                     }
                 }
-                // Insert right after language toggle button
+                // Insert right after language toggle button (clamp to valid range)
                 if (langIndex >= 0) {
-                    containerView.addView(punctuationToggleButton, langIndex + 1, punctParams)
+                    val insertIndex = minOf(langIndex + 1, containerView.childCount)
+                    containerView.addView(punctuationToggleButton, insertIndex, punctParams)
                 } else {
                     containerView.addView(punctuationToggleButton, punctParams)
                 }
