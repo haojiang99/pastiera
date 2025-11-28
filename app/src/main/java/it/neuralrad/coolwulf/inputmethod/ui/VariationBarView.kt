@@ -646,6 +646,17 @@ class VariationBarView(
             val punctuationToggleButton = punctuationToggleButtonView ?: createPunctuationToggleButton(buttonWidth).also {
                 punctuationToggleButtonView = it
             }
+
+            // Always ensure punctuation button is right after language button
+            val langIndex = containerView.indexOfChild(languageToggleButton)
+            val punctIndex = containerView.indexOfChild(punctuationToggleButton)
+            val expectedPunctIndex = langIndex + 1
+
+            // Remove and re-add if position is wrong or not attached
+            if (punctuationToggleButton.parent != null && punctIndex != expectedPunctIndex) {
+                (punctuationToggleButton.parent as? ViewGroup)?.removeView(punctuationToggleButton)
+            }
+
             if (punctuationToggleButton.parent == null) {
                 val punctParams = if (stretchButtons) {
                     LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
@@ -664,8 +675,7 @@ class VariationBarView(
                         ).toInt()
                     }
                 }
-                // Insert right after language toggle button (find its index and add after)
-                val langIndex = containerView.indexOfChild(languageToggleButton)
+                // Insert right after language toggle button
                 if (langIndex >= 0) {
                     containerView.addView(punctuationToggleButton, langIndex + 1, punctParams)
                 } else {
@@ -1102,7 +1112,7 @@ class VariationBarView(
 
     private fun createMicrophoneButton(buttonSize: Int): ImageView {
         val drawable = GradientDrawable().apply {
-            setColor(Color.rgb(17, 17, 17))
+            setColor(Color.BLACK)
             cornerRadius = 0f
         }
         return ImageView(context).apply {
@@ -1122,10 +1132,14 @@ class VariationBarView(
             3f,
             context.resources.displayMetrics
         ).toInt()
+        val drawable = GradientDrawable().apply {
+            setColor(Color.BLACK)
+            cornerRadius = 0f
+        }
         return ImageView(context).apply {
             setImageResource(R.drawable.ic_settings_24)
             setColorFilter(Color.rgb(100, 100, 100))
-            background = null
+            background = drawable
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             isClickable = true
             isFocusable = true
@@ -1141,12 +1155,8 @@ class VariationBarView(
             context.resources.displayMetrics
         ).toInt()
         val drawable = GradientDrawable().apply {
-            setColor(Color.rgb(40, 40, 40))
-            cornerRadius = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                4f,
-                context.resources.displayMetrics
-            )
+            setColor(Color.BLACK)
+            cornerRadius = 0f
         }
         return TextView(context).apply {
             text = "SYM"
@@ -1169,12 +1179,8 @@ class VariationBarView(
             context.resources.displayMetrics
         ).toInt()
         val drawable = GradientDrawable().apply {
-            setColor(Color.rgb(40, 40, 40))
-            cornerRadius = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                4f,
-                context.resources.displayMetrics
-            )
+            setColor(Color.BLACK)
+            cornerRadius = 0f
         }
         return TextView(context).apply {
             text = when {
@@ -1218,12 +1224,8 @@ class VariationBarView(
             context.resources.displayMetrics
         ).toInt()
         val drawable = GradientDrawable().apply {
-            setColor(Color.rgb(40, 40, 40))
-            cornerRadius = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                4f,
-                context.resources.displayMetrics
-            )
+            setColor(Color.BLACK)
+            cornerRadius = 0f
         }
         return TextView(context).apply {
             text = if (isChinesePunctuationMode) "。" else "."
