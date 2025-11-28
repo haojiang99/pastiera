@@ -339,7 +339,8 @@ class InputEventRouter(
                 altOneShotActive = false
             }
 
-            if (keyCode == KeyEvent.KEYCODE_BACK) {
+            // Allow DEL (backspace) and BACK keys to work normally even when Alt is active/latched
+            if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_DEL) {
                 return EditableFieldRoutingResult.CallSuper
             }
 
