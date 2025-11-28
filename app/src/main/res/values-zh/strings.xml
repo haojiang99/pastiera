@@ -63,6 +63,8 @@
     <string name="chinese_input_wubi">五笔</string>
     <string name="chinese_input_wubi_description">启用五笔形码输入</string>
     <string name="chinese_input_both_enabled_info">两种方法均已启用：按Shift+Enter或切换按钮循环 英文 → 拼音 → 五笔</string>
+    <string name="chinese_next_word_prediction_title">下一词预测</string>
+    <string name="chinese_next_word_prediction_description">选择字符后显示预测的下一个词/词组</string>
 
     <!-- Info Section -->
     <string name="info_title">信息</string>

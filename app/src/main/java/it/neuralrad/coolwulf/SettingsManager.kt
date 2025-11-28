@@ -41,6 +41,7 @@ object SettingsManager {
     private const val KEY_WUBI_ENABLED = "wubi_enabled" // Enable Wubi input
     private const val KEY_PINYIN_CHARACTER_SET = "pinyin_character_set" // "simplified" or "traditional"
     private const val KEY_CHINESE_INPUT_METHOD = "chinese_input_method" // "pinyin" or "wubi" (legacy, used for last active mode)
+    private const val KEY_CHINESE_NEXT_WORD_PREDICTION = "chinese_next_word_prediction" // Enable next word prediction for Chinese input
     private const val KEY_POWER_SHORTCUTS_ENABLED = "power_shortcuts_enabled" // Enable power shortcuts
     private const val KEY_SWIPE_INCREMENTAL_THRESHOLD = "swipe_incremental_threshold" // Swipe incremental threshold
     private const val KEY_STATIC_VARIATION_BAR_MODE = "static_variation_bar_mode" // Static variation bar mode
@@ -67,6 +68,7 @@ object SettingsManager {
     private const val DEFAULT_WUBI_ENABLED = false
     private const val DEFAULT_PINYIN_CHARACTER_SET = "simplified"
     private const val DEFAULT_CHINESE_INPUT_METHOD = "pinyin" // "pinyin" or "wubi" (legacy)
+    private const val DEFAULT_CHINESE_NEXT_WORD_PREDICTION = true
     private const val DEFAULT_POWER_SHORTCUTS_ENABLED = false
     private const val DEFAULT_SWIPE_INCREMENTAL_THRESHOLD = 14.0f
     private const val MIN_SWIPE_INCREMENTAL_THRESHOLD = 3.0f
@@ -1025,6 +1027,22 @@ object SettingsManager {
         if (getPinyinEnabled(context)) methods.add("pinyin")
         if (getWubiEnabled(context)) methods.add("wubi")
         return methods
+    }
+
+    /**
+     * Gets whether next word prediction is enabled for Chinese input.
+     */
+    fun getChineseNextWordPredictionEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_CHINESE_NEXT_WORD_PREDICTION, DEFAULT_CHINESE_NEXT_WORD_PREDICTION)
+    }
+
+    /**
+     * Sets whether next word prediction is enabled for Chinese input.
+     */
+    fun setChineseNextWordPredictionEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_CHINESE_NEXT_WORD_PREDICTION, enabled)
+            .apply()
     }
 
     /**

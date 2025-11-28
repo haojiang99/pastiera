@@ -174,7 +174,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             BLACKBERRY_KEYCODE_ALT -> KeyEvent.KEYCODE_ALT_LEFT
             BLACKBERRY_KEYCODE_SHIFT -> KeyEvent.KEYCODE_SHIFT_LEFT
             BLACKBERRY_KEYCODE_CTRL -> KeyEvent.KEYCODE_CTRL_LEFT
-            BLACKBERRY_KEYCODE_SYM -> KEYCODE_SYM  // Already device-specific
+            BLACKBERRY_KEYCODE_SYM -> KeyEvent.KEYCODE_SYM  // Translate to standard Android KEYCODE_SYM (63)
             else -> keyCode
         }
     }
@@ -418,6 +418,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         autoCorrectionManager = AutoCorrectionManager(this)
         pinyinInputController = PinyinInputController(this)
         wubiInputController = WubiInputController(this)
+
+        // Apply Chinese next word prediction setting
+        val chineseNextWordPredictionEnabled = SettingsManager.getChineseNextWordPredictionEnabled(this)
+        pinyinInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
+        wubiInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
+
         englishWordPredictionController = it.neuralrad.coolwulf.core.EnglishWordPredictionController(this)
         multiTapController = MultiTapController(
             handler = Handler(Looper.getMainLooper()),
@@ -996,9 +1002,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         updateInputContextState(info)
         initializeInputContext(restarting)
-        
+
+        // Refresh Chinese next word prediction setting (may have changed in settings)
+        val chineseNextWordPredictionEnabled = SettingsManager.getChineseNextWordPredictionEnabled(this)
+        pinyinInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
+        wubiInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
+
         val isEditable = inputContextState.isEditable
-        
+
         if (restarting && isEditable && !shouldDisableSmartFeatures) {
             AutoCapitalizeHelper.checkAutoCapitalizeOnRestart(
                 this,
@@ -1201,7 +1212,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // If NO editable field is active, handle ONLY nav mode
         if (!hasEditableField) {
             return inputEventRouter.handleKeyDownWithNoEditableField(
-                keyCode = keyCode,
+                keyCode = translatedKeyCode,
                 event = event,
                 ctrlKeyMap = ctrlKeyMap,
                 callbacks = InputEventRouter.NoEditableFieldCallbacks(
@@ -1226,7 +1237,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
         
         val routingResult = inputEventRouter.handleEditableFieldKeyDownPrelude(
-            keyCode = keyCode,
+            keyCode = translatedKeyCode,
             params = InputEventRouter.EditableFieldKeyDownParams(
                 ctrlLatchFromNavMode = ctrlLatchFromNavMode,
                 ctrlLatchActive = ctrlLatchActive,
@@ -1749,16 +1760,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
             // Handle backspace in Wubi mode
             if (keyCode == KeyEvent.KEYCODE_DEL) {
+                val hadBuffer = wubiInputController.getBuffer().isNotEmpty()
                 if (wubiInputController.handleBackspace()) {
                     val buffer = wubiInputController.getBuffer()
                     if (buffer.isNotEmpty()) {
                         ic.setComposingText(buffer, 1)
                     } else {
+                        // Buffer is now empty, delete the composing text entirely
                         ic.finishComposingText()
+                        if (hadBuffer) {
+                            // If we had a buffer before, delete the last character
+                            ic.deleteSurroundingText(1, 0)
+                        }
                     }
                     updateStatusBarText()
                     return true
                 }
+                // If buffer was empty, fall through to normal backspace handling
             }
 
             // Handle space key - select first candidate

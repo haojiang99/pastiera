@@ -40,6 +40,9 @@ class WubiInputController(
     // Whether we're showing next-word predictions
     private var isShowingNextWordPredictions: Boolean = false
 
+    // Whether next word prediction feature is enabled
+    private var nextWordPredictionEnabled: Boolean = true
+
     // Next-word predictor for suggesting words after commit
     private val nextWordPredictor: NextWordPredictor = NextWordPredictor.getInstance(context)
 
@@ -225,10 +228,10 @@ class WubiInputController(
     }
 
     /**
-     * Shows next-word predictions if available.
+     * Shows next-word predictions if available and enabled.
      */
     private fun showNextWordPredictions() {
-        if (nextWordPredictor.isShowingPredictions()) {
+        if (nextWordPredictionEnabled && nextWordPredictor.isShowingPredictions()) {
             val nextWordSuggestions = nextWordPredictor.getSuggestions()
             if (nextWordSuggestions.isNotEmpty()) {
                 isShowingNextWordPredictions = true
@@ -526,4 +529,24 @@ class WubiInputController(
     fun togglePunctuationMode() {
         useChinesePunctuation = !useChinesePunctuation
     }
+
+    /**
+     * Sets whether next word prediction is enabled.
+     */
+    fun setNextWordPredictionEnabled(enabled: Boolean) {
+        nextWordPredictionEnabled = enabled
+        if (!enabled) {
+            // Clear any existing predictions when disabled
+            if (isShowingNextWordPredictions) {
+                isShowingNextWordPredictions = false
+                allCandidates = emptyList()
+                currentPage = 0
+            }
+        }
+    }
+
+    /**
+     * Returns whether next word prediction is enabled.
+     */
+    fun isNextWordPredictionEnabled(): Boolean = nextWordPredictionEnabled
 }

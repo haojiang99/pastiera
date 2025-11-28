@@ -62,6 +62,8 @@
     <string name="chinese_input_wubi">Wubi (五笔)</string>
     <string name="chinese_input_wubi_description">Enable Wubi shape-based input</string>
     <string name="chinese_input_both_enabled_info">Both methods enabled: Press Shift+Enter or toggle button to cycle EN → Pinyin → Wubi</string>
+    <string name="chinese_next_word_prediction_title">Next Word Prediction</string>
+    <string name="chinese_next_word_prediction_description">Show predicted next words/phrases after selecting a character</string>
     
     <!-- Info Section -->
     <string name="info_title">Information</string>

@@ -74,6 +74,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getWubiEnabled(context))
     }
 
+    var chineseNextWordPrediction by remember {
+        mutableStateOf(SettingsManager.getChineseNextWordPredictionEnabled(context))
+    }
+
     // Handle system back button
     BackHandler { onBack() }
     
@@ -544,6 +548,51 @@ fun TextInputSettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
+            }
+
+            // Next Word Prediction Toggle (only show if Pinyin or Wubi is enabled)
+            if (pinyinEnabled || wubiEnabled) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.TextFields,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.chinese_next_word_prediction_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = stringResource(R.string.chinese_next_word_prediction_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                        }
+                        Switch(
+                            checked = chineseNextWordPrediction,
+                            onCheckedChange = { enabled ->
+                                chineseNextWordPrediction = enabled
+                                SettingsManager.setChineseNextWordPredictionEnabled(context, enabled)
+                            }
+                        )
+                    }
+                }
             }
 
             // Custom Dictionary (only show if Pinyin or Wubi is enabled)
