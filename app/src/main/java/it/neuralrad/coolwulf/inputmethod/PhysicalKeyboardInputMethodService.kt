@@ -51,8 +51,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private var speechResultReceiver: BroadcastReceiver? = null
     private lateinit var candidatesBarController: CandidatesBarController
 
-    // Keycode for the SYM key
-    private val KEYCODE_SYM = 63
+    // Keycode for the SYM key (device-specific, initialized in onCreate)
+    private var KEYCODE_SYM = 63
     
     // Mapping Ctrl+key -> action or keycode (loaded from JSON)
     private val ctrlKeyMap = mutableMapOf<Int, KeyMappingLoader.CtrlMapping>()
@@ -155,6 +155,76 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     private val symPage: Int
         get() = if (::symLayoutController.isInitialized) symLayoutController.currentSymPage() else 0
+
+    // BlackBerry-specific keycodes
+    private val BLACKBERRY_KEYCODE_ALT = 57
+    private val BLACKBERRY_KEYCODE_SYM = 58
+    private val BLACKBERRY_KEYCODE_SHIFT = 59
+    private val BLACKBERRY_KEYCODE_CTRL = 68
+
+    /**
+     * Translates device-specific keycodes to standard Android keycodes.
+     * For BlackBerry keyboards, the modifier keys have different codes.
+     */
+    private fun translateKeyCode(keyCode: Int): Int {
+        if (!SettingsManager.isBlackBerryDevice(this)) {
+            return keyCode
+        }
+        return when (keyCode) {
+            BLACKBERRY_KEYCODE_ALT -> KeyEvent.KEYCODE_ALT_LEFT
+            BLACKBERRY_KEYCODE_SHIFT -> KeyEvent.KEYCODE_SHIFT_LEFT
+            BLACKBERRY_KEYCODE_CTRL -> KeyEvent.KEYCODE_CTRL_LEFT
+            BLACKBERRY_KEYCODE_SYM -> KEYCODE_SYM  // Already device-specific
+            else -> keyCode
+        }
+    }
+
+    /**
+     * Checks if the given keycode is a modifier key (Shift/Ctrl/Alt) for the current device.
+     */
+    private fun isDeviceModifierKey(keyCode: Int): Boolean {
+        if (SettingsManager.isBlackBerryDevice(this)) {
+            return keyCode == BLACKBERRY_KEYCODE_ALT ||
+                   keyCode == BLACKBERRY_KEYCODE_SHIFT ||
+                   keyCode == BLACKBERRY_KEYCODE_CTRL
+        }
+        return keyCode == KeyEvent.KEYCODE_SHIFT_LEFT ||
+               keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT ||
+               keyCode == KeyEvent.KEYCODE_CTRL_LEFT ||
+               keyCode == KeyEvent.KEYCODE_CTRL_RIGHT ||
+               keyCode == KeyEvent.KEYCODE_ALT_LEFT ||
+               keyCode == KeyEvent.KEYCODE_ALT_RIGHT
+    }
+
+    /**
+     * Checks if the given keycode is a Shift key for the current device.
+     */
+    private fun isDeviceShiftKey(keyCode: Int): Boolean {
+        if (SettingsManager.isBlackBerryDevice(this)) {
+            return keyCode == BLACKBERRY_KEYCODE_SHIFT
+        }
+        return keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT
+    }
+
+    /**
+     * Checks if the given keycode is an Alt key for the current device.
+     */
+    private fun isDeviceAltKey(keyCode: Int): Boolean {
+        if (SettingsManager.isBlackBerryDevice(this)) {
+            return keyCode == BLACKBERRY_KEYCODE_ALT
+        }
+        return keyCode == KeyEvent.KEYCODE_ALT_LEFT || keyCode == KeyEvent.KEYCODE_ALT_RIGHT
+    }
+
+    /**
+     * Checks if the given keycode is a Ctrl key for the current device.
+     */
+    private fun isDeviceCtrlKey(keyCode: Int): Boolean {
+        if (SettingsManager.isBlackBerryDevice(this)) {
+            return keyCode == BLACKBERRY_KEYCODE_CTRL
+        }
+        return keyCode == KeyEvent.KEYCODE_CTRL_LEFT || keyCode == KeyEvent.KEYCODE_CTRL_RIGHT
+    }
 
     private fun updateInputContextState(info: EditorInfo?) {
         inputContextState = InputContextState.fromEditorInfo(info)
@@ -331,7 +401,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         super.onCreate()
         prefs = getSharedPreferences("pastiera_prefs", Context.MODE_PRIVATE)
         clearAltOnSpaceEnabled = SettingsManager.getClearAltOnSpace(this)
-        
+
+        // Initialize device-specific keycodes
+        KEYCODE_SYM = SettingsManager.getSymKeyCode(this)
+
         NotificationHelper.createNotificationChannel(this)
         
         modifierStateController = ModifierStateController(DOUBLE_TAP_THRESHOLD)
@@ -1023,6 +1096,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        // Translate device-specific keycodes to standard Android keycodes
+        val translatedKeyCode = translateKeyCode(keyCode)
+
         // Check if we have an editable field at the very start
         val info = currentInputEditorInfo
         val initialInputConnection = currentInputConnection
@@ -1032,12 +1108,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             isInputViewActive = true
         }
 
-        val isModifierKey = keyCode == KeyEvent.KEYCODE_SHIFT_LEFT ||
-            keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT ||
-            keyCode == KeyEvent.KEYCODE_CTRL_LEFT ||
-            keyCode == KeyEvent.KEYCODE_CTRL_RIGHT ||
-            keyCode == KeyEvent.KEYCODE_ALT_LEFT ||
-            keyCode == KeyEvent.KEYCODE_ALT_RIGHT
+        // Check if this is a modifier key (using device-specific checks)
+        val isModifierKey = isDeviceModifierKey(keyCode)
         if (!isModifierKey) {
             modifierStateController.registerNonModifierKey()
         }
@@ -1056,8 +1128,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val hasCandidatesToPaginate = hasPinyinCandidates || hasWubiCandidates || hasWordPredictions
 
         if (hasCandidatesToPaginate) {
-            when (keyCode) {
-                KeyEvent.KEYCODE_ALT_LEFT, KeyEvent.KEYCODE_ALT_RIGHT -> {
+            when {
+                isDeviceAltKey(keyCode) -> {
                     if (event?.repeatCount == 0) {
                         val currentTime = System.currentTimeMillis()
                         val timeSinceLastPress = currentTime - altLastPressTime
@@ -1090,7 +1162,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         }
                     }
                 }
-                KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> {
+                isDeviceShiftKey(keyCode) -> {
                     if (event?.repeatCount == 0) {
                         val currentTime = System.currentTimeMillis()
                         val timeSinceLastPress = currentTime - shiftLastPressTime
@@ -1818,7 +1890,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
         
         val routingDecision = inputEventRouter.routeEditableFieldKeyDown(
-            keyCode = keyCode,
+            keyCode = translatedKeyCode,
             event = event,
             params = InputEventRouter.EditableFieldKeyDownHandlingParams(
                 inputConnection = ic,
@@ -1916,32 +1988,35 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Always notify the tracker (even when the event is consumed)
         KeyboardEventTracker.notifyKeyEvent(keyCode, event, "KEY_UP")
         
+        // Translate device-specific keycodes to standard Android keycodes for modifier handling
+        val translatedKeyCode = translateKeyCode(keyCode)
+
         // Handle Shift release for double-tap
-        if (keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT) {
+        if (isDeviceShiftKey(keyCode)) {
             if (shiftPressed) {
-                val result = modifierStateController.handleShiftKeyUp(keyCode)
+                val result = modifierStateController.handleShiftKeyUp(translatedKeyCode)
                 if (result.shouldUpdateStatusBar) {
                     updateStatusBarText()
                 }
             }
             return super.onKeyUp(keyCode, event)
         }
-        
+
         // Handle Ctrl release for double-tap
-        if (keyCode == KeyEvent.KEYCODE_CTRL_LEFT || keyCode == KeyEvent.KEYCODE_CTRL_RIGHT) {
+        if (isDeviceCtrlKey(keyCode)) {
             if (ctrlPressed) {
-                val result = modifierStateController.handleCtrlKeyUp(keyCode)
+                val result = modifierStateController.handleCtrlKeyUp(translatedKeyCode)
                 if (result.shouldUpdateStatusBar) {
                     updateStatusBarText()
                 }
             }
             return super.onKeyUp(keyCode, event)
         }
-        
+
         // Handle Alt release for double-tap
-        if (keyCode == KeyEvent.KEYCODE_ALT_LEFT || keyCode == KeyEvent.KEYCODE_ALT_RIGHT) {
+        if (isDeviceAltKey(keyCode)) {
             if (altPressed) {
-                val result = modifierStateController.handleAltKeyUp(keyCode)
+                val result = modifierStateController.handleAltKeyUp(translatedKeyCode)
                 if (result.shouldUpdateStatusBar) {
                     updateStatusBarText()
                 }

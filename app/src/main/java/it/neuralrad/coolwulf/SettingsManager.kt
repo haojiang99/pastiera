@@ -1364,5 +1364,81 @@ object SettingsManager {
             "blackberry" to "BlackBerry"
         )
     }
+
+    /**
+     * Returns the SYM key code for the current device.
+     * Titan 2: KEYCODE_SYM (63)
+     * BlackBerry: 58
+     */
+    fun getSymKeyCode(context: Context): Int {
+        return if (isBlackBerryDevice(context)) 58 else 63
+    }
+
+    /**
+     * Returns the ALT key codes for the current device.
+     * Titan 2: KEYCODE_ALT_LEFT (57), KEYCODE_ALT_RIGHT (58)
+     * BlackBerry: 57 for ALT
+     */
+    fun getAltKeyCode(context: Context): Int {
+        return 57 // Same for both devices
+    }
+
+    /**
+     * Returns the SHIFT key codes for the current device.
+     * Titan 2: KEYCODE_SHIFT_LEFT (59), KEYCODE_SHIFT_RIGHT (60)
+     * BlackBerry: 59 for SHIFT
+     */
+    fun getShiftKeyCode(context: Context): Int {
+        return 59 // Same for both devices
+    }
+
+    /**
+     * Returns the CTRL key code for the current device.
+     * Titan 2: KEYCODE_CTRL_LEFT (113), KEYCODE_CTRL_RIGHT (114)
+     * BlackBerry: 68
+     */
+    fun getCtrlKeyCode(context: Context): Int {
+        return if (isBlackBerryDevice(context)) 68 else 113
+    }
+
+    /**
+     * Checks if a keycode is an ALT key for the current device.
+     */
+    fun isAltKey(context: Context, keyCode: Int): Boolean {
+        return if (isBlackBerryDevice(context)) {
+            keyCode == 57
+        } else {
+            keyCode == android.view.KeyEvent.KEYCODE_ALT_LEFT || keyCode == android.view.KeyEvent.KEYCODE_ALT_RIGHT
+        }
+    }
+
+    /**
+     * Checks if a keycode is a SHIFT key for the current device.
+     */
+    fun isShiftKey(context: Context, keyCode: Int): Boolean {
+        return if (isBlackBerryDevice(context)) {
+            keyCode == 59
+        } else {
+            keyCode == android.view.KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == android.view.KeyEvent.KEYCODE_SHIFT_RIGHT
+        }
+    }
+
+    /**
+     * Checks if a keycode is a CTRL key for the current device.
+     */
+    fun isCtrlKey(context: Context, keyCode: Int): Boolean {
+        return if (isBlackBerryDevice(context)) {
+            keyCode == 68
+        } else {
+            keyCode == android.view.KeyEvent.KEYCODE_CTRL_LEFT || keyCode == android.view.KeyEvent.KEYCODE_CTRL_RIGHT
+        }
+    }
+
+    /**
+     * Checks if a keycode is a SYM key for the current device.
+     */
+    fun isSymKey(context: Context, keyCode: Int): Boolean {
+        return keyCode == getSymKeyCode(context)
+    }
 }
 
