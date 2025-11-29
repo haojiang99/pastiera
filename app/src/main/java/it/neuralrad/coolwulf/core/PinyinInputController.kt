@@ -516,8 +516,9 @@ class PinyinInputController(
     }
 
     /**
-     * Auto-parses a segment (without separators) into syllables using longest-match.
-     * Returns a list of ParsedSegments for each syllable found.
+     * Auto-parses a segment (without separators) into syllables/phrases using smart matching.
+     * Prioritizes phrase matches over individual syllables for more accurate results.
+     * Returns a list of ParsedSegments for each syllable/phrase found.
      */
     private fun autoParseSegment(segment: String): List<ParsedSegment> {
         if (segment.isEmpty()) return emptyList()
@@ -527,18 +528,32 @@ class PinyinInputController(
 
         while (remaining.isNotEmpty()) {
             // First, check if there's a phrase match for the entire remaining input
-            val phraseCandidates = PinyinDictionary.getPhraseCandidates(remaining)
-            if (phraseCandidates.isNotEmpty()) {
-                // Found a phrase match - use it as a single segment
+            val fullPhraseCandidates = PinyinDictionary.getPhraseCandidates(remaining)
+            if (fullPhraseCandidates.isNotEmpty()) {
+                // Found a phrase match for entire remaining - use it as a single segment
                 segments.add(ParsedSegment(
                     pinyin = remaining,
-                    candidates = userMemory.sortByFrequency(remaining, phraseCandidates),
+                    candidates = userMemory.sortByFrequency(remaining, fullPhraseCandidates),
                     isComplete = true
                 ))
                 break
             }
 
-            // Try longest-match syllable
+            // Try to find the longest phrase match starting at current position
+            // This is key: check phrases BEFORE falling back to single syllables
+            val longestPhrase = findLongestPhraseMatch(remaining)
+            if (longestPhrase != null) {
+                val phraseCandidates = PinyinDictionary.getPhraseCandidates(longestPhrase)
+                segments.add(ParsedSegment(
+                    pinyin = longestPhrase,
+                    candidates = userMemory.sortByFrequency(longestPhrase, phraseCandidates),
+                    isComplete = true
+                ))
+                remaining = remaining.substring(longestPhrase.length)
+                continue
+            }
+
+            // No phrase match found, try longest-match syllable
             val syllable = PinyinDictionary.findLongestSyllable(remaining)
             if (syllable != null) {
                 val candidates = PinyinDictionary.getCandidates(syllable)
@@ -565,6 +580,48 @@ class PinyinInputController(
         }
 
         return segments
+    }
+
+    /**
+     * Finds the longest phrase match starting at the current position.
+     * Uses greedy longest-match from the full phrase dictionary.
+     *
+     * The philosophy is: match as many phrases as possible to give users choices,
+     * then rely on frequency sorting and user memory to learn the right candidates.
+     *
+     * @return The longest phrase pinyin that has a match, or null if none found
+     */
+    private fun findLongestPhraseMatch(input: String): String? {
+        if (input.length < 2) return null
+
+        // First, split the entire input into syllables
+        val allSyllables = mutableListOf<String>()
+        var remaining = input
+        while (remaining.isNotEmpty()) {
+            val syllable = PinyinDictionary.findLongestSyllable(remaining)
+            if (syllable != null) {
+                allSyllables.add(syllable)
+                remaining = remaining.substring(syllable.length)
+            } else {
+                break
+            }
+        }
+
+        // Need at least 2 syllables to form a phrase
+        if (allSyllables.size < 2) return null
+
+        // Try progressively shorter combinations starting from all syllables
+        // Match any phrase in the dictionary - rely on frequency sorting for ranking
+        for (numSyllables in allSyllables.size downTo 2) {
+            val phrase = allSyllables.take(numSyllables).joinToString("")
+            val phraseCandidates = PinyinDictionary.getPhraseCandidates(phrase)
+            if (phraseCandidates.isNotEmpty()) {
+                Log.d(TAG, "Found phrase match: '$phrase' -> ${phraseCandidates.take(3)}")
+                return phrase
+            }
+        }
+
+        return null
     }
 
     /**

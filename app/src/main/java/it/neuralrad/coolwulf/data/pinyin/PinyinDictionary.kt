@@ -12,12 +12,16 @@ object PinyinDictionary {
     private const val TAG = "PinyinDictionary"
     private const val DICT_FILE = "common/pinyin/pinyin_dict.json"
     private const val PHRASES_FILE = "common/pinyin/pinyin_phrases.json"
+    private const val FREQUENCY_FILE = "common/pinyin/word_frequency.json"
 
     // Map of pinyin syllable -> list of Chinese characters
     private val dictionary = mutableMapOf<String, List<String>>()
 
     // Map of multi-syllable pinyin -> list of Chinese phrases/words
     private val phrases = mutableMapOf<String, List<String>>()
+
+    // Map of pinyin -> list of candidates sorted by frequency (most common first)
+    private val frequencyOrder = mutableMapOf<String, List<String>>()
 
     // Track if dictionaries have been loaded
     private var isLoaded = false
@@ -62,6 +66,9 @@ object PinyinDictionary {
 
             // Load phrases dictionary
             loadPhrases(context)
+
+            // Load frequency data for smart sorting
+            loadFrequencyData(context)
         } catch (e: Exception) {
             Log.e(TAG, "Error loading pinyin dictionary", e)
         }
@@ -95,6 +102,84 @@ object PinyinDictionary {
         } catch (e: Exception) {
             Log.w(TAG, "Error loading pinyin phrases dictionary (optional)", e)
         }
+    }
+
+    /**
+     * Loads word frequency data from assets for smart candidate sorting.
+     */
+    private fun loadFrequencyData(context: Context) {
+        try {
+            val jsonString = context.assets.open(FREQUENCY_FILE).bufferedReader().use { it.readText() }
+            val jsonObject = JSONObject(jsonString)
+
+            val keys = jsonObject.keys()
+            var loadedCount = 0
+
+            while (keys.hasNext()) {
+                val key = keys.next()
+                // Skip metadata fields
+                if (key.startsWith("__")) {
+                    continue
+                }
+
+                val jsonArray = jsonObject.optJSONArray(key)
+                if (jsonArray != null) {
+                    val candidates = mutableListOf<String>()
+                    for (i in 0 until jsonArray.length()) {
+                        candidates.add(jsonArray.getString(i))
+                    }
+                    frequencyOrder[key] = candidates
+                    loadedCount++
+                }
+            }
+
+            Log.d(TAG, "Loaded $loadedCount word frequency entries")
+        } catch (e: Exception) {
+            Log.w(TAG, "Error loading word frequency data (optional)", e)
+        }
+    }
+
+    /**
+     * Sorts candidates by word frequency using the frequency dictionary.
+     * Candidates in the frequency order are ranked first (in that order),
+     * followed by remaining candidates in their original order.
+     * @param pinyin The pinyin input
+     * @param candidates The list of candidates to sort
+     * @return Sorted list with most frequent candidates first
+     */
+    fun sortByFrequency(pinyin: String, candidates: List<String>): List<String> {
+        val normalized = pinyin.lowercase().trim()
+        val freqOrder = frequencyOrder[normalized] ?: return candidates
+
+        // Create a map of candidate -> frequency rank (lower is more frequent)
+        val rankMap = freqOrder.withIndex().associate { (index, value) -> value to index }
+
+        // Sort: candidates in frequency order first, then others maintain original order
+        return candidates.sortedWith(compareBy(
+            { rankMap[it] ?: Int.MAX_VALUE },  // Frequent words first
+            { candidates.indexOf(it) }  // Maintain original order for same rank
+        ))
+    }
+
+    /**
+     * Gets the frequency rank for a specific candidate under a given pinyin.
+     * @return Frequency rank (0 = most frequent), or -1 if not in frequency list
+     */
+    fun getFrequencyRank(pinyin: String, candidate: String): Int {
+        val normalized = pinyin.lowercase().trim()
+        val freqOrder = frequencyOrder[normalized] ?: return -1
+        return freqOrder.indexOf(candidate)
+    }
+
+    /**
+     * Checks if a pinyin exists in the frequency data (i.e., is a "common" word/phrase).
+     * This is used to prioritize common phrases over rare/obscure ones.
+     * @param pinyin The pinyin to check
+     * @return True if the pinyin has frequency data (is a common word/phrase)
+     */
+    fun hasFrequencyData(pinyin: String): Boolean {
+        val normalized = pinyin.lowercase().trim()
+        return frequencyOrder.containsKey(normalized)
     }
 
     /**

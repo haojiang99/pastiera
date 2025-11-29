@@ -110,19 +110,39 @@ class UserPinyinMemory(context: Context) {
     }
 
     /**
-     * Sorts a list of candidates by user preference frequency (descending).
-     * Candidates with higher frequency appear first.
-     * Candidates with same frequency maintain their original order (stable sort).
+     * Sorts a list of candidates by combining base word frequency and user preference.
+     * Process:
+     * 1. First apply base word frequency sorting from PinyinDictionary
+     * 2. Then apply user preference overrides (user selections bubble to top)
+     *
+     * User selections are given a significant boost, so once a user selects
+     * a less common word, it will appear before the default frequent words.
+     *
      * @param pinyin The pinyin input
      * @param candidates The list of candidates to sort
-     * @return Sorted list with most frequently selected candidates first
+     * @return Sorted list with user preferences first, then by base frequency
      */
     fun sortByFrequency(pinyin: String, candidates: List<String>): List<String> {
         val normalizedPinyin = pinyin.lowercase().trim()
-        val candidateMap = memoryCache[normalizedPinyin] ?: return candidates
 
-        // Sort by frequency (descending), maintaining original order for equal frequencies
-        return candidates.sortedByDescending { candidateMap[it] ?: 0 }
+        // First, apply base word frequency sorting
+        val frequencySorted = PinyinDictionary.sortByFrequency(normalizedPinyin, candidates)
+
+        // Then, apply user preference overrides
+        val userFreqMap = memoryCache[normalizedPinyin]
+
+        // If no user data, return base frequency sorted list
+        if (userFreqMap == null || userFreqMap.isEmpty()) {
+            return frequencySorted
+        }
+
+        // Sort: user selections first (by user frequency), then by base frequency order
+        return frequencySorted.sortedWith(compareBy(
+            // User selections get negative scores (appear first), sorted by frequency descending
+            { -(userFreqMap[it] ?: 0) },
+            // For items with same user frequency (including 0), maintain base frequency order
+            { frequencySorted.indexOf(it) }
+        ))
     }
 
     /**
