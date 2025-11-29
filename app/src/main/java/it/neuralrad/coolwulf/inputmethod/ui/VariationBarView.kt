@@ -302,8 +302,9 @@ class VariationBarView(
         ).toInt()
 
         // Calculate button widths dynamically based on text content
-        val showNumberedButtons = snapshot.pinyinModeActive || snapshot.wubiModeActive || snapshot.wordPredictionActive
-        val textSizeSp = if (showNumberedButtons) 18f else 17.6f
+        // Show numbered buttons for Pinyin and Wubi only (not for English word prediction)
+        val showNumberedButtons = snapshot.pinyinModeActive || snapshot.wubiModeActive
+        val textSizeSp = if (showNumberedButtons || snapshot.wordPredictionActive) 18f else 17.6f
         val textPaint = android.graphics.Paint().apply {
             textSize = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_SP,
@@ -329,14 +330,19 @@ class VariationBarView(
         ).toInt()
 
         // Limit suggestions on pages 2+ to leave room for arrows
-        // English: 5 on page 1, 4 on pages 2+
+        // English word prediction: always 3 per page (BlackBerry-style: left/middle/right)
         // Pinyin: 9 on page 1, 8 on pages 2+
-        val maxSuggestionsToShow = if (snapshot.currentPage > 0) {
-            if (snapshot.wordPredictionActive) 4 else 8
+        val maxSuggestionsToShow = if (snapshot.wordPredictionActive) {
+            3  // Always show max 3 for English word prediction
+        } else if (snapshot.currentPage > 0) {
+            8
         } else {
             snapshot.variations.size
         }
         val variationsToProcess = snapshot.variations.take(maxSuggestionsToShow)
+
+        // For English word predictions, stretch buttons to fill screen width evenly
+        val isEnglishWordPrediction = snapshot.wordPredictionActive && !snapshot.pinyinModeActive && !snapshot.wubiModeActive
 
         // Calculate required widths for each suggestion
         data class SuggestionLayout(val text: String, val width: Int)
@@ -354,29 +360,67 @@ class VariationBarView(
         var limitedVariations = mutableListOf<String>()
         var buttonWidths = mutableListOf<Int>()
 
-        for (layout in suggestionLayouts) {
-            val widthWithSpacing = if (limitedVariations.isEmpty()) layout.width
-                                   else layout.width + spacingBetweenButtons
-            if (totalWidth + widthWithSpacing <= availableWidth) {
-                limitedVariations.add(layout.text)
-                buttonWidths.add(layout.width)
-                totalWidth += widthWithSpacing
-            } else {
-                break
-            }
-        }
+        if (isEnglishWordPrediction && suggestionLayouts.isNotEmpty()) {
+            // For English word predictions, divide screen width evenly among suggestions
+            // Reserve space for arrow buttons if pagination is needed
+            val arrowButtonSize = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                32f,
+                context.resources.displayMetrics
+            ).toInt()
+            val arrowMargin = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                4f,
+                context.resources.displayMetrics
+            ).toInt()
 
-        // If no variations fit, use one with reduced width
-        if (limitedVariations.isEmpty() && suggestionLayouts.isNotEmpty()) {
-            limitedVariations.add(suggestionLayouts[0].text)
-            buttonWidths.add(availableWidth)
+            // Calculate space needed for arrows
+            val prevArrowSpace = if (snapshot.hasPrevPage) arrowButtonSize + arrowMargin else 0
+            val nextArrowSpace = if (snapshot.hasNextPage) arrowButtonSize + arrowMargin else 0
+            val arrowsSpace = prevArrowSpace + nextArrowSpace
+
+            val numSuggestions = minOf(suggestionLayouts.size, 3)
+            val totalSpacing = (numSuggestions - 1) * spacingBetweenButtons
+            // Subtract arrow space from available width for suggestion buttons
+            val adjustedWidth = availableWidth - arrowsSpace
+            val widthPerButton = (adjustedWidth - totalSpacing) / numSuggestions
+
+            for (i in 0 until numSuggestions) {
+                limitedVariations.add(suggestionLayouts[i].text)
+                buttonWidths.add(widthPerButton)
+            }
+            totalWidth = adjustedWidth
+        } else {
+            // Original logic for Pinyin/Wubi/character variations
+            for (layout in suggestionLayouts) {
+                val widthWithSpacing = if (limitedVariations.isEmpty()) layout.width
+                                       else layout.width + spacingBetweenButtons
+                if (totalWidth + widthWithSpacing <= availableWidth) {
+                    limitedVariations.add(layout.text)
+                    buttonWidths.add(layout.width)
+                    totalWidth += widthWithSpacing
+                } else {
+                    break
+                }
+            }
+
+            // If no variations fit, use one with reduced width
+            if (limitedVariations.isEmpty() && suggestionLayouts.isNotEmpty()) {
+                limitedVariations.add(suggestionLayouts[0].text)
+                buttonWidths.add(availableWidth)
+            }
         }
 
         val buttonWidth = if (buttonWidths.isNotEmpty()) buttonWidths[0] else minButtonWidth
 
         // Calculate explicit width for variationsRow (total width used)
         val variationsRowWidth = totalWidth
-        val buttonHeight = buttonWidth // Use first button's width as height for square buttons
+        val buttonHeight = if (isEnglishWordPrediction) {
+            // For English word predictions, use a fixed height (similar to minButtonWidth)
+            minButtonWidth
+        } else {
+            buttonWidth // Use first button's width as height for square buttons
+        }
 
         // Reuse existing row if available, otherwise create new one
         val variationsRow = if (reuseExistingRow && currentVariationsRow != null) {
@@ -443,28 +487,33 @@ class VariationBarView(
             context.resources.displayMetrics
         ).toInt()
 
+        // Always remove existing arrow buttons first to ensure clean state
+        prevArrowButton?.let { arrow ->
+            (arrow.parent as? ViewGroup)?.removeView(arrow)
+        }
+        nextArrowButton?.let { arrow ->
+            (arrow.parent as? ViewGroup)?.removeView(arrow)
+        }
+
         if (showPagination) {
             // Previous page arrow (left) - only show if there's a previous page
             if (snapshot.hasPrevPage) {
                 val prevArrow = prevArrowButton ?: createArrowButton(arrowButtonSize, isNext = false).also {
                     prevArrowButton = it
                 }
-                if (prevArrow.parent == null) {
-                    val prevParams = LinearLayout.LayoutParams(arrowButtonSize, arrowButtonSize).apply {
-                        marginStart = TypedValue.applyDimension(
-                            TypedValue.COMPLEX_UNIT_DIP,
-                            2f,
-                            context.resources.displayMetrics
-                        ).toInt()
-                    }
-                    containerView.addView(prevArrow, 0, prevParams)
+                val prevParams = LinearLayout.LayoutParams(arrowButtonSize, arrowButtonSize).apply {
+                    marginStart = TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP,
+                        2f,
+                        context.resources.displayMetrics
+                    ).toInt()
+                    gravity = Gravity.CENTER_VERTICAL
                 }
+                containerView.addView(prevArrow, 0, prevParams)
                 prevArrow.alpha = 1f
                 prevArrow.isClickable = true
                 prevArrow.setOnClickListener { onPrevPageListener?.invoke() }
                 prevArrow.visibility = View.VISIBLE
-            } else {
-                prevArrowButton?.visibility = View.GONE
             }
 
             // Next page arrow (right) - show if there's a next page
@@ -472,28 +521,24 @@ class VariationBarView(
                 val nextArrow = nextArrowButton ?: createArrowButton(arrowButtonSize, isNext = true).also {
                     nextArrowButton = it
                 }
-                if (nextArrow.parent == null) {
-                    val nextParams = LinearLayout.LayoutParams(arrowButtonSize, arrowButtonSize).apply {
-                        marginEnd = TypedValue.applyDimension(
-                            TypedValue.COMPLEX_UNIT_DIP,
-                            2f,
-                            context.resources.displayMetrics
-                        ).toInt()
-                    }
-                    val insertIndex = if (snapshot.hasPrevPage) 2 else 1
-                    containerView.addView(nextArrow, insertIndex, nextParams)
+                val nextParams = LinearLayout.LayoutParams(arrowButtonSize, arrowButtonSize).apply {
+                    marginStart = TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP,
+                        4f,
+                        context.resources.displayMetrics
+                    ).toInt()
+                    gravity = Gravity.CENTER_VERTICAL
                 }
+                // Insert right after variationsRow (index 0) and prevArrow (if exists)
+                val insertIndex = if (snapshot.hasPrevPage) 2 else 1
+                containerView.addView(nextArrow, insertIndex, nextParams)
                 nextArrow.alpha = 1f
                 nextArrow.isClickable = true
                 nextArrow.setOnClickListener { onNextPageListener?.invoke() }
                 nextArrow.visibility = View.VISIBLE
-            } else {
-                nextArrowButton?.visibility = View.GONE
+                // Force layout update
+                containerView.requestLayout()
             }
-        } else {
-            // Hide arrow buttons if not in pagination mode
-            prevArrowButton?.visibility = View.GONE
-            nextArrowButton?.visibility = View.GONE
         }
 
         // Determine if we should stretch buttons (when no suggestions)
@@ -1265,6 +1310,8 @@ class VariationBarView(
             scaleType = ImageView.ScaleType.CENTER
             isClickable = true
             isFocusable = true
+            minimumWidth = buttonSize
+            minimumHeight = buttonSize
             layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
         }
     }

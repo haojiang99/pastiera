@@ -18,7 +18,7 @@ class EnglishWordPredictionController(
     companion object {
         private const val TAG = "EnglishWordPrediction"
         private const val MIN_PREFIX_LENGTH = 2  // Minimum characters before showing suggestions
-        private const val PAGE_SIZE = 5  // Number of suggestions per page
+        private const val PAGE_SIZE = 3  // Number of suggestions per page (BlackBerry-style: left/middle/right)
         private const val MAX_SUGGESTIONS = 50  // Maximum suggestions to fetch from dictionary
     }
 

@@ -887,12 +887,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             hasNextPage = wubiSnapshot.hasNextPage
             hasPrevPage = wubiSnapshot.hasPrevPage
         } else if (wordPredictionSnapshot.hasSuggestions && !shouldDisableSmartFeatures) {
-            // Show English word predictions (accent variations disabled)
-            // Limit to 5 suggestions for better readability
+            // Show English word predictions (BlackBerry-style: 3 per page)
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
                 lastInsertedChar = null,
-                variations = wordPredictionSnapshot.suggestions.take(5)
+                variations = wordPredictionSnapshot.suggestions.take(3)
             )
             wordPredictionActive = true
             wordPredictionPrefix = wordPredictionSnapshot.prefix
@@ -1303,12 +1302,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
 
             // Commit Pinyin buffer as-is (without conversion) with plain Enter
+            // Don't add space - user is typing English in Chinese mode
             if (pinyinInputController.isPinyinMode() && !shiftPressed && !ctrlPressed && !altPressed) {
                 val buffer = pinyinInputController.getBuffer()
                 if (buffer.isNotEmpty()) {
                     val committed = pinyinInputController.commitBufferAsIs()
                     if (committed != null && ic != null) {
-                        ic.commitText(committed + " ", 1)
+                        ic.commitText(committed, 1)
                         updateStatusBarText()
                         return true
                     }
@@ -1316,12 +1316,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
 
             // Commit Wubi buffer as-is (without conversion) with plain Enter
+            // Don't add space - user is typing English in Chinese mode
             if (wubiInputController.isWubiMode() && !shiftPressed && !ctrlPressed && !altPressed) {
                 val buffer = wubiInputController.getBuffer()
                 if (buffer.isNotEmpty()) {
                     val committed = wubiInputController.commitBufferAsIs()
                     if (committed != null && ic != null) {
-                        ic.commitText(committed + " ", 1)
+                        ic.commitText(committed, 1)
                         updateStatusBarText()
                         return true
                     }
