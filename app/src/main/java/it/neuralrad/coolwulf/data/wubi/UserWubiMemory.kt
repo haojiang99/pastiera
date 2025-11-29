@@ -8,6 +8,10 @@ import org.json.JSONObject
 /**
  * Manages user's Wubi input history to learn preferences and prioritize
  * frequently selected characters/phrases for each Wubi code.
+ *
+ * Also supports abbreviation learning: when user types multi-character phrases,
+ * the first letter of each character's Wubi code is recorded as an abbreviation.
+ * This allows typing abbreviated codes to suggest previously typed phrases.
  */
 class UserWubiMemory(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -15,12 +19,17 @@ class UserWubiMemory(context: Context) {
     // In-memory cache: wubiCode -> (character/phrase -> frequency count)
     private val memoryCache = mutableMapOf<String, MutableMap<String, Int>>()
 
+    // Abbreviation cache: abbreviation -> (phrase -> frequency count)
+    // e.g., for Wubi: "wq" -> ("我去" -> 5) where w is first letter of 我's code, q is first letter of 去's code
+    private val abbreviationCache = mutableMapOf<String, MutableMap<String, Int>>()
+
     init {
         loadFromPreferences()
     }
 
     /**
      * Records that the user selected a specific character/phrase for a given Wubi code.
+     * Also records abbreviation for multi-character phrases.
      * @param wubiCode The Wubi code input (e.g., "gggg", "wq")
      * @param character The selected character/phrase (e.g., "王", "我")
      */
@@ -34,8 +43,54 @@ class UserWubiMemory(context: Context) {
 
         Log.d(TAG, "Recorded: '$normalizedCode' -> '$character' (count: ${charMap[character]})")
 
+        // Record abbreviation for multi-character phrases
+        // The abbreviation is the first letter of each character's Wubi code
+        if (character.length >= 2) {
+            recordAbbreviation(normalizedCode, character)
+        }
+
         // Persist to SharedPreferences (async to avoid blocking)
         saveToPreferencesAsync()
+    }
+
+    /**
+     * Records an abbreviation for a phrase based on the Wubi code used.
+     * For Wubi, we use the input code itself as the abbreviation since it already
+     * represents first letters of components.
+     */
+    private fun recordAbbreviation(wubiCode: String, phrase: String) {
+        // In Wubi, when user types a short code for a phrase, that code itself
+        // becomes the abbreviation. For example, typing "wq" for "我去" means
+        // "wq" should suggest "我去" next time.
+        if (wubiCode.length >= 2 && wubiCode.length <= phrase.length) {
+            val abbrevMap = abbreviationCache.getOrPut(wubiCode) { mutableMapOf() }
+            abbrevMap[phrase] = (abbrevMap[phrase] ?: 0) + 1
+            Log.d(TAG, "Recorded abbreviation: '$wubiCode' -> '$phrase' (count: ${abbrevMap[phrase]})")
+        }
+    }
+
+    /**
+     * Gets candidates for an abbreviation.
+     * Returns candidates sorted by frequency (most used first).
+     * @param abbreviation The abbreviation to look up
+     * @return List of phrase candidates sorted by frequency descending
+     */
+    fun getAbbreviationCandidates(abbreviation: String): List<String> {
+        val normalized = abbreviation.lowercase().trim()
+        val candidateMap = abbreviationCache[normalized] ?: return emptyList()
+
+        // Sort by frequency descending
+        return candidateMap.entries
+            .sortedByDescending { it.value }
+            .map { it.key }
+    }
+
+    /**
+     * Checks if an abbreviation has any recorded candidates.
+     */
+    fun hasAbbreviationMatch(abbreviation: String): Boolean {
+        val normalized = abbreviation.lowercase().trim()
+        return abbreviationCache[normalized]?.isNotEmpty() == true
     }
 
     /**
@@ -69,6 +124,7 @@ class UserWubiMemory(context: Context) {
      */
     fun clearAll() {
         memoryCache.clear()
+        abbreviationCache.clear()
         prefs.edit().clear().apply()
         Log.d(TAG, "All Wubi user memory cleared")
     }
@@ -88,6 +144,7 @@ class UserWubiMemory(context: Context) {
      */
     private fun loadFromPreferences() {
         try {
+            // Load main memory cache
             val jsonString = prefs.getString(KEY_MEMORY_DATA, null)
             if (jsonString != null) {
                 val jsonObject = JSONObject(jsonString)
@@ -110,6 +167,30 @@ class UserWubiMemory(context: Context) {
 
                 Log.d(TAG, "Loaded Wubi user memory: ${memoryCache.size} code entries")
             }
+
+            // Load abbreviation cache
+            val abbrevJsonString = prefs.getString(KEY_ABBREVIATION_DATA, null)
+            if (abbrevJsonString != null) {
+                val jsonObject = JSONObject(abbrevJsonString)
+                val abbrevKeys = jsonObject.keys()
+
+                while (abbrevKeys.hasNext()) {
+                    val abbrev = abbrevKeys.next()
+                    val phrasesJson = jsonObject.getJSONObject(abbrev)
+                    val phraseKeys = phrasesJson.keys()
+
+                    val phraseMap = mutableMapOf<String, Int>()
+                    while (phraseKeys.hasNext()) {
+                        val phrase = phraseKeys.next()
+                        val frequency = phrasesJson.getInt(phrase)
+                        phraseMap[phrase] = frequency
+                    }
+
+                    abbreviationCache[abbrev] = phraseMap
+                }
+
+                Log.d(TAG, "Loaded Wubi abbreviation memory: ${abbreviationCache.size} abbreviation entries")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading Wubi user memory from preferences", e)
         }
@@ -120,6 +201,7 @@ class UserWubiMemory(context: Context) {
      */
     private fun saveToPreferencesAsync() {
         try {
+            // Save main memory cache
             val jsonObject = JSONObject()
 
             // Limit the cache size to prevent unbounded growth
@@ -151,8 +233,39 @@ class UserWubiMemory(context: Context) {
                 jsonObject.put(code, charsJson)
             }
 
+            // Save abbreviation cache
+            val abbrevJsonObject = JSONObject()
+
+            // Limit abbreviation cache size
+            val limitedAbbrevCache = if (abbreviationCache.size > MAX_ABBREV_CACHE_SIZE) {
+                abbreviationCache.entries
+                    .sortedByDescending { entry -> entry.value.values.sum() }
+                    .take(MAX_ABBREV_CACHE_SIZE)
+                    .associate { it.key to it.value }
+            } else {
+                abbreviationCache
+            }
+
+            for ((abbrev, phraseMap) in limitedAbbrevCache) {
+                val limitedPhrases = if (phraseMap.size > MAX_PHRASES_PER_ABBREV) {
+                    phraseMap.entries
+                        .sortedByDescending { it.value }
+                        .take(MAX_PHRASES_PER_ABBREV)
+                        .associate { it.key to it.value }
+                } else {
+                    phraseMap
+                }
+
+                val phrasesJson = JSONObject()
+                for ((phrase, frequency) in limitedPhrases) {
+                    phrasesJson.put(phrase, frequency)
+                }
+                abbrevJsonObject.put(abbrev, phrasesJson)
+            }
+
             prefs.edit()
                 .putString(KEY_MEMORY_DATA, jsonObject.toString())
+                .putString(KEY_ABBREVIATION_DATA, abbrevJsonObject.toString())
                 .apply()
         } catch (e: Exception) {
             Log.e(TAG, "Error saving Wubi user memory to preferences", e)
@@ -166,26 +279,35 @@ class UserWubiMemory(context: Context) {
         val totalCodes = memoryCache.size
         val totalSelections = memoryCache.values.sumOf { it.values.sum() }
         val totalCharacters = memoryCache.values.sumOf { it.size }
+        val totalAbbreviations = abbreviationCache.size
+        val totalAbbrevPhrases = abbreviationCache.values.sumOf { it.size }
 
         return MemoryStats(
             codeCount = totalCodes,
             characterCount = totalCharacters,
-            totalSelections = totalSelections
+            totalSelections = totalSelections,
+            abbreviationCount = totalAbbreviations,
+            abbreviationPhrases = totalAbbrevPhrases
         )
     }
 
     data class MemoryStats(
         val codeCount: Int,
         val characterCount: Int,
-        val totalSelections: Int
+        val totalSelections: Int,
+        val abbreviationCount: Int = 0,
+        val abbreviationPhrases: Int = 0
     )
 
     companion object {
         private const val TAG = "UserWubiMemory"
         private const val PREFS_NAME = "wubi_user_memory"
         private const val KEY_MEMORY_DATA = "memory_data"
+        private const val KEY_ABBREVIATION_DATA = "abbreviation_data"
         private const val MAX_CACHE_SIZE = 2000  // Maximum unique Wubi codes to store
         private const val MAX_CHARS_PER_CODE = 30  // Maximum characters per Wubi code
+        private const val MAX_ABBREV_CACHE_SIZE = 1000  // Maximum unique abbreviations to store
+        private const val MAX_PHRASES_PER_ABBREV = 20  // Maximum phrases per abbreviation
 
         @Volatile
         private var instance: UserWubiMemory? = null

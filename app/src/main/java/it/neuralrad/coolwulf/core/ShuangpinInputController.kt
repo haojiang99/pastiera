@@ -351,6 +351,7 @@ class ShuangpinInputController(
     /**
      * Updates candidate list based on current buffer.
      * Converts Shuangpin to Pinyin and looks up candidates.
+     * Also supports abbreviation matching (first letter of each syllable).
      */
     private fun updateCandidates() {
         currentPage = 0
@@ -370,6 +371,18 @@ class ShuangpinInputController(
         if (customPhrases.isNotEmpty()) {
             resultCandidates.addAll(customPhrases)
             Log.d(TAG, "Custom dictionary phrases for '$bufferStr': $customPhrases")
+        }
+
+        // Check for abbreviation matches (first letter of each pinyin syllable)
+        // This allows typing "nh" to get "你好" if user has typed it before
+        val abbreviationCandidates = getAbbreviationCandidates(bufferStr)
+        if (abbreviationCandidates.isNotEmpty()) {
+            for (candidate in abbreviationCandidates) {
+                if (candidate !in resultCandidates) {
+                    resultCandidates.add(candidate)
+                }
+            }
+            Log.d(TAG, "Abbreviation matches for '$bufferStr': $abbreviationCandidates")
         }
 
         // Convert Shuangpin to Pinyin
@@ -409,6 +422,18 @@ class ShuangpinInputController(
             // Partial input (odd number of characters)
             // Show candidates based on possible pinyin initials
 
+            // For odd-length input, try treating each character as an abbreviation key
+            // E.g., "nhm" could be abbreviation for "你好吗"
+            if (bufferStr.length >= 2) {
+                // The buffer itself could be an abbreviation
+                val directAbbrevCandidates = userMemory.getAbbreviationCandidates(bufferStr)
+                for (candidate in directAbbrevCandidates) {
+                    if (candidate !in resultCandidates) {
+                        resultCandidates.add(candidate)
+                    }
+                }
+            }
+
             if (bufferStr.length == 1) {
                 // Single key input - show all candidates for possible initials
                 val singleKeyCandidates = getSingleKeyCandidates(bufferStr[0])
@@ -427,7 +452,7 @@ class ShuangpinInputController(
                         resultCandidates.add(candidate)
                     }
                 }
-                phraseCandidateCount = customPhrases.size
+                phraseCandidateCount = resultCandidates.size - sortedCandidates.filter { it !in resultCandidates.take(resultCandidates.size - sortedCandidates.size) }.size
 
                 Log.d(TAG, "Single key '$bufferStr' -> prefixes: $prefixes, candidates: ${resultCandidates.size}")
             } else {
@@ -445,17 +470,58 @@ class ShuangpinInputController(
                             resultCandidates.add(candidate)
                         }
                     }
-                    phraseCandidateCount = customPhrases.size
-                } else {
-                    matchedPinyin = ""
-                    phraseCandidateCount = customPhrases.size
                 }
+                phraseCandidateCount = resultCandidates.size
 
                 Log.d(TAG, "Partial Shuangpin '$bufferStr' -> candidates: ${resultCandidates.size}")
             }
         }
 
         allCandidates = resultCandidates
+    }
+
+    /**
+     * Gets abbreviation candidates for the given input.
+     * In Shuangpin, we can use two approaches:
+     * 1. Direct abbreviation lookup (e.g., "nh" for "你好")
+     * 2. Convert each key to pinyin initial and lookup (e.g., "nh" -> initials n, h)
+     */
+    private fun getAbbreviationCandidates(input: String): List<String> {
+        val candidates = mutableListOf<String>()
+        val seen = mutableSetOf<String>()
+
+        // First, try direct abbreviation lookup from user memory
+        val directAbbrev = userMemory.getAbbreviationCandidates(input)
+        for (candidate in directAbbrev) {
+            if (candidate !in seen) {
+                seen.add(candidate)
+                candidates.add(candidate)
+            }
+        }
+
+        // Also try interpreting the Shuangpin keys as pinyin initials
+        // Each Shuangpin key maps to a pinyin initial, so "nh" -> "n" + "h" initials
+        // But we need to convert special keys: v->zh, i->ch, u->sh
+        val pinyinAbbrev = StringBuilder()
+        for (char in input) {
+            val prefixes = ShuangpinConverter.getPossiblePinyinPrefixes(char)
+            // Take the first (primary) initial for abbreviation
+            val initial = prefixes.firstOrNull() ?: char.toString()
+            // For abbreviation, we only want the first letter of the initial
+            pinyinAbbrev.append(initial.first())
+        }
+
+        if (pinyinAbbrev.toString() != input) {
+            val convertedAbbrev = userMemory.getAbbreviationCandidates(pinyinAbbrev.toString())
+            for (candidate in convertedAbbrev) {
+                if (candidate !in seen) {
+                    seen.add(candidate)
+                    candidates.add(candidate)
+                }
+            }
+        }
+
+        return candidates
     }
 
     /**

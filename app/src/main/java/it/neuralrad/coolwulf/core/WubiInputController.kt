@@ -348,7 +348,7 @@ class WubiInputController(
     /**
      * Updates candidate list based on current buffer.
      * Uses prefix matching to show all possible completions.
-     * Custom dictionary phrases appear first, then sorted by user frequency.
+     * Abbreviation matches appear first, then custom dictionary phrases, then sorted by user frequency.
      */
     private fun updateCandidates() {
         currentPage = 0  // Reset to first page when candidates change
@@ -364,10 +364,22 @@ class WubiInputController(
 
         val resultCandidates = mutableListOf<String>()
 
-        // Get custom dictionary phrases first (highest priority)
+        // Get abbreviation matches first (highest priority - learned from user input)
+        // This allows typing "wq" to get "我去" if user has typed it before
+        val abbreviationCandidates = userMemory.getAbbreviationCandidates(bufferStr)
+        if (abbreviationCandidates.isNotEmpty()) {
+            resultCandidates.addAll(abbreviationCandidates)
+            Log.d(TAG, "Abbreviation matches for '$bufferStr': $abbreviationCandidates")
+        }
+
+        // Get custom dictionary phrases second (second highest priority)
         val customPhrases = customDictionary.getWubiPhrases(bufferStr)
         if (customPhrases.isNotEmpty()) {
-            resultCandidates.addAll(customPhrases)
+            for (phrase in customPhrases) {
+                if (phrase !in resultCandidates) {
+                    resultCandidates.add(phrase)
+                }
+            }
             Log.d(TAG, "Custom dictionary phrases for '$bufferStr': $customPhrases")
         }
 
@@ -377,7 +389,7 @@ class WubiInputController(
         // Sort by user frequency (most frequently selected first)
         val sortedCandidates = userMemory.sortByFrequency(bufferStr, rawCandidates)
 
-        // Add dictionary candidates (excluding duplicates from custom dictionary)
+        // Add dictionary candidates (excluding duplicates)
         for (candidate in sortedCandidates) {
             if (candidate !in resultCandidates) {
                 resultCandidates.add(candidate)
@@ -386,7 +398,7 @@ class WubiInputController(
 
         allCandidates = resultCandidates
 
-        Log.d(TAG, "Updated candidates for '$bufferStr': ${allCandidates.size} (${customPhrases.size} custom, sorted by frequency)")
+        Log.d(TAG, "Updated candidates for '$bufferStr': ${allCandidates.size} (${abbreviationCandidates.size} abbrev, ${customPhrases.size} custom, sorted by frequency)")
     }
 
     /**
