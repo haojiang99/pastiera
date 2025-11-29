@@ -43,7 +43,7 @@ android {
 
     defaultConfig {
         applicationId = "it.neuralrad.coolwulf"
-        minSdk = 29
+        minSdk = 23
         targetSdk = 36
         versionCode = 12
         versionName = "0.54 Beta"
