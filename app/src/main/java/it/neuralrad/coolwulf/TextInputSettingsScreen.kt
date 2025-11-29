@@ -78,6 +78,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getWubiEnabled(context))
     }
 
+    var shuangpinEnabled by remember {
+        mutableStateOf(SettingsManager.getShuangpinEnabled(context))
+    }
+
     var chineseNextWordPrediction by remember {
         mutableStateOf(SettingsManager.getChineseNextWordPredictionEnabled(context))
     }
@@ -544,6 +548,49 @@ fun TextInputSettingsScreen(
                 }
             }
 
+            // Shuangpin Toggle
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.chinese_input_shuangpin),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.chinese_input_shuangpin_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                    Switch(
+                        checked = shuangpinEnabled,
+                        onCheckedChange = { enabled ->
+                            shuangpinEnabled = enabled
+                            SettingsManager.setShuangpinEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
+
             // Wubi Toggle
             Surface(
                 modifier = Modifier
@@ -587,8 +634,9 @@ fun TextInputSettingsScreen(
                 }
             }
 
-            // Info text when both are enabled
-            if (pinyinEnabled && wubiEnabled) {
+            // Info text when multiple are enabled
+            val enabledCount = listOf(pinyinEnabled, shuangpinEnabled, wubiEnabled).count { it }
+            if (enabledCount >= 2) {
                 Text(
                     text = stringResource(R.string.chinese_input_both_enabled_info),
                     style = MaterialTheme.typography.bodySmall,
@@ -597,8 +645,8 @@ fun TextInputSettingsScreen(
                 )
             }
 
-            // Next Word Prediction Toggle (only show if Pinyin or Wubi is enabled)
-            if (pinyinEnabled || wubiEnabled) {
+            // Next Word Prediction Toggle (only show if Chinese input is enabled)
+            if (pinyinEnabled || shuangpinEnabled || wubiEnabled) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -642,8 +690,8 @@ fun TextInputSettingsScreen(
                 }
             }
 
-            // Custom Dictionary (only show if Pinyin or Wubi is enabled)
-            if (pinyinEnabled || wubiEnabled) {
+            // Custom Dictionary (only show if Chinese input is enabled)
+            if (pinyinEnabled || shuangpinEnabled || wubiEnabled) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()

@@ -43,6 +43,7 @@ class VariationBarView(
     var onVariationSelectedListener: VariationButtonHandler.OnVariationSelectedListener? = null
     var onPinyinCandidateSelectedListener: VariationButtonHandler.OnPinyinCandidateSelectedListener? = null
     var onWubiCandidateSelectedListener: VariationButtonHandler.OnWubiCandidateSelectedListener? = null
+    var onShuangpinCandidateSelectedListener: VariationButtonHandler.OnShuangpinCandidateSelectedListener? = null
     var onCursorMovedListener: (() -> Unit)? = null
     var onNextPageListener: (() -> Unit)? = null
     var onPrevPageListener: (() -> Unit)? = null
@@ -55,6 +56,7 @@ class VariationBarView(
     private var languageToggleButtonView: TextView? = null
     private var punctuationToggleButtonView: TextView? = null
     private var isPinyinModeActive: Boolean = false
+    private var isShuangpinModeActive: Boolean = false
     private var isWubiModeActive: Boolean = false
     private var isChinesePunctuationMode: Boolean = true
     private var prevArrowButton: ImageView? = null
@@ -153,6 +155,13 @@ class VariationBarView(
     fun setPinyinModeActive(active: Boolean) {
         if (isPinyinModeActive != active) {
             isPinyinModeActive = active
+            updateLanguageToggleButton()
+        }
+    }
+
+    fun setShuangpinModeActive(active: Boolean) {
+        if (isShuangpinModeActive != active) {
+            isShuangpinModeActive = active
             updateLanguageToggleButton()
         }
     }
@@ -302,8 +311,8 @@ class VariationBarView(
         ).toInt()
 
         // Calculate button widths dynamically based on text content
-        // Show numbered buttons for Pinyin and Wubi only (not for English word prediction)
-        val showNumberedButtons = snapshot.pinyinModeActive || snapshot.wubiModeActive
+        // Show numbered buttons for Pinyin, Shuangpin, and Wubi only (not for English word prediction)
+        val showNumberedButtons = snapshot.pinyinModeActive || snapshot.shuangpinModeActive || snapshot.wubiModeActive
         val textSizeSp = if (showNumberedButtons || snapshot.wordPredictionActive) 18f else 17.6f
         val textPaint = android.graphics.Paint().apply {
             textSize = TypedValue.applyDimension(
@@ -460,7 +469,7 @@ class VariationBarView(
             val button = createVariationButton(
                 variation, inputConnection, individualButtonWidth, showNumberedButtons, index + 1,
                 snapshot.wordPredictionActive, wordPredictionPrefixLength, snapshot.pinyinModeActive,
-                snapshot.wubiModeActive, candidateIndex = index
+                snapshot.shuangpinModeActive, snapshot.wubiModeActive, candidateIndex = index
             )
             variationButtons.add(button)
             variationsRow.addView(button)
@@ -476,8 +485,8 @@ class VariationBarView(
         // Force a layout pass
         containerView.requestLayout()
 
-        // Add navigation arrows when in Pinyin, Wubi, or word prediction mode with suggestions
-        val showPagination = (snapshot.pinyinModeActive || snapshot.wubiModeActive || snapshot.wordPredictionActive) &&
+        // Add navigation arrows when in Pinyin, Shuangpin, Wubi, or word prediction mode with suggestions
+        val showPagination = (snapshot.pinyinModeActive || snapshot.shuangpinModeActive || snapshot.wubiModeActive || snapshot.wordPredictionActive) &&
                              snapshot.variations.isNotEmpty()
 
         // Smaller arrow button size
@@ -546,7 +555,7 @@ class VariationBarView(
         val stretchButtons = noSuggestions
 
         // Count visible buttons for weight calculation
-        val visibleButtonCount = if (isPinyinModeActive || isWubiModeActive) 5 else 4
+        val visibleButtonCount = if (isPinyinModeActive || isShuangpinModeActive || isWubiModeActive) 5 else 4
 
         // Microphone button - reuse if already attached
         val microphoneButton = microphoneButtonView ?: createMicrophoneButton(buttonWidth).also {
@@ -687,7 +696,7 @@ class VariationBarView(
         languageToggleButton.visibility = View.VISIBLE
 
         // Punctuation toggle button (中/英 for punctuation) - show right after language toggle in Chinese mode
-        if (isPinyinModeActive || isWubiModeActive) {
+        if (isPinyinModeActive || isShuangpinModeActive || isWubiModeActive) {
             val punctuationToggleButton = punctuationToggleButtonView ?: createPunctuationToggleButton(buttonWidth).also {
                 punctuationToggleButtonView = it
             }
@@ -1008,6 +1017,7 @@ class VariationBarView(
         isWordPrediction: Boolean = false,
         wordPredictionPrefixLength: Int = 0,
         isPinyinMode: Boolean = false,
+        isShuangpinMode: Boolean = false,
         isWubiMode: Boolean = false,
         candidateIndex: Int = 0
     ): TextView {
@@ -1082,6 +1092,17 @@ class VariationBarView(
                     context
                 )
             }
+            isShuangpinMode -> {
+                // Shuangpin candidate - just commit (replaces composing text automatically)
+                VariationButtonHandler.createShuangpinCandidateClickListener(
+                    variation,
+                    candidateIndex,
+                    inputConnection,
+                    onShuangpinCandidateSelectedListener,
+                    onVariationSelectedListener,
+                    context
+                )
+            }
             isWubiMode -> {
                 // Wubi candidate - just commit (replaces composing text automatically)
                 VariationButtonHandler.createWubiCandidateClickListener(
@@ -1104,7 +1125,7 @@ class VariationBarView(
         }
 
         // Capture flags for closure
-        val shouldVibrate = isWordPrediction || isPinyinMode || isWubiMode
+        val shouldVibrate = isWordPrediction || isPinyinMode || isShuangpinMode || isWubiMode
 
         return TextView(context).apply {
             text = displayText
@@ -1253,11 +1274,12 @@ class VariationBarView(
         languageToggleButtonView?.apply {
             text = when {
                 isPinyinModeActive -> "拼"
+                isShuangpinModeActive -> "双"
                 isWubiModeActive -> "五"
                 else -> "EN"
             }
             setTextColor(when {
-                isPinyinModeActive || isWubiModeActive -> Color.rgb(100, 200, 255)
+                isPinyinModeActive || isShuangpinModeActive || isWubiModeActive -> Color.rgb(100, 200, 255)
                 else -> Color.WHITE
             })
         }

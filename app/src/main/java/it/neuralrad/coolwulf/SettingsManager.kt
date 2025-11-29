@@ -39,8 +39,9 @@ object SettingsManager {
     private const val KEY_DISMISSED_RELEASES = "dismissed_releases" // Set of release tag_names that were dismissed
     private const val KEY_PINYIN_ENABLED = "pinyin_enabled" // Enable Pinyin input
     private const val KEY_WUBI_ENABLED = "wubi_enabled" // Enable Wubi input
+    private const val KEY_SHUANGPIN_ENABLED = "shuangpin_enabled" // Enable Shuangpin (双拼) input
     private const val KEY_PINYIN_CHARACTER_SET = "pinyin_character_set" // "simplified" or "traditional"
-    private const val KEY_CHINESE_INPUT_METHOD = "chinese_input_method" // "pinyin" or "wubi" (legacy, used for last active mode)
+    private const val KEY_CHINESE_INPUT_METHOD = "chinese_input_method" // "pinyin", "wubi", or "shuangpin" (legacy, used for last active mode)
     private const val KEY_CHINESE_NEXT_WORD_PREDICTION = "chinese_next_word_prediction" // Enable next word prediction for Chinese input
     private const val KEY_COMPACT_MODE = "compact_mode" // Compact mode - auto-hide status bar when no suggestions
     private const val KEY_POWER_SHORTCUTS_ENABLED = "power_shortcuts_enabled" // Enable power shortcuts
@@ -67,8 +68,9 @@ object SettingsManager {
     private val DEFAULT_SYM_PAGES_CONFIG = SymPagesConfig()
     private const val DEFAULT_PINYIN_ENABLED = true
     private const val DEFAULT_WUBI_ENABLED = false
+    private const val DEFAULT_SHUANGPIN_ENABLED = false
     private const val DEFAULT_PINYIN_CHARACTER_SET = "simplified"
-    private const val DEFAULT_CHINESE_INPUT_METHOD = "pinyin" // "pinyin" or "wubi" (legacy)
+    private const val DEFAULT_CHINESE_INPUT_METHOD = "pinyin" // "pinyin", "wubi", or "shuangpin" (legacy)
     private const val DEFAULT_CHINESE_NEXT_WORD_PREDICTION = true
     private const val DEFAULT_COMPACT_MODE = false
     private const val DEFAULT_POWER_SHORTCUTS_ENABLED = false
@@ -1014,19 +1016,48 @@ object SettingsManager {
     }
 
     /**
+     * Returns whether Shuangpin (双拼) input is enabled.
+     */
+    fun getShuangpinEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SHUANGPIN_ENABLED, DEFAULT_SHUANGPIN_ENABLED)
+    }
+
+    /**
+     * Sets whether Shuangpin (双拼) input is enabled.
+     */
+    fun setShuangpinEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SHUANGPIN_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether multiple Chinese input methods are enabled (cycling mode).
+     */
+    fun isMultipleChineseInputMethodsEnabled(context: Context): Boolean {
+        var count = 0
+        if (getPinyinEnabled(context)) count++
+        if (getWubiEnabled(context)) count++
+        if (getShuangpinEnabled(context)) count++
+        return count > 1
+    }
+
+    /**
      * Returns whether both Pinyin and Wubi are enabled (cycling mode).
+     * @deprecated Use isMultipleChineseInputMethodsEnabled instead
      */
     fun isBothChineseInputMethodsEnabled(context: Context): Boolean {
-        return getPinyinEnabled(context) && getWubiEnabled(context)
+        return isMultipleChineseInputMethodsEnabled(context)
     }
 
     /**
      * Returns the list of enabled Chinese input methods in cycle order.
-     * Returns empty list if neither is enabled.
+     * Returns empty list if none is enabled.
      */
     fun getEnabledChineseInputMethods(context: Context): List<String> {
         val methods = mutableListOf<String>()
         if (getPinyinEnabled(context)) methods.add("pinyin")
+        if (getShuangpinEnabled(context)) methods.add("shuangpin")
         if (getWubiEnabled(context)) methods.add("wubi")
         return methods
     }

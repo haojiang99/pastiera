@@ -23,6 +23,7 @@ import it.neuralrad.coolwulf.core.InputContextState
 import it.neuralrad.coolwulf.core.ModifierStateController
 import it.neuralrad.coolwulf.core.NavModeController
 import it.neuralrad.coolwulf.core.PinyinInputController
+import it.neuralrad.coolwulf.core.ShuangpinInputController
 import it.neuralrad.coolwulf.core.WubiInputController
 import it.neuralrad.coolwulf.core.SymLayoutController
 import it.neuralrad.coolwulf.core.TextInputController
@@ -139,6 +140,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private lateinit var keyboardVisibilityController: KeyboardVisibilityController
     private lateinit var launcherShortcutController: LauncherShortcutController
     private lateinit var pinyinInputController: PinyinInputController
+    private lateinit var shuangpinInputController: ShuangpinInputController
     private lateinit var wubiInputController: WubiInputController
     private lateinit var englishWordPredictionController: it.neuralrad.coolwulf.core.EnglishWordPredictionController
     private var clearAltOnSpaceEnabled: Boolean = false
@@ -420,11 +422,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         )
         autoCorrectionManager = AutoCorrectionManager(this)
         pinyinInputController = PinyinInputController(this)
+        shuangpinInputController = ShuangpinInputController(this)
         wubiInputController = WubiInputController(this)
 
         // Apply Chinese next word prediction setting
         val chineseNextWordPredictionEnabled = SettingsManager.getChineseNextWordPredictionEnabled(this)
         pinyinInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
+        shuangpinInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
         wubiInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
 
         englishWordPredictionController = it.neuralrad.coolwulf.core.EnglishWordPredictionController(this)
@@ -479,6 +483,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
         candidatesBarController.onWubiCandidateSelectedListener = wubiListener
 
+        // Register listener for Shuangpin candidate selection (with index)
+        val shuangpinListener = object : VariationButtonHandler.OnShuangpinCandidateSelectedListener {
+            override fun onShuangpinCandidateSelected(candidate: String, candidateIndex: Int) {
+                // Let ShuangpinInputController handle buffer management
+                shuangpinInputController.selectCandidate(candidateIndex)
+                // Clear Alt state after touch selection
+                modifierStateController.clearAltState(resetPressedState = true)
+                updateStatusBarText()
+            }
+        }
+        candidatesBarController.onShuangpinCandidateSelectedListener = shuangpinListener
+
         // Register listener for cursor movement (both controllers)
         val cursorListener = {
             updateStatusBarText()
@@ -487,9 +503,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Register listeners for page navigation
         candidatesBarController.onNextPageListener = {
-            // Navigate to next page (Pinyin, Wubi, or word prediction)
+            // Navigate to next page (Pinyin, Shuangpin, Wubi, or word prediction)
             if (pinyinInputController.isPinyinMode()) {
                 pinyinInputController.nextPage()
+            } else if (shuangpinInputController.isShuangpinMode()) {
+                shuangpinInputController.nextPage()
             } else if (wubiInputController.isWubiMode()) {
                 wubiInputController.nextPage()
             } else {
@@ -498,9 +516,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             updateStatusBarText()
         }
         candidatesBarController.onPrevPageListener = {
-            // Navigate to previous page (Pinyin, Wubi, or word prediction)
+            // Navigate to previous page (Pinyin, Shuangpin, Wubi, or word prediction)
             if (pinyinInputController.isPinyinMode()) {
                 pinyinInputController.prevPage()
+            } else if (shuangpinInputController.isShuangpinMode()) {
+                shuangpinInputController.prevPage()
             } else if (wubiInputController.isWubiMode()) {
                 wubiInputController.prevPage()
             } else {
@@ -744,7 +764,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     /**
      * Toggles Chinese input mode on/off.
-     * When both Pinyin and Wubi are enabled, cycles: EN -> Pinyin -> Wubi -> EN
+     * When multiple methods are enabled, cycles through them: EN -> Pinyin -> Shuangpin -> Wubi -> EN
      * When only one is enabled, toggles that mode on/off.
      * Called from EN/CN toggle button and Shift+Enter shortcut.
      */
@@ -758,68 +778,108 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
 
         val isPinyinActive = pinyinInputController.isPinyinMode()
+        val isShuangpinActive = shuangpinInputController.isShuangpinMode()
         val isWubiActive = wubiInputController.isWubiMode()
 
         if (enabledMethods.size == 1) {
             // Only one method enabled - simple toggle
             val method = enabledMethods[0]
-            if (method == "pinyin") {
-                pinyinInputController.togglePinyinMode()
-                if (!pinyinInputController.isPinyinMode()) {
-                    currentInputConnection?.finishComposingText()
+            when (method) {
+                "pinyin" -> {
+                    pinyinInputController.togglePinyinMode()
+                    if (!pinyinInputController.isPinyinMode()) {
+                        currentInputConnection?.finishComposingText()
+                    }
                 }
-            } else {
-                wubiInputController.toggleWubiMode()
-                if (!wubiInputController.isWubiMode()) {
-                    currentInputConnection?.finishComposingText()
+                "shuangpin" -> {
+                    shuangpinInputController.toggleShuangpinMode()
+                    if (!shuangpinInputController.isShuangpinMode()) {
+                        currentInputConnection?.finishComposingText()
+                    }
+                }
+                "wubi" -> {
+                    wubiInputController.toggleWubiMode()
+                    if (!wubiInputController.isWubiMode()) {
+                        currentInputConnection?.finishComposingText()
+                    }
                 }
             }
         } else {
-            // Both methods enabled - cycle: EN -> Pinyin -> Wubi -> EN
-            when {
-                !isPinyinActive && !isWubiActive -> {
-                    // EN -> Pinyin
-                    pinyinInputController.setPinyinMode(true)
-                }
-                isPinyinActive -> {
-                    // Pinyin -> Wubi
+            // Multiple methods enabled - cycle through them in order: EN -> first -> second -> ... -> EN
+            // Order is based on enabledMethods list: pinyin, shuangpin, wubi
+            val currentMethod = when {
+                isPinyinActive -> "pinyin"
+                isShuangpinActive -> "shuangpin"
+                isWubiActive -> "wubi"
+                else -> null  // EN mode
+            }
+
+            val currentIndex = currentMethod?.let { enabledMethods.indexOf(it) } ?: -1
+            val nextIndex = (currentIndex + 1) % (enabledMethods.size + 1)  // +1 for EN mode
+
+            // Deactivate current mode
+            when (currentMethod) {
+                "pinyin" -> {
                     pinyinInputController.setPinyinMode(false)
                     currentInputConnection?.finishComposingText()
-                    wubiInputController.setWubiMode(true)
                 }
-                isWubiActive -> {
-                    // Wubi -> EN
+                "shuangpin" -> {
+                    shuangpinInputController.setShuangpinMode(false)
+                    currentInputConnection?.finishComposingText()
+                }
+                "wubi" -> {
                     wubiInputController.setWubiMode(false)
                     currentInputConnection?.finishComposingText()
                 }
             }
+
+            // Activate next mode (if not cycling to EN)
+            if (nextIndex < enabledMethods.size) {
+                when (enabledMethods[nextIndex]) {
+                    "pinyin" -> pinyinInputController.setPinyinMode(true)
+                    "shuangpin" -> shuangpinInputController.setShuangpinMode(true)
+                    "wubi" -> wubiInputController.setWubiMode(true)
+                }
+            }
+            // else: cycle to EN mode, all modes are already deactivated
         }
         updateStatusBarText()
     }
 
     /**
-     * Checks if any Chinese input mode is active (Pinyin or Wubi).
+     * Checks if any Chinese input mode is active (Pinyin, Shuangpin, or Wubi).
      */
     private fun isChineseInputModeActive(): Boolean {
-        return pinyinInputController.isPinyinMode() || wubiInputController.isWubiMode()
+        return pinyinInputController.isPinyinMode() || shuangpinInputController.isShuangpinMode() || wubiInputController.isWubiMode()
     }
 
     /**
      * Toggles between Chinese and English punctuation modes.
-     * Both controllers share the same state for consistency.
+     * All Chinese input controllers share the same state for consistency.
      */
     private fun togglePunctuationMode() {
         val isPinyinMode = pinyinInputController.isPinyinMode()
+        val isShuangpinMode = shuangpinInputController.isShuangpinMode()
         val isWubiMode = wubiInputController.isWubiMode()
 
         if (isPinyinMode) {
             pinyinInputController.togglePunctuationMode()
-            // Sync Wubi controller to match
-            wubiInputController.setChinesePunctuationMode(pinyinInputController.isChinesePunctuationMode())
+            // Sync other controllers to match
+            val newMode = pinyinInputController.isChinesePunctuationMode()
+            shuangpinInputController.setChinesePunctuationMode(newMode)
+            wubiInputController.setChinesePunctuationMode(newMode)
+        } else if (isShuangpinMode) {
+            shuangpinInputController.togglePunctuationMode()
+            // Sync other controllers to match
+            val newMode = shuangpinInputController.isChinesePunctuationMode()
+            pinyinInputController.setChinesePunctuationMode(newMode)
+            wubiInputController.setChinesePunctuationMode(newMode)
         } else if (isWubiMode) {
             wubiInputController.togglePunctuationMode()
-            // Sync Pinyin controller to match
-            pinyinInputController.setChinesePunctuationMode(wubiInputController.isChinesePunctuationMode())
+            // Sync other controllers to match
+            val newMode = wubiInputController.isChinesePunctuationMode()
+            pinyinInputController.setChinesePunctuationMode(newMode)
+            shuangpinInputController.setChinesePunctuationMode(newMode)
         }
         updateStatusBarText()
     }
@@ -830,6 +890,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private fun isChinesePunctuationModeActive(): Boolean {
         return if (pinyinInputController.isPinyinMode()) {
             pinyinInputController.isChinesePunctuationMode()
+        } else if (shuangpinInputController.isShuangpinMode()) {
+            shuangpinInputController.isChinesePunctuationMode()
         } else if (wubiInputController.isWubiMode()) {
             wubiInputController.isChinesePunctuationMode()
         } else {
@@ -841,8 +903,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      * Aggiorna la status bar delegando al controller dedicato.
      */
     private fun updateStatusBarText() {
-        // Check if Pinyin or Wubi mode is active and use their candidates
+        // Check if Pinyin, Shuangpin, or Wubi mode is active and use their candidates
         val pinyinSnapshot = pinyinInputController.getSnapshot()
+        val shuangpinSnapshot = shuangpinInputController.getSnapshot()
         val wubiSnapshot = wubiInputController.getSnapshot()
 
         // Update English word prediction from cursor position
@@ -851,9 +914,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Determine which variations to show:
         // 1. Pinyin candidates (when Pinyin mode active)
-        // 2. Wubi candidates (when Wubi mode active)
-        // 3. Accent variations (when lastInsertedChar has variations)
-        // 4. English word predictions (when typing and no accent variations)
+        // 2. Shuangpin candidates (when Shuangpin mode active)
+        // 3. Wubi candidates (when Wubi mode active)
+        // 4. Accent variations (when lastInsertedChar has variations)
+        // 5. English word predictions (when typing and no accent variations)
         val variationSnapshot: VariationStateController.Snapshot
         var wordPredictionActive = false
         var wordPredictionPrefix = ""
@@ -874,6 +938,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             totalPages = pinyinSnapshot.totalPages
             hasNextPage = pinyinSnapshot.hasNextPage
             hasPrevPage = pinyinSnapshot.hasPrevPage
+        } else if (shuangpinSnapshot.isActive) {
+            // Shuangpin mode
+            variationSnapshot = VariationStateController.Snapshot(
+                isActive = true,
+                lastInsertedChar = if (shuangpinSnapshot.buffer.isNotEmpty()) shuangpinSnapshot.buffer.last() else null,
+                variations = shuangpinSnapshot.candidates.take(9)
+            )
+            // Pagination info from Shuangpin
+            currentPage = shuangpinSnapshot.currentPage
+            totalPages = shuangpinSnapshot.totalPages
+            hasNextPage = shuangpinSnapshot.hasNextPage
+            hasPrevPage = shuangpinSnapshot.hasPrevPage
         } else if (wubiSnapshot.isActive) {
             // Wubi mode
             variationSnapshot = VariationStateController.Snapshot(
@@ -927,6 +1003,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             shouldDisableSmartFeatures = shouldDisableSmartFeatures,
             pinyinModeActive = pinyinSnapshot.isActive,
             pinyinBuffer = pinyinSnapshot.buffer,
+            shuangpinModeActive = shuangpinSnapshot.isActive,
+            shuangpinBuffer = shuangpinSnapshot.buffer,
             wubiModeActive = wubiSnapshot.isActive,
             wubiBuffer = wubiSnapshot.buffer,
             wordPredictionActive = wordPredictionActive,
@@ -947,6 +1025,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val compactModeEnabled = SettingsManager.getCompactModeEnabled(this)
         val hasSuggestions = variationSnapshot.variations.isNotEmpty() ||
                             pinyinSnapshot.hasCandidates ||
+                            shuangpinSnapshot.hasCandidates ||
                             wubiSnapshot.hasCandidates
         if (compactModeEnabled) {
             val shouldHide = !hasSuggestions
@@ -1034,6 +1113,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Refresh Chinese next word prediction setting (may have changed in settings)
         val chineseNextWordPredictionEnabled = SettingsManager.getChineseNextWordPredictionEnabled(this)
         pinyinInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
+        shuangpinInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
         wubiInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
 
         val isEditable = inputContextState.isEditable
@@ -1157,14 +1237,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Only use pagination behavior when there are candidates to paginate
         // Otherwise, allow normal Alt/Shift locking behavior
         val isPinyinMode = pinyinInputController.isPinyinMode()
+        val isShuangpinMode = shuangpinInputController.isShuangpinMode()
         val isWubiMode = wubiInputController.isWubiMode()
         val isWordPredictionActive = englishWordPredictionController.hasActivePrediction()
 
         // Check if we have candidates to paginate (buffer not empty or has candidates)
         val hasPinyinCandidates = isPinyinMode && pinyinInputController.hasCandidates()
+        val hasShuangpinCandidates = isShuangpinMode && shuangpinInputController.hasCandidates()
         val hasWubiCandidates = isWubiMode && wubiInputController.hasCandidates()
         val hasWordPredictions = isWordPredictionActive && englishWordPredictionController.hasSuggestions()
-        val hasCandidatesToPaginate = hasPinyinCandidates || hasWubiCandidates || hasWordPredictions
+        val hasCandidatesToPaginate = hasPinyinCandidates || hasShuangpinCandidates || hasWubiCandidates || hasWordPredictions
 
         if (hasCandidatesToPaginate) {
             when {
@@ -1179,6 +1261,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 isPinyinMode -> {
                                     if (pinyinInputController.hasNextPage()) {
                                         pinyinInputController.nextPage()
+                                        updateStatusBarText()
+                                    }
+                                }
+                                isShuangpinMode -> {
+                                    if (shuangpinInputController.hasNextPage()) {
+                                        shuangpinInputController.nextPage()
                                         updateStatusBarText()
                                     }
                                 }
@@ -1212,6 +1300,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 isPinyinMode -> {
                                     if (pinyinInputController.hasPrevPage()) {
                                         pinyinInputController.prevPage()
+                                        updateStatusBarText()
+                                    }
+                                }
+                                isShuangpinMode -> {
+                                    if (shuangpinInputController.hasPrevPage()) {
+                                        shuangpinInputController.prevPage()
                                         updateStatusBarText()
                                     }
                                 }
@@ -1307,6 +1401,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val buffer = pinyinInputController.getBuffer()
                 if (buffer.isNotEmpty()) {
                     val committed = pinyinInputController.commitBufferAsIs()
+                    if (committed != null && ic != null) {
+                        ic.commitText(committed, 1)
+                        updateStatusBarText()
+                        return true
+                    }
+                }
+            }
+
+            // Commit Shuangpin buffer as-is (without conversion) with plain Enter
+            // Don't add space - user is typing English in Chinese mode
+            if (shuangpinInputController.isShuangpinMode() && !shiftPressed && !ctrlPressed && !altPressed) {
+                val buffer = shuangpinInputController.getBuffer()
+                if (buffer.isNotEmpty()) {
+                    val committed = shuangpinInputController.commitBufferAsIs()
                     if (committed != null && ic != null) {
                         ic.commitText(committed, 1)
                         updateStatusBarText()
@@ -1658,6 +1766,268 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (keyCode == KeyEvent.KEYCODE_ESCAPE ||
                 (keyCode == KeyEvent.KEYCODE_Q && ctrlPressed)) {
                 pinyinInputController.setPinyinMode(false)
+                ic.finishComposingText()
+                updateStatusBarText()
+                return true
+            }
+        }
+
+        // Handle Shuangpin input mode
+        if (shuangpinInputController.isShuangpinMode() && ic != null) {
+            // Handle SYM mode - when SYM is active, allow symbol input just like in English mode
+            if (symLayoutController.isSymActive()) {
+                val symResult = symLayoutController.handleKeyWhenActive(
+                    keyCode,
+                    event,
+                    ic,
+                    ctrlLatchActive = ctrlLatchActive,
+                    altLatchActive = altLatchActive,
+                    updateStatusBar = { updateStatusBarText() }
+                )
+                when (symResult) {
+                    SymLayoutController.SymKeyResult.CONSUME -> return true
+                    SymLayoutController.SymKeyResult.CALL_SUPER -> return super.onKeyDown(keyCode, event)
+                    SymLayoutController.SymKeyResult.NOT_HANDLED -> { /* Continue to Shuangpin handling */ }
+                }
+            }
+
+            // Handle Alt modifier - when Alt is active (latched, one-shot, or pressed), input alternate characters
+            if (event != null && (altLatchActive || altOneShot || altPressed)) {
+                val altChar = event.getUnicodeChar(KeyEvent.META_ALT_ON)
+                if (altChar != 0 && altChar != event.unicodeChar) {
+                    // Commit any existing buffer first
+                    val buffer = shuangpinInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        val committed = shuangpinInputController.commitBufferAsIs()
+                        if (committed != null) {
+                            ic.commitText(committed, 1)
+                        }
+                    }
+
+                    // Convert punctuation to Chinese if applicable
+                    val char = altChar.toChar()
+                    val chinesePunctuation: String? = if (shuangpinInputController.isChinesePunctuationMode()) {
+                        when (char) {
+                            ',' -> "，"
+                            '.' -> "。"
+                            '!' -> "！"
+                            '?' -> "？"
+                            ':' -> "："
+                            ';' -> "；"
+                            '(' -> "（"
+                            ')' -> "）"
+                            '[' -> "【"
+                            ']' -> "】"
+                            '<' -> "《"
+                            '>' -> "》"
+                            '~' -> "～"
+                            '\\' -> "、"
+                            '^' -> "……"
+                            '_' -> "——"
+                            '"' -> {
+                                val result = if (shuangpinInputController.isNextDoubleQuoteOpening()) "\u201C" else "\u201D"
+                                shuangpinInputController.toggleDoubleQuoteState()
+                                result
+                            }
+                            '\'' -> {
+                                val result = if (shuangpinInputController.isNextSingleQuoteOpening()) "\u2018" else "\u2019"
+                                shuangpinInputController.toggleSingleQuoteState()
+                                result
+                            }
+                            else -> null
+                        }
+                    } else null
+
+                    val textToCommit = chinesePunctuation ?: char.toString()
+                    ic.commitText(textToCommit, 1)
+
+                    if (altOneShot && !altLatchActive) {
+                        modifierStateController.clearAltState(resetPressedState = false)
+                    }
+
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // Handle number keys 1-9 for candidate selection
+            if (shuangpinInputController.hasCandidates()) {
+                if (keyCode in KeyEvent.KEYCODE_1..KeyEvent.KEYCODE_9) {
+                    val selected = shuangpinInputController.handleNumberKey(keyCode)
+                    if (selected != null) {
+                        ic.commitText(selected, 1)
+
+                        val remainingBuffer = shuangpinInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+
+                        modifierStateController.clearAltState(resetPressedState = true)
+                        updateStatusBarText()
+                        return true
+                    }
+                }
+                // Also check unicode char for number selection
+                if (event != null && event.unicodeChar != 0) {
+                    val char = event.unicodeChar.toChar()
+                    if (char.isDigit() && char in '1'..'9') {
+                        val number = char.digitToInt()
+                        val index = number - 1
+                        val selected = shuangpinInputController.selectCandidate(index)
+                        if (selected != null) {
+                            ic.commitText(selected, 1)
+
+                            val remainingBuffer = shuangpinInputController.getBuffer()
+                            if (remainingBuffer.isNotEmpty()) {
+                                ic.setComposingText(remainingBuffer, 1)
+                            }
+
+                            modifierStateController.clearAltState(resetPressedState = true)
+                            updateStatusBarText()
+                            return true
+                        }
+                    }
+                }
+            }
+
+            // Handle Shift+Del to clear entire Shuangpin buffer
+            if (keyCode == KeyEvent.KEYCODE_DEL && shiftPressed) {
+                val buffer = shuangpinInputController.getBuffer()
+                if (buffer.isNotEmpty()) {
+                    shuangpinInputController.clearBuffer()
+                    ic.setComposingText("", 1)
+                    ic.finishComposingText()
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // Handle backspace in Shuangpin mode
+            if (keyCode == KeyEvent.KEYCODE_DEL) {
+                val hadBuffer = shuangpinInputController.getBuffer().isNotEmpty()
+                if (shuangpinInputController.handleBackspace()) {
+                    val buffer = shuangpinInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        ic.setComposingText(buffer, 1)
+                    } else {
+                        ic.finishComposingText()
+                        if (hadBuffer) {
+                            ic.deleteSurroundingText(1, 0)
+                        }
+                    }
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // Handle space key - select first candidate
+            if (keyCode == KeyEvent.KEYCODE_SPACE && shuangpinInputController.hasCandidates()) {
+                val selected = shuangpinInputController.selectFirstCandidate()
+                if (selected != null) {
+                    ic.commitText(selected, 1)
+
+                    val remainingBuffer = shuangpinInputController.getBuffer()
+                    if (remainingBuffer.isNotEmpty()) {
+                        ic.setComposingText(remainingBuffer, 1)
+                    }
+
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // Handle letter keys for Shuangpin input
+            if (event != null && event.unicodeChar != 0) {
+                val char = event.unicodeChar.toChar()
+
+                if (char.isLetter()) {
+                    // If Shift is pressed, commit buffer and input capital letter directly
+                    if (shiftPressed) {
+                        val buffer = shuangpinInputController.getBuffer()
+                        if (buffer.isNotEmpty()) {
+                            val committed = shuangpinInputController.commitBufferAsIs()
+                            if (committed != null) {
+                                ic.commitText(committed, 1)
+                            }
+                        }
+                        ic.commitText(char.toString(), 1)
+                        updateStatusBarText()
+                        return true
+                    }
+
+                    // Add to Shuangpin buffer (lowercase)
+                    if (shuangpinInputController.handleLetterKey(char)) {
+                        val buffer = shuangpinInputController.getBuffer()
+                        ic.setComposingText(buffer, 1)
+                        updateStatusBarText()
+                        return true
+                    }
+                }
+            }
+
+            // Handle punctuation - use Chinese punctuation in Shuangpin mode
+            if (event != null && event.unicodeChar != 0 && shuangpinInputController.isChinesePunctuationMode()) {
+                val char = event.unicodeChar.toChar()
+                val chinesePunctuation: String? = when (char) {
+                    ',' -> "，"
+                    '.' -> "。"
+                    '!' -> "！"
+                    '?' -> "？"
+                    ':' -> "："
+                    ';' -> "；"
+                    '(' -> "（"
+                    ')' -> "）"
+                    '[' -> "【"
+                    ']' -> "】"
+                    '<' -> "《"
+                    '>' -> "》"
+                    '~' -> "～"
+                    '\\' -> "、"
+                    '^' -> "……"
+                    '_' -> "——"
+                    '"' -> {
+                        val result = if (shuangpinInputController.isNextDoubleQuoteOpening()) {
+                            "\u201C"
+                        } else {
+                            "\u201D"
+                        }
+                        shuangpinInputController.toggleDoubleQuoteState()
+                        result
+                    }
+                    '\'' -> {
+                        val result = if (shuangpinInputController.isNextSingleQuoteOpening()) {
+                            "\u2018"
+                        } else {
+                            "\u2019"
+                        }
+                        shuangpinInputController.toggleSingleQuoteState()
+                        result
+                    }
+                    else -> null
+                }
+
+                if (chinesePunctuation != null) {
+                    val buffer = shuangpinInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        val committed = shuangpinInputController.commitBufferAsIs()
+                        if (committed != null) {
+                            ic.commitText(committed, 1)
+                        }
+                    }
+                    ic.commitText(chinesePunctuation, 1)
+                    shuangpinInputController.onPunctuationInput()
+                    if (altOneShot) {
+                        altOneShot = false
+                    }
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // ESC key or Ctrl+Q to exit Shuangpin mode
+            if (keyCode == KeyEvent.KEYCODE_ESCAPE ||
+                (keyCode == KeyEvent.KEYCODE_Q && ctrlPressed)) {
+                shuangpinInputController.setShuangpinMode(false)
                 ic.finishComposingText()
                 updateStatusBarText()
                 return true

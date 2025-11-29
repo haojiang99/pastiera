@@ -81,6 +81,18 @@ object VariationButtonHandler {
     }
 
     /**
+     * Callback for Shuangpin candidate selection with index information.
+     */
+    interface OnShuangpinCandidateSelectedListener {
+        /**
+         * Called when a Shuangpin candidate is selected.
+         * @param candidate The selected candidate text
+         * @param candidateIndex The index of the candidate (accounting for current page)
+         */
+        fun onShuangpinCandidateSelected(candidate: String, candidateIndex: Int)
+    }
+
+    /**
      * Creates a listener for a Pinyin candidate button.
      * When clicked, commits the Chinese character and notifies with the candidate index.
      * Does NOT delete any committed text - the Pinyin buffer is shown as composing text.
@@ -142,6 +154,40 @@ object VariationButtonHandler {
 
             // Notify Wubi-specific listener with index
             wubiListener?.onWubiCandidateSelected(candidate, candidateIndex)
+
+            // Also notify general listener
+            listener?.onVariationSelected(candidate)
+        }
+    }
+
+    /**
+     * Creates a listener for a Shuangpin candidate button.
+     * When clicked, commits the Chinese character and notifies with the candidate index.
+     * Does NOT delete any committed text - the Shuangpin buffer is shown as composing text.
+     * Note: Vibration is handled by VariationBarView, not here.
+     */
+    fun createShuangpinCandidateClickListener(
+        candidate: String,
+        candidateIndex: Int,
+        inputConnection: InputConnection?,
+        shuangpinListener: OnShuangpinCandidateSelectedListener? = null,
+        listener: OnVariationSelectedListener? = null,
+        @Suppress("UNUSED_PARAMETER") context: Context? = null
+    ): View.OnClickListener {
+        return View.OnClickListener {
+            Log.d(TAG, "Click on Shuangpin candidate $candidateIndex: $candidate")
+
+            if (inputConnection == null) {
+                Log.w(TAG, "No inputConnection available to insert candidate")
+                return@OnClickListener
+            }
+
+            // Commit the Chinese character - this automatically replaces any composing text
+            inputConnection.commitText(candidate, 1)
+            Log.d(TAG, "Shuangpin candidate '$candidate' inserted")
+
+            // Notify Shuangpin-specific listener with index
+            shuangpinListener?.onShuangpinCandidateSelected(candidate, candidateIndex)
 
             // Also notify general listener
             listener?.onVariationSelected(candidate)

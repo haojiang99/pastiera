@@ -36,6 +36,13 @@ class CandidatesBarController(
             candidatesStatusBar.onWubiCandidateSelectedListener = value
         }
 
+    var onShuangpinCandidateSelectedListener: VariationButtonHandler.OnShuangpinCandidateSelectedListener? = null
+        set(value) {
+            field = value
+            inputStatusBar.onShuangpinCandidateSelectedListener = value
+            candidatesStatusBar.onShuangpinCandidateSelectedListener = value
+        }
+
     var onCursorMovedListener: (() -> Unit)? = null
         set(value) {
             field = value

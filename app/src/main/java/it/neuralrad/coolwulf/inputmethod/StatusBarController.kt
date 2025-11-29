@@ -64,6 +64,13 @@ class StatusBarController(
             variationBarView?.onWubiCandidateSelectedListener = value
         }
 
+    // Listener for Shuangpin candidate selection (with index)
+    var onShuangpinCandidateSelectedListener: VariationButtonHandler.OnShuangpinCandidateSelectedListener? = null
+        set(value) {
+            field = value
+            variationBarView?.onShuangpinCandidateSelectedListener = value
+        }
+
     // Listener for cursor movement (to update variations)
     var onCursorMovedListener: (() -> Unit)? = null
         set(value) {
@@ -135,6 +142,8 @@ class StatusBarController(
         val shouldDisableSmartFeatures: Boolean = false,
         val pinyinModeActive: Boolean = false,
         val pinyinBuffer: String = "",
+        val shuangpinModeActive: Boolean = false,
+        val shuangpinBuffer: String = "",
         val wubiModeActive: Boolean = false,
         val wubiBuffer: String = "",
         val wordPredictionActive: Boolean = false,
@@ -967,12 +976,14 @@ class StatusBarController(
         variationBarView?.onVariationSelectedListener = onVariationSelectedListener
         variationBarView?.onPinyinCandidateSelectedListener = onPinyinCandidateSelectedListener
         variationBarView?.onWubiCandidateSelectedListener = onWubiCandidateSelectedListener
+        variationBarView?.onShuangpinCandidateSelectedListener = onShuangpinCandidateSelectedListener
         variationBarView?.onCursorMovedListener = onCursorMovedListener
         variationBarView?.onLanguageToggleListener = onLanguageToggleListener
         variationBarView?.onSymButtonListener = onSymButtonListener
         variationBarView?.updateInputConnection(inputConnection)
         variationBarView?.setSymModeActive(snapshot.symPage > 0)
         variationBarView?.setPinyinModeActive(snapshot.pinyinModeActive)
+        variationBarView?.setShuangpinModeActive(snapshot.shuangpinModeActive)
         variationBarView?.setWubiModeActive(snapshot.wubiModeActive)
         variationBarView?.setChinesePunctuationMode(snapshot.chinesePunctuationMode)
 
