@@ -407,24 +407,52 @@ class ShuangpinInputController(
             Log.d(TAG, "Shuangpin '$bufferStr' -> Pinyin '$pinyinString', candidates: ${resultCandidates.size}")
         } else {
             // Partial input (odd number of characters)
-            // Try to parse what we can and show prefix-based candidates
-            val partialPinyin = getPartialPinyin(bufferStr)
-            if (partialPinyin.isNotEmpty()) {
-                matchedPinyin = partialPinyin
-                val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(partialPinyin)
-                val sortedCandidates = userMemory.sortByFrequency(partialPinyin, prefixCandidates)
+            // Show candidates based on possible pinyin initials
+
+            if (bufferStr.length == 1) {
+                // Single key input - show all candidates for possible initials
+                val singleKeyCandidates = getSingleKeyCandidates(bufferStr[0])
+                val prefixes = ShuangpinConverter.getPossiblePinyinPrefixes(bufferStr[0])
+                matchedPinyin = prefixes.firstOrNull() ?: bufferStr
+
+                // Sort by user memory using the first prefix as reference
+                val sortedCandidates = if (prefixes.isNotEmpty()) {
+                    userMemory.sortByFrequency(prefixes[0], singleKeyCandidates)
+                } else {
+                    singleKeyCandidates
+                }
+
                 for (candidate in sortedCandidates) {
                     if (candidate !in resultCandidates) {
                         resultCandidates.add(candidate)
                     }
                 }
                 phraseCandidateCount = customPhrases.size
-            } else {
-                matchedPinyin = ""
-                phraseCandidateCount = customPhrases.size
-            }
 
-            Log.d(TAG, "Partial Shuangpin '$bufferStr' -> candidates: ${resultCandidates.size}")
+                Log.d(TAG, "Single key '$bufferStr' -> prefixes: $prefixes, candidates: ${resultCandidates.size}")
+            } else {
+                // Multiple characters with odd length - parse complete pairs and show prefix candidates for the last char
+                val partialPinyin = getPartialPinyin(bufferStr)
+                if (partialPinyin.isNotEmpty()) {
+                    matchedPinyin = partialPinyin
+
+                    // Get candidates for the last (incomplete) key
+                    val lastChar = bufferStr.last()
+                    val lastKeyCandidates = getSingleKeyCandidates(lastChar)
+                    val sortedCandidates = userMemory.sortByFrequency(partialPinyin, lastKeyCandidates)
+                    for (candidate in sortedCandidates) {
+                        if (candidate !in resultCandidates) {
+                            resultCandidates.add(candidate)
+                        }
+                    }
+                    phraseCandidateCount = customPhrases.size
+                } else {
+                    matchedPinyin = ""
+                    phraseCandidateCount = customPhrases.size
+                }
+
+                Log.d(TAG, "Partial Shuangpin '$bufferStr' -> candidates: ${resultCandidates.size}")
+            }
         }
 
         allCandidates = resultCandidates
@@ -454,11 +482,40 @@ class ShuangpinInputController(
         // Handle partial (single character at end)
         if (hasPartial) {
             val lastChar = shuangpin.last()
-            // Just append the single character as a prefix hint
-            // It will be used for prefix matching
+            // Get possible pinyin prefixes for this single key
+            val prefixes = ShuangpinConverter.getPossiblePinyinPrefixes(lastChar)
+            if (prefixes.isNotEmpty()) {
+                // Add the first (most likely) prefix
+                syllables.add(prefixes[0])
+            }
         }
 
         return syllables.joinToString("")
+    }
+
+    /**
+     * Gets candidates for a single Shuangpin key (before second key is typed).
+     * Maps the key to possible pinyin initials and collects candidates from all matching syllables.
+     */
+    private fun getSingleKeyCandidates(key: Char): List<String> {
+        val candidates = mutableListOf<String>()
+        val seen = mutableSetOf<String>()
+
+        // Get all possible pinyin prefixes for this key
+        val prefixes = ShuangpinConverter.getPossiblePinyinPrefixes(key)
+
+        for (prefix in prefixes) {
+            // Get candidates for all syllables starting with this prefix
+            val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(prefix)
+            for (candidate in prefixCandidates) {
+                if (candidate !in seen) {
+                    seen.add(candidate)
+                    candidates.add(candidate)
+                }
+            }
+        }
+
+        return candidates
     }
 
     /**

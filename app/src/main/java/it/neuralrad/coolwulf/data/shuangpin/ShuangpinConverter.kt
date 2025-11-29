@@ -214,8 +214,9 @@ object ShuangpinConverter {
                 if (initial in nlInitials || initial in jqxyInitials) "v" else "ui"
             }
             'o' -> {
-                // uo for most, o for b/p/m/f
-                if (initial in setOf("b", "p", "m", "f")) "o" else "uo"
+                // uo for most, o for b/p/m/f/w
+                // w + o = wo (not wuo)
+                if (initial in setOf("b", "p", "m", "f", "w")) "o" else "uo"
             }
             'r' -> {
                 // er standalone, uan for others
@@ -331,5 +332,88 @@ object ShuangpinConverter {
         }
 
         return parts.joinToString(" ")
+    }
+
+    /**
+     * Gets all possible pinyin prefixes for a single Shuangpin key.
+     * Used to show candidates when user has typed only one character.
+     *
+     * For example:
+     * - 'n' as initial → returns ["n"] (for ni, na, ne, etc.)
+     * - 'v' as initial → returns ["zh"] (zh is mapped to v)
+     * - 'i' as initial → returns ["ch"] (ch is mapped to i)
+     * - 'u' as initial → returns ["sh"] (sh is mapped to u)
+     *
+     * @param key The single Shuangpin key
+     * @return List of possible pinyin initials/prefixes
+     */
+    fun getPossiblePinyinPrefixes(key: Char): List<String> {
+        val lowerKey = key.lowercaseChar()
+        val prefixes = mutableListOf<String>()
+
+        // Check special initial mappings first (v→zh, i→ch, u→sh)
+        keyToInitial[lowerKey]?.let { specialInitial ->
+            prefixes.add(specialInitial)
+        }
+
+        // Also add the key itself as a potential initial (most letters are their own initial)
+        if (lowerKey.isLetter() && lowerKey != 'v') {
+            // v is special (maps to zh), so don't add 'v' as itself
+            // For i and u, they can also be vowels (yi, wu based syllables)
+            val keyStr = lowerKey.toString()
+            if (keyStr !in prefixes) {
+                prefixes.add(keyStr)
+            }
+        }
+
+        // Handle vowel keys that can start zero-initial syllables
+        when (lowerKey) {
+            'a' -> {
+                // 'a' can start: a, ai, an, ang, ao
+                if ("a" !in prefixes) prefixes.add("a")
+            }
+            'o' -> {
+                // 'o' can start: o, ou
+                if ("o" !in prefixes) prefixes.add("o")
+            }
+            'e' -> {
+                // 'e' can start: e, ei, en, eng, er
+                if ("e" !in prefixes) prefixes.add("e")
+            }
+        }
+
+        return prefixes
+    }
+
+    /**
+     * Gets all possible complete pinyin syllables that start with the given initial.
+     * Used for showing candidate characters for single-key input.
+     *
+     * @param initial The pinyin initial (e.g., "n", "zh", "sh")
+     * @return List of possible complete pinyin syllables
+     */
+    fun getPossibleSyllablesForInitial(initial: String): List<String> {
+        val syllables = mutableListOf<String>()
+
+        // Combine initial with all possible finals
+        for ((_, finals) in keyToFinals) {
+            for (final in finals) {
+                val candidate = combinePinyin(initial, final)
+                if (candidate !in syllables && isValidPinyinSyllable(candidate)) {
+                    syllables.add(candidate)
+                }
+            }
+        }
+
+        return syllables
+    }
+
+    /**
+     * Basic validation of pinyin syllable.
+     * More comprehensive validation is done by PinyinDictionary.
+     */
+    private fun isValidPinyinSyllable(syllable: String): Boolean {
+        // Very basic validation - just check it's not empty and reasonable length
+        return syllable.isNotEmpty() && syllable.length <= 6
     }
 }
