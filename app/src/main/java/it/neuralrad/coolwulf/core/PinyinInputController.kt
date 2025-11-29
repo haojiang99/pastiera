@@ -569,7 +569,7 @@ class PinyinInputController(
 
     /**
      * Generates combined candidates from multiple segments.
-     * Shows custom dictionary phrases first, then combined phrases, then individual character options.
+     * Shows abbreviation matches first, then custom dictionary phrases, then combined phrases, then individual character options.
      */
     private fun generateCombinedCandidates(fullBuffer: String, segments: List<ParsedSegment>) {
         if (segments.isEmpty()) {
@@ -583,7 +583,11 @@ class PinyinInputController(
         // Find the actual first syllable (not phrase) for single-character fallback
         val bufferWithoutSep = fullBuffer.replace(SEPARATOR.toString(), "")
 
-        // Get custom dictionary phrases for this code (highest priority)
+        // Get abbreviation matches from user memory (highest priority)
+        // These are phrases the user has typed before using abbreviations like "nh" for "你好"
+        val abbreviationCandidates = userMemory.getAbbreviationCandidates(bufferWithoutSep)
+
+        // Get custom dictionary phrases for this code (second highest priority)
         val customPhrases = customDictionary.getPinyinPhrases(bufferWithoutSep)
         val actualFirstSyllable = PinyinDictionary.findLongestSyllable(bufferWithoutSep) ?: ""
 
@@ -618,20 +622,30 @@ class PinyinInputController(
 
         val resultCandidates = mutableListOf<String>()
 
-        // Add custom dictionary phrases first (highest priority)
+        // Add abbreviation matches first (highest priority - learned from user input)
+        if (abbreviationCandidates.isNotEmpty()) {
+            resultCandidates.addAll(abbreviationCandidates)
+            Log.d(TAG, "Abbreviation matches for '$bufferWithoutSep': $abbreviationCandidates")
+        }
+
+        // Add custom dictionary phrases second (second highest priority)
+        for (phrase in customPhrases) {
+            if (phrase !in resultCandidates) {
+                resultCandidates.add(phrase)
+            }
+        }
         if (customPhrases.isNotEmpty()) {
-            resultCandidates.addAll(customPhrases)
             Log.d(TAG, "Custom dictionary phrases for '$bufferWithoutSep': $customPhrases")
         }
 
-        // If no regular candidates but we have custom phrases, use them
+        // If no regular candidates but we have abbreviation/custom matches, use them
         if (!allHaveCandidates && firstSyllableCharCandidates.isEmpty()) {
-            if (customPhrases.isNotEmpty()) {
-                // We have custom phrases, use them
+            if (resultCandidates.isNotEmpty()) {
+                // We have abbreviation or custom phrases, use them
                 allCandidates = resultCandidates
                 phraseCandidateCount = resultCandidates.size
                 matchedPinyin = bufferWithoutSep
-                Log.d(TAG, "Using only custom phrases for '$bufferWithoutSep': $customPhrases")
+                Log.d(TAG, "Using only abbreviation/custom matches for '$bufferWithoutSep': $resultCandidates")
                 return
             }
             // No candidates at all - fall back to single segment mode
@@ -736,17 +750,28 @@ class PinyinInputController(
 
     /**
      * Handles input that couldn't be fully parsed.
-     * Falls back to prefix matching, but always checks custom dictionary first.
+     * Falls back to abbreviation matching, custom dictionary, then prefix matching.
      */
     private fun handleUnparsableInput(bufferStr: String) {
         val cleanBuffer = bufferStr.replace(SEPARATOR.toString(), "")
 
         val resultCandidates = mutableListOf<String>()
 
-        // Check custom dictionary first (highest priority)
+        // Check abbreviation matches first (highest priority - learned from user input)
+        val abbreviationCandidates = userMemory.getAbbreviationCandidates(cleanBuffer)
+        if (abbreviationCandidates.isNotEmpty()) {
+            resultCandidates.addAll(abbreviationCandidates)
+            Log.d(TAG, "Abbreviation matches for unparsable '$cleanBuffer': $abbreviationCandidates")
+        }
+
+        // Check custom dictionary second (second highest priority)
         val customPhrases = customDictionary.getPinyinPhrases(cleanBuffer)
+        for (phrase in customPhrases) {
+            if (phrase !in resultCandidates) {
+                resultCandidates.add(phrase)
+            }
+        }
         if (customPhrases.isNotEmpty()) {
-            resultCandidates.addAll(customPhrases)
             Log.d(TAG, "Custom dictionary phrases for unparsable '$cleanBuffer': $customPhrases")
         }
 
@@ -762,15 +787,15 @@ class PinyinInputController(
             allCandidates = resultCandidates
             matchedPinyin = PinyinDictionary.getFirstSyllableForPrefix(cleanBuffer) ?: cleanBuffer
             firstSyllable = matchedPinyin
-            phraseCandidateCount = customPhrases.size
-            Log.d(TAG, "Prefix fallback: $cleanBuffer → ${allCandidates.size} candidates (${customPhrases.size} custom)")
-        } else if (customPhrases.isNotEmpty()) {
-            // Only custom phrases available
+            phraseCandidateCount = abbreviationCandidates.size + customPhrases.size
+            Log.d(TAG, "Prefix fallback: $cleanBuffer → ${allCandidates.size} candidates (${abbreviationCandidates.size} abbrev, ${customPhrases.size} custom)")
+        } else if (resultCandidates.isNotEmpty()) {
+            // Only abbreviation/custom phrases available
             allCandidates = resultCandidates
             matchedPinyin = cleanBuffer
             firstSyllable = cleanBuffer
-            phraseCandidateCount = customPhrases.size
-            Log.d(TAG, "Only custom phrases for '$cleanBuffer': $customPhrases")
+            phraseCandidateCount = resultCandidates.size
+            Log.d(TAG, "Only abbreviation/custom phrases for '$cleanBuffer': $resultCandidates")
         } else {
             allCandidates = emptyList()
             matchedPinyin = ""
