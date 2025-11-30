@@ -557,6 +557,13 @@ class VariationBarView(
         // Count visible buttons for weight calculation
         val visibleButtonCount = if (isPinyinModeActive || isShuangpinModeActive || isWubiModeActive) 5 else 4
 
+        // Common margin for button spacing
+        val buttonMargin = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            4f,
+            context.resources.displayMetrics
+        ).toInt()
+
         // Microphone button - reuse if already attached
         val microphoneButton = microphoneButtonView ?: createMicrophoneButton(buttonWidth).also {
             microphoneButtonView = it
@@ -592,11 +599,11 @@ class VariationBarView(
         if (settingsButton.parent == null) {
             val settingsParams = if (stretchButtons) {
                 LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
-                    topMargin = (-buttonWidth * 0.1f).toInt()
+                    marginStart = buttonMargin
                 }
             } else {
                 LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
-                    topMargin = (-buttonWidth * 0.1f).toInt()
+                    marginStart = buttonMargin
                 }
             }
             containerView.addView(settingsButton, settingsParams)
@@ -622,19 +629,11 @@ class VariationBarView(
         if (symButton.parent == null) {
             val symParams = if (stretchButtons) {
                 LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
-                    marginStart = TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        4f,
-                        context.resources.displayMetrics
-                    ).toInt()
+                    marginStart = buttonMargin
                 }
             } else {
                 LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
-                    marginStart = TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        4f,
-                        context.resources.displayMetrics
-                    ).toInt()
+                    marginStart = buttonMargin
                 }
             }
             containerView.addView(symButton, symParams)
@@ -662,19 +661,11 @@ class VariationBarView(
         if (languageToggleButton.parent == null) {
             val langParams = if (stretchButtons) {
                 LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
-                    marginStart = TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        4f,
-                        context.resources.displayMetrics
-                    ).toInt()
+                    marginStart = buttonMargin
                 }
             } else {
                 LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
-                    marginStart = TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        4f,
-                        context.resources.displayMetrics
-                    ).toInt()
+                    marginStart = buttonMargin
                 }
             }
             containerView.addView(languageToggleButton, langParams)
@@ -714,19 +705,11 @@ class VariationBarView(
             if (punctuationToggleButton.parent == null) {
                 val punctParams = if (stretchButtons) {
                     LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
-                        marginStart = TypedValue.applyDimension(
-                            TypedValue.COMPLEX_UNIT_DIP,
-                            4f,
-                            context.resources.displayMetrics
-                        ).toInt()
+                        marginStart = buttonMargin
                     }
                 } else {
                     LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
-                        marginStart = TypedValue.applyDimension(
-                            TypedValue.COMPLEX_UNIT_DIP,
-                            4f,
-                            context.resources.displayMetrics
-                        ).toInt()
+                        marginStart = buttonMargin
                     }
                 }
                 // Insert right after language toggle button (clamp to valid range)
