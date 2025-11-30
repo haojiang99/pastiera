@@ -49,6 +49,19 @@
     <string name="alt_ctrl_speech_shortcut_title">Alt+Ctrl Speech Recognition</string>
     <string name="alt_ctrl_speech_shortcut_description">Enable Alt+Ctrl keyboard shortcut to start speech recognition</string>
 
+    <!-- Voice Input Button -->
+    <string name="show_voice_input_button_title">Voice Input Button</string>
+    <string name="show_voice_input_button_description">Show microphone button in the status bar</string>
+
+    <!-- Clipboard History -->
+    <string name="clipboard_history_enabled_title">Clipboard History</string>
+    <string name="clipboard_history_enabled_description">Store copied text and allow quick paste from history</string>
+    <string name="show_clipboard_button_title">Clipboard Button</string>
+    <string name="show_clipboard_button_description">Show clipboard button in the status bar</string>
+    <string name="clipboard_history_title">Clipboard History</string>
+    <string name="clipboard_history_clear">Clear</string>
+    <string name="clipboard_history_empty">No clipboard history</string>
+
     <!-- Static Variation Bar Mode -->
     <string name="static_variation_bar_mode_title">Static Variation Bar</string>
     <string name="static_variation_bar_mode_description">Always show a fixed set of utility keys in the variation row instead of context-based variations. Static keys remain available even when smart features are disabled.</string>
@@ -70,7 +83,15 @@
     <string name="chinese_input_both_enabled_info">Multiple methods enabled: Press Shift+Enter or toggle button to cycle between input methods</string>
     <string name="chinese_next_word_prediction_title">Next Word Prediction</string>
     <string name="chinese_next_word_prediction_description">Show predicted next words/phrases after selecting a character</string>
-    
+
+    <!-- Default Input Mode -->
+    <string name="default_input_mode_title">Default Input Mode</string>
+    <string name="default_input_mode_description">Choose which input mode to use when starting to type. The keyboard will remember your last used mode.</string>
+    <string name="input_mode_english">English</string>
+    <string name="input_mode_pinyin">Pinyin (拼音)</string>
+    <string name="input_mode_shuangpin">Shuangpin (双拼)</string>
+    <string name="input_mode_wubi">Wubi (五笔)</string>
+
     <!-- Info Section -->
     <string name="info_title">Information</string>
     <string name="info_description">Settings are automatically saved and immediately applied to the input method.</string>

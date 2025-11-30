@@ -21,7 +21,8 @@ class WubiInputController(
 ) {
     companion object {
         private const val TAG = "WubiInputController"
-        private const val MAX_BUFFER_LENGTH = 4 // Wubi codes are max 4 characters
+        private const val MAX_WUBI_CODE_LENGTH = 4 // Wubi codes are max 4 characters
+        private const val MAX_BUFFER_LENGTH = 30 // Allow longer input for English words (commit with Enter)
         private const val PAGE_SIZE = 9  // Number of candidates per page
     }
 
@@ -133,20 +134,8 @@ class WubiInputController(
             nextWordPredictor.onUserStartedTyping()
         }
 
-        // Check buffer length limit - Wubi codes are max 4 characters
+        // Check buffer length limit for typing English words
         if (buffer.length >= MAX_BUFFER_LENGTH) {
-            // In Wubi, if buffer is full but no exact match, we might want to
-            // auto-select the first candidate and start fresh with this key
-            if (allCandidates.isNotEmpty()) {
-                val selected = selectCandidate(0)
-                if (selected != null) {
-                    // After auto-selecting, add the new key to buffer
-                    buffer.append(lowerChar)
-                    updateCandidates()
-                    Log.d(TAG, "Auto-selected first candidate, new letter: '$lowerChar' → Buffer: '$buffer'")
-                    return true
-                }
-            }
             Log.w(TAG, "Buffer full, ignoring input")
             return true
         }
@@ -157,8 +146,9 @@ class WubiInputController(
 
         // In Wubi, if we have exactly 4 characters and only one candidate,
         // we can auto-commit it (traditional Wubi behavior)
-        if (buffer.length == MAX_BUFFER_LENGTH && allCandidates.size == 1) {
-            Log.d(TAG, "Auto-commit single candidate at max length")
+        // But only when there are Wubi candidates - if no candidates, user might be typing English
+        if (buffer.length == MAX_WUBI_CODE_LENGTH && allCandidates.size == 1) {
+            Log.d(TAG, "Auto-commit single candidate at max Wubi code length")
             // Don't auto-commit - let user decide
         }
 

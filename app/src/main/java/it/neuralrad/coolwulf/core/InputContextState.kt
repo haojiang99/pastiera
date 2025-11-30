@@ -36,6 +36,13 @@ data class InputContextState(
     val isFilterField: Boolean
         get() = restrictedReason == RestrictedReason.FILTER
 
+    /**
+     * Returns true if this text field should force English input mode.
+     * This includes: URL bars, email fields, password fields, number fields, phone fields, and filter fields.
+     */
+    val shouldForceEnglishInput: Boolean
+        get() = isUriField || isEmailField || isPasswordField || isNumericField || isPhoneField || isFilterField
+
     enum class RestrictedReason {
         PASSWORD,
         URI,

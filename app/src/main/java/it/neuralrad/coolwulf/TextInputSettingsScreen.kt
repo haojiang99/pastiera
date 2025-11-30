@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -62,6 +64,18 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getAltCtrlSpeechShortcutEnabled(context))
     }
 
+    var showVoiceInputButton by remember {
+        mutableStateOf(SettingsManager.getShowVoiceInputButton(context))
+    }
+
+    var clipboardHistoryEnabled by remember {
+        mutableStateOf(SettingsManager.getClipboardHistoryEnabled(context))
+    }
+
+    var showClipboardButton by remember {
+        mutableStateOf(SettingsManager.getShowClipboardButton(context))
+    }
+
     var staticVariationBarMode by remember {
         mutableStateOf(SettingsManager.isStaticVariationBarModeEnabled(context))
     }
@@ -85,6 +99,12 @@ fun TextInputSettingsScreen(
     var chineseNextWordPrediction by remember {
         mutableStateOf(SettingsManager.getChineseNextWordPredictionEnabled(context))
     }
+
+    var defaultInputMode by remember {
+        mutableStateOf(SettingsManager.getDefaultInputMode(context))
+    }
+
+    var showDefaultModeDialog by remember { mutableStateOf(false) }
 
     // Handle system back button
     BackHandler { onBack() }
@@ -408,6 +428,135 @@ fun TextInputSettingsScreen(
                 }
             }
 
+            // Show Voice Input Button
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.show_voice_input_button_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.show_voice_input_button_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                    Switch(
+                        checked = showVoiceInputButton,
+                        onCheckedChange = { enabled ->
+                            showVoiceInputButton = enabled
+                            SettingsManager.setShowVoiceInputButton(context, enabled)
+                        }
+                    )
+                }
+            }
+
+            // Clipboard History Enabled
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.clipboard_history_enabled_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.clipboard_history_enabled_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                    Switch(
+                        checked = clipboardHistoryEnabled,
+                        onCheckedChange = { enabled ->
+                            clipboardHistoryEnabled = enabled
+                            SettingsManager.setClipboardHistoryEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
+
+            // Show Clipboard Button
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.show_clipboard_button_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.show_clipboard_button_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                    Switch(
+                        checked = showClipboardButton,
+                        onCheckedChange = { enabled ->
+                            showClipboardButton = enabled
+                            SettingsManager.setShowClipboardButton(context, enabled)
+                        }
+                    )
+                }
+            }
+
             // Static Variation Bar Mode
             Surface(
                 modifier = Modifier
@@ -645,6 +794,54 @@ fun TextInputSettingsScreen(
                 )
             }
 
+            // Default Input Mode Selection
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp)
+                    .clickable { showDefaultModeDialog = true }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Language,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.default_input_mode_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = when (defaultInputMode) {
+                                "english" -> stringResource(R.string.input_mode_english)
+                                "pinyin" -> stringResource(R.string.input_mode_pinyin)
+                                "shuangpin" -> stringResource(R.string.input_mode_shuangpin)
+                                "wubi" -> stringResource(R.string.input_mode_wubi)
+                                else -> stringResource(R.string.input_mode_english)
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
             // Next Word Prediction Toggle (only show if Chinese input is enabled)
             if (pinyinEnabled || shuangpinEnabled || wubiEnabled) {
                 Surface(
@@ -729,5 +926,145 @@ fun TextInputSettingsScreen(
                 }
             }
         }
+    }
+
+    // Default Input Mode Selection Dialog
+    if (showDefaultModeDialog) {
+        AlertDialog(
+            onDismissRequest = { showDefaultModeDialog = false },
+            title = { Text(stringResource(R.string.default_input_mode_title)) },
+            text = {
+                Column {
+                    Text(
+                        text = stringResource(R.string.default_input_mode_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    // English option (always available)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                defaultInputMode = "english"
+                                SettingsManager.setDefaultInputMode(context, "english")
+                                SettingsManager.setLastInputMode(context, "english")
+                                showDefaultModeDialog = false
+                            }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = defaultInputMode == "english",
+                            onClick = {
+                                defaultInputMode = "english"
+                                SettingsManager.setDefaultInputMode(context, "english")
+                                SettingsManager.setLastInputMode(context, "english")
+                                showDefaultModeDialog = false
+                            }
+                        )
+                        Text(
+                            text = stringResource(R.string.input_mode_english),
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+
+                    // Pinyin option (only if enabled)
+                    if (pinyinEnabled) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    defaultInputMode = "pinyin"
+                                    SettingsManager.setDefaultInputMode(context, "pinyin")
+                                    SettingsManager.setLastInputMode(context, "pinyin")
+                                    showDefaultModeDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = defaultInputMode == "pinyin",
+                                onClick = {
+                                    defaultInputMode = "pinyin"
+                                    SettingsManager.setDefaultInputMode(context, "pinyin")
+                                    SettingsManager.setLastInputMode(context, "pinyin")
+                                    showDefaultModeDialog = false
+                                }
+                            )
+                            Text(
+                                text = stringResource(R.string.input_mode_pinyin),
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+
+                    // Shuangpin option (only if enabled)
+                    if (shuangpinEnabled) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    defaultInputMode = "shuangpin"
+                                    SettingsManager.setDefaultInputMode(context, "shuangpin")
+                                    SettingsManager.setLastInputMode(context, "shuangpin")
+                                    showDefaultModeDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = defaultInputMode == "shuangpin",
+                                onClick = {
+                                    defaultInputMode = "shuangpin"
+                                    SettingsManager.setDefaultInputMode(context, "shuangpin")
+                                    SettingsManager.setLastInputMode(context, "shuangpin")
+                                    showDefaultModeDialog = false
+                                }
+                            )
+                            Text(
+                                text = stringResource(R.string.input_mode_shuangpin),
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+
+                    // Wubi option (only if enabled)
+                    if (wubiEnabled) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    defaultInputMode = "wubi"
+                                    SettingsManager.setDefaultInputMode(context, "wubi")
+                                    SettingsManager.setLastInputMode(context, "wubi")
+                                    showDefaultModeDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = defaultInputMode == "wubi",
+                                onClick = {
+                                    defaultInputMode = "wubi"
+                                    SettingsManager.setDefaultInputMode(context, "wubi")
+                                    SettingsManager.setLastInputMode(context, "wubi")
+                                    showDefaultModeDialog = false
+                                }
+                            )
+                            Text(
+                                text = stringResource(R.string.input_mode_wubi),
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDefaultModeDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
     }
 }

@@ -80,7 +80,7 @@ fun SettingsScreen(
     fun navigateBack() {
         if (navigationStack.size > 1) {
             navigationDirection = NavigationDirection.Pop
-            navigationStack.removeLast()
+            navigationStack.removeAt(navigationStack.lastIndex)
         } else {
             activity?.finish()
         }

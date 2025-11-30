@@ -22,6 +22,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import it.neuralrad.coolwulf.R
 import it.neuralrad.coolwulf.SettingsActivity
+import it.neuralrad.coolwulf.SettingsManager
 import it.neuralrad.coolwulf.inputmethod.NotificationHelper
 import it.neuralrad.coolwulf.inputmethod.StatusBarController
 import it.neuralrad.coolwulf.inputmethod.TextSelectionHelper
@@ -67,6 +68,8 @@ class VariationBarView(
     private var variationButtons: MutableList<TextView> = mutableListOf()
     private var microphoneButtonView: ImageView? = null
     private var settingsButtonView: ImageView? = null
+    private var clipboardButtonView: ImageView? = null
+    private var clipboardHistoryPopup: ClipboardHistoryPopup? = null
     private var lastDisplayedVariations: List<String> = emptyList()
     private var isSymModeActive = false
     private var isSwipeInProgress = false
@@ -196,10 +199,12 @@ class VariationBarView(
         variationButtons.clear()
         removeMicrophoneImmediate()
         removeSettingsImmediate()
+        removeClipboardImmediate()
         removeSymButtonImmediate()
         removeLanguageToggleImmediate()
         removeArrowsImmediate()
         hideSwipeIndicator(immediate = true)
+        clipboardHistoryPopup?.dismiss()
         container?.visibility = View.GONE
         wrapper?.visibility = View.GONE
         overlay?.visibility = View.GONE
@@ -234,10 +239,12 @@ class VariationBarView(
 
         removeMicrophoneImmediate()
         removeSettingsImmediate()
+        removeClipboardImmediate()
         removeSymButtonImmediate()
         removeLanguageToggleImmediate()
         removeArrowsImmediate()
         hideSwipeIndicator(immediate = true)
+        clipboardHistoryPopup?.dismiss()
 
         if (row != null && row.parent == containerView && row.visibility == View.VISIBLE) {
             animateVariationsOut(row) {
@@ -554,8 +561,12 @@ class VariationBarView(
         val noSuggestions = snapshot.variations.isEmpty()
         val stretchButtons = noSuggestions
 
+        // Check if voice input button should be shown
+        val showVoiceInputButton = SettingsManager.getShowVoiceInputButton(context)
+
         // Count visible buttons for weight calculation
-        val visibleButtonCount = if (isPinyinModeActive || isShuangpinModeActive || isWubiModeActive) 5 else 4
+        val baseButtonCount = if (isPinyinModeActive || isShuangpinModeActive || isWubiModeActive) 5 else 4
+        val visibleButtonCount = if (showVoiceInputButton) baseButtonCount else baseButtonCount - 1
 
         // Common margin for button spacing
         val buttonMargin = TypedValue.applyDimension(
@@ -568,42 +579,53 @@ class VariationBarView(
         val microphoneButton = microphoneButtonView ?: createMicrophoneButton(buttonWidth).also {
             microphoneButtonView = it
         }
-        if (microphoneButton.parent == null) {
-            val micParams = if (stretchButtons) {
-                LinearLayout.LayoutParams(0, buttonWidth, 1f)
+
+        if (showVoiceInputButton) {
+            if (microphoneButton.parent == null) {
+                val micParams = if (stretchButtons) {
+                    LinearLayout.LayoutParams(0, buttonWidth, 1f)
+                } else {
+                    LinearLayout.LayoutParams(buttonWidth, buttonWidth)
+                }
+                containerView.addView(microphoneButton, micParams)
+            } else if (stretchButtons) {
+                // Update existing params to use weight
+                (microphoneButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                    width = 0
+                    weight = 1f
+                }
             } else {
-                LinearLayout.LayoutParams(buttonWidth, buttonWidth)
+                // Restore fixed width
+                (microphoneButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                    width = buttonWidth
+                    weight = 0f
+                }
             }
-            containerView.addView(microphoneButton, micParams)
-        } else if (stretchButtons) {
-            // Update existing params to use weight
-            (microphoneButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
-                width = 0
-                weight = 1f
-            }
+            microphoneButton.setOnClickListener { startSpeechRecognition(inputConnection) }
+            microphoneButton.alpha = 1f
+            microphoneButton.visibility = View.VISIBLE
         } else {
-            // Restore fixed width
-            (microphoneButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
-                width = buttonWidth
-                weight = 0f
+            // Hide/remove microphone button when disabled
+            if (microphoneButton.parent != null) {
+                (microphoneButton.parent as? ViewGroup)?.removeView(microphoneButton)
             }
+            microphoneButton.visibility = View.GONE
         }
-        microphoneButton.setOnClickListener { startSpeechRecognition(inputConnection) }
-        microphoneButton.alpha = 1f
-        microphoneButton.visibility = View.VISIBLE
 
         // Settings button - reuse if already attached
         val settingsButton = settingsButtonView ?: createStatusBarSettingsButton(buttonWidth).also {
             settingsButtonView = it
         }
+        // Settings button has margin only if microphone button is shown (not the first button)
+        val settingsMargin = if (showVoiceInputButton) buttonMargin else 0
         if (settingsButton.parent == null) {
             val settingsParams = if (stretchButtons) {
                 LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
-                    marginStart = buttonMargin
+                    marginStart = settingsMargin
                 }
             } else {
                 LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
-                    marginStart = buttonMargin
+                    marginStart = settingsMargin
                 }
             }
             containerView.addView(settingsButton, settingsParams)
@@ -611,16 +633,61 @@ class VariationBarView(
             (settingsButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
                 width = 0
                 weight = 1f
+                marginStart = settingsMargin
             }
         } else {
             (settingsButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
                 width = buttonWidth
                 weight = 0f
+                marginStart = settingsMargin
             }
         }
         settingsButton.setOnClickListener { openSettings() }
         settingsButton.alpha = 1f
         settingsButton.visibility = View.VISIBLE
+
+        // Clipboard button - reuse if already attached
+        val showClipboardButton = SettingsManager.getShowClipboardButton(context)
+        val clipboardButton = clipboardButtonView ?: createClipboardButton(buttonWidth).also {
+            clipboardButtonView = it
+        }
+        // Clipboard button has margin if previous buttons are shown
+        val clipboardMargin = buttonMargin
+        if (showClipboardButton) {
+            if (clipboardButton.parent == null) {
+                val clipboardParams = if (stretchButtons) {
+                    LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
+                        marginStart = clipboardMargin
+                    }
+                } else {
+                    LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
+                        marginStart = clipboardMargin
+                    }
+                }
+                containerView.addView(clipboardButton, clipboardParams)
+            } else if (stretchButtons) {
+                (clipboardButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                    width = 0
+                    weight = 1f
+                    marginStart = clipboardMargin
+                }
+            } else {
+                (clipboardButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                    width = buttonWidth
+                    weight = 0f
+                    marginStart = clipboardMargin
+                }
+            }
+            clipboardButton.setOnClickListener { showClipboardHistory(it, inputConnection) }
+            clipboardButton.alpha = 1f
+            clipboardButton.visibility = View.VISIBLE
+        } else {
+            // Hide/remove clipboard button when disabled
+            if (clipboardButton.parent != null) {
+                (clipboardButton.parent as? ViewGroup)?.removeView(clipboardButton)
+            }
+            clipboardButton.visibility = View.GONE
+        }
 
         // SYM button - reuse if already attached
         val symButton = symButtonView ?: createSymButton(buttonWidth).also {
@@ -983,6 +1050,14 @@ class VariationBarView(
         }
     }
 
+    private fun removeClipboardImmediate() {
+        clipboardButtonView?.let { clipboard ->
+            (clipboard.parent as? ViewGroup)?.removeView(clipboard)
+            clipboard.visibility = View.GONE
+            clipboard.alpha = 1f
+        }
+    }
+
     private fun removeLanguageToggleImmediate() {
         languageToggleButtonView?.let { toggle ->
             (toggle.parent as? ViewGroup)?.removeView(toggle)
@@ -1196,6 +1271,45 @@ class VariationBarView(
             setPadding(dp3, dp3, dp3, dp3)
             layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
         }
+    }
+
+    private fun createClipboardButton(buttonSize: Int): ImageView {
+        val dp3 = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            3f,
+            context.resources.displayMetrics
+        ).toInt()
+        val drawable = GradientDrawable().apply {
+            setColor(Color.BLACK)
+            cornerRadius = 0f
+        }
+        return ImageView(context).apply {
+            setImageResource(R.drawable.ic_clipboard_24)
+            setColorFilter(Color.rgb(100, 100, 100))
+            background = drawable
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            isClickable = true
+            isFocusable = true
+            setPadding(dp3, dp3, dp3, dp3)
+            layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
+        }
+    }
+
+    private fun showClipboardHistory(anchorView: View, inputConnection: android.view.inputmethod.InputConnection?) {
+        if (clipboardHistoryPopup?.isShowing() == true) {
+            clipboardHistoryPopup?.dismiss()
+            return
+        }
+
+        clipboardHistoryPopup = ClipboardHistoryPopup(context).apply {
+            onItemSelected = { text ->
+                Log.d(TAG, "Clipboard item selected: ${text.take(30)}...")
+            }
+            onDismiss = {
+                Log.d(TAG, "Clipboard popup dismissed")
+            }
+        }
+        clipboardHistoryPopup?.show(anchorView, inputConnection)
     }
 
     private fun createSymButton(buttonSize: Int): TextView {

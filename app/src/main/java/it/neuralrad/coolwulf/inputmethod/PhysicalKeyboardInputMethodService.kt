@@ -305,9 +305,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         )
         
         symLayoutController.restoreSymPageIfNeeded { updateStatusBarText() }
-        
+
         altSymManager.reloadLongPressThreshold()
         altSymManager.resetTransientState()
+
+        // Apply the startup input mode (respects special text fields and remembers last mode)
+        applyStartupInputMode()
     }
     
     private fun enforceSmartFeatureDisabledState() {
@@ -430,6 +433,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         pinyinInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
         shuangpinInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
         wubiInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
+
+        // Start clipboard history listener if enabled
+        if (SettingsManager.getClipboardHistoryEnabled(this)) {
+            it.neuralrad.coolwulf.core.ClipboardHistoryManager.startListening(this)
+        }
 
         englishWordPredictionController = it.neuralrad.coolwulf.core.EnglishWordPredictionController(this)
         multiTapController = MultiTapController(
@@ -688,7 +696,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
         speechResultReceiver = null
-        
+
+        // Stop clipboard history listener
+        it.neuralrad.coolwulf.core.ClipboardHistoryManager.stopListening(this)
     }
 
     override fun onCreateInputView(): View? = keyboardVisibilityController.onCreateInputView()
@@ -843,6 +853,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
             // else: cycle to EN mode, all modes are already deactivated
         }
+
+        // Save the current mode to remember across restarts
+        SettingsManager.setLastInputMode(this, getCurrentInputMode())
+
         updateStatusBarText()
     }
 
@@ -851,6 +865,85 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      */
     private fun isChineseInputModeActive(): Boolean {
         return pinyinInputController.isPinyinMode() || shuangpinInputController.isShuangpinMode() || wubiInputController.isWubiMode()
+    }
+
+    /**
+     * Gets the current input mode as a string ("english", "pinyin", "shuangpin", or "wubi").
+     */
+    private fun getCurrentInputMode(): String {
+        return when {
+            pinyinInputController.isPinyinMode() -> "pinyin"
+            shuangpinInputController.isShuangpinMode() -> "shuangpin"
+            wubiInputController.isWubiMode() -> "wubi"
+            else -> "english"
+        }
+    }
+
+    /**
+     * Sets the input mode directly without cycling.
+     * @param mode One of "english", "pinyin", "shuangpin", or "wubi"
+     * @param saveToSettings If true, saves this mode as the last used mode
+     */
+    private fun setInputMode(mode: String, saveToSettings: Boolean = true) {
+        // Deactivate all modes first
+        if (pinyinInputController.isPinyinMode()) {
+            pinyinInputController.setPinyinMode(false)
+            currentInputConnection?.finishComposingText()
+        }
+        if (shuangpinInputController.isShuangpinMode()) {
+            shuangpinInputController.setShuangpinMode(false)
+            currentInputConnection?.finishComposingText()
+        }
+        if (wubiInputController.isWubiMode()) {
+            wubiInputController.setWubiMode(false)
+            currentInputConnection?.finishComposingText()
+        }
+
+        // Activate the requested mode (if enabled)
+        when (mode) {
+            "pinyin" -> {
+                if (SettingsManager.getPinyinEnabled(this)) {
+                    pinyinInputController.setPinyinMode(true)
+                }
+            }
+            "shuangpin" -> {
+                if (SettingsManager.getShuangpinEnabled(this)) {
+                    shuangpinInputController.setShuangpinMode(true)
+                }
+            }
+            "wubi" -> {
+                if (SettingsManager.getWubiEnabled(this)) {
+                    wubiInputController.setWubiMode(true)
+                }
+            }
+            // "english" or unknown - all modes already deactivated
+        }
+
+        // Save the current mode if requested
+        if (saveToSettings) {
+            SettingsManager.setLastInputMode(this, getCurrentInputMode())
+        }
+
+        updateStatusBarText()
+    }
+
+    /**
+     * Applies the startup input mode based on settings.
+     * For special text fields (URL, number, password, etc.), English is forced.
+     * Otherwise, uses the last saved input mode.
+     */
+    private fun applyStartupInputMode() {
+        val state = inputContextState
+
+        // Force English for special text fields
+        if (state.shouldForceEnglishInput) {
+            setInputMode("english", saveToSettings = false)
+            return
+        }
+
+        // Apply the effective startup mode (last used, validated against enabled methods)
+        val startupMode = SettingsManager.getEffectiveStartupInputMode(this)
+        setInputMode(startupMode, saveToSettings = false)
     }
 
     /**

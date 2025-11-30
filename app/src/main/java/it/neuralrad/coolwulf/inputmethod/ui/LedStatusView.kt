@@ -50,6 +50,7 @@ class LedStatusView(
     private var shiftLed: View? = null
     private var symLed: View? = null
     private var pinyinLed: View? = null
+    private var wubiLed: View? = null
     private var ctrlLed: View? = null
     private var altLed: View? = null
 
@@ -69,7 +70,7 @@ class LedStatusView(
         shiftLed = createLedView(LED_COLOR_GRAY_OFF)
         symLed = createLedView(LED_COLOR_GRAY_OFF)
         pinyinLed = createLedView(LED_COLOR_GRAY_OFF)
-        val unused = createLedView(LED_COLOR_GRAY_OFF).apply { visibility = View.INVISIBLE }
+        wubiLed = createLedView(LED_COLOR_GRAY_OFF)
         ctrlLed = createLedView(LED_COLOR_GRAY_OFF)
         altLed = createLedView(LED_COLOR_GRAY_OFF)
 
@@ -77,7 +78,7 @@ class LedStatusView(
             addView(shiftLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
             addView(symLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
             addView(pinyinLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
-            addView(unused, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
+            addView(wubiLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
             addView(ctrlLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
             addView(altLed, LinearLayout.LayoutParams(0, ledHeight, 1f))
         }
@@ -100,8 +101,11 @@ class LedStatusView(
         val altActive = (snapshot.altPhysicallyPressed || snapshot.altOneShot) && !altLocked
         updateLed(altLed, altLocked, altActive)
 
-        // Update Pinyin LED - use locked (red) color when active
-        updateLed(pinyinLed, snapshot.pinyinModeActive, false)
+        // Update Pinyin LED - orange for Pinyin mode, blue for Shuangpin mode
+        updatePinyinLed(pinyinLed, snapshot.pinyinModeActive, snapshot.shuangpinModeActive)
+
+        // Update Wubi LED - use locked (red) color when active
+        updateLed(wubiLed, snapshot.wubiModeActive, false)
 
         updateSymLed(symLed, snapshot.symPage)
     }
@@ -135,6 +139,15 @@ class LedStatusView(
         val targetColor = when (symPage) {
             1 -> LED_COLOR_BLUE_ACTIVE
             2 -> LED_COLOR_RED_LOCKED
+            else -> LED_COLOR_GRAY_OFF
+        }
+        animateLedColor(led, targetColor)
+    }
+
+    private fun updatePinyinLed(led: View?, pinyinActive: Boolean, shuangpinActive: Boolean) {
+        val targetColor = when {
+            pinyinActive -> LED_COLOR_RED_LOCKED   // Orange for Pinyin
+            shuangpinActive -> LED_COLOR_BLUE_ACTIVE // Blue for Shuangpin
             else -> LED_COLOR_GRAY_OFF
         }
         animateLedColor(led, targetColor)

@@ -42,6 +42,8 @@ object SettingsManager {
     private const val KEY_SHUANGPIN_ENABLED = "shuangpin_enabled" // Enable Shuangpin (双拼) input
     private const val KEY_PINYIN_CHARACTER_SET = "pinyin_character_set" // "simplified" or "traditional"
     private const val KEY_CHINESE_INPUT_METHOD = "chinese_input_method" // "pinyin", "wubi", or "shuangpin" (legacy, used for last active mode)
+    private const val KEY_DEFAULT_INPUT_MODE = "default_input_mode" // "english", "pinyin", "shuangpin", or "wubi"
+    private const val KEY_LAST_INPUT_MODE = "last_input_mode" // Remember last used mode before app restart
     private const val KEY_CHINESE_NEXT_WORD_PREDICTION = "chinese_next_word_prediction" // Enable next word prediction for Chinese input
     private const val KEY_COMPACT_MODE = "compact_mode" // Compact mode - auto-hide status bar when no suggestions
     private const val KEY_POWER_SHORTCUTS_ENABLED = "power_shortcuts_enabled" // Enable power shortcuts
@@ -49,6 +51,9 @@ object SettingsManager {
     private const val KEY_STATIC_VARIATION_BAR_MODE = "static_variation_bar_mode" // Static variation bar mode
     private const val KEY_TUTORIAL_COMPLETED = "tutorial_completed" // Tutorial completion status
     private const val KEY_DEVICE_TYPE = "device_type" // Device type: "titan2" or "blackberry"
+    private const val KEY_SHOW_VOICE_INPUT_BUTTON = "show_voice_input_button" // Show voice input button in status bar
+    private const val KEY_CLIPBOARD_HISTORY_ENABLED = "clipboard_history_enabled" // Enable clipboard history
+    private const val KEY_SHOW_CLIPBOARD_BUTTON = "show_clipboard_button" // Show clipboard button in status bar
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -71,6 +76,7 @@ object SettingsManager {
     private const val DEFAULT_SHUANGPIN_ENABLED = false
     private const val DEFAULT_PINYIN_CHARACTER_SET = "simplified"
     private const val DEFAULT_CHINESE_INPUT_METHOD = "pinyin" // "pinyin", "wubi", or "shuangpin" (legacy)
+    private const val DEFAULT_INPUT_MODE = "english" // "english", "pinyin", "shuangpin", or "wubi"
     private const val DEFAULT_CHINESE_NEXT_WORD_PREDICTION = true
     private const val DEFAULT_COMPACT_MODE = false
     private const val DEFAULT_POWER_SHORTCUTS_ENABLED = false
@@ -80,7 +86,10 @@ object SettingsManager {
     private const val DEFAULT_STATIC_VARIATION_BAR_MODE = false
     private const val DEFAULT_TUTORIAL_COMPLETED = false
     private const val DEFAULT_DEVICE_TYPE = "titan2"
-    
+    private const val DEFAULT_SHOW_VOICE_INPUT_BUTTON = true
+    private const val DEFAULT_CLIPBOARD_HISTORY_ENABLED = true
+    private const val DEFAULT_SHOW_CLIPBOARD_BUTTON = true
+
     /**
      * Returns the SharedPreferences instance for Pastiera.
      */
@@ -1063,6 +1072,58 @@ object SettingsManager {
     }
 
     /**
+     * Gets the default input mode ("english", "pinyin", "shuangpin", or "wubi").
+     * This is the mode the keyboard starts in when opening a new input field.
+     */
+    fun getDefaultInputMode(context: Context): String {
+        return getPreferences(context).getString(KEY_DEFAULT_INPUT_MODE, DEFAULT_INPUT_MODE) ?: DEFAULT_INPUT_MODE
+    }
+
+    /**
+     * Sets the default input mode ("english", "pinyin", "shuangpin", or "wubi").
+     */
+    fun setDefaultInputMode(context: Context, mode: String) {
+        getPreferences(context).edit()
+            .putString(KEY_DEFAULT_INPUT_MODE, mode)
+            .apply()
+    }
+
+    /**
+     * Gets the last used input mode (remembered across app restarts).
+     * Returns the default input mode if not set.
+     */
+    fun getLastInputMode(context: Context): String {
+        return getPreferences(context).getString(KEY_LAST_INPUT_MODE, getDefaultInputMode(context)) ?: getDefaultInputMode(context)
+    }
+
+    /**
+     * Sets the last used input mode (to remember across app restarts).
+     */
+    fun setLastInputMode(context: Context, mode: String) {
+        getPreferences(context).edit()
+            .putString(KEY_LAST_INPUT_MODE, mode)
+            .apply()
+    }
+
+    /**
+     * Gets the effective input mode to use when starting.
+     * Returns the last used mode, validated against enabled methods.
+     * Falls back to "english" if the saved mode is not available.
+     */
+    fun getEffectiveStartupInputMode(context: Context): String {
+        val lastMode = getLastInputMode(context)
+
+        // Validate that the mode is available
+        return when (lastMode) {
+            "english" -> "english"
+            "pinyin" -> if (getPinyinEnabled(context)) "pinyin" else "english"
+            "shuangpin" -> if (getShuangpinEnabled(context)) "shuangpin" else "english"
+            "wubi" -> if (getWubiEnabled(context)) "wubi" else "english"
+            else -> "english"
+        }
+    }
+
+    /**
      * Gets whether next word prediction is enabled for Chinese input.
      */
     fun getChineseNextWordPredictionEnabled(context: Context): Boolean {
@@ -1092,6 +1153,54 @@ object SettingsManager {
     fun setCompactModeEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_COMPACT_MODE, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets whether the voice input button is shown in the status bar.
+     */
+    fun getShowVoiceInputButton(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SHOW_VOICE_INPUT_BUTTON, DEFAULT_SHOW_VOICE_INPUT_BUTTON)
+    }
+
+    /**
+     * Sets whether the voice input button is shown in the status bar.
+     */
+    fun setShowVoiceInputButton(context: Context, show: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SHOW_VOICE_INPUT_BUTTON, show)
+            .apply()
+    }
+
+    /**
+     * Gets whether clipboard history is enabled.
+     */
+    fun getClipboardHistoryEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_CLIPBOARD_HISTORY_ENABLED, DEFAULT_CLIPBOARD_HISTORY_ENABLED)
+    }
+
+    /**
+     * Sets whether clipboard history is enabled.
+     */
+    fun setClipboardHistoryEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_CLIPBOARD_HISTORY_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets whether the clipboard button is shown in the status bar.
+     */
+    fun getShowClipboardButton(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SHOW_CLIPBOARD_BUTTON, DEFAULT_SHOW_CLIPBOARD_BUTTON)
+    }
+
+    /**
+     * Sets whether the clipboard button is shown in the status bar.
+     */
+    fun setShowClipboardButton(context: Context, show: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SHOW_CLIPBOARD_BUTTON, show)
             .apply()
     }
 
