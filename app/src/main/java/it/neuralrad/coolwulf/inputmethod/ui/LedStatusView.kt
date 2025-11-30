@@ -104,8 +104,8 @@ class LedStatusView(
         // Update Pinyin LED - orange for Pinyin mode, blue for Shuangpin mode
         updatePinyinLed(pinyinLed, snapshot.pinyinModeActive, snapshot.shuangpinModeActive)
 
-        // Update Wubi LED - use locked (red) color when active
-        updateLed(wubiLed, snapshot.wubiModeActive, false)
+        // Update Wubi/Zhenma LED - orange for Wubi mode, blue for Zhenma mode
+        updateWubiZhenmaLed(wubiLed, snapshot.wubiModeActive, snapshot.zhenmaModeActive)
 
         updateSymLed(symLed, snapshot.symPage)
     }
@@ -148,6 +148,15 @@ class LedStatusView(
         val targetColor = when {
             pinyinActive -> LED_COLOR_RED_LOCKED   // Orange for Pinyin
             shuangpinActive -> LED_COLOR_BLUE_ACTIVE // Blue for Shuangpin
+            else -> LED_COLOR_GRAY_OFF
+        }
+        animateLedColor(led, targetColor)
+    }
+
+    private fun updateWubiZhenmaLed(led: View?, wubiActive: Boolean, zhenmaActive: Boolean) {
+        val targetColor = when {
+            wubiActive -> LED_COLOR_RED_LOCKED   // Orange for Wubi
+            zhenmaActive -> LED_COLOR_BLUE_ACTIVE // Blue for Zhenma
             else -> LED_COLOR_GRAY_OFF
         }
         animateLedColor(led, targetColor)

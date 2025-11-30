@@ -40,6 +40,7 @@ object SettingsManager {
     private const val KEY_PINYIN_ENABLED = "pinyin_enabled" // Enable Pinyin input
     private const val KEY_WUBI_ENABLED = "wubi_enabled" // Enable Wubi input
     private const val KEY_SHUANGPIN_ENABLED = "shuangpin_enabled" // Enable Shuangpin (双拼) input
+    private const val KEY_ZHENMA_ENABLED = "zhenma_enabled" // Enable Zhenma (真码) input
     private const val KEY_PINYIN_CHARACTER_SET = "pinyin_character_set" // "simplified" or "traditional"
     private const val KEY_CHINESE_INPUT_METHOD = "chinese_input_method" // "pinyin", "wubi", or "shuangpin" (legacy, used for last active mode)
     private const val KEY_DEFAULT_INPUT_MODE = "default_input_mode" // "english", "pinyin", "shuangpin", or "wubi"
@@ -74,6 +75,7 @@ object SettingsManager {
     private const val DEFAULT_PINYIN_ENABLED = true
     private const val DEFAULT_WUBI_ENABLED = false
     private const val DEFAULT_SHUANGPIN_ENABLED = false
+    private const val DEFAULT_ZHENMA_ENABLED = false
     private const val DEFAULT_PINYIN_CHARACTER_SET = "simplified"
     private const val DEFAULT_CHINESE_INPUT_METHOD = "pinyin" // "pinyin", "wubi", or "shuangpin" (legacy)
     private const val DEFAULT_INPUT_MODE = "english" // "english", "pinyin", "shuangpin", or "wubi"
@@ -1041,6 +1043,22 @@ object SettingsManager {
     }
 
     /**
+     * Returns whether Zhenma (真码) input is enabled.
+     */
+    fun getZhenmaEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_ZHENMA_ENABLED, DEFAULT_ZHENMA_ENABLED)
+    }
+
+    /**
+     * Sets whether Zhenma (真码) input is enabled.
+     */
+    fun setZhenmaEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_ZHENMA_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
      * Returns whether multiple Chinese input methods are enabled (cycling mode).
      */
     fun isMultipleChineseInputMethodsEnabled(context: Context): Boolean {
@@ -1048,6 +1066,7 @@ object SettingsManager {
         if (getPinyinEnabled(context)) count++
         if (getWubiEnabled(context)) count++
         if (getShuangpinEnabled(context)) count++
+        if (getZhenmaEnabled(context)) count++
         return count > 1
     }
 
@@ -1068,6 +1087,7 @@ object SettingsManager {
         if (getPinyinEnabled(context)) methods.add("pinyin")
         if (getShuangpinEnabled(context)) methods.add("shuangpin")
         if (getWubiEnabled(context)) methods.add("wubi")
+        if (getZhenmaEnabled(context)) methods.add("zhenma")
         return methods
     }
 
@@ -1119,6 +1139,7 @@ object SettingsManager {
             "pinyin" -> if (getPinyinEnabled(context)) "pinyin" else "english"
             "shuangpin" -> if (getShuangpinEnabled(context)) "shuangpin" else "english"
             "wubi" -> if (getWubiEnabled(context)) "wubi" else "english"
+            "zhenma" -> if (getZhenmaEnabled(context)) "zhenma" else "english"
             else -> "english"
         }
     }

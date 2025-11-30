@@ -96,6 +96,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getShuangpinEnabled(context))
     }
 
+    var zhenmaEnabled by remember {
+        mutableStateOf(SettingsManager.getZhenmaEnabled(context))
+    }
+
     var chineseNextWordPrediction by remember {
         mutableStateOf(SettingsManager.getChineseNextWordPredictionEnabled(context))
     }
@@ -783,8 +787,51 @@ fun TextInputSettingsScreen(
                 }
             }
 
+            // Zhenma toggle
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.chinese_input_zhenma),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.chinese_input_zhenma_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                    Switch(
+                        checked = zhenmaEnabled,
+                        onCheckedChange = { enabled ->
+                            zhenmaEnabled = enabled
+                            SettingsManager.setZhenmaEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
+
             // Info text when multiple are enabled
-            val enabledCount = listOf(pinyinEnabled, shuangpinEnabled, wubiEnabled).count { it }
+            val enabledCount = listOf(pinyinEnabled, shuangpinEnabled, wubiEnabled, zhenmaEnabled).count { it }
             if (enabledCount >= 2) {
                 Text(
                     text = stringResource(R.string.chinese_input_both_enabled_info),
@@ -843,7 +890,7 @@ fun TextInputSettingsScreen(
             }
 
             // Next Word Prediction Toggle (only show if Chinese input is enabled)
-            if (pinyinEnabled || shuangpinEnabled || wubiEnabled) {
+            if (pinyinEnabled || shuangpinEnabled || wubiEnabled || zhenmaEnabled) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -888,7 +935,7 @@ fun TextInputSettingsScreen(
             }
 
             // Custom Dictionary (only show if Chinese input is enabled)
-            if (pinyinEnabled || shuangpinEnabled || wubiEnabled) {
+            if (pinyinEnabled || shuangpinEnabled || wubiEnabled || zhenmaEnabled) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1054,6 +1101,36 @@ fun TextInputSettingsScreen(
                             )
                             Text(
                                 text = stringResource(R.string.input_mode_wubi),
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+
+                    // Zhenma option (only if enabled)
+                    if (zhenmaEnabled) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    defaultInputMode = "zhenma"
+                                    SettingsManager.setDefaultInputMode(context, "zhenma")
+                                    SettingsManager.setLastInputMode(context, "zhenma")
+                                    showDefaultModeDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = defaultInputMode == "zhenma",
+                                onClick = {
+                                    defaultInputMode = "zhenma"
+                                    SettingsManager.setDefaultInputMode(context, "zhenma")
+                                    SettingsManager.setLastInputMode(context, "zhenma")
+                                    showDefaultModeDialog = false
+                                }
+                            )
+                            Text(
+                                text = stringResource(R.string.input_mode_zhenma),
                                 modifier = Modifier.padding(start = 8.dp)
                             )
                         }

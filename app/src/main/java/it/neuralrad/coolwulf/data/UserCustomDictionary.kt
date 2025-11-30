@@ -7,7 +7,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Manages user-defined custom dictionary mappings for both Pinyin and Wubi input methods.
+ * Manages user-defined custom dictionary mappings for Pinyin, Wubi, and Zhenma input methods.
  * Users can define their own letter -> phrase mappings for quick input.
  */
 class UserCustomDictionary(context: Context) {
@@ -18,6 +18,9 @@ class UserCustomDictionary(context: Context) {
 
     // In-memory cache: code -> list of phrases (Wubi)
     private val wubiMappings = mutableMapOf<String, MutableList<String>>()
+
+    // In-memory cache: code -> list of phrases (Zhenma)
+    private val zhenmaMappings = mutableMapOf<String, MutableList<String>>()
 
     init {
         loadFromPreferences()
@@ -58,6 +61,23 @@ class UserCustomDictionary(context: Context) {
     }
 
     /**
+     * Adds a custom mapping for Zhenma.
+     * @param code The zhenma code (e.g., "ab" for custom phrase)
+     * @param phrase The phrase to map to
+     */
+    fun addZhenmaMapping(code: String, phrase: String) {
+        val normalizedCode = code.lowercase().trim()
+        if (normalizedCode.isEmpty() || phrase.isEmpty()) return
+
+        val phrases = zhenmaMappings.getOrPut(normalizedCode) { mutableListOf() }
+        if (!phrases.contains(phrase)) {
+            phrases.add(0, phrase)  // Add to front for priority
+            saveToPreferencesAsync()
+            Log.d(TAG, "Added Zhenma mapping: '$normalizedCode' -> '$phrase'")
+        }
+    }
+
+    /**
      * Removes a Pinyin mapping.
      */
     fun removePinyinMapping(code: String, phrase: String) {
@@ -84,6 +104,19 @@ class UserCustomDictionary(context: Context) {
     }
 
     /**
+     * Removes a Zhenma mapping.
+     */
+    fun removeZhenmaMapping(code: String, phrase: String) {
+        val normalizedCode = code.lowercase().trim()
+        zhenmaMappings[normalizedCode]?.remove(phrase)
+        if (zhenmaMappings[normalizedCode]?.isEmpty() == true) {
+            zhenmaMappings.remove(normalizedCode)
+        }
+        saveToPreferencesAsync()
+        Log.d(TAG, "Removed Zhenma mapping: '$normalizedCode' -> '$phrase'")
+    }
+
+    /**
      * Gets custom Pinyin phrases for a code.
      * Returns phrases that should be prioritized in candidates.
      */
@@ -99,6 +132,15 @@ class UserCustomDictionary(context: Context) {
     fun getWubiPhrases(code: String): List<String> {
         val normalizedCode = code.lowercase().trim()
         return wubiMappings[normalizedCode]?.toList() ?: emptyList()
+    }
+
+    /**
+     * Gets custom Zhenma phrases for a code.
+     * Returns phrases that should be prioritized in candidates.
+     */
+    fun getZhenmaPhrases(code: String): List<String> {
+        val normalizedCode = code.lowercase().trim()
+        return zhenmaMappings[normalizedCode]?.toList() ?: emptyList()
     }
 
     /**
@@ -128,6 +170,19 @@ class UserCustomDictionary(context: Context) {
     }
 
     /**
+     * Gets all Zhenma mappings as a list of pairs.
+     */
+    fun getAllZhenmaMappings(): List<Pair<String, String>> {
+        val result = mutableListOf<Pair<String, String>>()
+        for ((code, phrases) in zhenmaMappings) {
+            for (phrase in phrases) {
+                result.add(Pair(code, phrase))
+            }
+        }
+        return result.sortedBy { it.first }
+    }
+
+    /**
      * Clears all Pinyin mappings.
      */
     fun clearAllPinyinMappings() {
@@ -143,6 +198,15 @@ class UserCustomDictionary(context: Context) {
         wubiMappings.clear()
         saveToPreferencesAsync()
         Log.d(TAG, "All Wubi custom mappings cleared")
+    }
+
+    /**
+     * Clears all Zhenma mappings.
+     */
+    fun clearAllZhenmaMappings() {
+        zhenmaMappings.clear()
+        saveToPreferencesAsync()
+        Log.d(TAG, "All Zhenma custom mappings cleared")
     }
 
     /**
@@ -183,6 +247,23 @@ class UserCustomDictionary(context: Context) {
                 }
                 Log.d(TAG, "Loaded ${wubiMappings.size} Wubi custom mappings")
             }
+
+            // Load Zhenma mappings
+            val zhenmaJson = prefs.getString(KEY_ZHENMA_MAPPINGS, null)
+            if (zhenmaJson != null) {
+                val jsonObject = JSONObject(zhenmaJson)
+                val keys = jsonObject.keys()
+                while (keys.hasNext()) {
+                    val code = keys.next()
+                    val phrasesArray = jsonObject.getJSONArray(code)
+                    val phrases = mutableListOf<String>()
+                    for (i in 0 until phrasesArray.length()) {
+                        phrases.add(phrasesArray.getString(i))
+                    }
+                    zhenmaMappings[code] = phrases
+                }
+                Log.d(TAG, "Loaded ${zhenmaMappings.size} Zhenma custom mappings")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading custom dictionary from preferences", e)
         }
@@ -213,9 +294,20 @@ class UserCustomDictionary(context: Context) {
                 wubiJson.put(code, phrasesArray)
             }
 
+            // Save Zhenma mappings
+            val zhenmaJson = JSONObject()
+            for ((code, phrases) in zhenmaMappings) {
+                val phrasesArray = JSONArray()
+                for (phrase in phrases) {
+                    phrasesArray.put(phrase)
+                }
+                zhenmaJson.put(code, phrasesArray)
+            }
+
             prefs.edit()
                 .putString(KEY_PINYIN_MAPPINGS, pinyinJson.toString())
                 .putString(KEY_WUBI_MAPPINGS, wubiJson.toString())
+                .putString(KEY_ZHENMA_MAPPINGS, zhenmaJson.toString())
                 .apply()
         } catch (e: Exception) {
             Log.e(TAG, "Error saving custom dictionary to preferences", e)
@@ -227,6 +319,7 @@ class UserCustomDictionary(context: Context) {
         private const val PREFS_NAME = "user_custom_dictionary"
         private const val KEY_PINYIN_MAPPINGS = "pinyin_mappings"
         private const val KEY_WUBI_MAPPINGS = "wubi_mappings"
+        private const val KEY_ZHENMA_MAPPINGS = "zhenma_mappings"
 
         @Volatile
         private var instance: UserCustomDictionary? = null

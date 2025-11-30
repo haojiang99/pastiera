@@ -71,6 +71,13 @@ class StatusBarController(
             variationBarView?.onShuangpinCandidateSelectedListener = value
         }
 
+    // Listener for Zhenma candidate selection (with index)
+    var onZhenmaCandidateSelectedListener: VariationButtonHandler.OnZhenmaCandidateSelectedListener? = null
+        set(value) {
+            field = value
+            variationBarView?.onZhenmaCandidateSelectedListener = value
+        }
+
     // Listener for cursor movement (to update variations)
     var onCursorMovedListener: (() -> Unit)? = null
         set(value) {
@@ -146,6 +153,8 @@ class StatusBarController(
         val shuangpinBuffer: String = "",
         val wubiModeActive: Boolean = false,
         val wubiBuffer: String = "",
+        val zhenmaModeActive: Boolean = false,
+        val zhenmaBuffer: String = "",
         val wordPredictionActive: Boolean = false,
         val wordPredictionPrefix: String = "",
         // Pagination fields
@@ -977,6 +986,7 @@ class StatusBarController(
         variationBarView?.onPinyinCandidateSelectedListener = onPinyinCandidateSelectedListener
         variationBarView?.onWubiCandidateSelectedListener = onWubiCandidateSelectedListener
         variationBarView?.onShuangpinCandidateSelectedListener = onShuangpinCandidateSelectedListener
+        variationBarView?.onZhenmaCandidateSelectedListener = onZhenmaCandidateSelectedListener
         variationBarView?.onCursorMovedListener = onCursorMovedListener
         variationBarView?.onLanguageToggleListener = onLanguageToggleListener
         variationBarView?.onSymButtonListener = onSymButtonListener
@@ -985,6 +995,7 @@ class StatusBarController(
         variationBarView?.setPinyinModeActive(snapshot.pinyinModeActive)
         variationBarView?.setShuangpinModeActive(snapshot.shuangpinModeActive)
         variationBarView?.setWubiModeActive(snapshot.wubiModeActive)
+        variationBarView?.setZhenmaModeActive(snapshot.zhenmaModeActive)
         variationBarView?.setChinesePunctuationMode(snapshot.chinesePunctuationMode)
 
         // Always call showVariations() early, before any potential early returns

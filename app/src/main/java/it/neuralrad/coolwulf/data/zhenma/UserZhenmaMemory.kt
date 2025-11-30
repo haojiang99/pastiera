@@ -1,4 +1,4 @@
-package it.neuralrad.coolwulf.data.wubi
+package it.neuralrad.coolwulf.data.zhenma
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -6,21 +6,19 @@ import android.util.Log
 import org.json.JSONObject
 
 /**
- * Manages user's Wubi input history to learn preferences and prioritize
- * frequently selected characters/phrases for each Wubi code.
+ * Manages user's Zhenma input history to learn preferences and prioritize
+ * frequently selected characters/phrases for each Zhenma code.
  *
  * Also supports abbreviation learning: when user types multi-character phrases,
- * the first letter of each character's Wubi code is recorded as an abbreviation.
- * This allows typing abbreviated codes to suggest previously typed phrases.
+ * the code is recorded as an abbreviation for future suggestions.
  */
-class UserWubiMemory(context: Context) {
+class UserZhenmaMemory(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    // In-memory cache: wubiCode -> (character/phrase -> frequency count)
+    // In-memory cache: zhenmaCode -> (character/phrase -> frequency count)
     private val memoryCache = mutableMapOf<String, MutableMap<String, Int>>()
 
     // Abbreviation cache: abbreviation -> (phrase -> frequency count)
-    // e.g., for Wubi: "wq" -> ("我去" -> 5) where w is first letter of 我's code, q is first letter of 去's code
     private val abbreviationCache = mutableMapOf<String, MutableMap<String, Int>>()
 
     init {
@@ -28,13 +26,11 @@ class UserWubiMemory(context: Context) {
     }
 
     /**
-     * Records that the user selected a specific character/phrase for a given Wubi code.
-     * Note: Abbreviation learning is disabled for Wubi mode.
-     * @param wubiCode The Wubi code input (e.g., "gggg", "wq")
-     * @param character The selected character/phrase (e.g., "王", "我")
+     * Records that the user selected a specific character/phrase for a given Zhenma code.
+     * Also records abbreviation for multi-character phrases.
      */
-    fun recordSelection(wubiCode: String, character: String) {
-        val normalizedCode = wubiCode.lowercase().trim()
+    fun recordSelection(zhenmaCode: String, character: String) {
+        val normalizedCode = zhenmaCode.lowercase().trim()
         if (normalizedCode.isEmpty() || character.isEmpty()) return
 
         // Update in-memory cache
@@ -43,34 +39,29 @@ class UserWubiMemory(context: Context) {
 
         Log.d(TAG, "Recorded: '$normalizedCode' -> '$character' (count: ${charMap[character]})")
 
-        // Note: Abbreviation learning is disabled for Wubi mode
-        // (multi-first-letter word memory is not used in Wubi)
+        // Record abbreviation for multi-character phrases
+        if (character.length >= 2) {
+            recordAbbreviation(normalizedCode, character)
+        }
 
         // Persist to SharedPreferences (async to avoid blocking)
         saveToPreferencesAsync()
     }
 
     /**
-     * Records an abbreviation for a phrase based on the Wubi code used.
-     * For Wubi, we use the input code itself as the abbreviation since it already
-     * represents first letters of components.
+     * Records an abbreviation for a phrase based on the Zhenma code used.
      */
-    private fun recordAbbreviation(wubiCode: String, phrase: String) {
-        // In Wubi, when user types a short code for a phrase, that code itself
-        // becomes the abbreviation. For example, typing "wq" for "我去" means
-        // "wq" should suggest "我去" next time.
-        if (wubiCode.length >= 2 && wubiCode.length <= phrase.length) {
-            val abbrevMap = abbreviationCache.getOrPut(wubiCode) { mutableMapOf() }
+    private fun recordAbbreviation(zhenmaCode: String, phrase: String) {
+        if (zhenmaCode.length >= 2 && zhenmaCode.length <= phrase.length) {
+            val abbrevMap = abbreviationCache.getOrPut(zhenmaCode) { mutableMapOf() }
             abbrevMap[phrase] = (abbrevMap[phrase] ?: 0) + 1
-            Log.d(TAG, "Recorded abbreviation: '$wubiCode' -> '$phrase' (count: ${abbrevMap[phrase]})")
+            Log.d(TAG, "Recorded abbreviation: '$zhenmaCode' -> '$phrase' (count: ${abbrevMap[phrase]})")
         }
     }
 
     /**
      * Gets candidates for an abbreviation.
      * Returns candidates sorted by frequency (most used first).
-     * @param abbreviation The abbreviation to look up
-     * @return List of phrase candidates sorted by frequency descending
      */
     fun getAbbreviationCandidates(abbreviation: String): List<String> {
         val normalized = abbreviation.lowercase().trim()
@@ -91,25 +82,18 @@ class UserWubiMemory(context: Context) {
     }
 
     /**
-     * Gets the frequency count for a specific character under a given Wubi code.
-     * Higher count means the user selected it more frequently.
-     * @return Frequency count, or 0 if never selected
+     * Gets the frequency count for a specific character under a given Zhenma code.
      */
-    fun getFrequency(wubiCode: String, character: String): Int {
-        val normalizedCode = wubiCode.lowercase().trim()
+    fun getFrequency(zhenmaCode: String, character: String): Int {
+        val normalizedCode = zhenmaCode.lowercase().trim()
         return memoryCache[normalizedCode]?.get(character) ?: 0
     }
 
     /**
      * Sorts a list of character candidates by user preference frequency (descending).
-     * Characters with higher frequency appear first.
-     * Characters with same frequency maintain their original order (stable sort).
-     * @param wubiCode The Wubi code input
-     * @param candidates The list of characters to sort
-     * @return Sorted list with most frequently selected characters first
      */
-    fun sortByFrequency(wubiCode: String, candidates: List<String>): List<String> {
-        val normalizedCode = wubiCode.lowercase().trim()
+    fun sortByFrequency(zhenmaCode: String, candidates: List<String>): List<String> {
+        val normalizedCode = zhenmaCode.lowercase().trim()
         val charMap = memoryCache[normalizedCode] ?: return candidates
 
         // Sort by frequency (descending), maintaining original order for equal frequencies
@@ -123,17 +107,7 @@ class UserWubiMemory(context: Context) {
         memoryCache.clear()
         abbreviationCache.clear()
         prefs.edit().clear().apply()
-        Log.d(TAG, "All Wubi user memory cleared")
-    }
-
-    /**
-     * Clears memory for a specific Wubi code.
-     */
-    fun clearCode(wubiCode: String) {
-        val normalizedCode = wubiCode.lowercase().trim()
-        memoryCache.remove(normalizedCode)
-        saveToPreferencesAsync()
-        Log.d(TAG, "Memory cleared for: $normalizedCode")
+        Log.d(TAG, "All Zhenma user memory cleared")
     }
 
     /**
@@ -162,7 +136,7 @@ class UserWubiMemory(context: Context) {
                     memoryCache[code] = charMap
                 }
 
-                Log.d(TAG, "Loaded Wubi user memory: ${memoryCache.size} code entries")
+                Log.d(TAG, "Loaded Zhenma user memory: ${memoryCache.size} code entries")
             }
 
             // Load abbreviation cache
@@ -186,10 +160,10 @@ class UserWubiMemory(context: Context) {
                     abbreviationCache[abbrev] = phraseMap
                 }
 
-                Log.d(TAG, "Loaded Wubi abbreviation memory: ${abbreviationCache.size} abbreviation entries")
+                Log.d(TAG, "Loaded Zhenma abbreviation memory: ${abbreviationCache.size} abbreviation entries")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error loading Wubi user memory from preferences", e)
+            Log.e(TAG, "Error loading Zhenma user memory from preferences", e)
         }
     }
 
@@ -203,7 +177,6 @@ class UserWubiMemory(context: Context) {
 
             // Limit the cache size to prevent unbounded growth
             val limitedCache = if (memoryCache.size > MAX_CACHE_SIZE) {
-                // Keep only the most frequently used entries
                 memoryCache.entries
                     .sortedByDescending { entry -> entry.value.values.sum() }
                     .take(MAX_CACHE_SIZE)
@@ -213,7 +186,6 @@ class UserWubiMemory(context: Context) {
             }
 
             for ((code, charMap) in limitedCache) {
-                // Limit characters per code entry
                 val limitedChars = if (charMap.size > MAX_CHARS_PER_CODE) {
                     charMap.entries
                         .sortedByDescending { it.value }
@@ -233,7 +205,6 @@ class UserWubiMemory(context: Context) {
             // Save abbreviation cache
             val abbrevJsonObject = JSONObject()
 
-            // Limit abbreviation cache size
             val limitedAbbrevCache = if (abbreviationCache.size > MAX_ABBREV_CACHE_SIZE) {
                 abbreviationCache.entries
                     .sortedByDescending { entry -> entry.value.values.sum() }
@@ -265,56 +236,26 @@ class UserWubiMemory(context: Context) {
                 .putString(KEY_ABBREVIATION_DATA, abbrevJsonObject.toString())
                 .apply()
         } catch (e: Exception) {
-            Log.e(TAG, "Error saving Wubi user memory to preferences", e)
+            Log.e(TAG, "Error saving Zhenma user memory to preferences", e)
         }
     }
 
-    /**
-     * Gets statistics about the memory data.
-     */
-    fun getStats(): MemoryStats {
-        val totalCodes = memoryCache.size
-        val totalSelections = memoryCache.values.sumOf { it.values.sum() }
-        val totalCharacters = memoryCache.values.sumOf { it.size }
-        val totalAbbreviations = abbreviationCache.size
-        val totalAbbrevPhrases = abbreviationCache.values.sumOf { it.size }
-
-        return MemoryStats(
-            codeCount = totalCodes,
-            characterCount = totalCharacters,
-            totalSelections = totalSelections,
-            abbreviationCount = totalAbbreviations,
-            abbreviationPhrases = totalAbbrevPhrases
-        )
-    }
-
-    data class MemoryStats(
-        val codeCount: Int,
-        val characterCount: Int,
-        val totalSelections: Int,
-        val abbreviationCount: Int = 0,
-        val abbreviationPhrases: Int = 0
-    )
-
     companion object {
-        private const val TAG = "UserWubiMemory"
-        private const val PREFS_NAME = "wubi_user_memory"
+        private const val TAG = "UserZhenmaMemory"
+        private const val PREFS_NAME = "zhenma_user_memory"
         private const val KEY_MEMORY_DATA = "memory_data"
         private const val KEY_ABBREVIATION_DATA = "abbreviation_data"
-        private const val MAX_CACHE_SIZE = 2000  // Maximum unique Wubi codes to store
-        private const val MAX_CHARS_PER_CODE = 30  // Maximum characters per Wubi code
-        private const val MAX_ABBREV_CACHE_SIZE = 1000  // Maximum unique abbreviations to store
-        private const val MAX_PHRASES_PER_ABBREV = 20  // Maximum phrases per abbreviation
+        private const val MAX_CACHE_SIZE = 2000
+        private const val MAX_CHARS_PER_CODE = 30
+        private const val MAX_ABBREV_CACHE_SIZE = 1000
+        private const val MAX_PHRASES_PER_ABBREV = 20
 
         @Volatile
-        private var instance: UserWubiMemory? = null
+        private var instance: UserZhenmaMemory? = null
 
-        /**
-         * Gets the singleton instance of UserWubiMemory.
-         */
-        fun getInstance(context: Context): UserWubiMemory {
+        fun getInstance(context: Context): UserZhenmaMemory {
             return instance ?: synchronized(this) {
-                instance ?: UserWubiMemory(context.applicationContext).also { instance = it }
+                instance ?: UserZhenmaMemory(context.applicationContext).also { instance = it }
             }
         }
     }

@@ -93,6 +93,18 @@ object VariationButtonHandler {
     }
 
     /**
+     * Callback for Zhenma candidate selection with index information.
+     */
+    interface OnZhenmaCandidateSelectedListener {
+        /**
+         * Called when a Zhenma candidate is selected.
+         * @param candidate The selected candidate text
+         * @param candidateIndex The index of the candidate (accounting for current page)
+         */
+        fun onZhenmaCandidateSelected(candidate: String, candidateIndex: Int)
+    }
+
+    /**
      * Creates a listener for a Pinyin candidate button.
      * When clicked, commits the Chinese character and notifies with the candidate index.
      * Does NOT delete any committed text - the Pinyin buffer is shown as composing text.
@@ -188,6 +200,40 @@ object VariationButtonHandler {
 
             // Notify Shuangpin-specific listener with index
             shuangpinListener?.onShuangpinCandidateSelected(candidate, candidateIndex)
+
+            // Also notify general listener
+            listener?.onVariationSelected(candidate)
+        }
+    }
+
+    /**
+     * Creates a listener for a Zhenma candidate button.
+     * When clicked, commits the Chinese character and notifies with the candidate index.
+     * Does NOT delete any committed text - the Zhenma buffer is shown as composing text.
+     * Note: Vibration is handled by VariationBarView, not here.
+     */
+    fun createZhenmaCandidateClickListener(
+        candidate: String,
+        candidateIndex: Int,
+        inputConnection: InputConnection?,
+        zhenmaListener: OnZhenmaCandidateSelectedListener? = null,
+        listener: OnVariationSelectedListener? = null,
+        @Suppress("UNUSED_PARAMETER") context: Context? = null
+    ): View.OnClickListener {
+        return View.OnClickListener {
+            Log.d(TAG, "Click on Zhenma candidate $candidateIndex: $candidate")
+
+            if (inputConnection == null) {
+                Log.w(TAG, "No inputConnection available to insert candidate")
+                return@OnClickListener
+            }
+
+            // Commit the Chinese character - this automatically replaces any composing text
+            inputConnection.commitText(candidate, 1)
+            Log.d(TAG, "Zhenma candidate '$candidate' inserted")
+
+            // Notify Zhenma-specific listener with index
+            zhenmaListener?.onZhenmaCandidateSelected(candidate, candidateIndex)
 
             // Also notify general listener
             listener?.onVariationSelected(candidate)

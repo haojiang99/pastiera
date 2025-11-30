@@ -80,6 +80,8 @@
     <string name="chinese_input_shuangpin_description">Enable Xiaohe Shuangpin (小鹤双拼) input</string>
     <string name="chinese_input_wubi">Wubi (五笔)</string>
     <string name="chinese_input_wubi_description">Enable Wubi shape-based input</string>
+    <string name="chinese_input_zhenma">Zhenma (真码)</string>
+    <string name="chinese_input_zhenma_description">Enable Zhenma shape-based input</string>
     <string name="chinese_input_both_enabled_info">Multiple methods enabled: Press Shift+Enter or toggle button to cycle between input methods</string>
     <string name="chinese_next_word_prediction_title">Next Word Prediction</string>
     <string name="chinese_next_word_prediction_description">Show predicted next words/phrases after selecting a character</string>
@@ -91,6 +93,7 @@
     <string name="input_mode_pinyin">Pinyin (拼音)</string>
     <string name="input_mode_shuangpin">Shuangpin (双拼)</string>
     <string name="input_mode_wubi">Wubi (五笔)</string>
+    <string name="input_mode_zhenma">Zhenma (真码)</string>
 
     <!-- Info Section -->
     <string name="info_title">Information</string>

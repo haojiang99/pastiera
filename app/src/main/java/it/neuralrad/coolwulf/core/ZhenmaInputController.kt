@@ -3,37 +3,36 @@ package it.neuralrad.coolwulf.core
 import android.content.Context
 import android.util.Log
 import android.view.KeyEvent
-import it.neuralrad.coolwulf.data.wubi.WubiDictionary
-import it.neuralrad.coolwulf.data.wubi.UserWubiMemory
+import it.neuralrad.coolwulf.data.zhenma.ZhenmaDictionary
+import it.neuralrad.coolwulf.data.zhenma.UserZhenmaMemory
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
 
 /**
- * Manages Wubi 86 input state and generates Chinese character candidates.
+ * Manages Zhenma (真码) input state and generates Chinese character candidates.
  * Handles the input buffer and provides methods for candidate selection.
  * Also provides next-word predictions after a character is committed.
  *
- * Wubi is a shape-based Chinese input method where characters are
- * encoded using 1-4 letter codes based on their structural components.
+ * Zhenma is a shape-based Chinese input method similar to Wubi,
+ * where characters are encoded based on their structural components.
  */
-class WubiInputController(
+class ZhenmaInputController(
     private val context: Context
 ) {
     companion object {
-        private const val TAG = "WubiInputController"
-        private const val MAX_WUBI_CODE_LENGTH = 4 // Wubi codes are max 4 characters
+        private const val TAG = "ZhenmaInputController"
         private const val MAX_BUFFER_LENGTH = 30 // Allow longer input for English words (commit with Enter)
         private const val PAGE_SIZE = 9  // Number of candidates per page
     }
 
-    // Current wubi input buffer (e.g., "gggg" for "王")
+    // Current zhenma input buffer
     private var buffer = StringBuilder()
 
     // All candidates for the buffer (full list from dictionary)
     private var allCandidates: List<String> = emptyList()
 
-    // Whether Wubi mode is currently active
-    private var isWubiModeActive = false
+    // Whether Zhenma mode is currently active
+    private var isZhenmaModeActive = false
 
     // Current page (0-indexed)
     private var currentPage: Int = 0
@@ -48,13 +47,13 @@ class WubiInputController(
     private val nextWordPredictor: NextWordPredictor = NextWordPredictor.getInstance(context)
 
     // User memory for learning preferences (prioritize frequently selected characters)
-    private val userMemory: UserWubiMemory = UserWubiMemory.getInstance(context)
+    private val userMemory: UserZhenmaMemory = UserZhenmaMemory.getInstance(context)
 
     // User custom dictionary for user-defined shortcuts
     private val customDictionary: UserCustomDictionary = UserCustomDictionary.getInstance(context)
 
-    // Store the Wubi code used for the current selection (for memory recording)
-    private var lastUsedWubiCode: String = ""
+    // Store the Zhenma code used for the current selection (for memory recording)
+    private var lastUsedZhenmaCode: String = ""
 
     // Track quote state for alternating between opening and closing Chinese quotes
     private var nextDoubleQuoteIsOpening: Boolean = true
@@ -72,52 +71,52 @@ class WubiInputController(
         val totalPages: Int = 1,
         val hasNextPage: Boolean = false,
         val hasPrevPage: Boolean = false,
-        val isNextWordPrediction: Boolean = false  // True when showing next-word predictions
+        val isNextWordPrediction: Boolean = false
     )
 
     init {
         // Load dictionary if not already loaded
-        if (!WubiDictionary.isLoaded()) {
-            WubiDictionary.load(context)
+        if (!ZhenmaDictionary.isLoaded()) {
+            ZhenmaDictionary.load(context)
         }
     }
 
     /**
-     * Enables or disables Wubi input mode.
+     * Enables or disables Zhenma input mode.
      */
-    fun setWubiMode(active: Boolean) {
-        if (isWubiModeActive != active) {
-            isWubiModeActive = active
+    fun setZhenmaMode(active: Boolean) {
+        if (isZhenmaModeActive != active) {
+            isZhenmaModeActive = active
             if (!active) {
                 clearBuffer()
             }
-            Log.d(TAG, "========== Wubi mode: ${if (active) "ENABLED" else "DISABLED"} ==========")
+            Log.d(TAG, "========== Zhenma mode: ${if (active) "ENABLED" else "DISABLED"} ==========")
         } else {
-            Log.d(TAG, "Wubi mode already ${if (active) "enabled" else "disabled"}")
+            Log.d(TAG, "Zhenma mode already ${if (active) "enabled" else "disabled"}")
         }
     }
 
     /**
-     * Toggles Wubi input mode on/off.
+     * Toggles Zhenma input mode on/off.
      */
-    fun toggleWubiMode() {
-        setWubiMode(!isWubiModeActive)
+    fun toggleZhenmaMode() {
+        setZhenmaMode(!isZhenmaModeActive)
     }
 
     /**
-     * Returns whether Wubi mode is currently active.
+     * Returns whether Zhenma mode is currently active.
      */
-    fun isWubiMode(): Boolean = isWubiModeActive
+    fun isZhenmaMode(): Boolean = isZhenmaModeActive
 
     /**
-     * Processes a letter key press in Wubi mode.
+     * Processes a letter key press in Zhenma mode.
      * Adds the letter to the buffer and updates candidates.
      * @param char The character to add (a-z)
      * @return true if the key was handled, false otherwise
      */
     fun handleLetterKey(char: Char): Boolean {
-        if (!isWubiModeActive) {
-            Log.d(TAG, "handleLetterKey: Wubi mode not active")
+        if (!isZhenmaModeActive) {
+            Log.d(TAG, "handleLetterKey: Zhenma mode not active")
             return false
         }
 
@@ -144,24 +143,16 @@ class WubiInputController(
         updateCandidates()
         Log.d(TAG, "Letter added: '$lowerChar' → Buffer: '$buffer', Candidates: ${allCandidates.joinToString(", ")}")
 
-        // In Wubi, if we have exactly 4 characters and only one candidate,
-        // we can auto-commit it (traditional Wubi behavior)
-        // But only when there are Wubi candidates - if no candidates, user might be typing English
-        if (buffer.length == MAX_WUBI_CODE_LENGTH && allCandidates.size == 1) {
-            Log.d(TAG, "Auto-commit single candidate at max Wubi code length")
-            // Don't auto-commit - let user decide
-        }
-
         return true
     }
 
     /**
-     * Handles backspace in Wubi mode.
+     * Handles backspace in Zhenma mode.
      * Removes the last character from the buffer, or clears next-word predictions if buffer is empty.
      * @return true if handled, false otherwise
      */
     fun handleBackspace(): Boolean {
-        if (!isWubiModeActive) {
+        if (!isZhenmaModeActive) {
             return false
         }
 
@@ -192,24 +183,24 @@ class WubiInputController(
      */
     fun selectCandidate(index: Int): String? {
         val currentPageCandidates = getCurrentPageCandidates()
-        if (!isWubiModeActive || index < 0 || index >= currentPageCandidates.size) {
+        if (!isZhenmaModeActive || index < 0 || index >= currentPageCandidates.size) {
             return null
         }
 
         val selected = currentPageCandidates[index]
         Log.d(TAG, "Selected candidate $index: '$selected'")
 
-        // Record the selection in user memory for learning (only for Wubi code-based selections)
-        if (!isShowingNextWordPredictions && lastUsedWubiCode.isNotEmpty()) {
-            userMemory.recordSelection(lastUsedWubiCode, selected)
+        // Record the selection in user memory for learning (only for Zhenma code-based selections)
+        if (!isShowingNextWordPredictions && lastUsedZhenmaCode.isNotEmpty()) {
+            userMemory.recordSelection(lastUsedZhenmaCode, selected)
         }
 
         // Record the committed word for next-word prediction learning
         nextWordPredictor.recordCommittedWord(selected)
 
-        // Clear the buffer after selection (Wubi consumes entire code)
+        // Clear the buffer after selection
         buffer.clear()
-        lastUsedWubiCode = ""
+        lastUsedZhenmaCode = ""
 
         // Show next-word predictions if available
         showNextWordPredictions()
@@ -303,7 +294,7 @@ class WubiInputController(
      * @return The selected character, or null if not applicable
      */
     fun handleNumberKey(keyCode: Int): String? {
-        if (!isWubiModeActive || allCandidates.isEmpty()) {
+        if (!isZhenmaModeActive || allCandidates.isEmpty()) {
             return null
         }
 
@@ -345,20 +336,24 @@ class WubiInputController(
 
         if (buffer.isEmpty()) {
             allCandidates = emptyList()
-            lastUsedWubiCode = ""
+            lastUsedZhenmaCode = ""
             return
         }
 
         val bufferStr = buffer.toString()
-        lastUsedWubiCode = bufferStr
+        lastUsedZhenmaCode = bufferStr
 
         val resultCandidates = mutableListOf<String>()
 
-        // Note: Abbreviation learning is disabled for Wubi mode
-        // (multi-first-letter word memory is not used in Wubi)
+        // Get abbreviation matches first (highest priority - learned from user input)
+        val abbreviationCandidates = userMemory.getAbbreviationCandidates(bufferStr)
+        if (abbreviationCandidates.isNotEmpty()) {
+            resultCandidates.addAll(abbreviationCandidates)
+            Log.d(TAG, "Abbreviation matches for '$bufferStr': $abbreviationCandidates")
+        }
 
-        // Get custom dictionary phrases first (highest priority)
-        val customPhrases = customDictionary.getWubiPhrases(bufferStr)
+        // Get custom dictionary phrases second (second highest priority)
+        val customPhrases = customDictionary.getZhenmaPhrases(bufferStr)
         if (customPhrases.isNotEmpty()) {
             for (phrase in customPhrases) {
                 if (phrase !in resultCandidates) {
@@ -369,7 +364,7 @@ class WubiInputController(
         }
 
         // Get candidates for the current code (both exact and prefix matches)
-        val rawCandidates = WubiDictionary.getCandidatesForPrefix(bufferStr, limit = 50)
+        val rawCandidates = ZhenmaDictionary.getCandidatesForPrefix(bufferStr, limit = 50)
 
         // Sort by user frequency (most frequently selected first)
         val sortedCandidates = userMemory.sortByFrequency(bufferStr, rawCandidates)
@@ -383,7 +378,7 @@ class WubiInputController(
 
         allCandidates = resultCandidates
 
-        Log.d(TAG, "Updated candidates for '$bufferStr': ${allCandidates.size} (${customPhrases.size} custom, sorted by frequency)")
+        Log.d(TAG, "Updated candidates for '$bufferStr': ${allCandidates.size} (${abbreviationCandidates.size} abbrev, ${customPhrases.size} custom, sorted by frequency)")
     }
 
     /**
@@ -393,7 +388,7 @@ class WubiInputController(
         val currentPageCandidates = getCurrentPageCandidates()
         val totalPages = getTotalPages()
         return Snapshot(
-            isActive = isWubiModeActive,
+            isActive = isZhenmaModeActive,
             buffer = buffer.toString(),
             candidates = currentPageCandidates,
             hasCandidates = allCandidates.isNotEmpty(),
@@ -501,7 +496,7 @@ class WubiInputController(
     }
 
     /**
-     * Resets quote states to opening (called when exiting Wubi mode or starting fresh).
+     * Resets quote states to opening (called when exiting Zhenma mode or starting fresh).
      */
     fun resetQuoteStates() {
         nextDoubleQuoteIsOpening = true

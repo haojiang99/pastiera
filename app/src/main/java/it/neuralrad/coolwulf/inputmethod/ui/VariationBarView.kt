@@ -45,6 +45,7 @@ class VariationBarView(
     var onPinyinCandidateSelectedListener: VariationButtonHandler.OnPinyinCandidateSelectedListener? = null
     var onWubiCandidateSelectedListener: VariationButtonHandler.OnWubiCandidateSelectedListener? = null
     var onShuangpinCandidateSelectedListener: VariationButtonHandler.OnShuangpinCandidateSelectedListener? = null
+    var onZhenmaCandidateSelectedListener: VariationButtonHandler.OnZhenmaCandidateSelectedListener? = null
     var onCursorMovedListener: (() -> Unit)? = null
     var onNextPageListener: (() -> Unit)? = null
     var onPrevPageListener: (() -> Unit)? = null
@@ -59,6 +60,7 @@ class VariationBarView(
     private var isPinyinModeActive: Boolean = false
     private var isShuangpinModeActive: Boolean = false
     private var isWubiModeActive: Boolean = false
+    private var isZhenmaModeActive: Boolean = false
     private var isChinesePunctuationMode: Boolean = true
     private var prevArrowButton: ImageView? = null
     private var nextArrowButton: ImageView? = null
@@ -172,6 +174,13 @@ class VariationBarView(
     fun setWubiModeActive(active: Boolean) {
         if (isWubiModeActive != active) {
             isWubiModeActive = active
+            updateLanguageToggleButton()
+        }
+    }
+
+    fun setZhenmaModeActive(active: Boolean) {
+        if (isZhenmaModeActive != active) {
+            isZhenmaModeActive = active
             updateLanguageToggleButton()
         }
     }
@@ -318,8 +327,8 @@ class VariationBarView(
         ).toInt()
 
         // Calculate button widths dynamically based on text content
-        // Show numbered buttons for Pinyin, Shuangpin, and Wubi only (not for English word prediction)
-        val showNumberedButtons = snapshot.pinyinModeActive || snapshot.shuangpinModeActive || snapshot.wubiModeActive
+        // Show numbered buttons for Pinyin, Shuangpin, Wubi, and Zhenma only (not for English word prediction)
+        val showNumberedButtons = snapshot.pinyinModeActive || snapshot.shuangpinModeActive || snapshot.wubiModeActive || snapshot.zhenmaModeActive
         val textSizeSp = if (showNumberedButtons || snapshot.wordPredictionActive) 18f else 17.6f
         val textPaint = android.graphics.Paint().apply {
             textSize = TypedValue.applyDimension(
@@ -358,7 +367,7 @@ class VariationBarView(
         val variationsToProcess = snapshot.variations.take(maxSuggestionsToShow)
 
         // For English word predictions, stretch buttons to fill screen width evenly
-        val isEnglishWordPrediction = snapshot.wordPredictionActive && !snapshot.pinyinModeActive && !snapshot.wubiModeActive
+        val isEnglishWordPrediction = snapshot.wordPredictionActive && !snapshot.pinyinModeActive && !snapshot.wubiModeActive && !snapshot.zhenmaModeActive
 
         // Calculate required widths for each suggestion
         data class SuggestionLayout(val text: String, val width: Int)
@@ -476,7 +485,7 @@ class VariationBarView(
             val button = createVariationButton(
                 variation, inputConnection, individualButtonWidth, showNumberedButtons, index + 1,
                 snapshot.wordPredictionActive, wordPredictionPrefixLength, snapshot.pinyinModeActive,
-                snapshot.shuangpinModeActive, snapshot.wubiModeActive, candidateIndex = index
+                snapshot.shuangpinModeActive, snapshot.wubiModeActive, snapshot.zhenmaModeActive, candidateIndex = index
             )
             variationButtons.add(button)
             variationsRow.addView(button)
@@ -492,8 +501,8 @@ class VariationBarView(
         // Force a layout pass
         containerView.requestLayout()
 
-        // Add navigation arrows when in Pinyin, Shuangpin, Wubi, or word prediction mode with suggestions
-        val showPagination = (snapshot.pinyinModeActive || snapshot.shuangpinModeActive || snapshot.wubiModeActive || snapshot.wordPredictionActive) &&
+        // Add navigation arrows when in Pinyin, Shuangpin, Wubi, Zhenma, or word prediction mode with suggestions
+        val showPagination = (snapshot.pinyinModeActive || snapshot.shuangpinModeActive || snapshot.wubiModeActive || snapshot.zhenmaModeActive || snapshot.wordPredictionActive) &&
                              snapshot.variations.isNotEmpty()
 
         // Smaller arrow button size
@@ -754,7 +763,7 @@ class VariationBarView(
         languageToggleButton.visibility = View.VISIBLE
 
         // Punctuation toggle button (中/英 for punctuation) - show right after language toggle in Chinese mode
-        if (isPinyinModeActive || isShuangpinModeActive || isWubiModeActive) {
+        if (isPinyinModeActive || isShuangpinModeActive || isWubiModeActive || isZhenmaModeActive) {
             val punctuationToggleButton = punctuationToggleButtonView ?: createPunctuationToggleButton(buttonWidth).also {
                 punctuationToggleButtonView = it
             }
@@ -1077,6 +1086,7 @@ class VariationBarView(
         isPinyinMode: Boolean = false,
         isShuangpinMode: Boolean = false,
         isWubiMode: Boolean = false,
+        isZhenmaMode: Boolean = false,
         candidateIndex: Int = 0
     ): TextView {
         val dp4 = TypedValue.applyDimension(
@@ -1172,6 +1182,17 @@ class VariationBarView(
                     context
                 )
             }
+            isZhenmaMode -> {
+                // Zhenma candidate - just commit (replaces composing text automatically)
+                VariationButtonHandler.createZhenmaCandidateClickListener(
+                    variation,
+                    candidateIndex,
+                    inputConnection,
+                    onZhenmaCandidateSelectedListener,
+                    onVariationSelectedListener,
+                    context
+                )
+            }
             else -> {
                 // Accent variation - delete 1 char and insert variation
                 VariationButtonHandler.createVariationClickListener(
@@ -1183,7 +1204,7 @@ class VariationBarView(
         }
 
         // Capture flags for closure
-        val shouldVibrate = isWordPrediction || isPinyinMode || isShuangpinMode || isWubiMode
+        val shouldVibrate = isWordPrediction || isPinyinMode || isShuangpinMode || isWubiMode || isZhenmaMode
 
         return TextView(context).apply {
             text = displayText
@@ -1373,10 +1394,11 @@ class VariationBarView(
                 isPinyinModeActive -> "拼"
                 isShuangpinModeActive -> "双"
                 isWubiModeActive -> "五"
+                isZhenmaModeActive -> "真"
                 else -> "EN"
             }
             setTextColor(when {
-                isPinyinModeActive || isShuangpinModeActive || isWubiModeActive -> Color.rgb(100, 200, 255)
+                isPinyinModeActive || isShuangpinModeActive || isWubiModeActive || isZhenmaModeActive -> Color.rgb(100, 200, 255)
                 else -> Color.WHITE
             })
         }

@@ -43,6 +43,13 @@ class CandidatesBarController(
             candidatesStatusBar.onShuangpinCandidateSelectedListener = value
         }
 
+    var onZhenmaCandidateSelectedListener: VariationButtonHandler.OnZhenmaCandidateSelectedListener? = null
+        set(value) {
+            field = value
+            inputStatusBar.onZhenmaCandidateSelectedListener = value
+            candidatesStatusBar.onZhenmaCandidateSelectedListener = value
+        }
+
     var onCursorMovedListener: (() -> Unit)? = null
         set(value) {
             field = value
