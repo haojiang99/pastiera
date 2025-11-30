@@ -55,6 +55,12 @@ object SettingsManager {
     private const val KEY_SHOW_VOICE_INPUT_BUTTON = "show_voice_input_button" // Show voice input button in status bar
     private const val KEY_CLIPBOARD_HISTORY_ENABLED = "clipboard_history_enabled" // Enable clipboard history
     private const val KEY_SHOW_CLIPBOARD_BUTTON = "show_clipboard_button" // Show clipboard button in status bar
+    private const val KEY_JUYING_MODE_ENABLED = "juying_mode_enabled" // Enable Juying (巨硬) mode - 5 keys for candidate selection
+    private const val KEY_JUYING_KEY_1 = "juying_key_1" // First Juying key (default: Shift)
+    private const val KEY_JUYING_KEY_2 = "juying_key_2" // Second Juying key (default: Sym)
+    private const val KEY_JUYING_KEY_3 = "juying_key_3" // Third Juying key (default: Space)
+    private const val KEY_JUYING_KEY_4 = "juying_key_4" // Fourth Juying key (default: Fn)
+    private const val KEY_JUYING_KEY_5 = "juying_key_5" // Fifth Juying key (default: Alt)
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -91,6 +97,12 @@ object SettingsManager {
     private const val DEFAULT_SHOW_VOICE_INPUT_BUTTON = true
     private const val DEFAULT_CLIPBOARD_HISTORY_ENABLED = true
     private const val DEFAULT_SHOW_CLIPBOARD_BUTTON = true
+    private const val DEFAULT_JUYING_MODE_ENABLED = false
+    private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift
+    private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym
+    private const val DEFAULT_JUYING_KEY_3 = KeyEvent.KEYCODE_SPACE // Space
+    private const val DEFAULT_JUYING_KEY_4 = KeyEvent.KEYCODE_FUNCTION // Fn
+    private const val DEFAULT_JUYING_KEY_5 = KeyEvent.KEYCODE_ALT_LEFT // Alt
 
     /**
      * Returns the SharedPreferences instance for Pastiera.
@@ -1223,6 +1235,96 @@ object SettingsManager {
         getPreferences(context).edit()
             .putBoolean(KEY_SHOW_CLIPBOARD_BUTTON, show)
             .apply()
+    }
+
+    /**
+     * Gets whether Juying (巨硬) mode is enabled.
+     * When enabled, 5 physical keys are used to select Chinese candidates directly.
+     * Single-click selects candidate, double-click still works for pagination.
+     */
+    fun getJuyingModeEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_JUYING_MODE_ENABLED, DEFAULT_JUYING_MODE_ENABLED)
+    }
+
+    /**
+     * Sets whether Juying (巨硬) mode is enabled.
+     */
+    fun setJuyingModeEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_JUYING_MODE_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets the key code for a Juying key (1-5).
+     * @param keyIndex The key index (1-5)
+     * @return The key code for this Juying key
+     */
+    fun getJuyingKey(context: Context, keyIndex: Int): Int {
+        val prefs = getPreferences(context)
+        return when (keyIndex) {
+            1 -> prefs.getInt(KEY_JUYING_KEY_1, DEFAULT_JUYING_KEY_1)
+            2 -> prefs.getInt(KEY_JUYING_KEY_2, DEFAULT_JUYING_KEY_2)
+            3 -> prefs.getInt(KEY_JUYING_KEY_3, DEFAULT_JUYING_KEY_3)
+            4 -> prefs.getInt(KEY_JUYING_KEY_4, DEFAULT_JUYING_KEY_4)
+            5 -> prefs.getInt(KEY_JUYING_KEY_5, DEFAULT_JUYING_KEY_5)
+            else -> 0
+        }
+    }
+
+    /**
+     * Sets the key code for a Juying key (1-5).
+     * @param keyIndex The key index (1-5)
+     * @param keyCode The key code to assign
+     */
+    fun setJuyingKey(context: Context, keyIndex: Int, keyCode: Int) {
+        val key = when (keyIndex) {
+            1 -> KEY_JUYING_KEY_1
+            2 -> KEY_JUYING_KEY_2
+            3 -> KEY_JUYING_KEY_3
+            4 -> KEY_JUYING_KEY_4
+            5 -> KEY_JUYING_KEY_5
+            else -> return
+        }
+        getPreferences(context).edit()
+            .putInt(key, keyCode)
+            .apply()
+    }
+
+    /**
+     * Gets all 5 Juying key codes as a list.
+     * @return List of 5 key codes for Juying mode
+     */
+    fun getJuyingKeys(context: Context): List<Int> {
+        return listOf(
+            getJuyingKey(context, 1),
+            getJuyingKey(context, 2),
+            getJuyingKey(context, 3),
+            getJuyingKey(context, 4),
+            getJuyingKey(context, 5)
+        )
+    }
+
+    /**
+     * Resets all Juying keys to their default values.
+     */
+    fun resetJuyingKeys(context: Context) {
+        getPreferences(context).edit()
+            .putInt(KEY_JUYING_KEY_1, DEFAULT_JUYING_KEY_1)
+            .putInt(KEY_JUYING_KEY_2, DEFAULT_JUYING_KEY_2)
+            .putInt(KEY_JUYING_KEY_3, DEFAULT_JUYING_KEY_3)
+            .putInt(KEY_JUYING_KEY_4, DEFAULT_JUYING_KEY_4)
+            .putInt(KEY_JUYING_KEY_5, DEFAULT_JUYING_KEY_5)
+            .apply()
+    }
+
+    /**
+     * Gets the candidate index (0-4) for a given key code in Juying mode.
+     * @return The candidate index (0-4), or -1 if not a Juying key
+     */
+    fun getJuyingCandidateIndex(context: Context, keyCode: Int): Int {
+        val keys = getJuyingKeys(context)
+        return keys.indexOf(keyCode)
     }
 
     /**

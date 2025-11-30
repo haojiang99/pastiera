@@ -100,6 +100,17 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getZhenmaEnabled(context))
     }
 
+    var juyingModeEnabled by remember {
+        mutableStateOf(SettingsManager.getJuyingModeEnabled(context))
+    }
+
+    var juyingKeys by remember {
+        mutableStateOf(SettingsManager.getJuyingKeys(context))
+    }
+
+    var showJuyingKeyDialog by remember { mutableStateOf(false) }
+    var editingJuyingKeyIndex by remember { mutableStateOf(0) }
+
     var chineseNextWordPrediction by remember {
         mutableStateOf(SettingsManager.getChineseNextWordPredictionEnabled(context))
     }
@@ -841,6 +852,130 @@ fun TextInputSettingsScreen(
                 )
             }
 
+            // Juying Mode Section (only show if any Chinese input is enabled)
+            if (pinyinEnabled || shuangpinEnabled || wubiEnabled || zhenmaEnabled) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                // Section header
+                Text(
+                    text = stringResource(R.string.juying_mode_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+
+                // Juying mode toggle
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.TextFields,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.juying_mode_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = stringResource(R.string.juying_mode_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                        }
+                        Switch(
+                            checked = juyingModeEnabled,
+                            onCheckedChange = { enabled ->
+                                juyingModeEnabled = enabled
+                                SettingsManager.setJuyingModeEnabled(context, enabled)
+                            }
+                        )
+                    }
+                }
+
+                // Juying key configuration (only show when Juying mode is enabled)
+                if (juyingModeEnabled) {
+                    // Key 1-5 configuration rows
+                    for (keyIndex in 1..5) {
+                        val keyCode = juyingKeys.getOrElse(keyIndex - 1) { 0 }
+                        val keyName = getKeyName(keyCode)
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .clickable {
+                                    editingJuyingKeyIndex = keyIndex
+                                    showJuyingKeyDialog = true
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = when (keyIndex) {
+                                        1 -> stringResource(R.string.juying_key_1)
+                                        2 -> stringResource(R.string.juying_key_2)
+                                        3 -> stringResource(R.string.juying_key_3)
+                                        4 -> stringResource(R.string.juying_key_4)
+                                        5 -> stringResource(R.string.juying_key_5)
+                                        else -> ""
+                                    },
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    text = keyName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+
+                    // Reset keys button
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .clickable {
+                                SettingsManager.resetJuyingKeys(context)
+                                juyingKeys = SettingsManager.getJuyingKeys(context)
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.juying_reset_keys),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+
             // Default Input Mode Selection
             Surface(
                 modifier = Modifier
@@ -1143,5 +1278,89 @@ fun TextInputSettingsScreen(
                 }
             }
         )
+    }
+
+    // Juying key configuration dialog
+    if (showJuyingKeyDialog) {
+        JuyingKeyInputDialog(
+            keyIndex = editingJuyingKeyIndex,
+            onKeySelected = { keyCode ->
+                SettingsManager.setJuyingKey(context, editingJuyingKeyIndex, keyCode)
+                juyingKeys = SettingsManager.getJuyingKeys(context)
+                showJuyingKeyDialog = false
+            },
+            onDismiss = { showJuyingKeyDialog = false }
+        )
+    }
+}
+
+/**
+ * Dialog for capturing a key press to assign to a Juying key slot.
+ */
+@Composable
+fun JuyingKeyInputDialog(
+    keyIndex: Int,
+    onKeySelected: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.juying_key_config_title),
+                style = MaterialTheme.typography.titleLarge
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(R.string.juying_key_config_description),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = stringResource(R.string.juying_press_key),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        }
+    )
+}
+
+/**
+ * Converts a key code to a human-readable name.
+ */
+private fun getKeyName(keyCode: Int): String {
+    return when (keyCode) {
+        android.view.KeyEvent.KEYCODE_SHIFT_LEFT, android.view.KeyEvent.KEYCODE_SHIFT_RIGHT -> "Shift"
+        android.view.KeyEvent.KEYCODE_ALT_LEFT, android.view.KeyEvent.KEYCODE_ALT_RIGHT -> "Alt"
+        android.view.KeyEvent.KEYCODE_CTRL_LEFT, android.view.KeyEvent.KEYCODE_CTRL_RIGHT -> "Ctrl"
+        android.view.KeyEvent.KEYCODE_SYM -> "Sym"
+        android.view.KeyEvent.KEYCODE_SPACE -> "Space"
+        android.view.KeyEvent.KEYCODE_FUNCTION -> "Fn"
+        android.view.KeyEvent.KEYCODE_ENTER -> "Enter"
+        android.view.KeyEvent.KEYCODE_DEL -> "Backspace"
+        android.view.KeyEvent.KEYCODE_TAB -> "Tab"
+        android.view.KeyEvent.KEYCODE_ESCAPE -> "Esc"
+        android.view.KeyEvent.KEYCODE_CAPS_LOCK -> "Caps Lock"
+        android.view.KeyEvent.KEYCODE_META_LEFT, android.view.KeyEvent.KEYCODE_META_RIGHT -> "Meta"
+        in android.view.KeyEvent.KEYCODE_A..android.view.KeyEvent.KEYCODE_Z -> {
+            val char = ('A'.code + (keyCode - android.view.KeyEvent.KEYCODE_A)).toChar()
+            char.toString()
+        }
+        in android.view.KeyEvent.KEYCODE_0..android.view.KeyEvent.KEYCODE_9 -> {
+            val char = ('0'.code + (keyCode - android.view.KeyEvent.KEYCODE_0)).toChar()
+            char.toString()
+        }
+        else -> "Key $keyCode"
     }
 }

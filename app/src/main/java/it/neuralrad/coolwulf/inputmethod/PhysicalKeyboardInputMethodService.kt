@@ -1077,12 +1077,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         var hasNextPage = false
         var hasPrevPage = false
 
+        // In Juying mode, limit to 5 candidates for the 5 selection keys
+        val isJuyingMode = SettingsManager.getJuyingModeEnabled(this)
+        val candidateLimit = if (isJuyingMode) 5 else 9
+
         if (pinyinSnapshot.isActive) {
             // Pinyin mode takes priority
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
                 lastInsertedChar = if (pinyinSnapshot.buffer.isNotEmpty()) pinyinSnapshot.buffer.last() else null,
-                variations = pinyinSnapshot.candidates.take(9)
+                variations = pinyinSnapshot.candidates.take(candidateLimit)
             )
             // Pagination info from Pinyin
             currentPage = pinyinSnapshot.currentPage
@@ -1094,7 +1098,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
                 lastInsertedChar = if (shuangpinSnapshot.buffer.isNotEmpty()) shuangpinSnapshot.buffer.last() else null,
-                variations = shuangpinSnapshot.candidates.take(9)
+                variations = shuangpinSnapshot.candidates.take(candidateLimit)
             )
             // Pagination info from Shuangpin
             currentPage = shuangpinSnapshot.currentPage
@@ -1106,7 +1110,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
                 lastInsertedChar = if (wubiSnapshot.buffer.isNotEmpty()) wubiSnapshot.buffer.last() else null,
-                variations = wubiSnapshot.candidates.take(9)
+                variations = wubiSnapshot.candidates.take(candidateLimit)
             )
             // Pagination info from Wubi
             currentPage = wubiSnapshot.currentPage
@@ -1118,7 +1122,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
                 lastInsertedChar = if (zhenmaSnapshot.buffer.isNotEmpty()) zhenmaSnapshot.buffer.last() else null,
-                variations = zhenmaSnapshot.candidates.take(9)
+                variations = zhenmaSnapshot.candidates.take(candidateLimit)
             )
             // Pagination info from Zhenma
             currentPage = zhenmaSnapshot.currentPage
@@ -1508,6 +1512,46 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         }
                     }
                 }
+            }
+        }
+
+        // Handle Juying mode single-click candidate selection
+        // Only applies when Chinese input mode is active and has candidates
+        val juyingModeEnabled = SettingsManager.getJuyingModeEnabled(this)
+        val isChineseInputActive = isPinyinMode || isShuangpinMode || isWubiMode || isZhenmaMode
+        val hasCandidates = hasPinyinCandidates || hasShuangpinCandidates || hasWubiCandidates || hasZhenmaCandidates
+
+        if (juyingModeEnabled && isChineseInputActive && hasCandidates && event?.repeatCount == 0) {
+            val juyingCandidateIndex = SettingsManager.getJuyingCandidateIndex(this, keyCode)
+            if (juyingCandidateIndex >= 0) {
+                // Check if this is a double-click (for pagination) - don't select candidate on double-click
+                val currentTime = System.currentTimeMillis()
+                val isDoubleClick = when {
+                    isDeviceAltKey(keyCode) -> (currentTime - altLastPressTime) <= PAGINATION_DOUBLE_PRESS_THRESHOLD
+                    isDeviceShiftKey(keyCode) -> (currentTime - shiftLastPressTime) <= PAGINATION_DOUBLE_PRESS_THRESHOLD
+                    else -> false
+                }
+
+                if (!isDoubleClick) {
+                    // Single click - select candidate at index
+                    val ic = currentInputConnection
+                    if (ic != null) {
+                        val selected = when {
+                            isPinyinMode -> pinyinInputController.selectCandidate(juyingCandidateIndex)
+                            isShuangpinMode -> shuangpinInputController.selectCandidate(juyingCandidateIndex)
+                            isWubiMode -> wubiInputController.selectCandidate(juyingCandidateIndex)
+                            isZhenmaMode -> zhenmaInputController.selectCandidate(juyingCandidateIndex)
+                            else -> null
+                        }
+                        if (selected != null) {
+                            ic.commitText(selected, 1)
+                            updateStatusBarText()
+                            return true
+                        }
+                    }
+                }
+                // If double-click, let the pagination logic above handle it
+                // But we still need to track the time for Alt/Shift
             }
         }
 
