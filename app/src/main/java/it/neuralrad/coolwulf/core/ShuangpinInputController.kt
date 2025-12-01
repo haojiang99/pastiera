@@ -271,19 +271,6 @@ class ShuangpinInputController(
     }
 
     /**
-     * Gets candidates for the current page.
-     */
-    private fun getCurrentPageCandidates(): List<String> {
-        val startIndex = currentPage * pageSize
-        val endIndex = minOf(startIndex + pageSize, allCandidates.size)
-        return if (startIndex < allCandidates.size) {
-            allCandidates.subList(startIndex, endIndex)
-        } else {
-            emptyList()
-        }
-    }
-
-    /**
      * Calculates total number of pages.
      */
     private fun getTotalPages(): Int {
@@ -635,11 +622,13 @@ class ShuangpinInputController(
     fun isShowingNextWordPredictions(): Boolean = isShowingNextWordPredictions
 
     /**
-     * Clears next-word prediction state.
+     * Clears next-word prediction state and all candidates.
      */
     fun clearNextWordPredictions() {
         nextWordPredictor.clearState()
         isShowingNextWordPredictions = false
+        allCandidates = emptyList()
+        currentPage = 0
     }
 
     /**
@@ -685,6 +674,51 @@ class ShuangpinInputController(
      * Checks if there is a next page of candidates.
      */
     fun hasNextPage(): Boolean = currentPage < getTotalPages() - 1
+
+    /**
+     * Gets all candidates (not just current page).
+     * Used for saving state when Alt is pressed in Juying mode.
+     */
+    fun getAllCandidates(): List<String> = allCandidates.toList()
+
+    /**
+     * Gets the current page number.
+     * Used for saving state when Alt is pressed in Juying mode.
+     */
+    fun getCurrentPage(): Int = currentPage
+
+    /**
+     * Gets candidates for the current page.
+     * Used for saving 5th suggestion when Alt is pressed in Juying mode.
+     */
+    fun getCurrentPageCandidates(): List<String> {
+        val startIndex = currentPage * pageSize
+        val endIndex = minOf(startIndex + pageSize, allCandidates.size)
+        return if (startIndex < allCandidates.size) {
+            allCandidates.subList(startIndex, endIndex)
+        } else {
+            emptyList()
+        }
+    }
+
+    /**
+     * Restores candidates for next page navigation.
+     * Used when double-clicking Alt in Juying mode to navigate to next page.
+     */
+    fun restoreCandidatesForNextPage(candidates: List<String>, page: Int) {
+        allCandidates = candidates
+        currentPage = page
+        isShowingNextWordPredictions = true
+    }
+
+    /**
+     * Restores the buffer content.
+     * Used when double-clicking Alt in Juying mode to restore composing text.
+     */
+    fun restoreBuffer(content: String) {
+        buffer.clear()
+        buffer.append(content)
+    }
 
     /**
      * Checks if there is a previous page of candidates.

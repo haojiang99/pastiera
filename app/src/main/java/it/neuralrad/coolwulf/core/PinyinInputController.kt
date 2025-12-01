@@ -398,18 +398,6 @@ class PinyinInputController(
         updateCandidates()
     }
 
-    /**
-     * Gets candidates for the current page.
-     */
-    private fun getCurrentPageCandidates(): List<String> {
-        val startIndex = currentPage * pageSize
-        val endIndex = minOf(startIndex + pageSize, allCandidates.size)
-        return if (startIndex < allCandidates.size) {
-            allCandidates.subList(startIndex, endIndex)
-        } else {
-            emptyList()
-        }
-    }
 
     /**
      * Calculates total number of pages.
@@ -1041,11 +1029,13 @@ class PinyinInputController(
     fun isShowingNextWordPredictions(): Boolean = isShowingNextWordPredictions
 
     /**
-     * Clears next-word prediction state.
+     * Clears next-word prediction state and all candidates.
      */
     fun clearNextWordPredictions() {
         nextWordPredictor.clearState()
         isShowingNextWordPredictions = false
+        allCandidates = emptyList()
+        currentPage = 0
     }
 
     /**
@@ -1099,6 +1089,85 @@ class PinyinInputController(
     fun hasNextPage(): Boolean {
         val totalPages = getTotalPages()
         return currentPage < totalPages - 1
+    }
+
+    /**
+     * Gets all candidates (not just current page).
+     * Used for saving state when Alt is pressed in Juying mode.
+     */
+    fun getAllCandidates(): List<String> = allCandidates.toList()
+
+    /**
+     * Gets the current page number.
+     * Used for saving state when Alt is pressed in Juying mode.
+     */
+    fun getCurrentPage(): Int = currentPage
+
+    /**
+     * Gets candidates for the current page (public access).
+     * Used for saving 5th suggestion when Alt is pressed in Juying mode.
+     */
+    fun getCurrentPageCandidates(): List<String> {
+        val startIndex = currentPage * pageSize
+        val endIndex = minOf(startIndex + pageSize, allCandidates.size)
+        return if (startIndex < allCandidates.size) {
+            allCandidates.subList(startIndex, endIndex)
+        } else {
+            emptyList()
+        }
+    }
+
+    /**
+     * Restores candidates for next page navigation.
+     * Used when double-clicking Alt in Juying mode to navigate to next page.
+     */
+    fun restoreCandidatesForNextPage(candidates: List<String>, page: Int) {
+        allCandidates = candidates
+        currentPage = page
+        isShowingNextWordPredictions = true  // Mark as showing predictions for proper state
+    }
+
+    /**
+     * Full restoration for Alt selection - restores candidates and syllable parsing state.
+     * This ensures selectCandidate() knows which syllables to consume.
+     */
+    fun restoreForAltSelection(
+        candidates: List<String>,
+        page: Int,
+        savedFirstSyllable: String,
+        savedMatchedPinyin: String,
+        savedPhraseCandidateCount: Int
+    ) {
+        allCandidates = candidates
+        currentPage = page
+        firstSyllable = savedFirstSyllable
+        matchedPinyin = savedMatchedPinyin
+        phraseCandidateCount = savedPhraseCandidateCount
+        isShowingNextWordPredictions = false  // Not showing predictions, showing actual candidates
+    }
+
+    /**
+     * Gets the first syllable value for saving before Alt selection.
+     */
+    fun getFirstSyllable(): String = firstSyllable
+
+    /**
+     * Gets the matched pinyin value for saving before Alt selection.
+     */
+    fun getMatchedPinyin(): String = matchedPinyin
+
+    /**
+     * Gets the phrase candidate count for saving before Alt selection.
+     */
+    fun getPhraseCandidateCount(): Int = phraseCandidateCount
+
+    /**
+     * Restores the buffer content.
+     * Used when double-clicking Alt in Juying mode to restore composing text.
+     */
+    fun restoreBuffer(content: String) {
+        buffer.clear()
+        buffer.append(content)
     }
 
     /**
