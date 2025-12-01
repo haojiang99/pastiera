@@ -333,6 +333,7 @@
     <string name="unicode_picker_title">Select unicode character</string>
     <string name="unicode_picker_close">Close</string>
     <string name="unicode_category_punctuation">Punctuation</string>
+    <string name="unicode_category_chinese_punctuation">中文标点</string>
     <string name="unicode_category_math">Mathematical Symbols</string>
     <string name="unicode_category_currency">Currencies</string>
     <string name="unicode_category_technical">Technical Symbols</string>

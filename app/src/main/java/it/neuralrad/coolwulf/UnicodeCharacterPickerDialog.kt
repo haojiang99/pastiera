@@ -78,6 +78,29 @@ fun UnicodeCharacterPickerDialog(
                             "‴", "‵", "‶", "‷", "‸", "※", "§", "¶", "†", "‡",
                             ";", ":", "!", "?", ".", ",", "‽", "⁇", "⁈", "⁉"
                         ),
+                        "punteggiatura_cinese" to listOf(
+                            // Basic Chinese punctuation
+                            "。", "，", "、", "；", "：", "？", "！", "…", "——",
+                            // Quotation marks
+                            """, """, "'", "'", "「", "」", "『", "』",
+                            // Brackets
+                            "（", "）", "【", "】", "〔", "〕", "〖", "〗", "｛", "｝",
+                            // Book title marks
+                            "《", "》", "〈", "〉", "＜", "＞",
+                            // Special marks
+                            "·", "～", "‖", "〃", "々", "〆", "〇",
+                            // Full-width symbols
+                            "＃", "＆", "＊", "＠", "＼", "＾", "＿", "｜",
+                            // Full-width numbers
+                            "０", "１", "２", "３", "４", "５", "６", "７", "８", "９",
+                            // Full-width letters (common)
+                            "Ａ", "Ｂ", "Ｃ", "Ｄ", "Ｅ", "Ｆ", "Ｇ", "Ｈ", "Ｉ", "Ｊ",
+                            // Chinese numeric characters
+                            "零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十",
+                            "百", "千", "万", "亿",
+                            // Traditional numeric characters
+                            "壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌", "玖", "拾"
+                        ),
                         "simboli_matematici" to listOf(
                             "±", "×", "÷", "≠", "≤", "≥", "≈", "∞", "∑", "∏",
                             "√", "∫", "∆", "∇", "∂", "α", "β", "γ", "δ", "ε",
@@ -200,6 +223,7 @@ fun UnicodeCharacterPickerDialog(
                 fun getCategoryName(categoryKey: String): String {
                     return when (categoryKey) {
                         "punteggiatura" -> stringResource(R.string.unicode_category_punctuation)
+                        "punteggiatura_cinese" -> stringResource(R.string.unicode_category_chinese_punctuation)
                         "simboli_matematici" -> stringResource(R.string.unicode_category_math)
                         "simboli_valuta" -> stringResource(R.string.unicode_category_currency)
                         "simboli_tecnici" -> stringResource(R.string.unicode_category_technical)
