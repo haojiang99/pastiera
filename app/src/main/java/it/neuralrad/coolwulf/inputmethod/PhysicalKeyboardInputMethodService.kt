@@ -438,6 +438,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         wubiInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
         zhenmaInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
 
+        // Apply fuzzy pinyin setting (模糊音)
+        val fuzzyPinyinEnabled = SettingsManager.getPinyinFuzzyEnabled(this)
+        pinyinInputController.setFuzzyPinyinEnabled(fuzzyPinyinEnabled)
+
         // Start clipboard history listener if enabled
         if (SettingsManager.getClipboardHistoryEnabled(this)) {
             it.neuralrad.coolwulf.core.ClipboardHistoryManager.startListening(this)
@@ -1077,16 +1081,31 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         var hasNextPage = false
         var hasPrevPage = false
 
-        // In Juying mode, limit to 5 candidates for the 5 selection keys
+        // In Juying mode, limit to 5 candidates for the 5 selection keys (Chinese)
         val isJuyingMode = SettingsManager.getJuyingModeEnabled(this)
         val candidateLimit = if (isJuyingMode) 5 else 9
 
+        // Helper to reorder candidates for Juying+Chinese mode display:
+        // Original order: [1st, 2nd, 3rd, 4th, 5th] -> Display order: [2nd, 3rd, 1st, 4th, 5th]
+        // This puts the 1st suggestion at position 3 (Space key)
+        // Keys: Shift(pos0)->2nd, Sym(pos1)->3rd, Space(pos2)->1st, Ctrl(pos3)->4th, Alt(pos4)->5th
+        fun reorderForJuyingDisplay(candidates: List<String>): List<String> {
+            if (!isJuyingMode || candidates.size < 2) return candidates
+            return when (candidates.size) {
+                2 -> listOf(candidates[1], candidates[0]) // [2nd, 1st]
+                3 -> listOf(candidates[1], candidates[2], candidates[0]) // [2nd, 3rd, 1st]
+                4 -> listOf(candidates[1], candidates[2], candidates[0], candidates[3]) // [2nd, 3rd, 1st, 4th]
+                else -> listOf(candidates[1], candidates[2], candidates[0], candidates[3], candidates[4]) // [2nd, 3rd, 1st, 4th, 5th]
+            }
+        }
+
         if (pinyinSnapshot.isActive) {
             // Pinyin mode takes priority
+            val rawCandidates = pinyinSnapshot.candidates.take(candidateLimit)
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
                 lastInsertedChar = if (pinyinSnapshot.buffer.isNotEmpty()) pinyinSnapshot.buffer.last() else null,
-                variations = pinyinSnapshot.candidates.take(candidateLimit)
+                variations = reorderForJuyingDisplay(rawCandidates)
             )
             // Pagination info from Pinyin
             currentPage = pinyinSnapshot.currentPage
@@ -1095,10 +1114,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             hasPrevPage = pinyinSnapshot.hasPrevPage
         } else if (shuangpinSnapshot.isActive) {
             // Shuangpin mode
+            val rawCandidates = shuangpinSnapshot.candidates.take(candidateLimit)
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
                 lastInsertedChar = if (shuangpinSnapshot.buffer.isNotEmpty()) shuangpinSnapshot.buffer.last() else null,
-                variations = shuangpinSnapshot.candidates.take(candidateLimit)
+                variations = reorderForJuyingDisplay(rawCandidates)
             )
             // Pagination info from Shuangpin
             currentPage = shuangpinSnapshot.currentPage
@@ -1107,10 +1127,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             hasPrevPage = shuangpinSnapshot.hasPrevPage
         } else if (wubiSnapshot.isActive) {
             // Wubi mode
+            val rawCandidates = wubiSnapshot.candidates.take(candidateLimit)
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
                 lastInsertedChar = if (wubiSnapshot.buffer.isNotEmpty()) wubiSnapshot.buffer.last() else null,
-                variations = wubiSnapshot.candidates.take(candidateLimit)
+                variations = reorderForJuyingDisplay(rawCandidates)
             )
             // Pagination info from Wubi
             currentPage = wubiSnapshot.currentPage
@@ -1119,10 +1140,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             hasPrevPage = wubiSnapshot.hasPrevPage
         } else if (zhenmaSnapshot.isActive) {
             // Zhenma mode
+            val rawCandidates = zhenmaSnapshot.candidates.take(candidateLimit)
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
                 lastInsertedChar = if (zhenmaSnapshot.buffer.isNotEmpty()) zhenmaSnapshot.buffer.last() else null,
-                variations = zhenmaSnapshot.candidates.take(candidateLimit)
+                variations = reorderForJuyingDisplay(rawCandidates)
             )
             // Pagination info from Zhenma
             currentPage = zhenmaSnapshot.currentPage
@@ -1182,7 +1204,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             totalPages = totalPages,
             hasNextPage = hasNextPage,
             hasPrevPage = hasPrevPage,
-            chinesePunctuationMode = isChinesePunctuationModeActive()
+            chinesePunctuationMode = isChinesePunctuationModeActive(),
+            isJuyingMode = isJuyingMode
         )
         val emojiMapText = ""
         // Passa le mappature SYM per la griglia emoji/caratteri
@@ -1286,6 +1309,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         shuangpinInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
         wubiInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
 
+        // Refresh fuzzy pinyin setting (may have changed in settings)
+        val fuzzyPinyinEnabled = SettingsManager.getPinyinFuzzyEnabled(this)
+        pinyinInputController.setFuzzyPinyinEnabled(fuzzyPinyinEnabled)
+
         val isEditable = inputContextState.isEditable
 
         if (restarting && isEditable && !shouldDisableSmartFeatures) {
@@ -1316,6 +1343,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     
     override fun onWindowShown() {
         super.onWindowShown()
+        // Refresh fuzzy pinyin setting (may have changed in settings)
+        val fuzzyPinyinEnabled = SettingsManager.getPinyinFuzzyEnabled(this)
+        pinyinInputController.setFuzzyPinyinEnabled(fuzzyPinyinEnabled)
+
+        // Refresh Juying mode page size for all Chinese input controllers
+        val juyingModeEnabled = SettingsManager.getJuyingModeEnabled(this)
+        pinyinInputController.setJuyingMode(juyingModeEnabled)
+        shuangpinInputController.setJuyingMode(juyingModeEnabled)
+        wubiInputController.setJuyingMode(juyingModeEnabled)
+        zhenmaInputController.setJuyingMode(juyingModeEnabled)
+
         updateStatusBarText()
     }
     
@@ -1420,138 +1458,235 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val hasWordPredictions = isWordPredictionActive && englishWordPredictionController.hasSuggestions()
         val hasCandidatesToPaginate = hasPinyinCandidates || hasShuangpinCandidates || hasWubiCandidates || hasZhenmaCandidates || hasWordPredictions
 
-        if (hasCandidatesToPaginate) {
-            when {
-                isDeviceAltKey(keyCode) -> {
-                    if (event?.repeatCount == 0) {
-                        val currentTime = System.currentTimeMillis()
-                        val timeSinceLastPress = currentTime - altLastPressTime
+        // Check Juying mode settings upfront
+        val juyingModeEnabled = SettingsManager.getJuyingModeEnabled(this)
+        val isChineseInputActive = isPinyinMode || isShuangpinMode || isWubiMode || isZhenmaMode
+        val hasChineseCandidates = hasPinyinCandidates || hasShuangpinCandidates || hasWubiCandidates || hasZhenmaCandidates
+        // Juying mode works with both Chinese input and English word predictions
+        val hasAnyCandidates = hasChineseCandidates || hasWordPredictions
 
-                        if (timeSinceLastPress <= PAGINATION_DOUBLE_PRESS_THRESHOLD) {
-                            // Double press detected - go to next page
-                            when {
-                                isPinyinMode -> {
-                                    if (pinyinInputController.hasNextPage()) {
-                                        pinyinInputController.nextPage()
-                                        updateStatusBarText()
-                                    }
-                                }
-                                isShuangpinMode -> {
-                                    if (shuangpinInputController.hasNextPage()) {
-                                        shuangpinInputController.nextPage()
-                                        updateStatusBarText()
-                                    }
-                                }
-                                isWubiMode -> {
-                                    if (wubiInputController.hasNextPage()) {
-                                        wubiInputController.nextPage()
-                                        updateStatusBarText()
-                                    }
-                                }
-                                isZhenmaMode -> {
-                                    if (zhenmaInputController.hasNextPage()) {
-                                        zhenmaInputController.nextPage()
-                                        updateStatusBarText()
-                                    }
-                                }
-                                else -> {
-                                    if (englishWordPredictionController.hasNextPage()) {
-                                        englishWordPredictionController.nextPage()
-                                        updateStatusBarText()
-                                    }
-                                }
-                            }
-                            altLastPressTime = 0L // Reset to prevent triple press
-                        } else {
-                            altLastPressTime = currentTime
-                        }
-                    }
+        // Handle Juying mode candidate selection for all configured keys
+        // Juying: single-click selects candidate (Chinese: 5, English: 3)
+        // Double-click Shift for prev page, double-click Alt for next page (Chinese only)
+        if (juyingModeEnabled && hasAnyCandidates && event?.repeatCount == 0) {
+            // Try both raw and translated keycode for consistent key matching across devices
+            // This handles cases where BlackBerry keycodes may or may not be translated
+            var juyingCandidateIndex = SettingsManager.getJuyingCandidateIndex(this, translatedKeyCode)
+            if (juyingCandidateIndex < 0 && keyCode != translatedKeyCode) {
+                juyingCandidateIndex = SettingsManager.getJuyingCandidateIndex(this, keyCode)
+            }
+
+            // For English word predictions, skip Space key (index 2 in 5-key layout) - let it type space normally
+            // Also skip Alt key (index 4) in English mode - it acts normally
+            // English uses only Shift/Sym/Ctrl for 3 suggestions, remapped to indices 0-2
+            val isEnglishOnlyMode = hasWordPredictions && !isChineseInputActive
+            if (isEnglishOnlyMode && (juyingCandidateIndex == 2 || juyingCandidateIndex == 4)) {
+                // Space or Alt key pressed in English mode - don't use for Juying selection
+                juyingCandidateIndex = -1
+            } else if (isEnglishOnlyMode && juyingCandidateIndex >= 0) {
+                // Remap for English: Shift(0)→0, Sym(1)→1, Ctrl(3)→2
+                juyingCandidateIndex = when (juyingCandidateIndex) {
+                    0 -> 0  // Shift -> 1st suggestion
+                    1 -> 1  // Sym -> 2nd suggestion
+                    3 -> 2  // Ctrl -> 3rd suggestion
+                    else -> -1
                 }
-                isDeviceShiftKey(keyCode) -> {
-                    if (event?.repeatCount == 0) {
-                        val currentTime = System.currentTimeMillis()
-                        val timeSinceLastPress = currentTime - shiftLastPressTime
+            }
 
-                        if (timeSinceLastPress <= PAGINATION_DOUBLE_PRESS_THRESHOLD) {
-                            // Double press detected - go to previous page
-                            when {
-                                isPinyinMode -> {
-                                    if (pinyinInputController.hasPrevPage()) {
-                                        pinyinInputController.prevPage()
-                                        updateStatusBarText()
-                                    }
-                                }
-                                isShuangpinMode -> {
-                                    if (shuangpinInputController.hasPrevPage()) {
-                                        shuangpinInputController.prevPage()
-                                        updateStatusBarText()
-                                    }
-                                }
-                                isWubiMode -> {
-                                    if (wubiInputController.hasPrevPage()) {
-                                        wubiInputController.prevPage()
-                                        updateStatusBarText()
-                                    }
-                                }
-                                isZhenmaMode -> {
-                                    if (zhenmaInputController.hasPrevPage()) {
-                                        zhenmaInputController.prevPage()
-                                        updateStatusBarText()
-                                    }
-                                }
-                                else -> {
-                                    if (englishWordPredictionController.hasPrevPage()) {
-                                        englishWordPredictionController.prevPage()
-                                        updateStatusBarText()
-                                    }
-                                }
-                            }
-                            shiftLastPressTime = 0L // Reset to prevent triple press
-                        } else {
-                            shiftLastPressTime = currentTime
+            if (juyingCandidateIndex >= 0) {
+                val currentTime = System.currentTimeMillis()
+
+                // Check for double-click on Shift for prev page (Chinese input only)
+                val isDoubleClickShift = isDeviceShiftKey(keyCode) &&
+                    (currentTime - shiftLastPressTime) <= PAGINATION_DOUBLE_PRESS_THRESHOLD
+
+                // Check for double-click on Alt for next page (Chinese input only)
+                val isDoubleClickAlt = isDeviceAltKey(keyCode) &&
+                    (currentTime - altLastPressTime) <= PAGINATION_DOUBLE_PRESS_THRESHOLD
+
+                if (isDoubleClickShift && isChineseInputActive) {
+                    // Double press Shift - go to previous page (Chinese only)
+                    when {
+                        isPinyinMode && pinyinInputController.hasPrevPage() -> {
+                            pinyinInputController.prevPage()
+                            updateStatusBarText()
+                        }
+                        isShuangpinMode && shuangpinInputController.hasPrevPage() -> {
+                            shuangpinInputController.prevPage()
+                            updateStatusBarText()
+                        }
+                        isWubiMode && wubiInputController.hasPrevPage() -> {
+                            wubiInputController.prevPage()
+                            updateStatusBarText()
+                        }
+                        isZhenmaMode && zhenmaInputController.hasPrevPage() -> {
+                            zhenmaInputController.prevPage()
+                            updateStatusBarText()
                         }
                     }
+                    shiftLastPressTime = 0L
+                    return true
+                } else if (isDoubleClickAlt && isChineseInputActive) {
+                    // Double press Alt - go to next page (Chinese only)
+                    when {
+                        isPinyinMode && pinyinInputController.hasNextPage() -> {
+                            pinyinInputController.nextPage()
+                            updateStatusBarText()
+                        }
+                        isShuangpinMode && shuangpinInputController.hasNextPage() -> {
+                            shuangpinInputController.nextPage()
+                            updateStatusBarText()
+                        }
+                        isWubiMode && wubiInputController.hasNextPage() -> {
+                            wubiInputController.nextPage()
+                            updateStatusBarText()
+                        }
+                        isZhenmaMode && zhenmaInputController.hasNextPage() -> {
+                            zhenmaInputController.nextPage()
+                            updateStatusBarText()
+                        }
+                    }
+                    altLastPressTime = 0L
+                    return true
+                } else {
+                    // Single click - select candidate
+                    val ic = currentInputConnection
+                    if (ic != null) {
+                        // For Chinese input in Juying mode, map key index to original candidate index
+                        // Display is reordered as [2nd, 3rd, 1st, 4th, 5th], so we reverse the mapping:
+                        // Key 0 (Shift) -> display pos 0 -> original index 1 (2nd)
+                        // Key 1 (Sym) -> display pos 1 -> original index 2 (3rd)
+                        // Key 2 (Space) -> display pos 2 -> original index 0 (1st - best suggestion!)
+                        // Key 3 (Ctrl) -> display pos 3 -> original index 3 (4th)
+                        // Key 4 (Alt) -> display pos 4 -> original index 4 (5th)
+                        val originalCandidateIndex = if (isChineseInputActive) {
+                            when (juyingCandidateIndex) {
+                                0 -> 1  // Shift selects 2nd
+                                1 -> 2  // Sym selects 3rd
+                                2 -> 0  // Space selects 1st (best)
+                                3 -> 3  // Ctrl selects 4th
+                                4 -> 4  // Alt selects 5th
+                                else -> juyingCandidateIndex
+                            }
+                        } else {
+                            juyingCandidateIndex // English mode - no reordering
+                        }
+
+                        when {
+                            isPinyinMode -> {
+                                val selected = pinyinInputController.selectCandidate(originalCandidateIndex)
+                                if (selected != null) {
+                                    ic.commitText(selected, 1)
+                                    updateStatusBarText()
+                                }
+                            }
+                            isShuangpinMode -> {
+                                val selected = shuangpinInputController.selectCandidate(originalCandidateIndex)
+                                if (selected != null) {
+                                    ic.commitText(selected, 1)
+                                    updateStatusBarText()
+                                }
+                            }
+                            isWubiMode -> {
+                                val selected = wubiInputController.selectCandidate(originalCandidateIndex)
+                                if (selected != null) {
+                                    ic.commitText(selected, 1)
+                                    updateStatusBarText()
+                                }
+                            }
+                            isZhenmaMode -> {
+                                val selected = zhenmaInputController.selectCandidate(originalCandidateIndex)
+                                if (selected != null) {
+                                    ic.commitText(selected, 1)
+                                    updateStatusBarText()
+                                }
+                            }
+                            hasWordPredictions -> {
+                                val result = englishWordPredictionController.selectSuggestion(juyingCandidateIndex)
+                                if (result != null) {
+                                    ic.deleteSurroundingText(result.prefixLength, 0)
+                                    ic.commitText(result.word + " ", 1)
+                                    englishWordPredictionController.updateFromCursor(ic)
+                                    updateStatusBarText()
+                                }
+                            }
+                        }
+                    }
+                    // Update press time for double-click detection
+                    if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
+                    if (isDeviceAltKey(keyCode)) altLastPressTime = currentTime
+                    return true
                 }
             }
         }
 
-        // Handle Juying mode single-click candidate selection
-        // Only applies when Chinese input mode is active and has candidates
-        val juyingModeEnabled = SettingsManager.getJuyingModeEnabled(this)
-        val isChineseInputActive = isPinyinMode || isShuangpinMode || isWubiMode || isZhenmaMode
-        val hasCandidates = hasPinyinCandidates || hasShuangpinCandidates || hasWubiCandidates || hasZhenmaCandidates
+        // Handle Alt/Shift double press for pagination (non-Juying mode or non-Juying keys)
+        if (hasCandidatesToPaginate && event?.repeatCount == 0) {
+            val currentTime = System.currentTimeMillis()
 
-        if (juyingModeEnabled && isChineseInputActive && hasCandidates && event?.repeatCount == 0) {
-            val juyingCandidateIndex = SettingsManager.getJuyingCandidateIndex(this, keyCode)
-            if (juyingCandidateIndex >= 0) {
-                // Check if this is a double-click (for pagination) - don't select candidate on double-click
-                val currentTime = System.currentTimeMillis()
-                val isDoubleClick = when {
-                    isDeviceAltKey(keyCode) -> (currentTime - altLastPressTime) <= PAGINATION_DOUBLE_PRESS_THRESHOLD
-                    isDeviceShiftKey(keyCode) -> (currentTime - shiftLastPressTime) <= PAGINATION_DOUBLE_PRESS_THRESHOLD
-                    else -> false
-                }
-
-                if (!isDoubleClick) {
-                    // Single click - select candidate at index
-                    val ic = currentInputConnection
-                    if (ic != null) {
-                        val selected = when {
-                            isPinyinMode -> pinyinInputController.selectCandidate(juyingCandidateIndex)
-                            isShuangpinMode -> shuangpinInputController.selectCandidate(juyingCandidateIndex)
-                            isWubiMode -> wubiInputController.selectCandidate(juyingCandidateIndex)
-                            isZhenmaMode -> zhenmaInputController.selectCandidate(juyingCandidateIndex)
-                            else -> null
+            when {
+                isDeviceAltKey(keyCode) -> {
+                    val timeSinceLastPress = currentTime - altLastPressTime
+                    if (timeSinceLastPress <= PAGINATION_DOUBLE_PRESS_THRESHOLD) {
+                        // Double press detected - go to next page
+                        when {
+                            isPinyinMode && pinyinInputController.hasNextPage() -> {
+                                pinyinInputController.nextPage()
+                                updateStatusBarText()
+                            }
+                            isShuangpinMode && shuangpinInputController.hasNextPage() -> {
+                                shuangpinInputController.nextPage()
+                                updateStatusBarText()
+                            }
+                            isWubiMode && wubiInputController.hasNextPage() -> {
+                                wubiInputController.nextPage()
+                                updateStatusBarText()
+                            }
+                            isZhenmaMode && zhenmaInputController.hasNextPage() -> {
+                                zhenmaInputController.nextPage()
+                                updateStatusBarText()
+                            }
+                            englishWordPredictionController.hasNextPage() -> {
+                                englishWordPredictionController.nextPage()
+                                updateStatusBarText()
+                            }
                         }
-                        if (selected != null) {
-                            ic.commitText(selected, 1)
-                            updateStatusBarText()
-                            return true
-                        }
+                        altLastPressTime = 0L
+                        return true
                     }
+                    altLastPressTime = currentTime
                 }
-                // If double-click, let the pagination logic above handle it
-                // But we still need to track the time for Alt/Shift
+                isDeviceShiftKey(keyCode) -> {
+                    val timeSinceLastPress = currentTime - shiftLastPressTime
+                    if (timeSinceLastPress <= PAGINATION_DOUBLE_PRESS_THRESHOLD) {
+                        // Double press detected - go to previous page
+                        when {
+                            isPinyinMode && pinyinInputController.hasPrevPage() -> {
+                                pinyinInputController.prevPage()
+                                updateStatusBarText()
+                            }
+                            isShuangpinMode && shuangpinInputController.hasPrevPage() -> {
+                                shuangpinInputController.prevPage()
+                                updateStatusBarText()
+                            }
+                            isWubiMode && wubiInputController.hasPrevPage() -> {
+                                wubiInputController.prevPage()
+                                updateStatusBarText()
+                            }
+                            isZhenmaMode && zhenmaInputController.hasPrevPage() -> {
+                                zhenmaInputController.prevPage()
+                                updateStatusBarText()
+                            }
+                            englishWordPredictionController.hasPrevPage() -> {
+                                englishWordPredictionController.prevPage()
+                                updateStatusBarText()
+                            }
+                        }
+                        shiftLastPressTime = 0L
+                        return true
+                    }
+                    shiftLastPressTime = currentTime
+                }
             }
         }
 
@@ -2904,6 +3039,41 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         // Translate device-specific keycodes to standard Android keycodes for modifier handling
         val translatedKeyCode = translateKeyCode(keyCode)
+
+        // Check if Juying mode should intercept modifier key releases
+        // When Juying mode is active with Chinese input and candidates, prevent normal modifier behavior
+        val juyingModeEnabled = SettingsManager.getJuyingModeEnabled(this)
+        val isPinyinMode = pinyinInputController.isPinyinMode()
+        val isShuangpinMode = shuangpinInputController.isShuangpinMode()
+        val isWubiMode = wubiInputController.isWubiMode()
+        val isZhenmaMode = zhenmaInputController.isZhenmaMode()
+        val isChineseInputActive = isPinyinMode || isShuangpinMode || isWubiMode || isZhenmaMode
+        val hasChineseCandidates = (isPinyinMode && pinyinInputController.hasCandidates()) ||
+                           (isShuangpinMode && shuangpinInputController.hasCandidates()) ||
+                           (isWubiMode && wubiInputController.hasCandidates()) ||
+                           (isZhenmaMode && zhenmaInputController.hasCandidates())
+        val hasWordPredictions = englishWordPredictionController.hasActivePrediction() &&
+                                 englishWordPredictionController.hasSuggestions()
+        val hasAnyCandidates = hasChineseCandidates || hasWordPredictions
+
+        if (juyingModeEnabled && hasAnyCandidates) {
+            // Try both raw and translated keycode for consistent key matching across devices
+            var juyingCandidateIndex = SettingsManager.getJuyingCandidateIndex(this, translatedKeyCode)
+            if (juyingCandidateIndex < 0 && keyCode != translatedKeyCode) {
+                juyingCandidateIndex = SettingsManager.getJuyingCandidateIndex(this, keyCode)
+            }
+
+            // For English word predictions, skip Space key (index 0) - let it work normally
+            val isEnglishOnlyMode = hasWordPredictions && !isChineseInputActive
+            if (isEnglishOnlyMode && juyingCandidateIndex == 0) {
+                juyingCandidateIndex = -1
+            }
+
+            if (juyingCandidateIndex >= 0) {
+                // This is a Juying key - consume the key up event without triggering modifier state changes
+                return true
+            }
+        }
 
         // Handle Shift release for double-tap
         if (isDeviceShiftKey(keyCode)) {

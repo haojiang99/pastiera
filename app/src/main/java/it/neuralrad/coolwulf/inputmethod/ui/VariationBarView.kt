@@ -328,7 +328,8 @@ class VariationBarView(
 
         // Calculate button widths dynamically based on text content
         // Show numbered buttons for Pinyin, Shuangpin, Wubi, and Zhenma only (not for English word prediction)
-        val showNumberedButtons = snapshot.pinyinModeActive || snapshot.shuangpinModeActive || snapshot.wubiModeActive || snapshot.zhenmaModeActive
+        // In Juying mode, hide numbers - users select with physical keys (Shift/Sym/Space/Ctrl)
+        val showNumberedButtons = (snapshot.pinyinModeActive || snapshot.shuangpinModeActive || snapshot.wubiModeActive || snapshot.zhenmaModeActive) && !snapshot.isJuyingMode
         val textSizeSp = if (showNumberedButtons || snapshot.wordPredictionActive) 18f else 17.6f
         val textPaint = android.graphics.Paint().apply {
             textSize = TypedValue.applyDimension(

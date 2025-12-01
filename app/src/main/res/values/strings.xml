@@ -86,14 +86,18 @@
     <string name="chinese_next_word_prediction_title">Next Word Prediction</string>
     <string name="chinese_next_word_prediction_description">Show predicted next words/phrases after selecting a character</string>
 
+    <!-- Fuzzy Pinyin -->
+    <string name="fuzzy_pinyin_title">Fuzzy Pinyin (模糊音)</string>
+    <string name="fuzzy_pinyin_description">Allow z/zh, c/ch, s/sh, l/n, en/eng, in/ing substitutions</string>
+
     <!-- Juying Mode -->
     <string name="juying_mode_title">Juying Mode (巨硬)</string>
-    <string name="juying_mode_description">Use 5 physical keys to select candidates. Single-click selects, double-click for page navigation.</string>
+    <string name="juying_mode_description">Use 5 physical keys to select candidates. Chinese: Shift/Sym/Space/Ctrl/Alt (Space selects 1st candidate, double-click Alt for next page). English: Shift/Sym/Ctrl for 3 suggestions.</string>
     <string name="juying_key_config_title">Configure Juying Keys</string>
     <string name="juying_key_config_description">Press any key to assign it to this slot</string>
-    <string name="juying_key_1">Key 1 (Candidate 1)</string>
-    <string name="juying_key_2">Key 2 (Candidate 2)</string>
-    <string name="juying_key_3">Key 3 (Candidate 3)</string>
+    <string name="juying_key_1">Key 1 (Candidate 2)</string>
+    <string name="juying_key_2">Key 2 (Candidate 3)</string>
+    <string name="juying_key_3">Key 3 (Candidate 1 - Best)</string>
     <string name="juying_key_4">Key 4 (Candidate 4)</string>
     <string name="juying_key_5">Key 5 (Candidate 5)</string>
     <string name="juying_reset_keys">Reset to Default Keys</string>

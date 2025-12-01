@@ -163,7 +163,9 @@ class StatusBarController(
         val hasNextPage: Boolean = false,
         val hasPrevPage: Boolean = false,
         // Chinese punctuation mode
-        val chinesePunctuationMode: Boolean = true
+        val chinesePunctuationMode: Boolean = true,
+        // Juying mode - hide numbers, candidates already reordered
+        val isJuyingMode: Boolean = false
     ) {
         val navModeActive: Boolean
             get() = ctrlLatchActive && ctrlLatchFromNavMode

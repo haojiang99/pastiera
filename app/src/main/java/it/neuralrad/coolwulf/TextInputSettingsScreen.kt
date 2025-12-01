@@ -14,6 +14,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -113,6 +119,10 @@ fun TextInputSettingsScreen(
 
     var chineseNextWordPrediction by remember {
         mutableStateOf(SettingsManager.getChineseNextWordPredictionEnabled(context))
+    }
+
+    var fuzzyPinyinEnabled by remember {
+        mutableStateOf(SettingsManager.getPinyinFuzzyEnabled(context))
     }
 
     var defaultInputMode by remember {
@@ -1069,6 +1079,51 @@ fun TextInputSettingsScreen(
                 }
             }
 
+            // Fuzzy Pinyin Toggle (only show if Pinyin is enabled)
+            if (pinyinEnabled) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Language,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.fuzzy_pinyin_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = stringResource(R.string.fuzzy_pinyin_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                        }
+                        Switch(
+                            checked = fuzzyPinyinEnabled,
+                            onCheckedChange = { enabled ->
+                                fuzzyPinyinEnabled = enabled
+                                SettingsManager.setPinyinFuzzyEnabled(context, enabled)
+                            }
+                        )
+                    }
+                }
+            }
+
             // Custom Dictionary (only show if Chinese input is enabled)
             if (pinyinEnabled || shuangpinEnabled || wubiEnabled || zhenmaEnabled) {
                 Surface(
@@ -1303,6 +1358,9 @@ fun JuyingKeyInputDialog(
     onKeySelected: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var capturedKeyName by remember { mutableStateOf<String?>(null) }
+    val focusRequester = remember { FocusRequester() }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -1313,7 +1371,25 @@ fun JuyingKeyInputDialog(
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
+                    .focusable()
+                    .onKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown && event.nativeKeyEvent.repeatCount == 0) {
+                            val keyCode = event.nativeKeyEvent.keyCode
+                            // Accept modifier keys and common keys
+                            if (keyCode != android.view.KeyEvent.KEYCODE_UNKNOWN) {
+                                capturedKeyName = getKeyName(keyCode)
+                                onKeySelected(keyCode)
+                                true
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    },
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -1322,9 +1398,9 @@ fun JuyingKeyInputDialog(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = stringResource(R.string.juying_press_key),
+                    text = capturedKeyName ?: stringResource(R.string.juying_press_key),
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    color = if (capturedKeyName != null) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
                 )
             }
         },
@@ -1334,6 +1410,10 @@ fun JuyingKeyInputDialog(
             }
         }
     )
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 }
 
 /**

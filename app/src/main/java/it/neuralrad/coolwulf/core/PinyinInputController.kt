@@ -19,8 +19,24 @@ class PinyinInputController(
     companion object {
         private const val TAG = "PinyinInputController"
         private const val MAX_BUFFER_LENGTH = 50 // Maximum pinyin buffer length (increased for sentences)
-        private const val PAGE_SIZE = 9  // Number of candidates per page
+        private const val DEFAULT_PAGE_SIZE = 9  // Number of candidates per page (normal mode)
+        private const val JUYING_PAGE_SIZE = 5   // Number of candidates per page (Juying mode)
         private const val SEPARATOR = '\'' // Apostrophe separator for disambiguating syllables (e.g., he'ni = 和你)
+    }
+
+    // Dynamic page size (changes based on Juying mode)
+    private var pageSize: Int = DEFAULT_PAGE_SIZE
+
+    /**
+     * Sets the page size for candidates.
+     * @param juyingMode Whether Juying mode is enabled (uses 5 candidates per page)
+     */
+    fun setJuyingMode(juyingMode: Boolean) {
+        val newPageSize = if (juyingMode) JUYING_PAGE_SIZE else DEFAULT_PAGE_SIZE
+        if (newPageSize != pageSize) {
+            pageSize = newPageSize
+            currentPage = 0 // Reset to first page when page size changes
+        }
     }
 
     // Current pinyin input buffer (e.g., "nihao")
@@ -56,6 +72,22 @@ class PinyinInputController(
 
     // Whether to use Chinese punctuation (true) or English punctuation (false)
     private var useChinesePunctuation: Boolean = true
+
+    // Whether fuzzy pinyin (模糊音) is enabled
+    private var fuzzyPinyinEnabled: Boolean = false
+
+    // Fuzzy pinyin substitution rules
+    // z↔zh, c↔ch, s↔sh, l↔n, en↔eng, in↔ing
+    private val fuzzyInitials = mapOf(
+        "z" to "zh", "zh" to "z",
+        "c" to "ch", "ch" to "c",
+        "s" to "sh", "sh" to "s",
+        "l" to "n", "n" to "l"
+    )
+    private val fuzzyFinals = mapOf(
+        "en" to "eng", "eng" to "en",
+        "in" to "ing", "ing" to "in"
+    )
 
     data class Snapshot(
         val isActive: Boolean,
@@ -222,7 +254,7 @@ class PinyinInputController(
         val selected = currentPageCandidates[index]
 
         // Calculate the actual index in the full candidate list (accounting for pagination)
-        val actualIndex = currentPage * PAGE_SIZE + index
+        val actualIndex = currentPage * pageSize + index
 
         // Determine which pinyin to consume based on candidate type
         val isPhrase = actualIndex < phraseCandidateCount
@@ -341,8 +373,8 @@ class PinyinInputController(
      * Gets candidates for the current page.
      */
     private fun getCurrentPageCandidates(): List<String> {
-        val startIndex = currentPage * PAGE_SIZE
-        val endIndex = minOf(startIndex + PAGE_SIZE, allCandidates.size)
+        val startIndex = currentPage * pageSize
+        val endIndex = minOf(startIndex + pageSize, allCandidates.size)
         return if (startIndex < allCandidates.size) {
             allCandidates.subList(startIndex, endIndex)
         } else {
@@ -354,7 +386,7 @@ class PinyinInputController(
      * Calculates total number of pages.
      */
     private fun getTotalPages(): Int {
-        return if (allCandidates.isEmpty()) 1 else ((allCandidates.size + PAGE_SIZE - 1) / PAGE_SIZE)
+        return if (allCandidates.isEmpty()) 1 else ((allCandidates.size + pageSize - 1) / pageSize)
     }
 
     /**
@@ -553,10 +585,11 @@ class PinyinInputController(
                 continue
             }
 
-            // No phrase match found, try longest-match syllable
-            val syllable = PinyinDictionary.findLongestSyllable(remaining)
+            // No phrase match found, try longest-match syllable (with fuzzy support)
+            val syllable = findLongestSyllableWithFuzzy(remaining)
             if (syllable != null) {
-                val candidates = PinyinDictionary.getCandidates(syllable)
+                // Get candidates with fuzzy variants if enabled
+                val candidates = getCandidatesWithFuzzy(syllable)
                 segments.add(ParsedSegment(
                     pinyin = syllable,
                     candidates = userMemory.sortByFrequency(syllable, candidates),
@@ -565,8 +598,23 @@ class PinyinInputController(
                 remaining = remaining.substring(syllable.length)
             } else {
                 // Can't parse as complete syllable - might be partial input
-                // Try prefix matching for the remaining text
-                val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(remaining)
+                // Try prefix matching for the remaining text (with fuzzy support)
+                var prefixCandidates = PinyinDictionary.getCandidatesForPrefix(remaining)
+
+                // If no exact prefix match and fuzzy is enabled, try fuzzy variants
+                if (prefixCandidates.isEmpty() && fuzzyPinyinEnabled) {
+                    val variants = getFuzzyVariants(remaining)
+                    for (variant in variants) {
+                        if (variant != remaining) {
+                            prefixCandidates = PinyinDictionary.getCandidatesForPrefix(variant)
+                            if (prefixCandidates.isNotEmpty()) {
+                                Log.d(TAG, "Fuzzy prefix match: '$remaining' → '$variant'")
+                                break
+                            }
+                        }
+                    }
+                }
+
                 if (prefixCandidates.isNotEmpty()) {
                     val firstSyl = PinyinDictionary.getFirstSyllableForPrefix(remaining) ?: remaining
                     segments.add(ParsedSegment(
@@ -585,6 +633,7 @@ class PinyinInputController(
     /**
      * Finds the longest phrase match starting at the current position.
      * Uses greedy longest-match from the full phrase dictionary.
+     * Supports fuzzy pinyin matching when enabled.
      *
      * The philosophy is: match as many phrases as possible to give users choices,
      * then rely on frequency sorting and user memory to learn the right candidates.
@@ -594,11 +643,11 @@ class PinyinInputController(
     private fun findLongestPhraseMatch(input: String): String? {
         if (input.length < 2) return null
 
-        // First, split the entire input into syllables
+        // First, split the entire input into syllables (using fuzzy matching if enabled)
         val allSyllables = mutableListOf<String>()
         var remaining = input
         while (remaining.isNotEmpty()) {
-            val syllable = PinyinDictionary.findLongestSyllable(remaining)
+            val syllable = findLongestSyllableWithFuzzy(remaining)
             if (syllable != null) {
                 allSyllables.add(syllable)
                 remaining = remaining.substring(syllable.length)
@@ -619,9 +668,65 @@ class PinyinInputController(
                 Log.d(TAG, "Found phrase match: '$phrase' -> ${phraseCandidates.take(3)}")
                 return phrase
             }
+
+            // If fuzzy enabled, try phrase variants
+            if (fuzzyPinyinEnabled) {
+                // Generate fuzzy variants for each syllable and try combinations
+                val syllablesToUse = allSyllables.take(numSyllables)
+                val fuzzyPhraseCandidates = getPhraseCandidatesWithFuzzy(syllablesToUse)
+                if (fuzzyPhraseCandidates.isNotEmpty()) {
+                    Log.d(TAG, "Found fuzzy phrase match: '$phrase' -> ${fuzzyPhraseCandidates.take(3)}")
+                    return phrase
+                }
+            }
         }
 
         return null
+    }
+
+    /**
+     * Gets phrase candidates for syllables including fuzzy variants.
+     */
+    private fun getPhraseCandidatesWithFuzzy(syllables: List<String>): List<String> {
+        if (syllables.isEmpty()) return emptyList()
+
+        // First try exact phrase
+        val exactPhrase = syllables.joinToString("")
+        val exactCandidates = PinyinDictionary.getPhraseCandidates(exactPhrase)
+        if (exactCandidates.isNotEmpty()) {
+            return exactCandidates
+        }
+
+        if (!fuzzyPinyinEnabled) return emptyList()
+
+        // Generate fuzzy variants for each syllable
+        val variantLists = syllables.map { getFuzzyVariants(it) }
+
+        // Try combinations (limited to avoid explosion)
+        val seen = mutableSetOf<String>()
+        val results = mutableListOf<String>()
+
+        fun tryVariants(index: Int, current: String) {
+            if (results.size >= 9) return
+            if (index == variantLists.size) {
+                if (current != exactPhrase && current !in seen) {
+                    val candidates = PinyinDictionary.getPhraseCandidates(current)
+                    for (c in candidates) {
+                        if (c !in seen) {
+                            seen.add(c)
+                            results.add(c)
+                        }
+                    }
+                }
+                return
+            }
+            for (variant in variantLists[index]) {
+                tryVariants(index + 1, current + variant)
+            }
+        }
+
+        tryVariants(0, "")
+        return results
     }
 
     /**
@@ -649,10 +754,11 @@ class PinyinInputController(
         val actualFirstSyllable = PinyinDictionary.findLongestSyllable(bufferWithoutSep) ?: ""
 
         // Get single-character candidates for the first syllable (always needed as fallback)
+        // Use fuzzy matching if enabled to include candidates from fuzzy variants
         val firstSyllableCharCandidates: List<String>
         if (actualFirstSyllable.isNotEmpty()) {
             firstSyllable = actualFirstSyllable
-            val rawCandidates = PinyinDictionary.getCandidates(actualFirstSyllable)
+            val rawCandidates = getCandidatesWithFuzzy(actualFirstSyllable)
             firstSyllableCharCandidates = userMemory.sortByFrequency(actualFirstSyllable, rawCandidates)
         } else {
             // For partial input (e.g., single letter "w"), use prefix matching
@@ -1041,4 +1147,106 @@ class PinyinInputController(
      * Returns whether next word prediction is enabled.
      */
     fun isNextWordPredictionEnabled(): Boolean = nextWordPredictionEnabled
+
+    /**
+     * Sets whether fuzzy pinyin (模糊音) is enabled.
+     */
+    fun setFuzzyPinyinEnabled(enabled: Boolean) {
+        fuzzyPinyinEnabled = enabled
+        Log.d(TAG, "Fuzzy pinyin ${if (enabled) "enabled" else "disabled"}")
+    }
+
+    /**
+     * Returns whether fuzzy pinyin is enabled.
+     */
+    fun isFuzzyPinyinEnabled(): Boolean = fuzzyPinyinEnabled
+
+    /**
+     * Generates fuzzy pinyin variants for a given syllable.
+     * Applies substitution rules: z↔zh, c↔ch, s↔sh, l↔n, en↔eng, in↔ing
+     * @param syllable The original pinyin syllable
+     * @return List of variant syllables (including the original)
+     */
+    private fun getFuzzyVariants(syllable: String): List<String> {
+        if (!fuzzyPinyinEnabled || syllable.isEmpty()) {
+            return listOf(syllable)
+        }
+
+        val variants = mutableSetOf(syllable)
+
+        // Try initial consonant substitutions
+        for ((from, to) in fuzzyInitials) {
+            if (syllable.startsWith(from)) {
+                val variant = to + syllable.substring(from.length)
+                variants.add(variant)
+            }
+        }
+
+        // Try final substitutions (on original and initial-substituted variants)
+        val currentVariants = variants.toList()
+        for (variant in currentVariants) {
+            for ((from, to) in fuzzyFinals) {
+                if (variant.endsWith(from)) {
+                    val newVariant = variant.substring(0, variant.length - from.length) + to
+                    variants.add(newVariant)
+                }
+            }
+        }
+
+        return variants.toList()
+    }
+
+    /**
+     * Gets candidates for a syllable including fuzzy variants.
+     * @param syllable The original pinyin syllable
+     * @return Combined list of candidates from all matching variants
+     */
+    private fun getCandidatesWithFuzzy(syllable: String): List<String> {
+        val variants = getFuzzyVariants(syllable)
+        val allCandidates = mutableListOf<String>()
+        val seen = mutableSetOf<String>()
+
+        for (variant in variants) {
+            val candidates = PinyinDictionary.getCandidates(variant)
+            for (candidate in candidates) {
+                if (candidate !in seen) {
+                    seen.add(candidate)
+                    allCandidates.add(candidate)
+                }
+            }
+        }
+
+        return allCandidates
+    }
+
+    /**
+     * Finds the longest syllable match including fuzzy variants.
+     * @param input The input string to match
+     * @return The longest matching syllable, or null if none found
+     */
+    private fun findLongestSyllableWithFuzzy(input: String): String? {
+        // First try exact match
+        val exactMatch = PinyinDictionary.findLongestSyllable(input)
+        if (exactMatch != null) {
+            return exactMatch
+        }
+
+        if (!fuzzyPinyinEnabled) {
+            return null
+        }
+
+        // Try fuzzy matching for progressively shorter prefixes
+        for (len in minOf(6, input.length) downTo 1) {
+            val prefix = input.substring(0, len)
+            val variants = getFuzzyVariants(prefix)
+            for (variant in variants) {
+                if (variant != prefix && PinyinDictionary.getCandidates(variant).isNotEmpty()) {
+                    Log.d(TAG, "Fuzzy match: '$prefix' → '$variant'")
+                    return prefix // Return original prefix, candidates will use variant
+                }
+            }
+        }
+
+        return null
+    }
 }

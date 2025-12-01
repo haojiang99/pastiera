@@ -42,6 +42,7 @@ object SettingsManager {
     private const val KEY_SHUANGPIN_ENABLED = "shuangpin_enabled" // Enable Shuangpin (双拼) input
     private const val KEY_ZHENMA_ENABLED = "zhenma_enabled" // Enable Zhenma (真码) input
     private const val KEY_PINYIN_CHARACTER_SET = "pinyin_character_set" // "simplified" or "traditional"
+    private const val KEY_PINYIN_FUZZY_ENABLED = "pinyin_fuzzy_enabled" // Enable fuzzy pinyin (模糊音)
     private const val KEY_CHINESE_INPUT_METHOD = "chinese_input_method" // "pinyin", "wubi", or "shuangpin" (legacy, used for last active mode)
     private const val KEY_DEFAULT_INPUT_MODE = "default_input_mode" // "english", "pinyin", "shuangpin", or "wubi"
     private const val KEY_LAST_INPUT_MODE = "last_input_mode" // Remember last used mode before app restart
@@ -83,6 +84,7 @@ object SettingsManager {
     private const val DEFAULT_SHUANGPIN_ENABLED = false
     private const val DEFAULT_ZHENMA_ENABLED = false
     private const val DEFAULT_PINYIN_CHARACTER_SET = "simplified"
+    private const val DEFAULT_PINYIN_FUZZY_ENABLED = false
     private const val DEFAULT_CHINESE_INPUT_METHOD = "pinyin" // "pinyin", "wubi", or "shuangpin" (legacy)
     private const val DEFAULT_INPUT_MODE = "english" // "english", "pinyin", "shuangpin", or "wubi"
     private const val DEFAULT_CHINESE_NEXT_WORD_PREDICTION = true
@@ -98,11 +100,11 @@ object SettingsManager {
     private const val DEFAULT_CLIPBOARD_HISTORY_ENABLED = true
     private const val DEFAULT_SHOW_CLIPBOARD_BUTTON = true
     private const val DEFAULT_JUYING_MODE_ENABLED = false
-    private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift
-    private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym
-    private const val DEFAULT_JUYING_KEY_3 = KeyEvent.KEYCODE_SPACE // Space
-    private const val DEFAULT_JUYING_KEY_4 = KeyEvent.KEYCODE_FUNCTION // Fn
-    private const val DEFAULT_JUYING_KEY_5 = KeyEvent.KEYCODE_ALT_LEFT // Alt
+    private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
+    private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
+    private const val DEFAULT_JUYING_KEY_3 = KeyEvent.KEYCODE_SPACE // Space (Candidate 1 - Best)
+    private const val DEFAULT_JUYING_KEY_4 = KeyEvent.KEYCODE_CTRL_LEFT // Ctrl (Candidate 4)
+    private const val DEFAULT_JUYING_KEY_5 = KeyEvent.KEYCODE_ALT_LEFT // Alt (Candidate 5)
 
     /**
      * Returns the SharedPreferences instance for Pastiera.
@@ -996,6 +998,23 @@ object SettingsManager {
     fun setPinyinCharacterSet(context: Context, characterSet: String) {
         getPreferences(context).edit()
             .putString(KEY_PINYIN_CHARACTER_SET, characterSet)
+            .apply()
+    }
+
+    /**
+     * Returns whether fuzzy pinyin (模糊音) is enabled.
+     * Fuzzy pinyin allows substitutions like z=zh, c=ch, s=sh, l=n, en=eng, in=ing.
+     */
+    fun getPinyinFuzzyEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_PINYIN_FUZZY_ENABLED, DEFAULT_PINYIN_FUZZY_ENABLED)
+    }
+
+    /**
+     * Sets whether fuzzy pinyin (模糊音) is enabled.
+     */
+    fun setPinyinFuzzyEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_PINYIN_FUZZY_ENABLED, enabled)
             .apply()
     }
 

@@ -23,7 +23,23 @@ class WubiInputController(
         private const val TAG = "WubiInputController"
         private const val MAX_WUBI_CODE_LENGTH = 4 // Wubi codes are max 4 characters
         private const val MAX_BUFFER_LENGTH = 30 // Allow longer input for English words (commit with Enter)
-        private const val PAGE_SIZE = 9  // Number of candidates per page
+        private const val DEFAULT_PAGE_SIZE = 9  // Number of candidates per page (normal mode)
+        private const val JUYING_PAGE_SIZE = 5   // Number of candidates per page (Juying mode)
+    }
+
+    // Dynamic page size (changes based on Juying mode)
+    private var pageSize: Int = DEFAULT_PAGE_SIZE
+
+    /**
+     * Sets the page size for candidates.
+     * @param juyingMode Whether Juying mode is enabled (uses 5 candidates per page)
+     */
+    fun setJuyingMode(juyingMode: Boolean) {
+        val newPageSize = if (juyingMode) JUYING_PAGE_SIZE else DEFAULT_PAGE_SIZE
+        if (newPageSize != pageSize) {
+            pageSize = newPageSize
+            currentPage = 0 // Reset to first page when page size changes
+        }
     }
 
     // Current wubi input buffer (e.g., "gggg" for "王")
@@ -239,8 +255,8 @@ class WubiInputController(
      * Gets candidates for the current page.
      */
     private fun getCurrentPageCandidates(): List<String> {
-        val startIndex = currentPage * PAGE_SIZE
-        val endIndex = minOf(startIndex + PAGE_SIZE, allCandidates.size)
+        val startIndex = currentPage * pageSize
+        val endIndex = minOf(startIndex + pageSize, allCandidates.size)
         return if (startIndex < allCandidates.size) {
             allCandidates.subList(startIndex, endIndex)
         } else {
@@ -252,7 +268,7 @@ class WubiInputController(
      * Calculates total number of pages.
      */
     private fun getTotalPages(): Int {
-        return if (allCandidates.isEmpty()) 1 else ((allCandidates.size + PAGE_SIZE - 1) / PAGE_SIZE)
+        return if (allCandidates.isEmpty()) 1 else ((allCandidates.size + pageSize - 1) / pageSize)
     }
 
     /**
