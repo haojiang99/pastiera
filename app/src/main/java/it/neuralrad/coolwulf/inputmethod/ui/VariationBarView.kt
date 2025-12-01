@@ -287,6 +287,27 @@ class VariationBarView(
             overlay?.visibility = View.VISIBLE
         }
 
+        // In Juying mode with suggestions, remove container padding to allow full-width buttons
+        val isJuyingWithSuggestions = snapshot.isJuyingMode && snapshot.variations.isNotEmpty()
+        val verticalPadding = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            8.8f,
+            context.resources.displayMetrics
+        ).toInt()
+        if (isJuyingWithSuggestions) {
+            // Remove horizontal padding in Juying mode for full-width buttons
+            containerView.setPadding(0, verticalPadding, 0, verticalPadding)
+        } else {
+            // Restore normal padding when not in Juying mode or no suggestions
+            val normalLeftPadding = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                64f,
+                context.resources.displayMetrics
+            ).toInt()
+            val normalRightPadding = (normalLeftPadding * 0.31f).toInt()
+            containerView.setPadding(normalLeftPadding, verticalPadding, normalRightPadding, verticalPadding)
+        }
+
         // Show variations if we have any:
         // - For accents: need lastInsertedChar
         // - For Pinyin: always show if pinyinModeActive
@@ -370,6 +391,9 @@ class VariationBarView(
         // For English word predictions, stretch buttons to fill screen width evenly
         val isEnglishWordPrediction = snapshot.wordPredictionActive && !snapshot.pinyinModeActive && !snapshot.wubiModeActive && !snapshot.zhenmaModeActive
 
+        // In Juying mode with suggestions, use full screen width for better key alignment
+        val isJuyingModeWithSuggestions = snapshot.isJuyingMode && variationsToProcess.isNotEmpty()
+
         // Calculate required widths for each suggestion
         data class SuggestionLayout(val text: String, val width: Int)
         val suggestionLayouts = mutableListOf<SuggestionLayout>()
@@ -386,7 +410,41 @@ class VariationBarView(
         var limitedVariations = mutableListOf<String>()
         var buttonWidths = mutableListOf<Int>()
 
-        if (isEnglishWordPrediction && suggestionLayouts.isNotEmpty()) {
+        // In Juying mode, use full screen width and divide evenly among candidates
+        // This makes button positions align better with physical keys
+        val fullScreenWidth = screenWidth  // Use full screen width, no padding
+
+        if (isJuyingModeWithSuggestions && suggestionLayouts.isNotEmpty()) {
+            // Juying mode: stretch buttons to fill full screen width
+            // Reserve space for arrow buttons if pagination is needed
+            val arrowButtonSize = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                32f,
+                context.resources.displayMetrics
+            ).toInt()
+            val arrowMargin = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                4f,
+                context.resources.displayMetrics
+            ).toInt()
+
+            // Calculate space needed for arrows
+            val prevArrowSpace = if (snapshot.hasPrevPage) arrowButtonSize + arrowMargin else 0
+            val nextArrowSpace = if (snapshot.hasNextPage) arrowButtonSize + arrowMargin else 0
+            val arrowsSpace = prevArrowSpace + nextArrowSpace
+
+            val numSuggestions = suggestionLayouts.size
+            val totalSpacing = (numSuggestions - 1) * spacingBetweenButtons
+            // Use full screen width minus arrows for suggestion buttons
+            val adjustedWidth = fullScreenWidth - arrowsSpace
+            val widthPerButton = (adjustedWidth - totalSpacing) / numSuggestions
+
+            for (i in 0 until numSuggestions) {
+                limitedVariations.add(suggestionLayouts[i].text)
+                buttonWidths.add(widthPerButton)
+            }
+            totalWidth = adjustedWidth
+        } else if (isEnglishWordPrediction && suggestionLayouts.isNotEmpty()) {
             // For English word predictions, divide screen width evenly among suggestions
             // Reserve space for arrow buttons if pagination is needed
             val arrowButtonSize = TypedValue.applyDimension(
@@ -586,8 +644,11 @@ class VariationBarView(
         val noSuggestions = snapshot.variations.isEmpty()
         val stretchButtons = noSuggestions
 
+        // In Juying mode with suggestions, hide all status bar icons to give more space to candidates
+        val hideStatusBarIconsForJuying = snapshot.isJuyingMode && !noSuggestions
+
         // Check if voice input button should be shown
-        val showVoiceInputButton = SettingsManager.getShowVoiceInputButton(context)
+        val showVoiceInputButton = SettingsManager.getShowVoiceInputButton(context) && !hideStatusBarIconsForJuying
 
         // Count visible buttons for weight calculation
         val baseButtonCount = if (isPinyinModeActive || isShuangpinModeActive || isWubiModeActive) 5 else 4
@@ -643,7 +704,13 @@ class VariationBarView(
         }
         // Settings button has margin only if microphone button is shown (not the first button)
         val settingsMargin = if (showVoiceInputButton) buttonMargin else 0
-        if (settingsButton.parent == null) {
+        if (hideStatusBarIconsForJuying) {
+            // Hide settings button in Juying mode with suggestions
+            if (settingsButton.parent != null) {
+                (settingsButton.parent as? ViewGroup)?.removeView(settingsButton)
+            }
+            settingsButton.visibility = View.GONE
+        } else if (settingsButton.parent == null) {
             val settingsParams = if (stretchButtons) {
                 LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
                     marginStart = settingsMargin
@@ -654,25 +721,31 @@ class VariationBarView(
                 }
             }
             containerView.addView(settingsButton, settingsParams)
+            settingsButton.setOnClickListener { openSettings() }
+            settingsButton.alpha = 1f
+            settingsButton.visibility = View.VISIBLE
         } else if (stretchButtons) {
             (settingsButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
                 width = 0
                 weight = 1f
                 marginStart = settingsMargin
             }
+            settingsButton.setOnClickListener { openSettings() }
+            settingsButton.alpha = 1f
+            settingsButton.visibility = View.VISIBLE
         } else {
             (settingsButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
                 width = buttonWidth
                 weight = 0f
                 marginStart = settingsMargin
             }
+            settingsButton.setOnClickListener { openSettings() }
+            settingsButton.alpha = 1f
+            settingsButton.visibility = View.VISIBLE
         }
-        settingsButton.setOnClickListener { openSettings() }
-        settingsButton.alpha = 1f
-        settingsButton.visibility = View.VISIBLE
 
         // Clipboard button - reuse if already attached
-        val showClipboardButton = SettingsManager.getShowClipboardButton(context)
+        val showClipboardButton = SettingsManager.getShowClipboardButton(context) && !hideStatusBarIconsForJuying
         val clipboardButton = clipboardButtonView ?: createClipboardButton(buttonWidth).also {
             clipboardButtonView = it
         }
@@ -707,7 +780,7 @@ class VariationBarView(
             clipboardButton.alpha = 1f
             clipboardButton.visibility = View.VISIBLE
         } else {
-            // Hide/remove clipboard button when disabled
+            // Hide/remove clipboard button when disabled or in Juying mode with suggestions
             if (clipboardButton.parent != null) {
                 (clipboardButton.parent as? ViewGroup)?.removeView(clipboardButton)
             }
@@ -718,7 +791,13 @@ class VariationBarView(
         val symButton = symButtonView ?: createSymButton(buttonWidth).also {
             symButtonView = it
         }
-        if (symButton.parent == null) {
+        if (hideStatusBarIconsForJuying) {
+            // Hide SYM button in Juying mode with suggestions
+            if (symButton.parent != null) {
+                (symButton.parent as? ViewGroup)?.removeView(symButton)
+            }
+            symButton.visibility = View.GONE
+        } else if (symButton.parent == null) {
             val symParams = if (stretchButtons) {
                 LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
                     marginStart = buttonMargin
@@ -729,28 +808,38 @@ class VariationBarView(
                 }
             }
             containerView.addView(symButton, symParams)
+            symButton.setOnClickListener { onSymButtonListener?.invoke() }
+            symButton.alpha = 1f
+            symButton.visibility = View.VISIBLE
         } else if (stretchButtons) {
             (symButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
                 width = 0
                 weight = 1f
             }
+            symButton.setOnClickListener { onSymButtonListener?.invoke() }
+            symButton.alpha = 1f
+            symButton.visibility = View.VISIBLE
         } else {
             (symButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
                 width = buttonWidth
                 weight = 0f
             }
+            symButton.setOnClickListener { onSymButtonListener?.invoke() }
+            symButton.alpha = 1f
+            symButton.visibility = View.VISIBLE
         }
-        symButton.setOnClickListener {
-            onSymButtonListener?.invoke()
-        }
-        symButton.alpha = 1f
-        symButton.visibility = View.VISIBLE
 
         // Language toggle button (EN/CN) - reuse if already attached
         val languageToggleButton = languageToggleButtonView ?: createLanguageToggleButton(buttonWidth).also {
             languageToggleButtonView = it
         }
-        if (languageToggleButton.parent == null) {
+        if (hideStatusBarIconsForJuying) {
+            // Hide language toggle button in Juying mode with suggestions
+            if (languageToggleButton.parent != null) {
+                (languageToggleButton.parent as? ViewGroup)?.removeView(languageToggleButton)
+            }
+            languageToggleButton.visibility = View.GONE
+        } else if (languageToggleButton.parent == null) {
             val langParams = if (stretchButtons) {
                 LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
                     marginStart = buttonMargin
@@ -761,25 +850,36 @@ class VariationBarView(
                 }
             }
             containerView.addView(languageToggleButton, langParams)
+            languageToggleButton.setOnClickListener { onLanguageToggleListener?.invoke() }
+            languageToggleButton.alpha = 1f
+            languageToggleButton.visibility = View.VISIBLE
         } else if (stretchButtons) {
             (languageToggleButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
                 width = 0
                 weight = 1f
             }
+            languageToggleButton.setOnClickListener { onLanguageToggleListener?.invoke() }
+            languageToggleButton.alpha = 1f
+            languageToggleButton.visibility = View.VISIBLE
         } else {
             (languageToggleButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
                 width = buttonWidth
                 weight = 0f
             }
+            languageToggleButton.setOnClickListener { onLanguageToggleListener?.invoke() }
+            languageToggleButton.alpha = 1f
+            languageToggleButton.visibility = View.VISIBLE
         }
-        languageToggleButton.setOnClickListener {
-            onLanguageToggleListener?.invoke()
-        }
-        languageToggleButton.alpha = 1f
-        languageToggleButton.visibility = View.VISIBLE
 
         // Punctuation toggle button (中/英 for punctuation) - show right after language toggle in Chinese mode
-        if (isPinyinModeActive || isShuangpinModeActive || isWubiModeActive || isZhenmaModeActive) {
+        // Hide in Juying mode with suggestions
+        if (hideStatusBarIconsForJuying) {
+            // Hide punctuation toggle in Juying mode with suggestions
+            punctuationToggleButtonView?.let { btn ->
+                (btn.parent as? ViewGroup)?.removeView(btn)
+                btn.visibility = View.GONE
+            }
+        } else if (isPinyinModeActive || isShuangpinModeActive || isWubiModeActive || isZhenmaModeActive) {
             val punctuationToggleButton = punctuationToggleButtonView ?: createPunctuationToggleButton(buttonWidth).also {
                 punctuationToggleButtonView = it
             }
