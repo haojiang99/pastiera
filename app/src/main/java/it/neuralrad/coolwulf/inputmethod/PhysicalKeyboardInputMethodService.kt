@@ -169,9 +169,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private var altUsedForSymbolInput: Boolean = false
 
     // Saved state when Alt is pressed in Juying mode (for single-press selection)
-    // On Alt DOWN: save 5th suggestion and clear predictions
+    // On Alt DOWN: save suggestion (5th for Titan2, 4th for BlackBerry) and clear predictions
     // On Alt UP: if single press -> insert saved suggestion; if double-click -> next page
-    private var savedAltFifthSuggestion: String? = null
+    private var savedAltSuggestion: String? = null  // The suggestion to insert on Alt single-press
     private var savedAltCandidatesForNextPage: List<String> = emptyList()
     private var savedAltCurrentPage: Int = 0
     private var savedAltChineseMode: String? = null  // "pinyin", "shuangpin", "wubi", "zhenma"
@@ -179,6 +179,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private var savedAltFirstSyllable: String = ""  // Save syllable parsing state for Alt selection
     private var savedAltMatchedPinyin: String = ""
     private var savedAltPhraseCandidateCount: Int = 0
+
+    // Alt candidate index: 4 (5th suggestion) for Titan2, 3 (4th suggestion) for BlackBerry
+    private val altCandidateIndex: Int
+        get() = if (SettingsManager.isBlackBerryDevice(this)) 3 else 4
 
     private val symPage: Int
         get() = if (::symLayoutController.isInitialized) symLayoutController.currentSymPage() else 0
@@ -1639,7 +1643,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         }
                     }
                     // Clear saved state after restoring
-                    savedAltFifthSuggestion = null
+                    savedAltSuggestion = null
                     savedAltCandidatesForNextPage = emptyList()
                     savedAltCurrentPage = 0
                     savedAltChineseMode = null
@@ -1668,7 +1672,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 // Alt+key for symbol input - clear saved Alt state (used for long hold)
                 // This marks that Alt was used for symbol input, not for candidate selection
                 altUsedForSymbolInput = true
-                savedAltFifthSuggestion = null
+                savedAltSuggestion = null
                 savedAltCandidatesForNextPage = emptyList()
                 savedAltCurrentPage = 0
                 savedAltChineseMode = null
@@ -1830,7 +1834,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             }
                         }
                         // Clear saved state after restoring
-                        savedAltFifthSuggestion = null
+                        savedAltSuggestion = null
                         savedAltCandidatesForNextPage = emptyList()
                         savedAltCurrentPage = 0
                         savedAltChineseMode = null
@@ -1852,7 +1856,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     when {
                         isPinyinMode -> {
                             val candidates = pinyinInputController.getCurrentPageCandidates()
-                            savedAltFifthSuggestion = if (candidates.size > 4) candidates[4] else null
+                            savedAltSuggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
                             savedAltCandidatesForNextPage = pinyinInputController.getAllCandidates()
                             savedAltCurrentPage = pinyinInputController.getCurrentPage()
                             savedAltBuffer = pinyinInputController.getBuffer()  // Save buffer for double-click restore
@@ -1867,7 +1871,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         }
                         isShuangpinMode -> {
                             val candidates = shuangpinInputController.getCurrentPageCandidates()
-                            savedAltFifthSuggestion = if (candidates.size > 4) candidates[4] else null
+                            savedAltSuggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
                             savedAltCandidatesForNextPage = shuangpinInputController.getAllCandidates()
                             savedAltCurrentPage = shuangpinInputController.getCurrentPage()
                             savedAltBuffer = shuangpinInputController.getBuffer()  // Save buffer for double-click restore
@@ -1878,7 +1882,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         }
                         isWubiMode -> {
                             val candidates = wubiInputController.getCurrentPageCandidates()
-                            savedAltFifthSuggestion = if (candidates.size > 4) candidates[4] else null
+                            savedAltSuggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
                             savedAltCandidatesForNextPage = wubiInputController.getAllCandidates()
                             savedAltCurrentPage = wubiInputController.getCurrentPage()
                             savedAltBuffer = wubiInputController.getBuffer()  // Save buffer for double-click restore
@@ -1889,7 +1893,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         }
                         isZhenmaMode -> {
                             val candidates = zhenmaInputController.getCurrentPageCandidates()
-                            savedAltFifthSuggestion = if (candidates.size > 4) candidates[4] else null
+                            savedAltSuggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
                             savedAltCandidatesForNextPage = zhenmaInputController.getAllCandidates()
                             savedAltCurrentPage = zhenmaInputController.getCurrentPage()
                             savedAltBuffer = zhenmaInputController.getBuffer()  // Save buffer for double-click restore
@@ -2309,7 +2313,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.finishComposingText()
                         altUsedForSymbolInput = true  // Mark that Alt was used for symbol input
                         // Clear saved Alt state (long hold for symbol cancels single-press insertion)
-                        savedAltFifthSuggestion = null
+                        savedAltSuggestion = null
                         savedAltCandidatesForNextPage = emptyList()
                         savedAltCurrentPage = 0
                         savedAltChineseMode = null
@@ -2652,7 +2656,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.finishComposingText()
                         altUsedForSymbolInput = true  // Mark that Alt was used for symbol input
                         // Clear saved Alt state (long hold for symbol cancels single-press insertion)
-                        savedAltFifthSuggestion = null
+                        savedAltSuggestion = null
                         savedAltCandidatesForNextPage = emptyList()
                         savedAltCurrentPage = 0
                         savedAltChineseMode = null
@@ -2965,7 +2969,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.finishComposingText()
                         altUsedForSymbolInput = true  // Mark that Alt was used for symbol input
                         // Clear saved Alt state (long hold for symbol cancels single-press insertion)
-                        savedAltFifthSuggestion = null
+                        savedAltSuggestion = null
                         savedAltCandidatesForNextPage = emptyList()
                         savedAltCurrentPage = 0
                         savedAltChineseMode = null
@@ -3269,7 +3273,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.finishComposingText()
                         altUsedForSymbolInput = true  // Mark that Alt was used for symbol input
                         // Clear saved Alt state (long hold for symbol cancels single-press insertion)
-                        savedAltFifthSuggestion = null
+                        savedAltSuggestion = null
                         savedAltCandidatesForNextPage = emptyList()
                         savedAltCurrentPage = 0
                         savedAltChineseMode = null
@@ -3681,7 +3685,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val result = modifierStateController.handleAltKeyUp(translatedKeyCode)
             }
 
-            if (!altUsedForSymbolInput && savedAltFifthSuggestion != null) {
+            if (!altUsedForSymbolInput && savedAltSuggestion != null) {
                 // Schedule delayed insertion of 5th suggestion
                 // If user presses Alt again within THRESHOLD (double-click),
                 // the second Alt DOWN at line 1619 will cancel this and go to next page
@@ -3693,6 +3697,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val firstSyllableToRestore = savedAltFirstSyllable
                 val matchedPinyinToRestore = savedAltMatchedPinyin
                 val phraseCandidateCountToRestore = savedAltPhraseCandidateCount
+                // Capture candidate index: 4 (5th) for Titan2, 3 (4th) for BlackBerry
+                val candidateIndexToSelect = altCandidateIndex
                 pendingAltSelectionRunnable = Runnable {
                     val currentIc = currentInputConnection
                     if (currentIc != null) {
@@ -3709,7 +3715,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     matchedPinyinToRestore,
                                     phraseCandidateCountToRestore
                                 )
-                                val selected = pinyinInputController.selectCandidate(4) // 5th candidate (index 4)
+                                val selected = pinyinInputController.selectCandidate(candidateIndexToSelect)
                                 if (selected != null) {
                                     val remainingBuffer = pinyinInputController.getBuffer()
                                     // commitText replaces composing text automatically
@@ -3722,7 +3728,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             "shuangpin" -> {
                                 shuangpinInputController.restoreBuffer(bufferToRestore)
                                 shuangpinInputController.restoreCandidatesForNextPage(candidatesToRestore, pageToRestore)
-                                val selected = shuangpinInputController.selectCandidate(4)
+                                val selected = shuangpinInputController.selectCandidate(candidateIndexToSelect)
                                 if (selected != null) {
                                     val remainingBuffer = shuangpinInputController.getBuffer()
                                     // commitText replaces composing text automatically
@@ -3735,7 +3741,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             "wubi" -> {
                                 wubiInputController.restoreBuffer(bufferToRestore)
                                 wubiInputController.restoreCandidatesForNextPage(candidatesToRestore, pageToRestore)
-                                val selected = wubiInputController.selectCandidate(4)
+                                val selected = wubiInputController.selectCandidate(candidateIndexToSelect)
                                 if (selected != null) {
                                     val remainingBuffer = wubiInputController.getBuffer()
                                     // commitText replaces composing text automatically
@@ -3748,7 +3754,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             "zhenma" -> {
                                 zhenmaInputController.restoreBuffer(bufferToRestore)
                                 zhenmaInputController.restoreCandidatesForNextPage(candidatesToRestore, pageToRestore)
-                                val selected = zhenmaInputController.selectCandidate(4)
+                                val selected = zhenmaInputController.selectCandidate(candidateIndexToSelect)
                                 if (selected != null) {
                                     val remainingBuffer = zhenmaInputController.getBuffer()
                                     // commitText replaces composing text automatically
@@ -3761,7 +3767,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         }
                     }
                     // Clear saved state after executing
-                    savedAltFifthSuggestion = null
+                    savedAltSuggestion = null
                     savedAltCandidatesForNextPage = emptyList()
                     savedAltCurrentPage = 0
                     savedAltChineseMode = null
@@ -3775,7 +3781,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 mainHandler.postDelayed(pendingAltSelectionRunnable!!, PAGINATION_DOUBLE_PRESS_THRESHOLD)
             } else {
                 // Alt was used for symbol input or no 5th suggestion - clear state immediately
-                savedAltFifthSuggestion = null
+                savedAltSuggestion = null
                 savedAltCandidatesForNextPage = emptyList()
                 savedAltCurrentPage = 0
                 savedAltChineseMode = null

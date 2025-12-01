@@ -1351,16 +1351,23 @@ object SettingsManager {
     }
 
     /**
-     * Resets all Juying keys to their default values.
+     * Resets all Juying keys to their default values based on the current device type.
+     * Titan 2: Shift/Sym/Space/Ctrl/Alt
+     * BlackBerry: Shift/0/Space/SYM/ShiftRight
      */
     fun resetJuyingKeys(context: Context) {
-        getPreferences(context).edit()
-            .putInt(KEY_JUYING_KEY_1, DEFAULT_JUYING_KEY_1)
-            .putInt(KEY_JUYING_KEY_2, DEFAULT_JUYING_KEY_2)
-            .putInt(KEY_JUYING_KEY_3, DEFAULT_JUYING_KEY_3)
-            .putInt(KEY_JUYING_KEY_4, DEFAULT_JUYING_KEY_4)
-            .putInt(KEY_JUYING_KEY_5, DEFAULT_JUYING_KEY_5)
-            .apply()
+        if (isBlackBerryDevice(context)) {
+            setJuyingKeysForBlackBerry(context)
+        } else {
+            // Reset to Titan 2 defaults
+            getPreferences(context).edit()
+                .putInt(KEY_JUYING_KEY_1, DEFAULT_JUYING_KEY_1)
+                .putInt(KEY_JUYING_KEY_2, DEFAULT_JUYING_KEY_2)
+                .putInt(KEY_JUYING_KEY_3, DEFAULT_JUYING_KEY_3)
+                .putInt(KEY_JUYING_KEY_4, DEFAULT_JUYING_KEY_4)
+                .putInt(KEY_JUYING_KEY_5, DEFAULT_JUYING_KEY_5)
+                .apply()
+        }
     }
 
     /**
