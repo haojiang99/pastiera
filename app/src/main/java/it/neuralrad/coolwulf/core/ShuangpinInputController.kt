@@ -383,8 +383,8 @@ class ShuangpinInputController(
         val bufferStr = buffer.toString()
         val resultCandidates = mutableListOf<String>()
 
-        // Check custom dictionary first
-        val customPhrases = customDictionary.getPinyinPhrases(bufferStr)
+        // Check custom dictionary first (Shuangpin-specific mappings)
+        val customPhrases = customDictionary.getShuangpinPhrases(bufferStr)
         if (customPhrases.isNotEmpty()) {
             resultCandidates.addAll(customPhrases)
             Log.d(TAG, "Custom dictionary phrases for '$bufferStr': $customPhrases")

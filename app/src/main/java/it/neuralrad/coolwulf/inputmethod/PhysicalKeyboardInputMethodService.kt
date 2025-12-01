@@ -1160,10 +1160,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             hasPrevPage = zhenmaSnapshot.hasPrevPage
         } else if (wordPredictionSnapshot.hasSuggestions && !shouldDisableSmartFeatures) {
             // Show English word predictions (BlackBerry-style: 3 per page)
+            // In Juying mode, reorder to put best suggestion in middle: [1st, 2nd, 3rd] -> [2nd, 1st, 3rd]
+            val rawSuggestions = wordPredictionSnapshot.suggestions.take(3)
+            val displaySuggestions = if (isJuyingMode && rawSuggestions.size >= 2) {
+                when (rawSuggestions.size) {
+                    2 -> listOf(rawSuggestions[1], rawSuggestions[0]) // [2nd, 1st]
+                    else -> listOf(rawSuggestions[1], rawSuggestions[0], rawSuggestions[2]) // [2nd, 1st, 3rd]
+                }
+            } else {
+                rawSuggestions
+            }
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
                 lastInsertedChar = null,
-                variations = wordPredictionSnapshot.suggestions.take(3)
+                variations = displaySuggestions
             )
             wordPredictionActive = true
             wordPredictionPrefix = wordPredictionSnapshot.prefix
@@ -1694,7 +1704,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 }
                             }
                             hasWordPredictions -> {
-                                val result = englishWordPredictionController.selectSuggestion(juyingCandidateIndex)
+                                // Map display position to original index for Juying mode
+                                // Display reordering: [2nd, 1st, 3rd] -> display 0->1, 1->0, 2->2
+                                val englishOriginalIndex = when (juyingCandidateIndex) {
+                                    0 -> 1  // Shift selects 2nd suggestion
+                                    1 -> 0  // Sym selects 1st (best) suggestion
+                                    2 -> 2  // Space selects 3rd suggestion
+                                    else -> juyingCandidateIndex
+                                }
+                                val result = englishWordPredictionController.selectSuggestion(englishOriginalIndex)
                                 if (result != null) {
                                     ic.deleteSurroundingText(result.prefixLength, 0)
                                     ic.commitText(result.word + " ", 1)
@@ -2106,18 +2124,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // Handle backspace in Pinyin mode
             if (keyCode == KeyEvent.KEYCODE_DEL) {
                 val hadBuffer = pinyinInputController.getBuffer().isNotEmpty()
+                val hadPredictions = pinyinInputController.isShowingNextWordPredictions()
                 if (pinyinInputController.handleBackspace()) {
                     val buffer = pinyinInputController.getBuffer()
                     if (buffer.isNotEmpty()) {
                         ic.setComposingText(buffer, 1)
-                    } else {
-                        // Buffer is now empty, delete the composing text entirely
+                    } else if (hadBuffer) {
+                        // Buffer was cleared, finish composing text
                         ic.finishComposingText()
-                        if (hadBuffer) {
-                            // If we had a buffer before, delete the last character
-                            ic.deleteSurroundingText(1, 0)
-                        }
+                        // Delete the last character from committed text
+                        ic.deleteSurroundingText(1, 0)
                     }
+                    // If we just cleared predictions (hadPredictions && !hadBuffer),
+                    // don't call finishComposingText - just update status bar
                     updateStatusBarText()
                     return true
                 }
@@ -2414,16 +2433,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // Handle backspace in Shuangpin mode
             if (keyCode == KeyEvent.KEYCODE_DEL) {
                 val hadBuffer = shuangpinInputController.getBuffer().isNotEmpty()
+                val hadPredictions = shuangpinInputController.isShowingNextWordPredictions()
                 if (shuangpinInputController.handleBackspace()) {
                     val buffer = shuangpinInputController.getBuffer()
                     if (buffer.isNotEmpty()) {
                         ic.setComposingText(buffer, 1)
-                    } else {
+                    } else if (hadBuffer) {
+                        // Buffer was cleared, finish composing text
                         ic.finishComposingText()
-                        if (hadBuffer) {
-                            ic.deleteSurroundingText(1, 0)
-                        }
+                        // Delete the last character from committed text
+                        ic.deleteSurroundingText(1, 0)
                     }
+                    // If we just cleared predictions, don't call finishComposingText
                     updateStatusBarText()
                     return true
                 }
@@ -2693,18 +2714,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // Handle backspace in Wubi mode
             if (keyCode == KeyEvent.KEYCODE_DEL) {
                 val hadBuffer = wubiInputController.getBuffer().isNotEmpty()
+                val hadPredictions = wubiInputController.isShowingNextWordPredictions()
                 if (wubiInputController.handleBackspace()) {
                     val buffer = wubiInputController.getBuffer()
                     if (buffer.isNotEmpty()) {
                         ic.setComposingText(buffer, 1)
-                    } else {
-                        // Buffer is now empty, delete the composing text entirely
+                    } else if (hadBuffer) {
+                        // Buffer was cleared, finish composing text
                         ic.finishComposingText()
-                        if (hadBuffer) {
-                            // If we had a buffer before, delete the last character
-                            ic.deleteSurroundingText(1, 0)
-                        }
+                        // Delete the last character from committed text
+                        ic.deleteSurroundingText(1, 0)
                     }
+                    // If we just cleared predictions, don't call finishComposingText
                     updateStatusBarText()
                     return true
                 }
@@ -2974,18 +2995,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // Handle backspace in Zhenma mode
             if (keyCode == KeyEvent.KEYCODE_DEL) {
                 val hadBuffer = zhenmaInputController.getBuffer().isNotEmpty()
+                val hadPredictions = zhenmaInputController.isShowingNextWordPredictions()
                 if (zhenmaInputController.handleBackspace()) {
                     val buffer = zhenmaInputController.getBuffer()
                     if (buffer.isNotEmpty()) {
                         ic.setComposingText(buffer, 1)
-                    } else {
-                        // Buffer is now empty, delete the composing text entirely
+                    } else if (hadBuffer) {
+                        // Buffer was cleared, finish composing text
                         ic.finishComposingText()
-                        if (hadBuffer) {
-                            // If we had a buffer before, delete the last character
-                            ic.deleteSurroundingText(1, 0)
-                        }
+                        // Delete the last character from committed text
+                        ic.deleteSurroundingText(1, 0)
                     }
+                    // If we just cleared predictions, don't call finishComposingText
                     updateStatusBarText()
                     return true
                 }

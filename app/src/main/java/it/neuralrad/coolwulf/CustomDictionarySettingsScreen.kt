@@ -33,11 +33,12 @@ fun CustomDictionarySettingsScreen(
     val context = LocalContext.current
     val customDictionary = remember { UserCustomDictionary.getInstance(context) }
 
-    // 0 = Pinyin, 1 = Wubi
+    // 0 = Pinyin, 1 = Shuangpin, 2 = Wubi
     var selectedMode by remember { mutableIntStateOf(0) }
 
     // Mappings list
     var pinyinMappings by remember { mutableStateOf(customDictionary.getAllPinyinMappings()) }
+    var shuangpinMappings by remember { mutableStateOf(customDictionary.getAllShuangpinMappings()) }
     var wubiMappings by remember { mutableStateOf(customDictionary.getAllWubiMappings()) }
 
     // Dialog states
@@ -107,6 +108,11 @@ fun CustomDictionarySettingsScreen(
                 Tab(
                     selected = selectedMode == 1,
                     onClick = { selectedMode = 1 },
+                    text = { Text(stringResource(R.string.custom_dictionary_shuangpin_mode)) }
+                )
+                Tab(
+                    selected = selectedMode == 2,
+                    onClick = { selectedMode = 2 },
                     text = { Text(stringResource(R.string.custom_dictionary_wubi_mode)) }
                 )
             }
@@ -120,7 +126,11 @@ fun CustomDictionarySettingsScreen(
             )
 
             // Mappings list
-            val currentMappings = if (selectedMode == 0) pinyinMappings else wubiMappings
+            val currentMappings = when (selectedMode) {
+                0 -> pinyinMappings
+                1 -> shuangpinMappings
+                else -> wubiMappings
+            }
 
             if (currentMappings.isEmpty()) {
                 Box(
@@ -146,12 +156,19 @@ fun CustomDictionarySettingsScreen(
                             code = code,
                             phrase = phrase,
                             onDelete = {
-                                if (selectedMode == 0) {
-                                    customDictionary.removePinyinMapping(code, phrase)
-                                    pinyinMappings = customDictionary.getAllPinyinMappings()
-                                } else {
-                                    customDictionary.removeWubiMapping(code, phrase)
-                                    wubiMappings = customDictionary.getAllWubiMappings()
+                                when (selectedMode) {
+                                    0 -> {
+                                        customDictionary.removePinyinMapping(code, phrase)
+                                        pinyinMappings = customDictionary.getAllPinyinMappings()
+                                    }
+                                    1 -> {
+                                        customDictionary.removeShuangpinMapping(code, phrase)
+                                        shuangpinMappings = customDictionary.getAllShuangpinMappings()
+                                    }
+                                    else -> {
+                                        customDictionary.removeWubiMapping(code, phrase)
+                                        wubiMappings = customDictionary.getAllWubiMappings()
+                                    }
                                 }
                             }
                         )
@@ -168,8 +185,11 @@ fun CustomDictionarySettingsScreen(
             title = {
                 Text(
                     text = stringResource(
-                        if (selectedMode == 0) R.string.custom_dictionary_add_pinyin
-                        else R.string.custom_dictionary_add_wubi
+                        when (selectedMode) {
+                            0 -> R.string.custom_dictionary_add_pinyin
+                            1 -> R.string.custom_dictionary_add_shuangpin
+                            else -> R.string.custom_dictionary_add_wubi
+                        }
                     )
                 )
             },
@@ -184,8 +204,11 @@ fun CustomDictionarySettingsScreen(
                         placeholder = {
                             Text(
                                 stringResource(
-                                    if (selectedMode == 0) R.string.custom_dictionary_code_hint_pinyin
-                                    else R.string.custom_dictionary_code_hint_wubi
+                                    when (selectedMode) {
+                                        0 -> R.string.custom_dictionary_code_hint_pinyin
+                                        1 -> R.string.custom_dictionary_code_hint_shuangpin
+                                        else -> R.string.custom_dictionary_code_hint_wubi
+                                    }
                                 )
                             )
                         },
@@ -206,12 +229,19 @@ fun CustomDictionarySettingsScreen(
                 TextButton(
                     onClick = {
                         if (codeInput.isNotBlank() && phraseInput.isNotBlank()) {
-                            if (selectedMode == 0) {
-                                customDictionary.addPinyinMapping(codeInput, phraseInput)
-                                pinyinMappings = customDictionary.getAllPinyinMappings()
-                            } else {
-                                customDictionary.addWubiMapping(codeInput, phraseInput)
-                                wubiMappings = customDictionary.getAllWubiMappings()
+                            when (selectedMode) {
+                                0 -> {
+                                    customDictionary.addPinyinMapping(codeInput, phraseInput)
+                                    pinyinMappings = customDictionary.getAllPinyinMappings()
+                                }
+                                1 -> {
+                                    customDictionary.addShuangpinMapping(codeInput, phraseInput)
+                                    shuangpinMappings = customDictionary.getAllShuangpinMappings()
+                                }
+                                else -> {
+                                    customDictionary.addWubiMapping(codeInput, phraseInput)
+                                    wubiMappings = customDictionary.getAllWubiMappings()
+                                }
                             }
                             showAddDialog = false
                         }

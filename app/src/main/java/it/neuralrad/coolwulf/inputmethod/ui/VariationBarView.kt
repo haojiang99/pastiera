@@ -545,16 +545,24 @@ class VariationBarView(
             // - Chinese input: best candidate position depends on number of candidates
             //   - 2 candidates: [2nd, 1st] -> best is at position 1
             //   - 3+ candidates: [2nd, 3rd, 1st, ...] -> best is at position 2
-            // - English word prediction: best candidate is at display position 0 (Shift key selects 1st/best)
+            // - English word prediction: best candidate is in middle (Sym key selects 1st/best)
+            //   - 2 candidates: [2nd, 1st] -> best is at position 1
+            //   - 3 candidates: [2nd, 1st, 3rd] -> best is at position 1 (middle)
             val isChineseMode = snapshot.pinyinModeActive || snapshot.shuangpinModeActive ||
                                 snapshot.wubiModeActive || snapshot.zhenmaModeActive
             val bestCandidatePosition = when {
                 isChineseMode && limitedVariations.size == 2 -> 1  // 2 candidates: best at position 1
                 isChineseMode -> 2  // 3+ candidates: best at position 2
-                snapshot.wordPredictionActive -> 0  // English: best at position 0
+                snapshot.wordPredictionActive -> 1  // English: best at position 1 (middle)
                 else -> -1
             }
-            val isBestCandidate = snapshot.isJuyingMode && index == bestCandidatePosition
+            // Highlight best candidate: in Juying mode it's at bestCandidatePosition (reordered),
+            // in non-Juying mode it's always at position 0 (first suggestion is best)
+            val isBestCandidate = if (snapshot.isJuyingMode) {
+                index == bestCandidatePosition
+            } else {
+                index == 0  // First candidate is always the best in non-Juying mode
+            }
             val button = createVariationButton(
                 variation, inputConnection, individualButtonWidth, showNumberedButtons, index + 1,
                 snapshot.wordPredictionActive, wordPredictionPrefixLength, snapshot.pinyinModeActive,
