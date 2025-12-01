@@ -176,7 +176,8 @@ class InputEventRouter(
         val clearAltOnSpaceEnabled: Boolean,
         val shiftOneShot: Boolean,
         val capsLockEnabled: Boolean,
-        val cursorUpdateDelayMs: Long
+        val cursorUpdateDelayMs: Long,
+        val juyingModeShouldInterceptAlt: Boolean = false // True when Juying mode should intercept Alt key
     )
 
     data class EditableFieldKeyDownControllers(
@@ -259,13 +260,19 @@ class InputEventRouter(
         if (keyCode == KeyEvent.KEYCODE_ALT_LEFT || keyCode == KeyEvent.KEYCODE_ALT_RIGHT) {
             // Check if Ctrl is physically pressed (not latch) - if so, trigger speech recognition (if enabled)
             // Only trigger if both keys are physically pressed simultaneously, not if one is in latch
-            if (event?.isCtrlPressed == true && 
+            if (event?.isCtrlPressed == true &&
                 !params.altPressed &&
                 SettingsManager.getAltCtrlSpeechShortcutEnabled(context)) {
                 callbacks.startSpeechRecognition()
                 return EditableFieldRoutingResult.Consume
             }
-            
+
+            // If Juying mode should intercept Alt (for candidate selection),
+            // return CallSuper to let Juying handling process it first (like Shift does)
+            if (params.juyingModeShouldInterceptAlt) {
+                return EditableFieldRoutingResult.CallSuper
+            }
+
             if (controllers.symLayoutController.isSymActive()) {
                 if (controllers.symLayoutController.closeSymPage()) {
                     callbacks.updateStatusBar()

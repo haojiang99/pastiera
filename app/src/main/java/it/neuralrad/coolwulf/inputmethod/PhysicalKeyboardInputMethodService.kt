@@ -217,9 +217,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      * Checks if the given keycode is an Alt key for the current device.
      */
     private fun isDeviceAltKey(keyCode: Int): Boolean {
-        if (SettingsManager.isBlackBerryDevice(this)) {
-            return keyCode == BLACKBERRY_KEYCODE_ALT
-        }
+        // Check for both ALT_LEFT (57) and ALT_RIGHT (58) on all devices
+        // BlackBerry uses 57, Titan 2 uses 58, but both are standard Android Alt keycodes
         return keyCode == KeyEvent.KEYCODE_ALT_LEFT || keyCode == KeyEvent.KEYCODE_ALT_RIGHT
     }
 
@@ -1474,6 +1473,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             var juyingCandidateIndex = SettingsManager.getJuyingCandidateIndex(this, translatedKeyCode)
             if (juyingCandidateIndex < 0 && keyCode != translatedKeyCode) {
                 juyingCandidateIndex = SettingsManager.getJuyingCandidateIndex(this, keyCode)
+            }
+
+            // Fallback: Check modifier keys using device-specific detection
+            // This handles cases where RIGHT variants (e.g., KEYCODE_ALT_RIGHT) are pressed
+            // but the Juying keys list only contains LEFT variants
+            if (juyingCandidateIndex < 0) {
+                when {
+                    isDeviceShiftKey(keyCode) -> juyingCandidateIndex = 0  // Shift is 1st key (index 0)
+                    isDeviceCtrlKey(keyCode) -> juyingCandidateIndex = 3   // Ctrl is 4th key (index 3)
+                    isDeviceAltKey(keyCode) -> juyingCandidateIndex = 4    // Alt is 5th key (index 4)
+                }
             }
 
             // For English word predictions, skip Space key (index 2 in 5-key layout) - let it type space normally
@@ -2938,6 +2948,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             return true
         }
         
+        // Check if Juying mode should intercept Alt key (for Chinese candidate selection)
+        // Alt is the 5th Juying key - only intercept when there are Chinese candidates
+        val juyingModeShouldInterceptAlt = juyingModeEnabled && hasChineseCandidates
+
         val routingDecision = inputEventRouter.routeEditableFieldKeyDown(
             keyCode = translatedKeyCode,
             event = event,
@@ -2957,7 +2971,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 clearAltOnSpaceEnabled = clearAltOnSpaceEnabled,
                 shiftOneShot = shiftOneShot,
                 capsLockEnabled = capsLockEnabled,
-                cursorUpdateDelayMs = CURSOR_UPDATE_DELAY
+                cursorUpdateDelayMs = CURSOR_UPDATE_DELAY,
+                juyingModeShouldInterceptAlt = juyingModeShouldInterceptAlt
             ),
             controllers = InputEventRouter.EditableFieldKeyDownControllers(
                 modifierStateController = modifierStateController,
@@ -3061,6 +3076,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             var juyingCandidateIndex = SettingsManager.getJuyingCandidateIndex(this, translatedKeyCode)
             if (juyingCandidateIndex < 0 && keyCode != translatedKeyCode) {
                 juyingCandidateIndex = SettingsManager.getJuyingCandidateIndex(this, keyCode)
+            }
+
+            // Fallback: Check modifier keys using device-specific detection
+            // This handles cases where RIGHT variants (e.g., KEYCODE_ALT_RIGHT) are pressed
+            if (juyingCandidateIndex < 0) {
+                when {
+                    isDeviceShiftKey(keyCode) -> juyingCandidateIndex = 0  // Shift is 1st key (index 0)
+                    isDeviceCtrlKey(keyCode) -> juyingCandidateIndex = 3   // Ctrl is 4th key (index 3)
+                    isDeviceAltKey(keyCode) -> juyingCandidateIndex = 4    // Alt is 5th key (index 4)
+                }
             }
 
             // For English word predictions, skip Space key (index 0) - let it work normally
