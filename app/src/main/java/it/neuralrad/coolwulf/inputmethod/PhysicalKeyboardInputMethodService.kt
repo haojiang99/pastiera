@@ -159,6 +159,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private val CURSOR_UPDATE_DELAY = 50L
     private val MULTI_TAP_TIMEOUT_MS = 800L
     private val PAGINATION_DOUBLE_PRESS_THRESHOLD = 400L
+    private val ALT_SINGLE_CLICK_DELAY = 250L  // Delay to distinguish single from double click
+
+    // Pending Alt selection for delayed single-click handling
+    private var pendingAltSelectionRunnable: Runnable? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private val symPage: Int
         get() = if (::symLayoutController.isInitialized) symLayoutController.currentSymPage() else 0
@@ -1330,6 +1335,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         isInputViewActive = false
         inputContextState = InputContextState.EMPTY
         resetModifierStates(preserveNavMode = true)
+        // Cancel any pending Alt selection
+        pendingAltSelectionRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingAltSelectionRunnable = null
     }
     
     override fun onFinishInputView(finishingInput: Boolean) {
@@ -1359,6 +1367,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     override fun onWindowHidden() {
         super.onWindowHidden()
         resetModifierStates(preserveNavMode = true)
+        // Cancel any pending Alt selection
+        pendingAltSelectionRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingAltSelectionRunnable = null
     }
     
     /**
@@ -1514,6 +1525,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val isDoubleClickAlt = isDeviceAltKey(keyCode) &&
                     (currentTime - altLastPressTime) <= PAGINATION_DOUBLE_PRESS_THRESHOLD
 
+                // Check if there's a pending Alt selection (first click waiting)
+                val hasPendingAltSelection = pendingAltSelectionRunnable != null
+
                 if (isDoubleClickShift && isChineseInputActive) {
                     // Double press Shift - go to previous page (Chinese only)
                     when {
@@ -1536,8 +1550,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
                     shiftLastPressTime = 0L
                     return true
-                } else if (isDoubleClickAlt && isChineseInputActive) {
-                    // Double press Alt - go to next page (Chinese only)
+                } else if ((isDoubleClickAlt || hasPendingAltSelection) && isDeviceAltKey(keyCode) && isChineseInputActive) {
+                    // Alt key pressed while pending selection exists OR detected as double-click
+                    // Cancel pending selection and go to next page
+                    pendingAltSelectionRunnable?.let { mainHandler.removeCallbacks(it) }
+                    pendingAltSelectionRunnable = null
+
+                    // Go to next page (Chinese only)
                     when {
                         isPinyinMode && pinyinInputController.hasNextPage() -> {
                             pinyinInputController.nextPage()
@@ -1558,8 +1577,54 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
                     altLastPressTime = 0L
                     return true
+                } else if (isDeviceAltKey(keyCode) && isChineseInputActive) {
+                    // First Alt press in Chinese mode - delay selection to allow for double-click
+                    altLastPressTime = currentTime
+
+                    // Create a delayed runnable to select the 5th candidate
+                    val selectionRunnable = Runnable {
+                        val ic = currentInputConnection
+                        if (ic != null) {
+                            // Alt selects 5th candidate (original index 4)
+                            val originalCandidateIndex = 4
+                            when {
+                                isPinyinMode -> {
+                                    val selected = pinyinInputController.selectCandidate(originalCandidateIndex)
+                                    if (selected != null) {
+                                        ic.commitText(selected, 1)
+                                        updateStatusBarText()
+                                    }
+                                }
+                                isShuangpinMode -> {
+                                    val selected = shuangpinInputController.selectCandidate(originalCandidateIndex)
+                                    if (selected != null) {
+                                        ic.commitText(selected, 1)
+                                        updateStatusBarText()
+                                    }
+                                }
+                                isWubiMode -> {
+                                    val selected = wubiInputController.selectCandidate(originalCandidateIndex)
+                                    if (selected != null) {
+                                        ic.commitText(selected, 1)
+                                        updateStatusBarText()
+                                    }
+                                }
+                                isZhenmaMode -> {
+                                    val selected = zhenmaInputController.selectCandidate(originalCandidateIndex)
+                                    if (selected != null) {
+                                        ic.commitText(selected, 1)
+                                        updateStatusBarText()
+                                    }
+                                }
+                            }
+                        }
+                        pendingAltSelectionRunnable = null
+                    }
+                    pendingAltSelectionRunnable = selectionRunnable
+                    mainHandler.postDelayed(selectionRunnable, ALT_SINGLE_CLICK_DELAY)
+                    return true
                 } else {
-                    // Single click - select candidate
+                    // Non-Alt keys or non-Chinese mode - select candidate immediately
                     val ic = currentInputConnection
                     if (ic != null) {
                         // For Chinese input in Juying mode, map key index to original candidate index
@@ -1624,7 +1689,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
                     // Update press time for double-click detection
                     if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
-                    if (isDeviceAltKey(keyCode)) altLastPressTime = currentTime
                     return true
                 }
             }
