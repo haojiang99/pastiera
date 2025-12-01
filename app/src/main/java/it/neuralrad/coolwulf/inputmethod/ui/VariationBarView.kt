@@ -483,10 +483,13 @@ class VariationBarView(
         var buttonX = 0
         for ((index, variation) in limitedVariations.withIndex()) {
             val individualButtonWidth = buttonWidths[index]
+            // In Juying mode, the best candidate (1st) is at display position 2 (Space key)
+            val isBestCandidate = snapshot.isJuyingMode && index == 2
             val button = createVariationButton(
                 variation, inputConnection, individualButtonWidth, showNumberedButtons, index + 1,
                 snapshot.wordPredictionActive, wordPredictionPrefixLength, snapshot.pinyinModeActive,
-                snapshot.shuangpinModeActive, snapshot.wubiModeActive, snapshot.zhenmaModeActive, candidateIndex = index
+                snapshot.shuangpinModeActive, snapshot.wubiModeActive, snapshot.zhenmaModeActive, candidateIndex = index,
+                isJuyingMode = snapshot.isJuyingMode, isBestCandidate = isBestCandidate
             )
             variationButtons.add(button)
             variationsRow.addView(button)
@@ -1088,7 +1091,9 @@ class VariationBarView(
         isShuangpinMode: Boolean = false,
         isWubiMode: Boolean = false,
         isZhenmaMode: Boolean = false,
-        candidateIndex: Int = 0
+        candidateIndex: Int = 0,
+        isJuyingMode: Boolean = false,
+        isBestCandidate: Boolean = false
     ): TextView {
         val dp4 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
@@ -1108,8 +1113,14 @@ class VariationBarView(
 
         val buttonHeight = buttonWidth
 
+        // Use highlighted background for best candidate in Juying mode (golden/yellow tint)
+        val normalColor = if (isBestCandidate) {
+            Color.rgb(50, 45, 10)  // Dark golden/yellow tint for best candidate
+        } else {
+            Color.rgb(17, 17, 17)  // Default dark gray
+        }
         val drawable = GradientDrawable().apply {
-            setColor(Color.rgb(17, 17, 17))
+            setColor(normalColor)
             cornerRadius = 0f
         }
         val pressedDrawable = GradientDrawable().apply {
@@ -1207,10 +1218,17 @@ class VariationBarView(
         // Capture flags for closure
         val shouldVibrate = isWordPrediction || isPinyinMode || isShuangpinMode || isWubiMode || isZhenmaMode
 
+        // Use golden/yellow text for best candidate in Juying mode
+        val textColor = if (isBestCandidate) {
+            Color.rgb(255, 215, 0)  // Gold color for best candidate
+        } else {
+            Color.WHITE
+        }
+
         return TextView(context).apply {
             text = displayText
             textSize = textSizeSp
-            setTextColor(Color.WHITE)
+            setTextColor(textColor)
             setTypeface(null, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
             setPadding(dp6, dp4, dp6, dp4)
