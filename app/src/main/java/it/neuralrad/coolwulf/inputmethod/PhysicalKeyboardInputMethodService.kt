@@ -1590,11 +1590,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 if (savedAltChineseMode != null) {
                     when (savedAltChineseMode) {
                         "pinyin" -> {
-                            pinyinInputController.restoreCandidatesForNextPage(savedAltCandidatesForNextPage, savedAltCurrentPage)
+                            // Restore buffer and syllable parsing state for proper candidate selection
                             if (savedAltBuffer.isNotEmpty()) {
                                 pinyinInputController.restoreBuffer(savedAltBuffer)
                                 ic?.setComposingText(savedAltBuffer, 1)
                             }
+                            // Restore full state including syllable parsing for next Alt press
+                            pinyinInputController.restoreForAltSelection(
+                                savedAltCandidatesForNextPage,
+                                savedAltCurrentPage,
+                                savedAltFirstSyllable,
+                                savedAltMatchedPinyin,
+                                savedAltPhraseCandidateCount
+                            )
                             if (pinyinInputController.hasNextPage()) {
                                 pinyinInputController.nextPage()
                             }
@@ -1773,12 +1781,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     if (savedAltCandidatesForNextPage.isNotEmpty() && savedAltChineseMode != null) {
                         when (savedAltChineseMode) {
                             "pinyin" -> {
-                                pinyinInputController.restoreCandidatesForNextPage(savedAltCandidatesForNextPage, savedAltCurrentPage)
-                                // Restore buffer for composing text display
+                                // Restore buffer and syllable parsing state for proper candidate selection
                                 if (savedAltBuffer.isNotEmpty()) {
                                     pinyinInputController.restoreBuffer(savedAltBuffer)
                                     ic?.setComposingText(savedAltBuffer, 1)
                                 }
+                                // Restore full state including syllable parsing for next Alt press
+                                pinyinInputController.restoreForAltSelection(
+                                    savedAltCandidatesForNextPage,
+                                    savedAltCurrentPage,
+                                    savedAltFirstSyllable,
+                                    savedAltMatchedPinyin,
+                                    savedAltPhraseCandidateCount
+                                )
                                 if (pinyinInputController.hasNextPage()) {
                                     pinyinInputController.nextPage()
                                 }
