@@ -544,17 +544,27 @@ class VariationBarView(
             val individualButtonWidth = buttonWidths[index]
             // In Juying mode, determine best candidate based on mode:
             // - Chinese input: best candidate position depends on number of candidates
+            //   - 1 candidate: best is at position 0 (only one)
             //   - 2 candidates: [2nd, 1st] -> best is at position 1
-            //   - 3+ candidates: [2nd, 3rd, 1st, ...] -> best is at position 2
+            //   - 3 candidates: [2nd, 1st, 3rd] -> best is at position 1 (middle)
+            //   - 4+ candidates: [2nd, 3rd, 1st, ...] -> best is at position 2
             // - English word prediction: best candidate is in middle (Sym key selects 1st/best)
+            //   - 1 candidate: best is at position 0
             //   - 2 candidates: [2nd, 1st] -> best is at position 1
             //   - 3 candidates: [2nd, 1st, 3rd] -> best is at position 1 (middle)
             val isChineseMode = snapshot.pinyinModeActive || snapshot.shuangpinModeActive ||
                                 snapshot.wubiModeActive || snapshot.zhenmaModeActive
             val bestCandidatePosition = when {
-                isChineseMode && limitedVariations.size == 2 -> 1  // 2 candidates: best at position 1
-                isChineseMode -> 2  // 3+ candidates: best at position 2
-                snapshot.wordPredictionActive -> 1  // English: best at position 1 (middle)
+                isChineseMode -> when (limitedVariations.size) {
+                    1 -> 0  // 1 candidate: best at position 0
+                    2 -> 1  // 2 candidates: best at position 1 (right)
+                    3 -> 1  // 3 candidates: best at position 1 (middle)
+                    else -> 2  // 4+ candidates: best at position 2
+                }
+                snapshot.wordPredictionActive -> when (limitedVariations.size) {
+                    1 -> 0  // 1 candidate: best at position 0
+                    else -> 1  // 2+ candidates: best at position 1 (middle)
+                }
                 else -> -1
             }
             // Highlight best candidate: in Juying mode it's at bestCandidatePosition (reordered),

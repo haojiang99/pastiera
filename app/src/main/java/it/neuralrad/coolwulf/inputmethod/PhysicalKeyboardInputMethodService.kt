@@ -494,20 +494,43 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
         candidatesBarController.onVariationSelectedListener = variationListener
 
+        // Helper function to reverse map display index to original index based on candidate count
+        // Display reordering:
+        // 1 candidate: [1st] -> display 0 = original 0
+        // 2 candidates: [2nd, 1st] -> display 0=orig 1, display 1=orig 0
+        // 3 candidates: [2nd, 1st, 3rd] -> display 0=orig 1, display 1=orig 0, display 2=orig 2
+        // 4+ candidates: [2nd, 3rd, 1st, 4th, 5th] -> display 0=orig 1, display 1=orig 2, display 2=orig 0, etc.
+        fun reverseJuyingDisplayIndex(displayIndex: Int, candidateCount: Int): Int {
+            return when (candidateCount) {
+                1 -> 0  // Only one candidate, display 0 = original 0
+                2 -> when (displayIndex) {
+                    0 -> 1  // Display 0 -> Original 1 (2nd)
+                    1 -> 0  // Display 1 -> Original 0 (1st, best)
+                    else -> displayIndex
+                }
+                3 -> when (displayIndex) {
+                    0 -> 1  // Display 0 -> Original 1 (2nd)
+                    1 -> 0  // Display 1 -> Original 0 (1st, best)
+                    2 -> 2  // Display 2 -> Original 2 (3rd)
+                    else -> displayIndex
+                }
+                else -> when (displayIndex) {
+                    0 -> 1  // Display 0 -> Original 1 (2nd)
+                    1 -> 2  // Display 1 -> Original 2 (3rd)
+                    2 -> 0  // Display 2 -> Original 0 (1st, best)
+                    else -> displayIndex  // 3, 4 stay the same
+                }
+            }
+        }
+
         // Register listener for Pinyin candidate selection (with index)
         val pinyinListener = object : VariationButtonHandler.OnPinyinCandidateSelectedListener {
             override fun onPinyinCandidateSelected(candidate: String, candidateIndex: Int) {
                 val ic = currentInputConnection ?: return
-                // In Juying mode, display is reordered, so we need to reverse map to original index
-                // Display order: [2nd, 3rd, 1st, 4th, 5th] -> Original: [1, 2, 0, 3, 4]
                 val isJuyingMode = SettingsManager.getJuyingModeEnabled(this@PhysicalKeyboardInputMethodService)
+                val candidateCount = pinyinInputController.getCurrentPageCandidates().size
                 val originalIndex = if (isJuyingMode) {
-                    when (candidateIndex) {
-                        0 -> 1  // Display 0 -> Original 1
-                        1 -> 2  // Display 1 -> Original 2
-                        2 -> 0  // Display 2 -> Original 0
-                        else -> candidateIndex  // 3, 4, etc. stay the same
-                    }
+                    reverseJuyingDisplayIndex(candidateIndex, candidateCount)
                 } else {
                     candidateIndex
                 }
@@ -529,12 +552,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val wubiListener = object : VariationButtonHandler.OnWubiCandidateSelectedListener {
             override fun onWubiCandidateSelected(candidate: String, candidateIndex: Int) {
                 val ic = currentInputConnection ?: return
-                // In Juying mode, reverse map display index to original index
                 val isJuyingMode = SettingsManager.getJuyingModeEnabled(this@PhysicalKeyboardInputMethodService)
+                val candidateCount = wubiInputController.getCurrentPageCandidates().size
                 val originalIndex = if (isJuyingMode) {
-                    when (candidateIndex) {
-                        0 -> 1; 1 -> 2; 2 -> 0; else -> candidateIndex
-                    }
+                    reverseJuyingDisplayIndex(candidateIndex, candidateCount)
                 } else candidateIndex
                 // VariationButtonHandler already committed the text, we just update buffer state
                 wubiInputController.selectCandidate(originalIndex)
@@ -553,12 +574,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val shuangpinListener = object : VariationButtonHandler.OnShuangpinCandidateSelectedListener {
             override fun onShuangpinCandidateSelected(candidate: String, candidateIndex: Int) {
                 val ic = currentInputConnection ?: return
-                // In Juying mode, reverse map display index to original index
                 val isJuyingMode = SettingsManager.getJuyingModeEnabled(this@PhysicalKeyboardInputMethodService)
+                val candidateCount = shuangpinInputController.getCurrentPageCandidates().size
                 val originalIndex = if (isJuyingMode) {
-                    when (candidateIndex) {
-                        0 -> 1; 1 -> 2; 2 -> 0; else -> candidateIndex
-                    }
+                    reverseJuyingDisplayIndex(candidateIndex, candidateCount)
                 } else candidateIndex
                 // VariationButtonHandler already committed the text, we just update buffer state
                 shuangpinInputController.selectCandidate(originalIndex)
@@ -577,12 +596,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val zhenmaListener = object : VariationButtonHandler.OnZhenmaCandidateSelectedListener {
             override fun onZhenmaCandidateSelected(candidate: String, candidateIndex: Int) {
                 val ic = currentInputConnection ?: return
-                // In Juying mode, reverse map display index to original index
                 val isJuyingMode = SettingsManager.getJuyingModeEnabled(this@PhysicalKeyboardInputMethodService)
+                val candidateCount = zhenmaInputController.getCurrentPageCandidates().size
                 val originalIndex = if (isJuyingMode) {
-                    when (candidateIndex) {
-                        0 -> 1; 1 -> 2; 2 -> 0; else -> candidateIndex
-                    }
+                    reverseJuyingDisplayIndex(candidateIndex, candidateCount)
                 } else candidateIndex
                 // VariationButtonHandler already committed the text, we just update buffer state
                 zhenmaInputController.selectCandidate(originalIndex)
@@ -1160,14 +1177,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val candidateLimit = if (isJuyingMode) 5 else 9
 
         // Helper to reorder candidates for Juying+Chinese mode display:
-        // Original order: [1st, 2nd, 3rd, 4th, 5th] -> Display order: [2nd, 3rd, 1st, 4th, 5th]
-        // This puts the 1st suggestion at position 3 (Space key)
-        // Keys: Shift(pos0)->2nd, Sym(pos1)->3rd, Space(pos2)->1st, Ctrl(pos3)->4th, Alt(pos4)->5th
+        // 1 candidate: [1st] - Space picks it
+        // 2 candidates: [2nd, 1st] - best on right, Sym=left, Space=right(best)
+        // 3 candidates: [2nd, 1st, 3rd] - best in middle, Sym=left, Space=middle(best), Ctrl=right
+        // 4+ candidates: [2nd, 3rd, 1st, 4th, 5th] - best at position 2 (Space)
         fun reorderForJuyingDisplay(candidates: List<String>): List<String> {
             if (!isJuyingMode || candidates.size < 2) return candidates
             return when (candidates.size) {
-                2 -> listOf(candidates[1], candidates[0]) // [2nd, 1st]
-                3 -> listOf(candidates[1], candidates[2], candidates[0]) // [2nd, 3rd, 1st]
+                2 -> listOf(candidates[1], candidates[0]) // [2nd, 1st] - best at position 1
+                3 -> listOf(candidates[1], candidates[0], candidates[2]) // [2nd, 1st, 3rd] - best at position 1 (middle)
                 4 -> listOf(candidates[1], candidates[2], candidates[0], candidates[3]) // [2nd, 3rd, 1st, 4th]
                 else -> listOf(candidates[1], candidates[2], candidates[0], candidates[3], candidates[4]) // [2nd, 3rd, 1st, 4th, 5th]
             }
@@ -1882,24 +1900,51 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Non-Alt keys or non-Chinese mode - select candidate immediately
                     val ic = currentInputConnection
                     if (ic != null) {
+                        // Get current candidate count
+                        val candidateCount = when {
+                            isPinyinMode -> pinyinInputController.getCurrentPageCandidates().size
+                            isShuangpinMode -> shuangpinInputController.getCurrentPageCandidates().size
+                            isWubiMode -> wubiInputController.getCurrentPageCandidates().size
+                            isZhenmaMode -> zhenmaInputController.getCurrentPageCandidates().size
+                            else -> 5
+                        }
+
                         // For Chinese input in Juying mode, map key index to original candidate index
-                        // Display is reordered as [2nd, 3rd, 1st, 4th, 5th], so we reverse the mapping:
-                        // Key 0 (Shift) -> display pos 0 -> original index 1 (2nd)
-                        // Key 1 (Sym) -> display pos 1 -> original index 2 (3rd)
-                        // Key 2 (Space) -> display pos 2 -> original index 0 (1st - best suggestion!)
-                        // Key 3 (Ctrl) -> display pos 3 -> original index 3 (4th)
-                        // Key 4 (Alt) -> display pos 4 -> original index 4 (5th)
+                        // Mapping depends on number of candidates:
+                        // 1 candidate: Space(key 2) -> original 0
+                        // 2 candidates: [2nd, 1st] - Sym(key 1)->orig 1, Space(key 2)->orig 0
+                        // 3 candidates: [2nd, 1st, 3rd] - Sym(key 1)->orig 1, Space(key 2)->orig 0, Ctrl(key 3)->orig 2
+                        // 4+ candidates: [2nd, 3rd, 1st, 4th, 5th] - original mapping
                         val originalCandidateIndex = if (isChineseInputActive) {
-                            when (juyingCandidateIndex) {
-                                0 -> 1  // Shift selects 2nd
-                                1 -> 2  // Sym selects 3rd
-                                2 -> 0  // Space selects 1st (best)
-                                3 -> 3  // Ctrl selects 4th
-                                4 -> 4  // Alt selects 5th
-                                else -> juyingCandidateIndex
+                            when (candidateCount) {
+                                1 -> if (juyingCandidateIndex == 2) 0 else -1  // Only Space selects
+                                2 -> when (juyingCandidateIndex) {
+                                    1 -> 1  // Sym selects 2nd (left)
+                                    2 -> 0  // Space selects 1st (right, best)
+                                    else -> -1
+                                }
+                                3 -> when (juyingCandidateIndex) {
+                                    1 -> 1  // Sym selects 2nd (left)
+                                    2 -> 0  // Space selects 1st (middle, best)
+                                    3 -> 2  // Ctrl selects 3rd (right)
+                                    else -> -1
+                                }
+                                else -> when (juyingCandidateIndex) {
+                                    0 -> 1  // Shift selects 2nd
+                                    1 -> 2  // Sym selects 3rd
+                                    2 -> 0  // Space selects 1st (best)
+                                    3 -> 3  // Ctrl selects 4th
+                                    4 -> 4  // Alt selects 5th
+                                    else -> juyingCandidateIndex
+                                }
                             }
                         } else {
                             juyingCandidateIndex // English mode - no reordering
+                        }
+
+                        // Skip if key doesn't map to a valid candidate
+                        if (originalCandidateIndex < 0) {
+                            return true
                         }
 
                         when {
