@@ -2046,10 +2046,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     val textToCommit = chinesePunctuation ?: char.toString()
                     ic.commitText(textToCommit, 1)
 
-                    // For Juying mode long-press Alt, turn off Alt LED after symbol input
+                    // For Juying mode long-press Alt, turn off Alt LED and clear all Alt state after symbol input
                     if (isAltLongPress && juyingModeEnabled && altUsedForSymbolInput) {
-                        altPressed = false
-                        altPhysicallyPressed = false  // Turn off Alt LED
+                        modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
+                        altLastPressTime = 0L  // Reset timing state
                     } else if (altOneShot && !altLatchActive) {
                         // Only clear Alt state if it's one-shot mode, keep it if latched (double-click locked)
                         modifierStateController.clearAltState(resetPressedState = false)
@@ -2135,6 +2135,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // Delete the last character from committed text
                         ic.deleteSurroundingText(1, 0)
                     }
+                    // Clear Alt and Ctrl states when DEL clears suggestions
+                    modifierStateController.clearAltState(resetPressedState = true)
+                    modifierStateController.clearCtrlState(resetPressedState = true)
                     // If we just cleared predictions (hadPredictions && !hadBuffer),
                     // don't call finishComposingText - just update status bar
                     updateStatusBarText()
@@ -2364,10 +2367,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     val textToCommit = chinesePunctuation ?: char.toString()
                     ic.commitText(textToCommit, 1)
 
-                    // For Juying mode long-press Alt, turn off Alt LED after symbol input
+                    // For Juying mode long-press Alt, turn off Alt LED and clear all Alt state after symbol input
                     if (isAltLongPressShuangpin && juyingModeEnabled && altUsedForSymbolInput) {
-                        altPressed = false
-                        altPhysicallyPressed = false  // Turn off Alt LED
+                        modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
+                        altLastPressTime = 0L  // Reset timing state
                     } else if (altOneShot && !altLatchActive) {
                         modifierStateController.clearAltState(resetPressedState = false)
                     }
@@ -2444,6 +2447,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // Delete the last character from committed text
                         ic.deleteSurroundingText(1, 0)
                     }
+                    // Clear Alt and Ctrl states when DEL clears suggestions
+                    modifierStateController.clearAltState(resetPressedState = true)
+                    modifierStateController.clearCtrlState(resetPressedState = true)
                     // If we just cleared predictions, don't call finishComposingText
                     updateStatusBarText()
                     return true
@@ -2654,10 +2660,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     val textToCommit = chinesePunctuation ?: char.toString()
                     ic.commitText(textToCommit, 1)
 
-                    // For Juying mode long-press Alt, turn off Alt LED after symbol input
+                    // For Juying mode long-press Alt, turn off Alt LED and clear all Alt state after symbol input
                     if (isAltLongPressWubi && juyingModeEnabled && altUsedForSymbolInput) {
-                        altPressed = false
-                        altPhysicallyPressed = false  // Turn off Alt LED
+                        modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
+                        altLastPressTime = 0L  // Reset timing state
                     } else if (altOneShot && !altLatchActive) {
                         // Only clear Alt state if it's one-shot mode, keep it if latched (double-click locked)
                         modifierStateController.clearAltState(resetPressedState = false)
@@ -2725,6 +2731,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // Delete the last character from committed text
                         ic.deleteSurroundingText(1, 0)
                     }
+                    // Clear Alt and Ctrl states when DEL clears suggestions
+                    modifierStateController.clearAltState(resetPressedState = true)
+                    modifierStateController.clearCtrlState(resetPressedState = true)
                     // If we just cleared predictions, don't call finishComposingText
                     updateStatusBarText()
                     return true
@@ -2935,10 +2944,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     val textToCommit = chinesePunctuation ?: char.toString()
                     ic.commitText(textToCommit, 1)
 
-                    // For Juying mode long-press Alt, turn off Alt LED after symbol input
+                    // For Juying mode long-press Alt, turn off Alt LED and clear all Alt state after symbol input
                     if (isAltLongPressZhenma && juyingModeEnabled && altUsedForSymbolInput) {
-                        altPressed = false
-                        altPhysicallyPressed = false  // Turn off Alt LED
+                        modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
+                        altLastPressTime = 0L  // Reset timing state
                     } else if (altOneShot && !altLatchActive) {
                         // Only clear Alt state if it's one-shot mode, keep it if latched (double-click locked)
                         modifierStateController.clearAltState(resetPressedState = false)
@@ -3006,6 +3015,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // Delete the last character from committed text
                         ic.deleteSurroundingText(1, 0)
                     }
+                    // Clear Alt and Ctrl states when DEL clears suggestions
+                    modifierStateController.clearAltState(resetPressedState = true)
+                    modifierStateController.clearCtrlState(resetPressedState = true)
                     // If we just cleared predictions, don't call finishComposingText
                     updateStatusBarText()
                     return true
