@@ -483,8 +483,20 @@ class VariationBarView(
         var buttonX = 0
         for ((index, variation) in limitedVariations.withIndex()) {
             val individualButtonWidth = buttonWidths[index]
-            // In Juying mode, the best candidate (1st) is at display position 2 (Space key)
-            val isBestCandidate = snapshot.isJuyingMode && index == 2
+            // In Juying mode, determine best candidate based on mode:
+            // - Chinese input: best candidate position depends on number of candidates
+            //   - 2 candidates: [2nd, 1st] -> best is at position 1
+            //   - 3+ candidates: [2nd, 3rd, 1st, ...] -> best is at position 2
+            // - English word prediction: best candidate is at display position 0 (Shift key selects 1st/best)
+            val isChineseMode = snapshot.pinyinModeActive || snapshot.shuangpinModeActive ||
+                                snapshot.wubiModeActive || snapshot.zhenmaModeActive
+            val bestCandidatePosition = when {
+                isChineseMode && limitedVariations.size == 2 -> 1  // 2 candidates: best at position 1
+                isChineseMode -> 2  // 3+ candidates: best at position 2
+                snapshot.wordPredictionActive -> 0  // English: best at position 0
+                else -> -1
+            }
+            val isBestCandidate = snapshot.isJuyingMode && index == bestCandidatePosition
             val button = createVariationButton(
                 variation, inputConnection, individualButtonWidth, showNumberedButtons, index + 1,
                 snapshot.wordPredictionActive, wordPredictionPrefixLength, snapshot.pinyinModeActive,
