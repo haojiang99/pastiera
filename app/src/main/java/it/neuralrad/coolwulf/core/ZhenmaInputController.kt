@@ -7,6 +7,7 @@ import it.neuralrad.coolwulf.data.zhenma.ZhenmaDictionary
 import it.neuralrad.coolwulf.data.zhenma.UserZhenmaMemory
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
+import it.neuralrad.coolwulf.SettingsManager
 
 /**
  * Manages Zhenma (真码) input state and generates Chinese character candidates.
@@ -208,7 +209,7 @@ class ZhenmaInputController(
 
         // Record the selection in user memory for learning (only for Zhenma code-based selections)
         if (!isShowingNextWordPredictions && lastUsedZhenmaCode.isNotEmpty()) {
-            userMemory.recordSelection(lastUsedZhenmaCode, selected)
+            recordSelectionIfEnabled(lastUsedZhenmaCode, selected)
         }
 
         // Record the committed word for next-word prediction learning
@@ -362,7 +363,7 @@ class ZhenmaInputController(
         val resultCandidates = mutableListOf<String>()
 
         // Get abbreviation matches first (highest priority - learned from user input)
-        val abbreviationCandidates = userMemory.getAbbreviationCandidates(bufferStr)
+        val abbreviationCandidates = getAbbreviationCandidatesIfEnabled(bufferStr)
         if (abbreviationCandidates.isNotEmpty()) {
             resultCandidates.addAll(abbreviationCandidates)
             Log.d(TAG, "Abbreviation matches for '$bufferStr': $abbreviationCandidates")
@@ -383,7 +384,7 @@ class ZhenmaInputController(
         val rawCandidates = ZhenmaDictionary.getCandidatesForPrefix(bufferStr, limit = 50)
 
         // Sort by user frequency (most frequently selected first)
-        val sortedCandidates = userMemory.sortByFrequency(bufferStr, rawCandidates)
+        val sortedCandidates = sortByFrequencyIfEnabled(bufferStr, rawCandidates)
 
         // Add dictionary candidates (excluding duplicates)
         for (candidate in sortedCandidates) {
@@ -557,4 +558,42 @@ class ZhenmaInputController(
      * Returns whether next word prediction is enabled.
      */
     fun isNextWordPredictionEnabled(): Boolean = nextWordPredictionEnabled
+
+    /**
+     * Returns whether the memory function is enabled.
+     */
+    private fun isMemoryEnabled(): Boolean {
+        return SettingsManager.getMemoryFunctionEnabled(context)
+    }
+
+    /**
+     * Records a selection in user memory if memory function is enabled.
+     */
+    private fun recordSelectionIfEnabled(code: String, selected: String) {
+        if (isMemoryEnabled()) {
+            userMemory.recordSelection(code, selected)
+        }
+    }
+
+    /**
+     * Sorts candidates by frequency if memory function is enabled, otherwise returns unsorted.
+     */
+    private fun sortByFrequencyIfEnabled(code: String, candidates: List<String>): List<String> {
+        return if (isMemoryEnabled()) {
+            userMemory.sortByFrequency(code, candidates)
+        } else {
+            candidates
+        }
+    }
+
+    /**
+     * Gets abbreviation candidates if memory function is enabled, otherwise returns empty list.
+     */
+    private fun getAbbreviationCandidatesIfEnabled(code: String): List<String> {
+        return if (isMemoryEnabled()) {
+            userMemory.getAbbreviationCandidates(code)
+        } else {
+            emptyList()
+        }
+    }
 }

@@ -7,6 +7,7 @@ import it.neuralrad.coolwulf.data.pinyin.PinyinDictionary
 import it.neuralrad.coolwulf.data.pinyin.UserPinyinMemory
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
+import it.neuralrad.coolwulf.SettingsManager
 
 /**
  * Manages Pinyin input state and generates Chinese character candidates.
@@ -103,6 +104,34 @@ class PinyinInputController(
 
     // User memory for learning preferences
     private val userMemory: UserPinyinMemory = UserPinyinMemory.getInstance(context)
+
+    /**
+     * Checks if memory function is enabled.
+     */
+    private fun isMemoryEnabled(): Boolean {
+        return SettingsManager.getMemoryFunctionEnabled(context)
+    }
+
+    /**
+     * Sorts candidates by frequency if memory function is enabled, otherwise returns original list.
+     */
+    private fun sortByFrequencyIfEnabled(pinyin: String, candidates: List<String>): List<String> {
+        return if (isMemoryEnabled()) {
+            userMemory.sortByFrequency(pinyin, candidates)
+        } else {
+            // If memory disabled, still apply base dictionary frequency sorting (from PinyinDictionary)
+            PinyinDictionary.sortByFrequency(pinyin, candidates)
+        }
+    }
+
+    /**
+     * Records a selection if memory function is enabled.
+     */
+    private fun recordSelectionIfEnabled(pinyin: String, selected: String) {
+        if (isMemoryEnabled()) {
+            userMemory.recordSelection(pinyin, selected)
+        }
+    }
 
     // Next-word predictor for suggesting words after commit
     private val nextWordPredictor: NextWordPredictor = NextWordPredictor.getInstance(context)
@@ -264,12 +293,12 @@ class PinyinInputController(
             // Combined phrase candidate - consume the entire matched buffer (all segments)
             pinyinToConsume = matchedPinyin
             // Record learning for the combined pinyin
-            userMemory.recordSelection(pinyinToConsume, selected)
+            recordSelectionIfEnabled(pinyinToConsume, selected)
         } else {
             // Single-character candidate - consume only the first syllable
             pinyinToConsume = firstSyllable
             // Record learning for just the first syllable
-            userMemory.recordSelection(pinyinToConsume, selected)
+            recordSelectionIfEnabled(pinyinToConsume, selected)
         }
 
         Log.d(TAG, "Selected candidate $index (actual: $actualIndex): '$selected', consuming: '$pinyinToConsume' (phrase count: $phraseCandidateCount, isPhrase: $isPhrase)")
@@ -565,7 +594,7 @@ class PinyinInputController(
                 // Found a phrase match for entire remaining - use it as a single segment
                 segments.add(ParsedSegment(
                     pinyin = remaining,
-                    candidates = userMemory.sortByFrequency(remaining, fullPhraseCandidates),
+                    candidates = sortByFrequencyIfEnabled(remaining, fullPhraseCandidates),
                     isComplete = true
                 ))
                 break
@@ -578,7 +607,7 @@ class PinyinInputController(
                 val phraseCandidates = PinyinDictionary.getPhraseCandidates(longestPhrase)
                 segments.add(ParsedSegment(
                     pinyin = longestPhrase,
-                    candidates = userMemory.sortByFrequency(longestPhrase, phraseCandidates),
+                    candidates = sortByFrequencyIfEnabled(longestPhrase, phraseCandidates),
                     isComplete = true
                 ))
                 remaining = remaining.substring(longestPhrase.length)
@@ -592,7 +621,7 @@ class PinyinInputController(
                 val candidates = getCandidatesWithFuzzy(syllable)
                 segments.add(ParsedSegment(
                     pinyin = syllable,
-                    candidates = userMemory.sortByFrequency(syllable, candidates),
+                    candidates = sortByFrequencyIfEnabled(syllable, candidates),
                     isComplete = true
                 ))
                 remaining = remaining.substring(syllable.length)
@@ -619,7 +648,7 @@ class PinyinInputController(
                     val firstSyl = PinyinDictionary.getFirstSyllableForPrefix(remaining) ?: remaining
                     segments.add(ParsedSegment(
                         pinyin = remaining,
-                        candidates = userMemory.sortByFrequency(remaining, prefixCandidates),
+                        candidates = sortByFrequencyIfEnabled(remaining, prefixCandidates),
                         isComplete = false
                     ))
                 }
@@ -747,7 +776,7 @@ class PinyinInputController(
 
         // Get abbreviation matches from user memory (highest priority)
         // These are phrases the user has typed before using abbreviations like "nh" for "你好"
-        val abbreviationCandidates = userMemory.getAbbreviationCandidates(bufferWithoutSep)
+        val abbreviationCandidates = if (isMemoryEnabled()) userMemory.getAbbreviationCandidates(bufferWithoutSep) else emptyList()
 
         // Get custom dictionary phrases for this code (second highest priority)
         val customPhrases = customDictionary.getPinyinPhrases(bufferWithoutSep)
@@ -759,7 +788,7 @@ class PinyinInputController(
         if (actualFirstSyllable.isNotEmpty()) {
             firstSyllable = actualFirstSyllable
             val rawCandidates = getCandidatesWithFuzzy(actualFirstSyllable)
-            firstSyllableCharCandidates = userMemory.sortByFrequency(actualFirstSyllable, rawCandidates)
+            firstSyllableCharCandidates = sortByFrequencyIfEnabled(actualFirstSyllable, rawCandidates)
         } else {
             // For partial input (e.g., single letter "w"), use prefix matching
             // and get candidates from the first parsed segment
@@ -772,7 +801,7 @@ class PinyinInputController(
                 val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(bufferWithoutSep)
                 if (prefixCandidates.isNotEmpty()) {
                     firstSyllable = bufferWithoutSep
-                    firstSyllableCharCandidates = userMemory.sortByFrequency(bufferWithoutSep, prefixCandidates)
+                    firstSyllableCharCandidates = sortByFrequencyIfEnabled(bufferWithoutSep, prefixCandidates)
                 } else {
                     firstSyllable = ""
                     firstSyllableCharCandidates = emptyList()
@@ -836,7 +865,7 @@ class PinyinInputController(
             // Single segment - check for dictionary phrase first
             val phraseCandidates = PinyinDictionary.getPhraseCandidates(bufferWithoutSep)
             if (phraseCandidates.isNotEmpty()) {
-                val sortedPhrases = userMemory.sortByFrequency(bufferWithoutSep, phraseCandidates)
+                val sortedPhrases = sortByFrequencyIfEnabled(bufferWithoutSep, phraseCandidates)
                 for (phrase in sortedPhrases) {
                     if (phrase !in resultCandidates) {
                         resultCandidates.add(phrase)
@@ -921,7 +950,7 @@ class PinyinInputController(
         val resultCandidates = mutableListOf<String>()
 
         // Check abbreviation matches first (highest priority - learned from user input)
-        val abbreviationCandidates = userMemory.getAbbreviationCandidates(cleanBuffer)
+        val abbreviationCandidates = if (isMemoryEnabled()) userMemory.getAbbreviationCandidates(cleanBuffer) else emptyList()
         if (abbreviationCandidates.isNotEmpty()) {
             resultCandidates.addAll(abbreviationCandidates)
             Log.d(TAG, "Abbreviation matches for unparsable '$cleanBuffer': $abbreviationCandidates")
@@ -941,7 +970,7 @@ class PinyinInputController(
         val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(cleanBuffer)
 
         if (prefixCandidates.isNotEmpty()) {
-            val sortedPrefixCandidates = userMemory.sortByFrequency(cleanBuffer, prefixCandidates)
+            val sortedPrefixCandidates = sortByFrequencyIfEnabled(cleanBuffer, prefixCandidates)
             for (candidate in sortedPrefixCandidates) {
                 if (candidate !in resultCandidates) {
                     resultCandidates.add(candidate)

@@ -3159,7 +3159,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
 
             if (juyingCandidateIndex >= 0) {
-                // This is a Juying key - consume the key up event without triggering modifier state changes
+                // This is a Juying key - but we still need to handle modifier key releases
+                // to clear the pressed/latch state when the physical key is released
+                if (isDeviceShiftKey(keyCode) && shiftPressed) {
+                    val result = modifierStateController.handleShiftKeyUp(translatedKeyCode)
+                    if (result.shouldUpdateStatusBar) {
+                        updateStatusBarText()
+                    }
+                } else if (isDeviceCtrlKey(keyCode) && ctrlPressed) {
+                    val result = modifierStateController.handleCtrlKeyUp(translatedKeyCode)
+                    if (result.shouldUpdateStatusBar) {
+                        updateStatusBarText()
+                    }
+                } else if (isDeviceAltKey(keyCode) && altPressed) {
+                    val result = modifierStateController.handleAltKeyUp(translatedKeyCode)
+                    if (result.shouldUpdateStatusBar) {
+                        updateStatusBarText()
+                    }
+                }
+                // Consume the key up event after handling modifier release
                 return true
             }
         }

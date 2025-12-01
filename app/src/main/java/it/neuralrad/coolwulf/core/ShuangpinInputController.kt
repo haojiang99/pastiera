@@ -8,6 +8,7 @@ import it.neuralrad.coolwulf.data.pinyin.UserPinyinMemory
 import it.neuralrad.coolwulf.data.shuangpin.ShuangpinConverter
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
+import it.neuralrad.coolwulf.SettingsManager
 
 /**
  * Manages Shuangpin (双拼) input state and generates Chinese character candidates.
@@ -225,7 +226,7 @@ class ShuangpinInputController(
 
         // Record learning
         if (pinyinToRecord.isNotEmpty()) {
-            userMemory.recordSelection(pinyinToRecord, selected)
+            recordSelectionIfEnabled(pinyinToRecord, selected)
         }
 
         Log.d(TAG, "Selected candidate $index: '$selected', consuming $charsToConsume chars, pinyin: '$pinyinToRecord'")
@@ -410,7 +411,7 @@ class ShuangpinInputController(
             // Try to get phrase candidates for the full pinyin
             val phraseCandidates = PinyinDictionary.getPhraseCandidates(pinyinString)
             if (phraseCandidates.isNotEmpty()) {
-                val sortedPhrases = userMemory.sortByFrequency(pinyinString, phraseCandidates)
+                val sortedPhrases = sortByFrequencyIfEnabled(pinyinString, phraseCandidates)
                 for (phrase in sortedPhrases) {
                     if (phrase !in resultCandidates) {
                         resultCandidates.add(phrase)
@@ -425,7 +426,7 @@ class ShuangpinInputController(
             if (syllables.isNotEmpty()) {
                 val firstSyllable = syllables[0]
                 val charCandidates = PinyinDictionary.getCandidates(firstSyllable)
-                val sortedChars = userMemory.sortByFrequency(firstSyllable, charCandidates)
+                val sortedChars = sortByFrequencyIfEnabled(firstSyllable, charCandidates)
                 for (char in sortedChars) {
                     if (char !in resultCandidates) {
                         resultCandidates.add(char)
@@ -442,7 +443,7 @@ class ShuangpinInputController(
             // E.g., "nhm" could be abbreviation for "你好吗"
             if (bufferStr.length >= 2) {
                 // The buffer itself could be an abbreviation
-                val directAbbrevCandidates = userMemory.getAbbreviationCandidates(bufferStr)
+                val directAbbrevCandidates = getAbbreviationCandidatesIfEnabled(bufferStr)
                 for (candidate in directAbbrevCandidates) {
                     if (candidate !in resultCandidates) {
                         resultCandidates.add(candidate)
@@ -458,7 +459,7 @@ class ShuangpinInputController(
 
                 // Sort by user memory using the first prefix as reference
                 val sortedCandidates = if (prefixes.isNotEmpty()) {
-                    userMemory.sortByFrequency(prefixes[0], singleKeyCandidates)
+                    sortByFrequencyIfEnabled(prefixes[0], singleKeyCandidates)
                 } else {
                     singleKeyCandidates
                 }
@@ -480,7 +481,7 @@ class ShuangpinInputController(
                     // Get candidates for the last (incomplete) key
                     val lastChar = bufferStr.last()
                     val lastKeyCandidates = getSingleKeyCandidates(lastChar)
-                    val sortedCandidates = userMemory.sortByFrequency(partialPinyin, lastKeyCandidates)
+                    val sortedCandidates = sortByFrequencyIfEnabled(partialPinyin, lastKeyCandidates)
                     for (candidate in sortedCandidates) {
                         if (candidate !in resultCandidates) {
                             resultCandidates.add(candidate)
@@ -507,7 +508,7 @@ class ShuangpinInputController(
         val seen = mutableSetOf<String>()
 
         // First, try direct abbreviation lookup from user memory
-        val directAbbrev = userMemory.getAbbreviationCandidates(input)
+        val directAbbrev = getAbbreviationCandidatesIfEnabled(input)
         for (candidate in directAbbrev) {
             if (candidate !in seen) {
                 seen.add(candidate)
@@ -528,7 +529,7 @@ class ShuangpinInputController(
         }
 
         if (pinyinAbbrev.toString() != input) {
-            val convertedAbbrev = userMemory.getAbbreviationCandidates(pinyinAbbrev.toString())
+            val convertedAbbrev = getAbbreviationCandidatesIfEnabled(pinyinAbbrev.toString())
             for (candidate in convertedAbbrev) {
                 if (candidate !in seen) {
                     seen.add(candidate)
@@ -714,4 +715,42 @@ class ShuangpinInputController(
     }
 
     fun isNextWordPredictionEnabled(): Boolean = nextWordPredictionEnabled
+
+    /**
+     * Returns whether the memory function is enabled.
+     */
+    private fun isMemoryEnabled(): Boolean {
+        return SettingsManager.getMemoryFunctionEnabled(context)
+    }
+
+    /**
+     * Records a selection in user memory if memory function is enabled.
+     */
+    private fun recordSelectionIfEnabled(pinyin: String, selected: String) {
+        if (isMemoryEnabled()) {
+            userMemory.recordSelection(pinyin, selected)
+        }
+    }
+
+    /**
+     * Sorts candidates by frequency if memory function is enabled, otherwise returns unsorted.
+     */
+    private fun sortByFrequencyIfEnabled(pinyin: String, candidates: List<String>): List<String> {
+        return if (isMemoryEnabled()) {
+            userMemory.sortByFrequency(pinyin, candidates)
+        } else {
+            candidates
+        }
+    }
+
+    /**
+     * Gets abbreviation candidates if memory function is enabled, otherwise returns empty list.
+     */
+    private fun getAbbreviationCandidatesIfEnabled(input: String): List<String> {
+        return if (isMemoryEnabled()) {
+            userMemory.getAbbreviationCandidates(input)
+        } else {
+            emptyList()
+        }
+    }
 }

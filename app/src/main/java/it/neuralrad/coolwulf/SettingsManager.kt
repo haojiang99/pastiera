@@ -62,6 +62,7 @@ object SettingsManager {
     private const val KEY_JUYING_KEY_3 = "juying_key_3" // Third Juying key (default: Space)
     private const val KEY_JUYING_KEY_4 = "juying_key_4" // Fourth Juying key (default: Fn)
     private const val KEY_JUYING_KEY_5 = "juying_key_5" // Fifth Juying key (default: Alt)
+    private const val KEY_MEMORY_FUNCTION_ENABLED = "memory_function_enabled" // Enable memory function to reorder candidates by selection frequency
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -100,11 +101,19 @@ object SettingsManager {
     private const val DEFAULT_CLIPBOARD_HISTORY_ENABLED = true
     private const val DEFAULT_SHOW_CLIPBOARD_BUTTON = true
     private const val DEFAULT_JUYING_MODE_ENABLED = false
+    private const val DEFAULT_MEMORY_FUNCTION_ENABLED = true  // Memory function enabled by default
+    // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
     private const val DEFAULT_JUYING_KEY_3 = KeyEvent.KEYCODE_SPACE // Space (Candidate 1 - Best)
     private const val DEFAULT_JUYING_KEY_4 = KeyEvent.KEYCODE_CTRL_LEFT // Ctrl (Candidate 4)
     private const val DEFAULT_JUYING_KEY_5 = KeyEvent.KEYCODE_ALT_LEFT // Alt (Candidate 5)
+    // BlackBerry Juying keys: keycode 59 (Shift), keycode 7 (0 key), keycode 62 (Space), keycode 58 (SYM), keycode 60 (Shift Right)
+    private const val BLACKBERRY_JUYING_KEY_1 = 59  // KEYCODE_SHIFT_LEFT
+    private const val BLACKBERRY_JUYING_KEY_2 = 7   // KEYCODE_0 (the "0" key)
+    private const val BLACKBERRY_JUYING_KEY_3 = 62  // KEYCODE_SPACE
+    private const val BLACKBERRY_JUYING_KEY_4 = 58  // SYM key on BlackBerry
+    private const val BLACKBERRY_JUYING_KEY_5 = 60  // KEYCODE_SHIFT_RIGHT
 
     /**
      * Returns the SharedPreferences instance for Pastiera.
@@ -1275,6 +1284,23 @@ object SettingsManager {
     }
 
     /**
+     * Gets whether the memory function is enabled.
+     * When enabled, candidate words are reordered based on user selection frequency.
+     */
+    fun getMemoryFunctionEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_MEMORY_FUNCTION_ENABLED, DEFAULT_MEMORY_FUNCTION_ENABLED)
+    }
+
+    /**
+     * Sets whether the memory function is enabled.
+     */
+    fun setMemoryFunctionEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_MEMORY_FUNCTION_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
      * Gets the key code for a Juying key (1-5).
      * @param keyIndex The key index (1-5)
      * @return The key code for this Juying key
@@ -1659,11 +1685,33 @@ object SettingsManager {
 
     /**
      * Sets the device type ("titan2" or "blackberry").
+     * Also updates the Juying mode keys to match the device's physical key layout.
      */
     fun setDeviceType(context: Context, deviceType: String) {
         val validType = if (deviceType == "blackberry") "blackberry" else "titan2"
         getPreferences(context).edit()
             .putString(KEY_DEVICE_TYPE, validType)
+            .apply()
+
+        // Update Juying keys to match the device type
+        if (validType == "blackberry") {
+            setJuyingKeysForBlackBerry(context)
+        } else {
+            resetJuyingKeys(context) // Reset to Titan 2 defaults
+        }
+    }
+
+    /**
+     * Sets Juying keys to BlackBerry layout.
+     * BlackBerry keys: keycode 59 (Shift), keycode 7 (0 key), keycode 62 (Space), keycode 58 (SYM), keycode 60 (Shift Right)
+     */
+    fun setJuyingKeysForBlackBerry(context: Context) {
+        getPreferences(context).edit()
+            .putInt(KEY_JUYING_KEY_1, BLACKBERRY_JUYING_KEY_1)
+            .putInt(KEY_JUYING_KEY_2, BLACKBERRY_JUYING_KEY_2)
+            .putInt(KEY_JUYING_KEY_3, BLACKBERRY_JUYING_KEY_3)
+            .putInt(KEY_JUYING_KEY_4, BLACKBERRY_JUYING_KEY_4)
+            .putInt(KEY_JUYING_KEY_5, BLACKBERRY_JUYING_KEY_5)
             .apply()
     }
 

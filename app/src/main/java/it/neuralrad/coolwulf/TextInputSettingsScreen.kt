@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -112,6 +113,10 @@ fun TextInputSettingsScreen(
 
     var juyingKeys by remember {
         mutableStateOf(SettingsManager.getJuyingKeys(context))
+    }
+
+    var memoryFunctionEnabled by remember {
+        mutableStateOf(SettingsManager.getMemoryFunctionEnabled(context))
     }
 
     var showJuyingKeyDialog by remember { mutableStateOf(false) }
@@ -1076,6 +1081,49 @@ fun TextInputSettingsScreen(
                             }
                         )
                     }
+                }
+            }
+
+            // Memory Function Toggle (learn from user selections)
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Memory,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.memory_function_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.memory_function_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                    Switch(
+                        checked = memoryFunctionEnabled,
+                        onCheckedChange = { enabled ->
+                            memoryFunctionEnabled = enabled
+                            SettingsManager.setMemoryFunctionEnabled(context, enabled)
+                        }
+                    )
                 }
             }
 

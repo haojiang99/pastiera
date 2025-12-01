@@ -7,6 +7,7 @@ import it.neuralrad.coolwulf.data.wubi.WubiDictionary
 import it.neuralrad.coolwulf.data.wubi.UserWubiMemory
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
+import it.neuralrad.coolwulf.SettingsManager
 
 /**
  * Manages Wubi 86 input state and generates Chinese character candidates.
@@ -65,6 +66,13 @@ class WubiInputController(
 
     // User memory for learning preferences (prioritize frequently selected characters)
     private val userMemory: UserWubiMemory = UserWubiMemory.getInstance(context)
+
+    /**
+     * Checks if memory function is enabled.
+     */
+    private fun isMemoryEnabled(): Boolean {
+        return SettingsManager.getMemoryFunctionEnabled(context)
+    }
 
     // User custom dictionary for user-defined shortcuts
     private val customDictionary: UserCustomDictionary = UserCustomDictionary.getInstance(context)
@@ -216,7 +224,7 @@ class WubiInputController(
         Log.d(TAG, "Selected candidate $index: '$selected'")
 
         // Record the selection in user memory for learning (only for Wubi code-based selections)
-        if (!isShowingNextWordPredictions && lastUsedWubiCode.isNotEmpty()) {
+        if (isMemoryEnabled() && !isShowingNextWordPredictions && lastUsedWubiCode.isNotEmpty()) {
             userMemory.recordSelection(lastUsedWubiCode, selected)
         }
 
@@ -387,8 +395,8 @@ class WubiInputController(
         // Get candidates for the current code (both exact and prefix matches)
         val rawCandidates = WubiDictionary.getCandidatesForPrefix(bufferStr, limit = 50)
 
-        // Sort by user frequency (most frequently selected first)
-        val sortedCandidates = userMemory.sortByFrequency(bufferStr, rawCandidates)
+        // Sort by user frequency (most frequently selected first) if memory is enabled
+        val sortedCandidates = if (isMemoryEnabled()) userMemory.sortByFrequency(bufferStr, rawCandidates) else rawCandidates
 
         // Add dictionary candidates (excluding duplicates)
         for (candidate in sortedCandidates) {
