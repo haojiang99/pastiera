@@ -20,6 +20,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.widget.TextViewCompat
 import it.neuralrad.coolwulf.R
 import it.neuralrad.coolwulf.SettingsActivity
 import it.neuralrad.coolwulf.SettingsManager
@@ -1347,7 +1348,6 @@ class VariationBarView(
 
         return TextView(context).apply {
             text = displayText
-            textSize = textSizeSp
             setTextColor(textColor)
             setTypeface(null, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
@@ -1357,6 +1357,27 @@ class VariationBarView(
                 marginEnd = dp3
             }
             maxLines = 1
+
+            // In Juying mode, use auto-sizing to ensure long text fits in buttons
+            if (isJuyingMode && displayText.length > 2) {
+                // Enable auto-size text with min 8sp, max based on content, granularity 1sp
+                val maxSize = when {
+                    displayText.length <= 3 -> 18
+                    displayText.length <= 5 -> 16
+                    else -> 14
+                }
+                TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
+                    this,
+                    8,  // min text size in sp
+                    maxSize,  // max text size in sp
+                    1,  // granularity in sp
+                    TypedValue.COMPLEX_UNIT_SP
+                )
+            } else {
+                // Use fixed text size for short text or non-Juying mode
+                textSize = textSizeSp
+            }
+
             isClickable = true
             isFocusable = true
             isHapticFeedbackEnabled = true
