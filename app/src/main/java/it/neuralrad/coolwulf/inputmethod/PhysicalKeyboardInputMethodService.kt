@@ -2474,10 +2474,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     return true
                 } else {
                     // Buffer was empty and no predictions to clear
-                    // Explicitly delete one character instead of falling through to super
-                    // which might have unexpected behavior
                     ic.finishComposingText()
-                    ic.deleteSurroundingText(1, 0)
+                    // Check if there's selected text - if so, delete the selection
+                    val selectedText = ic.getSelectedText(0)
+                    if (selectedText != null && selectedText.isNotEmpty()) {
+                        ic.commitText("", 1)  // Replace selection with empty string
+                    } else {
+                        ic.deleteSurroundingText(1, 0)  // Delete one character
+                    }
                     updateStatusBarText()
                     return true
                 }
@@ -2806,9 +2810,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     return true
                 } else {
                     // Buffer was empty and no predictions to clear
-                    // Explicitly delete one character instead of falling through to super
                     ic.finishComposingText()
-                    ic.deleteSurroundingText(1, 0)
+                    // Check if there's selected text - if so, delete the selection
+                    val selectedText = ic.getSelectedText(0)
+                    if (selectedText != null && selectedText.isNotEmpty()) {
+                        ic.commitText("", 1)  // Replace selection with empty string
+                    } else {
+                        ic.deleteSurroundingText(1, 0)  // Delete one character
+                    }
                     updateStatusBarText()
                     return true
                 }
@@ -3111,9 +3120,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     return true
                 } else {
                     // Buffer was empty and no predictions to clear
-                    // Explicitly delete one character instead of falling through to super
                     ic.finishComposingText()
-                    ic.deleteSurroundingText(1, 0)
+                    // Check if there's selected text - if so, delete the selection
+                    val selectedText = ic.getSelectedText(0)
+                    if (selectedText != null && selectedText.isNotEmpty()) {
+                        ic.commitText("", 1)  // Replace selection with empty string
+                    } else {
+                        ic.deleteSurroundingText(1, 0)  // Delete one character
+                    }
                     updateStatusBarText()
                     return true
                 }
@@ -3415,9 +3429,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     return true
                 } else {
                     // Buffer was empty and no predictions to clear
-                    // Explicitly delete one character instead of falling through to super
                     ic.finishComposingText()
-                    ic.deleteSurroundingText(1, 0)
+                    // Check if there's selected text - if so, delete the selection
+                    val selectedText = ic.getSelectedText(0)
+                    if (selectedText != null && selectedText.isNotEmpty()) {
+                        ic.commitText("", 1)  // Replace selection with empty string
+                    } else {
+                        ic.deleteSurroundingText(1, 0)  // Delete one character
+                    }
                     updateStatusBarText()
                     return true
                 }

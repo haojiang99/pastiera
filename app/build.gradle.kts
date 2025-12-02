@@ -45,8 +45,8 @@ android {
         applicationId = "it.neuralrad.coolwulf"
         minSdk = 23
         targetSdk = 36
-        versionCode = 13
-        versionName = "0.65 Beta"
+        versionCode = 14
+        versionName = "0.66 Beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
