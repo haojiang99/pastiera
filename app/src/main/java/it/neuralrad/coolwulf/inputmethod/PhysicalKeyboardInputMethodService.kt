@@ -168,10 +168,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     // Track if Alt was used for symbol input during the current press (for Juying mode)
     private var altUsedForSymbolInput: Boolean = false
 
-    // Saved state when Alt is pressed in Juying mode (for single-press selection)
-    // On Alt DOWN: save suggestion (5th for Titan2, 4th for BlackBerry) and clear predictions
-    // On Alt UP: if single press -> insert saved suggestion; if double-click -> next page
-    private var savedAltSuggestion: String? = null  // The suggestion to insert on Alt single-press
+    // Saved state when Alt is pressed in Juying mode (instant selection with undo on double-click)
+    // On Alt DOWN: immediately commit suggestion, save state for undo
+    // On double-click: undo the committed character and go to next page
+    // On Alt+key (symbol): undo the committed character and insert symbol
+    private var savedAltSuggestion: String? = null  // The suggestion that was committed
     private var savedAltCandidatesForNextPage: List<String> = emptyList()
     private var savedAltCurrentPage: Int = 0
     private var savedAltChineseMode: String? = null  // "pinyin", "shuangpin", "wubi", "zhenma"
@@ -179,6 +180,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private var savedAltFirstSyllable: String = ""  // Save syllable parsing state for Alt selection
     private var savedAltMatchedPinyin: String = ""
     private var savedAltPhraseCandidateCount: Int = 0
+    private var altCommittedCharacter: String? = null  // Character committed on Alt DOWN (for undo)
+    private var altRemainingBuffer: String = ""  // Remaining buffer after selection (for undo)
 
     // Alt candidate index: 4 (5th suggestion) for Titan2, 3 (4th suggestion) for BlackBerry
     private val altCandidateIndex: Int
@@ -1589,8 +1592,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 pendingAltSelectionRunnable?.let { mainHandler.removeCallbacks(it) }
                 pendingAltSelectionRunnable = null
 
-                // Restore saved candidates and buffer, then go to next page
+                // UNDO: Delete the character that was committed on Alt DOWN
                 val ic = currentInputConnection
+                if (altCommittedCharacter != null && ic != null) {
+                    // First clear any composing text (remaining buffer)
+                    ic.finishComposingText()
+                    // Delete the committed character
+                    ic.deleteSurroundingText(altCommittedCharacter!!.length, 0)
+                    altCommittedCharacter = null
+                    altRemainingBuffer = ""
+                }
+
+                // Restore saved candidates and buffer, then go to next page
                 if (savedAltChineseMode != null) {
                     when (savedAltChineseMode) {
                         "pinyin" -> {
@@ -1655,6 +1668,41 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
 
+        // Handle Alt+key for symbol input when character was committed on Alt DOWN (candidates already cleared)
+        // This must be checked BEFORE the main Juying block since hasAnyCandidates is false after Alt DOWN
+        if (juyingModeEnabled && altCommittedCharacter != null && !isDeviceAltKey(keyCode) && event?.repeatCount == 0) {
+            val altHeldFromEvent = event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
+            val altIsActive = altLastPressTime > 0 || altPressed || altHeldFromEvent
+            if (altIsActive) {
+                // Alt+key for symbol input - undo the committed character
+                altUsedForSymbolInput = true
+                savedAltSuggestion = null
+                savedAltCandidatesForNextPage = emptyList()
+                savedAltCurrentPage = 0
+                savedAltChineseMode = null
+
+                // Cancel any pending Alt selection
+                pendingAltSelectionRunnable?.let { mainHandler.removeCallbacks(it) }
+                pendingAltSelectionRunnable = null
+
+                // UNDO: Delete the character that was committed on Alt DOWN
+                val ic = currentInputConnection
+                if (ic != null) {
+                    // First clear any composing text (remaining buffer)
+                    ic.finishComposingText()
+                    // Delete the committed character
+                    ic.deleteSurroundingText(altCommittedCharacter!!.length, 0)
+                    altCommittedCharacter = null
+                    altRemainingBuffer = ""
+                }
+
+                updateStatusBarText()
+                // Reset altLastPressTime so we don't keep clearing
+                altLastPressTime = 0L
+                // Continue to normal handling (don't return) - the Alt+key will be processed below
+            }
+        }
+
         // Handle Juying mode candidate selection for all configured keys
         // Juying: single-click selects candidate (Chinese: 5, English: 3)
         // Double-click Shift for prev page, double-click Alt for next page (Chinese only)
@@ -1680,8 +1728,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 // Cancel any pending Alt selection
                 pendingAltSelectionRunnable?.let { mainHandler.removeCallbacks(it) }
                 pendingAltSelectionRunnable = null
-                // Clear predictions for all Chinese modes (may already be cleared on Alt DOWN)
+
+                // UNDO: Delete the character that was committed on Alt DOWN
                 val ic = currentInputConnection
+                if (altCommittedCharacter != null && ic != null) {
+                    // First clear any composing text (remaining buffer)
+                    ic.finishComposingText()
+                    // Delete the committed character
+                    ic.deleteSurroundingText(altCommittedCharacter!!.length, 0)
+                    altCommittedCharacter = null
+                    altRemainingBuffer = ""
+                }
+
+                // Clear predictions for all Chinese modes (may already be cleared on Alt DOWN)
                 if (isPinyinMode) {
                     pinyinInputController.clearBuffer()
                     pinyinInputController.clearNextWordPredictions()
@@ -1780,8 +1839,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     pendingAltSelectionRunnable?.let { mainHandler.removeCallbacks(it) }
                     pendingAltSelectionRunnable = null
 
-                    // Restore saved candidates and buffer, then go to next page
+                    // UNDO: Delete the character that was committed on Alt DOWN
                     val ic = currentInputConnection
+                    if (altCommittedCharacter != null && ic != null) {
+                        // First clear any composing text (remaining buffer)
+                        ic.finishComposingText()
+                        // Delete the committed character
+                        ic.deleteSurroundingText(altCommittedCharacter!!.length, 0)
+                        altCommittedCharacter = null
+                        altRemainingBuffer = ""
+                    }
+
+                    // Restore saved candidates and buffer, then go to next page
                     if (savedAltCandidatesForNextPage.isNotEmpty() && savedAltChineseMode != null) {
                         when (savedAltChineseMode) {
                             "pinyin" -> {
@@ -1845,74 +1914,139 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     return true
                 } else if (isDeviceAltKey(keyCode) && isChineseInputActive) {
                     // Alt pressed in Chinese mode with candidates
-                    // NEW BEHAVIOR: Save 5th suggestion, clear predictions display, but keep composing text
-                    // On Alt UP: single press -> commitText() replaces composing text with saved suggestion
-                    // Double-click -> restore candidates and go to next page
+                    // INSTANT BEHAVIOR: Immediately commit the suggestion on Alt DOWN
+                    // If double-click detected: undo and go to next page
+                    // If Alt+key for symbol: undo and insert symbol
 
                     altUsedForSymbolInput = false  // Reset flag for new press
+                    val ic = currentInputConnection
 
-                    // Save 5th suggestion, candidates, and buffer BEFORE clearing
-                    // DON'T call finishComposingText() - let commitText() on Alt UP replace the composing text
+                    // Save state for undo and immediately commit
                     when {
                         isPinyinMode -> {
                             val candidates = pinyinInputController.getCurrentPageCandidates()
-                            savedAltSuggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
+                            val suggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
+                            savedAltSuggestion = suggestion
                             savedAltCandidatesForNextPage = pinyinInputController.getAllCandidates()
                             savedAltCurrentPage = pinyinInputController.getCurrentPage()
-                            savedAltBuffer = pinyinInputController.getBuffer()  // Save buffer for double-click restore
-                            // Save syllable parsing state for proper candidate selection
+                            savedAltBuffer = pinyinInputController.getBuffer()
                             savedAltFirstSyllable = pinyinInputController.getFirstSyllable()
                             savedAltMatchedPinyin = pinyinInputController.getMatchedPinyin()
                             savedAltPhraseCandidateCount = pinyinInputController.getPhraseCandidateCount()
                             savedAltChineseMode = "pinyin"
-                            // Clear internal state but keep composing text for replacement
-                            pinyinInputController.clearBuffer()
-                            pinyinInputController.clearNextWordPredictions()
+
+                            // Immediately commit the suggestion
+                            if (suggestion != null && ic != null) {
+                                val selected = pinyinInputController.selectCandidate(altCandidateIndex)
+                                if (selected != null) {
+                                    altCommittedCharacter = selected
+                                    altRemainingBuffer = pinyinInputController.getBuffer()
+                                    ic.commitText(selected, 1)
+                                    if (altRemainingBuffer.isNotEmpty()) {
+                                        ic.setComposingText(altRemainingBuffer, 1)
+                                        // Keep buffer and regenerate candidates for remaining pinyin
+                                        // Don't clear - the buffer already has the remaining text
+                                    } else {
+                                        pinyinInputController.clearBuffer()
+                                        pinyinInputController.clearNextWordPredictions()
+                                    }
+                                }
+                            } else {
+                                pinyinInputController.clearBuffer()
+                                pinyinInputController.clearNextWordPredictions()
+                            }
                         }
                         isShuangpinMode -> {
                             val candidates = shuangpinInputController.getCurrentPageCandidates()
-                            savedAltSuggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
+                            val suggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
+                            savedAltSuggestion = suggestion
                             savedAltCandidatesForNextPage = shuangpinInputController.getAllCandidates()
                             savedAltCurrentPage = shuangpinInputController.getCurrentPage()
-                            savedAltBuffer = shuangpinInputController.getBuffer()  // Save buffer for double-click restore
+                            savedAltBuffer = shuangpinInputController.getBuffer()
                             savedAltChineseMode = "shuangpin"
-                            // Clear internal state but keep composing text for replacement
-                            shuangpinInputController.clearBuffer()
-                            shuangpinInputController.clearNextWordPredictions()
+
+                            if (suggestion != null && ic != null) {
+                                val selected = shuangpinInputController.selectCandidate(altCandidateIndex)
+                                if (selected != null) {
+                                    altCommittedCharacter = selected
+                                    altRemainingBuffer = shuangpinInputController.getBuffer()
+                                    ic.commitText(selected, 1)
+                                    if (altRemainingBuffer.isNotEmpty()) {
+                                        ic.setComposingText(altRemainingBuffer, 1)
+                                        // Keep buffer and regenerate candidates for remaining pinyin
+                                    } else {
+                                        shuangpinInputController.clearBuffer()
+                                        shuangpinInputController.clearNextWordPredictions()
+                                    }
+                                }
+                            } else {
+                                shuangpinInputController.clearBuffer()
+                                shuangpinInputController.clearNextWordPredictions()
+                            }
                         }
                         isWubiMode -> {
                             val candidates = wubiInputController.getCurrentPageCandidates()
-                            savedAltSuggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
+                            val suggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
+                            savedAltSuggestion = suggestion
                             savedAltCandidatesForNextPage = wubiInputController.getAllCandidates()
                             savedAltCurrentPage = wubiInputController.getCurrentPage()
-                            savedAltBuffer = wubiInputController.getBuffer()  // Save buffer for double-click restore
+                            savedAltBuffer = wubiInputController.getBuffer()
                             savedAltChineseMode = "wubi"
-                            // Clear internal state but keep composing text for replacement
-                            wubiInputController.clearBuffer()
-                            wubiInputController.clearNextWordPredictions()
+
+                            if (suggestion != null && ic != null) {
+                                val selected = wubiInputController.selectCandidate(altCandidateIndex)
+                                if (selected != null) {
+                                    altCommittedCharacter = selected
+                                    altRemainingBuffer = wubiInputController.getBuffer()
+                                    ic.commitText(selected, 1)
+                                    if (altRemainingBuffer.isNotEmpty()) {
+                                        ic.setComposingText(altRemainingBuffer, 1)
+                                        // Keep buffer and regenerate candidates for remaining input
+                                    } else {
+                                        wubiInputController.clearBuffer()
+                                        wubiInputController.clearNextWordPredictions()
+                                    }
+                                }
+                            } else {
+                                wubiInputController.clearBuffer()
+                                wubiInputController.clearNextWordPredictions()
+                            }
                         }
                         isZhenmaMode -> {
                             val candidates = zhenmaInputController.getCurrentPageCandidates()
-                            savedAltSuggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
+                            val suggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
+                            savedAltSuggestion = suggestion
                             savedAltCandidatesForNextPage = zhenmaInputController.getAllCandidates()
                             savedAltCurrentPage = zhenmaInputController.getCurrentPage()
-                            savedAltBuffer = zhenmaInputController.getBuffer()  // Save buffer for double-click restore
+                            savedAltBuffer = zhenmaInputController.getBuffer()
                             savedAltChineseMode = "zhenma"
-                            // Clear internal state but keep composing text for replacement
-                            zhenmaInputController.clearBuffer()
-                            zhenmaInputController.clearNextWordPredictions()
+
+                            if (suggestion != null && ic != null) {
+                                val selected = zhenmaInputController.selectCandidate(altCandidateIndex)
+                                if (selected != null) {
+                                    altCommittedCharacter = selected
+                                    altRemainingBuffer = zhenmaInputController.getBuffer()
+                                    ic.commitText(selected, 1)
+                                    if (altRemainingBuffer.isNotEmpty()) {
+                                        ic.setComposingText(altRemainingBuffer, 1)
+                                        // Keep buffer and regenerate candidates for remaining input
+                                    } else {
+                                        zhenmaInputController.clearBuffer()
+                                        zhenmaInputController.clearNextWordPredictions()
+                                    }
+                                }
+                            } else {
+                                zhenmaInputController.clearBuffer()
+                                zhenmaInputController.clearNextWordPredictions()
+                            }
                         }
                     }
-
-                    // DON'T call finishComposingText() here!
-                    // The composing text (e.g., 'wo') stays visible, and commitText() on Alt UP
-                    // will automatically replace it with the selected character
 
                     // Set timing and state
                     altLastPressTime = currentTime
                     altPressed = true
                     altPhysicallyPressed = true  // Turn on Alt LED
-                    updateStatusBarText()  // Update to show predictions cleared
+                    updateStatusBarText()
 
                     return true
                 } else {
@@ -3705,94 +3839,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
 
             if (!altUsedForSymbolInput && savedAltSuggestion != null) {
-                // Schedule delayed insertion of 5th suggestion
+                // INSTANT BEHAVIOR: Character was already committed on Alt DOWN
+                // This runnable just cleans up state after the double-click window expires
                 // If user presses Alt again within THRESHOLD (double-click),
-                // the second Alt DOWN at line 1619 will cancel this and go to next page
-                val modeToUse = savedAltChineseMode  // Capture mode before clearing
-                val bufferToRestore = savedAltBuffer  // Capture buffer to restore
-                val candidatesToRestore = savedAltCandidatesForNextPage
-                val pageToRestore = savedAltCurrentPage
-                // Capture syllable parsing state for proper candidate selection
-                val firstSyllableToRestore = savedAltFirstSyllable
-                val matchedPinyinToRestore = savedAltMatchedPinyin
-                val phraseCandidateCountToRestore = savedAltPhraseCandidateCount
-                // Capture candidate index: 4 (5th) for Titan2, 3 (4th) for BlackBerry
-                val candidateIndexToSelect = altCandidateIndex
+                // the second Alt DOWN will cancel this runnable and undo the committed character
                 pendingAltSelectionRunnable = Runnable {
-                    val currentIc = currentInputConnection
-                    if (currentIc != null) {
-                        // Restore buffer and candidates first, then use selectCandidate
-                        // This properly handles remaining syllables (e.g., 'haode' -> select '好' -> keep 'de')
-                        when (modeToUse) {
-                            "pinyin" -> {
-                                pinyinInputController.restoreBuffer(bufferToRestore)
-                                // Use full restoration to restore syllable parsing state
-                                pinyinInputController.restoreForAltSelection(
-                                    candidatesToRestore,
-                                    pageToRestore,
-                                    firstSyllableToRestore,
-                                    matchedPinyinToRestore,
-                                    phraseCandidateCountToRestore
-                                )
-                                val selected = pinyinInputController.selectCandidate(candidateIndexToSelect)
-                                if (selected != null) {
-                                    val remainingBuffer = pinyinInputController.getBuffer()
-                                    // commitText replaces composing text automatically
-                                    currentIc.commitText(selected, 1)
-                                    if (remainingBuffer.isNotEmpty()) {
-                                        currentIc.setComposingText(remainingBuffer, 1)
-                                    }
-                                }
-                            }
-                            "shuangpin" -> {
-                                shuangpinInputController.restoreBuffer(bufferToRestore)
-                                shuangpinInputController.restoreCandidatesForNextPage(candidatesToRestore, pageToRestore)
-                                val selected = shuangpinInputController.selectCandidate(candidateIndexToSelect)
-                                if (selected != null) {
-                                    val remainingBuffer = shuangpinInputController.getBuffer()
-                                    // commitText replaces composing text automatically
-                                    currentIc.commitText(selected, 1)
-                                    if (remainingBuffer.isNotEmpty()) {
-                                        currentIc.setComposingText(remainingBuffer, 1)
-                                    }
-                                }
-                            }
-                            "wubi" -> {
-                                wubiInputController.restoreBuffer(bufferToRestore)
-                                wubiInputController.restoreCandidatesForNextPage(candidatesToRestore, pageToRestore)
-                                val selected = wubiInputController.selectCandidate(candidateIndexToSelect)
-                                if (selected != null) {
-                                    val remainingBuffer = wubiInputController.getBuffer()
-                                    // commitText replaces composing text automatically
-                                    currentIc.commitText(selected, 1)
-                                    if (remainingBuffer.isNotEmpty()) {
-                                        currentIc.setComposingText(remainingBuffer, 1)
-                                    }
-                                }
-                            }
-                            "zhenma" -> {
-                                zhenmaInputController.restoreBuffer(bufferToRestore)
-                                zhenmaInputController.restoreCandidatesForNextPage(candidatesToRestore, pageToRestore)
-                                val selected = zhenmaInputController.selectCandidate(candidateIndexToSelect)
-                                if (selected != null) {
-                                    val remainingBuffer = zhenmaInputController.getBuffer()
-                                    // commitText replaces composing text automatically
-                                    currentIc.commitText(selected, 1)
-                                    if (remainingBuffer.isNotEmpty()) {
-                                        currentIc.setComposingText(remainingBuffer, 1)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Clear saved state after executing
+                    // Character was already committed on Alt DOWN - just clean up state
+                    // Clear saved state after double-click window expires
                     savedAltSuggestion = null
                     savedAltCandidatesForNextPage = emptyList()
                     savedAltCurrentPage = 0
                     savedAltChineseMode = null
                     savedAltBuffer = ""
                     pendingAltSelectionRunnable = null
-                    // Clear Alt state after inserting 5th suggestion
+                    // Mark the instant selection as final (no more undo possible)
+                    altCommittedCharacter = null
+                    altRemainingBuffer = ""
+                    // Clear Alt state
                     altLastPressTime = 0L
                     modifierStateController.clearAltState(resetPressedState = true)
                     updateStatusBarText()
