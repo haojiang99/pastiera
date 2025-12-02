@@ -158,7 +158,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private val DOUBLE_TAP_THRESHOLD = 500L
     private val CURSOR_UPDATE_DELAY = 50L
     private val MULTI_TAP_TIMEOUT_MS = 800L
-    private val PAGINATION_DOUBLE_PRESS_THRESHOLD = 400L
+    private val PAGINATION_DOUBLE_PRESS_THRESHOLD = 200L
     private val ALT_SINGLE_CLICK_DELAY = 250L  // Delay to distinguish single from double click
 
     // Pending Alt selection for delayed single-click handling
