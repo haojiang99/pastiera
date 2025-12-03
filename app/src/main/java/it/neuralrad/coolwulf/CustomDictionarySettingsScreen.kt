@@ -33,13 +33,15 @@ fun CustomDictionarySettingsScreen(
     val context = LocalContext.current
     val customDictionary = remember { UserCustomDictionary.getInstance(context) }
 
-    // 0 = Pinyin, 1 = Shuangpin, 2 = Wubi
+    // 0 = Pinyin, 1 = Shuangpin, 2 = Ziranma, 3 = Wubi, 4 = Zhenma
     var selectedMode by remember { mutableIntStateOf(0) }
 
     // Mappings list
     var pinyinMappings by remember { mutableStateOf(customDictionary.getAllPinyinMappings()) }
     var shuangpinMappings by remember { mutableStateOf(customDictionary.getAllShuangpinMappings()) }
+    var ziranmaMappings by remember { mutableStateOf(customDictionary.getAllZiranmaMappings()) }
     var wubiMappings by remember { mutableStateOf(customDictionary.getAllWubiMappings()) }
+    var zhenmaMappings by remember { mutableStateOf(customDictionary.getAllZhenmaMappings()) }
 
     // Dialog states
     var showAddDialog by remember { mutableStateOf(false) }
@@ -96,7 +98,7 @@ fun CustomDictionarySettingsScreen(
                 .padding(paddingValues)
         ) {
             // Mode selector tabs
-            TabRow(
+            ScrollableTabRow(
                 selectedTabIndex = selectedMode,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -113,7 +115,17 @@ fun CustomDictionarySettingsScreen(
                 Tab(
                     selected = selectedMode == 2,
                     onClick = { selectedMode = 2 },
+                    text = { Text(stringResource(R.string.custom_dictionary_ziranma_mode)) }
+                )
+                Tab(
+                    selected = selectedMode == 3,
+                    onClick = { selectedMode = 3 },
                     text = { Text(stringResource(R.string.custom_dictionary_wubi_mode)) }
+                )
+                Tab(
+                    selected = selectedMode == 4,
+                    onClick = { selectedMode = 4 },
+                    text = { Text(stringResource(R.string.custom_dictionary_zhenma_mode)) }
                 )
             }
 
@@ -129,7 +141,9 @@ fun CustomDictionarySettingsScreen(
             val currentMappings = when (selectedMode) {
                 0 -> pinyinMappings
                 1 -> shuangpinMappings
-                else -> wubiMappings
+                2 -> ziranmaMappings
+                3 -> wubiMappings
+                else -> zhenmaMappings
             }
 
             if (currentMappings.isEmpty()) {
@@ -165,9 +179,17 @@ fun CustomDictionarySettingsScreen(
                                         customDictionary.removeShuangpinMapping(code, phrase)
                                         shuangpinMappings = customDictionary.getAllShuangpinMappings()
                                     }
-                                    else -> {
+                                    2 -> {
+                                        customDictionary.removeZiranmaMapping(code, phrase)
+                                        ziranmaMappings = customDictionary.getAllZiranmaMappings()
+                                    }
+                                    3 -> {
                                         customDictionary.removeWubiMapping(code, phrase)
                                         wubiMappings = customDictionary.getAllWubiMappings()
+                                    }
+                                    else -> {
+                                        customDictionary.removeZhenmaMapping(code, phrase)
+                                        zhenmaMappings = customDictionary.getAllZhenmaMappings()
                                     }
                                 }
                             }
@@ -188,7 +210,9 @@ fun CustomDictionarySettingsScreen(
                         when (selectedMode) {
                             0 -> R.string.custom_dictionary_add_pinyin
                             1 -> R.string.custom_dictionary_add_shuangpin
-                            else -> R.string.custom_dictionary_add_wubi
+                            2 -> R.string.custom_dictionary_add_ziranma
+                            3 -> R.string.custom_dictionary_add_wubi
+                            else -> R.string.custom_dictionary_add_zhenma
                         }
                     )
                 )
@@ -207,7 +231,9 @@ fun CustomDictionarySettingsScreen(
                                     when (selectedMode) {
                                         0 -> R.string.custom_dictionary_code_hint_pinyin
                                         1 -> R.string.custom_dictionary_code_hint_shuangpin
-                                        else -> R.string.custom_dictionary_code_hint_wubi
+                                        2 -> R.string.custom_dictionary_code_hint_ziranma
+                                        3 -> R.string.custom_dictionary_code_hint_wubi
+                                        else -> R.string.custom_dictionary_code_hint_zhenma
                                     }
                                 )
                             )
@@ -238,9 +264,17 @@ fun CustomDictionarySettingsScreen(
                                     customDictionary.addShuangpinMapping(codeInput, phraseInput)
                                     shuangpinMappings = customDictionary.getAllShuangpinMappings()
                                 }
-                                else -> {
+                                2 -> {
+                                    customDictionary.addZiranmaMapping(codeInput, phraseInput)
+                                    ziranmaMappings = customDictionary.getAllZiranmaMappings()
+                                }
+                                3 -> {
                                     customDictionary.addWubiMapping(codeInput, phraseInput)
                                     wubiMappings = customDictionary.getAllWubiMappings()
+                                }
+                                else -> {
+                                    customDictionary.addZhenmaMapping(codeInput, phraseInput)
+                                    zhenmaMappings = customDictionary.getAllZhenmaMappings()
                                 }
                             }
                             showAddDialog = false

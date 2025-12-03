@@ -7,7 +7,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Manages user-defined custom dictionary mappings for Pinyin, Shuangpin, Wubi, and Zhenma input methods.
+ * Manages user-defined custom dictionary mappings for Pinyin, Shuangpin, Ziranma, Wubi, and Zhenma input methods.
  * Users can define their own letter -> phrase mappings for quick input.
  */
 class UserCustomDictionary(context: Context) {
@@ -18,6 +18,9 @@ class UserCustomDictionary(context: Context) {
 
     // In-memory cache: code -> list of phrases (Shuangpin)
     private val shuangpinMappings = mutableMapOf<String, MutableList<String>>()
+
+    // In-memory cache: code -> list of phrases (Ziranma)
+    private val ziranmaMappings = mutableMapOf<String, MutableList<String>>()
 
     // In-memory cache: code -> list of phrases (Wubi)
     private val wubiMappings = mutableMapOf<String, MutableList<String>>()
@@ -60,6 +63,23 @@ class UserCustomDictionary(context: Context) {
             phrases.add(0, phrase)  // Add to front for priority
             saveToPreferencesAsync()
             Log.d(TAG, "Added Shuangpin mapping: '$normalizedCode' -> '$phrase'")
+        }
+    }
+
+    /**
+     * Adds a custom mapping for Ziranma.
+     * @param code The ziranma code (e.g., "nh" for "你好")
+     * @param phrase The phrase to map to
+     */
+    fun addZiranmaMapping(code: String, phrase: String) {
+        val normalizedCode = code.lowercase().trim()
+        if (normalizedCode.isEmpty() || phrase.isEmpty()) return
+
+        val phrases = ziranmaMappings.getOrPut(normalizedCode) { mutableListOf() }
+        if (!phrases.contains(phrase)) {
+            phrases.add(0, phrase)  // Add to front for priority
+            saveToPreferencesAsync()
+            Log.d(TAG, "Added Ziranma mapping: '$normalizedCode' -> '$phrase'")
         }
     }
 
@@ -124,6 +144,19 @@ class UserCustomDictionary(context: Context) {
     }
 
     /**
+     * Removes a Ziranma mapping.
+     */
+    fun removeZiranmaMapping(code: String, phrase: String) {
+        val normalizedCode = code.lowercase().trim()
+        ziranmaMappings[normalizedCode]?.remove(phrase)
+        if (ziranmaMappings[normalizedCode]?.isEmpty() == true) {
+            ziranmaMappings.remove(normalizedCode)
+        }
+        saveToPreferencesAsync()
+        Log.d(TAG, "Removed Ziranma mapping: '$normalizedCode' -> '$phrase'")
+    }
+
+    /**
      * Removes a Wubi mapping.
      */
     fun removeWubiMapping(code: String, phrase: String) {
@@ -168,6 +201,15 @@ class UserCustomDictionary(context: Context) {
     }
 
     /**
+     * Gets custom Ziranma phrases for a code.
+     * Returns phrases that should be prioritized in candidates.
+     */
+    fun getZiranmaPhrases(code: String): List<String> {
+        val normalizedCode = code.lowercase().trim()
+        return ziranmaMappings[normalizedCode]?.toList() ?: emptyList()
+    }
+
+    /**
      * Gets custom Wubi phrases for a code.
      * Returns phrases that should be prioritized in candidates.
      */
@@ -204,6 +246,19 @@ class UserCustomDictionary(context: Context) {
     fun getAllShuangpinMappings(): List<Pair<String, String>> {
         val result = mutableListOf<Pair<String, String>>()
         for ((code, phrases) in shuangpinMappings) {
+            for (phrase in phrases) {
+                result.add(Pair(code, phrase))
+            }
+        }
+        return result.sortedBy { it.first }
+    }
+
+    /**
+     * Gets all Ziranma mappings as a list of pairs.
+     */
+    fun getAllZiranmaMappings(): List<Pair<String, String>> {
+        val result = mutableListOf<Pair<String, String>>()
+        for ((code, phrases) in ziranmaMappings) {
             for (phrase in phrases) {
                 result.add(Pair(code, phrase))
             }
@@ -253,6 +308,15 @@ class UserCustomDictionary(context: Context) {
         shuangpinMappings.clear()
         saveToPreferencesAsync()
         Log.d(TAG, "All Shuangpin custom mappings cleared")
+    }
+
+    /**
+     * Clears all Ziranma mappings.
+     */
+    fun clearAllZiranmaMappings() {
+        ziranmaMappings.clear()
+        saveToPreferencesAsync()
+        Log.d(TAG, "All Ziranma custom mappings cleared")
     }
 
     /**
@@ -310,6 +374,23 @@ class UserCustomDictionary(context: Context) {
                     shuangpinMappings[code] = phrases
                 }
                 Log.d(TAG, "Loaded ${shuangpinMappings.size} Shuangpin custom mappings")
+            }
+
+            // Load Ziranma mappings
+            val ziranmaJson = prefs.getString(KEY_ZIRANMA_MAPPINGS, null)
+            if (ziranmaJson != null) {
+                val jsonObject = JSONObject(ziranmaJson)
+                val keys = jsonObject.keys()
+                while (keys.hasNext()) {
+                    val code = keys.next()
+                    val phrasesArray = jsonObject.getJSONArray(code)
+                    val phrases = mutableListOf<String>()
+                    for (i in 0 until phrasesArray.length()) {
+                        phrases.add(phrasesArray.getString(i))
+                    }
+                    ziranmaMappings[code] = phrases
+                }
+                Log.d(TAG, "Loaded ${ziranmaMappings.size} Ziranma custom mappings")
             }
 
             // Load Wubi mappings
@@ -375,6 +456,16 @@ class UserCustomDictionary(context: Context) {
                 shuangpinJson.put(code, phrasesArray)
             }
 
+            // Save Ziranma mappings
+            val ziranmaJson = JSONObject()
+            for ((code, phrases) in ziranmaMappings) {
+                val phrasesArray = JSONArray()
+                for (phrase in phrases) {
+                    phrasesArray.put(phrase)
+                }
+                ziranmaJson.put(code, phrasesArray)
+            }
+
             // Save Wubi mappings
             val wubiJson = JSONObject()
             for ((code, phrases) in wubiMappings) {
@@ -398,6 +489,7 @@ class UserCustomDictionary(context: Context) {
             prefs.edit()
                 .putString(KEY_PINYIN_MAPPINGS, pinyinJson.toString())
                 .putString(KEY_SHUANGPIN_MAPPINGS, shuangpinJson.toString())
+                .putString(KEY_ZIRANMA_MAPPINGS, ziranmaJson.toString())
                 .putString(KEY_WUBI_MAPPINGS, wubiJson.toString())
                 .putString(KEY_ZHENMA_MAPPINGS, zhenmaJson.toString())
                 .apply()
@@ -411,6 +503,7 @@ class UserCustomDictionary(context: Context) {
         private const val PREFS_NAME = "user_custom_dictionary"
         private const val KEY_PINYIN_MAPPINGS = "pinyin_mappings"
         private const val KEY_SHUANGPIN_MAPPINGS = "shuangpin_mappings"
+        private const val KEY_ZIRANMA_MAPPINGS = "ziranma_mappings"
         private const val KEY_WUBI_MAPPINGS = "wubi_mappings"
         private const val KEY_ZHENMA_MAPPINGS = "zhenma_mappings"
 
