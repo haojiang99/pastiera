@@ -394,11 +394,14 @@ class InputEventRouter(
                     callSuperWithKey = callbacks.callSuperWithKey
                 )
             ) {
-                // In non-Juying mode with suggestions visible, clear Alt latch after symbol input
-                // This mirrors Juying mode behavior where altUsedForSymbolInput clears Alt state
+                // After ANY Alt symbol input, set altLatchJustDisabled to prevent subsequent
+                // keys from being treated as Alt+key (especially when Alt is physically held)
+                // This applies to: one-shot, latch, or physical Alt press
+                callbacks.onAltLatchDisabled()
+
+                // In non-Juying mode with suggestions visible, also clear Alt latch state
                 if (altLatchActive && params.hasSuggestionsVisible && !params.juyingModeEnabled) {
                     controllers.modifierStateController.clearAltState(resetPressedState = true)
-                    callbacks.onAltLatchDisabled()
                     callbacks.updateStatusBar()
                 }
                 return EditableFieldRoutingResult.Consume
