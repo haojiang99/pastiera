@@ -2118,10 +2118,21 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
                         when {
                             isPinyinMode -> {
+                                // Save buffer length BEFORE selection (for deletion)
+                                val bufferLengthBeforeSelect = pinyinInputController.getBuffer().length
                                 val selected = pinyinInputController.selectCandidate(originalCandidateIndex)
                                 if (selected != null) {
-                                    val remainingBuffer = pinyinInputController.getBuffer()
-                                    // commitText replaces composing text automatically
+                                    var remainingBuffer = pinyinInputController.getBuffer()
+                                    // For memory/prediction candidates, buffer may not be consumed normally
+                                    // If buffer unchanged, it's a memory candidate - clear the buffer entirely
+                                    if (remainingBuffer.length == bufferLengthBeforeSelect) {
+                                        pinyinInputController.clearBuffer()
+                                        remainingBuffer = ""
+                                    }
+                                    ic.finishComposingText()
+                                    if (bufferLengthBeforeSelect > 0) {
+                                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
+                                    }
                                     ic.commitText(selected, 1)
                                     // Set remaining buffer as composing text (e.g., 'wode' -> '我' + 'de' underlined)
                                     if (remainingBuffer.isNotEmpty()) {
@@ -2131,10 +2142,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 }
                             }
                             isShuangpinMode -> {
+                                val bufferLengthBeforeSelect = shuangpinInputController.getBuffer().length
                                 val selected = shuangpinInputController.selectCandidate(originalCandidateIndex)
                                 if (selected != null) {
-                                    val remainingBuffer = shuangpinInputController.getBuffer()
-                                    // commitText replaces composing text automatically
+                                    var remainingBuffer = shuangpinInputController.getBuffer()
+                                    if (remainingBuffer.length == bufferLengthBeforeSelect) {
+                                        shuangpinInputController.clearBuffer()
+                                        remainingBuffer = ""
+                                    }
+                                    ic.finishComposingText()
+                                    if (bufferLengthBeforeSelect > 0) {
+                                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
+                                    }
                                     ic.commitText(selected, 1)
                                     if (remainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(remainingBuffer, 1)
@@ -2143,10 +2162,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 }
                             }
                             isWubiMode -> {
+                                val bufferLengthBeforeSelect = wubiInputController.getBuffer().length
                                 val selected = wubiInputController.selectCandidate(originalCandidateIndex)
                                 if (selected != null) {
-                                    val remainingBuffer = wubiInputController.getBuffer()
-                                    // commitText replaces composing text automatically
+                                    var remainingBuffer = wubiInputController.getBuffer()
+                                    if (remainingBuffer.length == bufferLengthBeforeSelect) {
+                                        wubiInputController.clearBuffer()
+                                        remainingBuffer = ""
+                                    }
+                                    ic.finishComposingText()
+                                    if (bufferLengthBeforeSelect > 0) {
+                                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
+                                    }
                                     ic.commitText(selected, 1)
                                     if (remainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(remainingBuffer, 1)
@@ -2155,10 +2182,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 }
                             }
                             isZhenmaMode -> {
+                                val bufferLengthBeforeSelect = zhenmaInputController.getBuffer().length
                                 val selected = zhenmaInputController.selectCandidate(originalCandidateIndex)
                                 if (selected != null) {
-                                    val remainingBuffer = zhenmaInputController.getBuffer()
-                                    // commitText replaces composing text automatically
+                                    var remainingBuffer = zhenmaInputController.getBuffer()
+                                    if (remainingBuffer.length == bufferLengthBeforeSelect) {
+                                        zhenmaInputController.clearBuffer()
+                                        remainingBuffer = ""
+                                    }
+                                    ic.finishComposingText()
+                                    if (bufferLengthBeforeSelect > 0) {
+                                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
+                                    }
                                     ic.commitText(selected, 1)
                                     if (remainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(remainingBuffer, 1)
@@ -2663,12 +2698,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
             // Handle space key - select first candidate
             if (keyCode == KeyEvent.KEYCODE_SPACE && pinyinInputController.hasCandidates()) {
+                // Save buffer length BEFORE selection (for deletion)
+                val bufferLengthBeforeSelect = pinyinInputController.getBuffer().length
                 val selected = pinyinInputController.selectFirstCandidate()
                 if (selected != null) {
-                    ic.commitText(selected, 1) // commitText replaces composing text automatically
-
-                    // Set remaining buffer as new composing text
-                    val remainingBuffer = pinyinInputController.getBuffer()
+                    var remainingBuffer = pinyinInputController.getBuffer()
+                    // For memory/prediction candidates, buffer may not be consumed normally
+                    // If buffer unchanged, it's a memory candidate - clear the buffer entirely
+                    if (remainingBuffer.length == bufferLengthBeforeSelect) {
+                        pinyinInputController.clearBuffer()
+                        remainingBuffer = ""
+                    }
+                    // Delete the full original buffer and commit Chinese
+                    ic.finishComposingText()
+                    if (bufferLengthBeforeSelect > 0) {
+                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
+                    }
+                    ic.commitText(selected, 1)
                     if (remainingBuffer.isNotEmpty()) {
                         ic.setComposingText(remainingBuffer, 1)
                     }
@@ -3022,11 +3068,22 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
             // Handle space key - select first candidate
             if (keyCode == KeyEvent.KEYCODE_SPACE && shuangpinInputController.hasCandidates()) {
+                // Save buffer length BEFORE selection (for deletion)
+                val bufferLengthBeforeSelect = shuangpinInputController.getBuffer().length
                 val selected = shuangpinInputController.selectFirstCandidate()
                 if (selected != null) {
+                    var remainingBuffer = shuangpinInputController.getBuffer()
+                    // For memory/prediction candidates, buffer may not be consumed normally
+                    // If buffer unchanged, it's a memory candidate - clear the buffer entirely
+                    if (remainingBuffer.length == bufferLengthBeforeSelect) {
+                        shuangpinInputController.clearBuffer()
+                        remainingBuffer = ""
+                    }
+                    ic.finishComposingText()
+                    if (bufferLengthBeforeSelect > 0) {
+                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
+                    }
                     ic.commitText(selected, 1)
-
-                    val remainingBuffer = shuangpinInputController.getBuffer()
                     if (remainingBuffer.isNotEmpty()) {
                         ic.setComposingText(remainingBuffer, 1)
                     }
@@ -3355,9 +3412,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
             // Handle space key - select first candidate
             if (keyCode == KeyEvent.KEYCODE_SPACE && wubiInputController.hasCandidates()) {
+                // Save buffer length BEFORE selection (for deletion)
+                val bufferLengthBeforeSelect = wubiInputController.getBuffer().length
                 val selected = wubiInputController.selectFirstCandidate()
                 if (selected != null) {
+                    var remainingBuffer = wubiInputController.getBuffer()
+                    // For memory/prediction candidates, buffer may not be consumed normally
+                    // If buffer unchanged, it's a memory candidate - clear the buffer entirely
+                    if (remainingBuffer.length == bufferLengthBeforeSelect) {
+                        wubiInputController.clearBuffer()
+                        remainingBuffer = ""
+                    }
+                    ic.finishComposingText()
+                    if (bufferLengthBeforeSelect > 0) {
+                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
+                    }
                     ic.commitText(selected, 1)
+                    if (remainingBuffer.isNotEmpty()) {
+                        ic.setComposingText(remainingBuffer, 1)
+                    }
                     updateStatusBarText()
                     return true
                 }
@@ -3687,9 +3760,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
             // Handle space key - select first candidate
             if (keyCode == KeyEvent.KEYCODE_SPACE && zhenmaInputController.hasCandidates()) {
+                // Save buffer length BEFORE selection (for deletion)
+                val bufferLengthBeforeSelect = zhenmaInputController.getBuffer().length
                 val selected = zhenmaInputController.selectFirstCandidate()
                 if (selected != null) {
+                    var remainingBuffer = zhenmaInputController.getBuffer()
+                    // For memory/prediction candidates, buffer may not be consumed normally
+                    // If buffer unchanged, it's a memory candidate - clear the buffer entirely
+                    if (remainingBuffer.length == bufferLengthBeforeSelect) {
+                        zhenmaInputController.clearBuffer()
+                        remainingBuffer = ""
+                    }
+                    ic.finishComposingText()
+                    if (bufferLengthBeforeSelect > 0) {
+                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
+                    }
                     ic.commitText(selected, 1)
+                    if (remainingBuffer.isNotEmpty()) {
+                        ic.setComposingText(remainingBuffer, 1)
+                    }
                     updateStatusBarText()
                     return true
                 }
