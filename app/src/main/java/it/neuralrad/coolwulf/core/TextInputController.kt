@@ -145,13 +145,13 @@ class TextInputController(
         event: KeyEvent?,
         inputConnection: InputConnection?
     ): Boolean {
-        // Automatically add space after comma or period
+        // Automatically add space after comma only (not period)
         if (event == null || inputConnection == null || event.unicodeChar == 0) {
             return false
         }
 
         val char = event.unicodeChar.toChar()
-        if (char == ',' || char == '.') {
+        if (char == ',') {
             inputConnection.commitText("$char ", 1)
             return true
         }

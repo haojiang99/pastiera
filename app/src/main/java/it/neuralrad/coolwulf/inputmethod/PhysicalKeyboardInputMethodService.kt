@@ -2017,7 +2017,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Mark that Alt was used for pagination - skip normal Alt UP handling
                     altUsedForPagination = true
                     return true
-                } else if (isDeviceAltKey(keyCode) && isChineseInputActive) {
+                } else if (isDeviceAltKey(keyCode) && isChineseInputActive && hasChineseCandidates) {
                     // Alt pressed in Chinese mode with candidates
                     // INSTANT BEHAVIOR: Immediately commit the suggestion on Alt DOWN
                     // If double-click detected: undo and go to next page
