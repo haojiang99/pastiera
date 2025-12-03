@@ -93,6 +93,18 @@ object VariationButtonHandler {
     }
 
     /**
+     * Callback for Ziranma candidate selection with index information.
+     */
+    interface OnZiranmaCandidateSelectedListener {
+        /**
+         * Called when a Ziranma candidate is selected.
+         * @param candidate The selected candidate text
+         * @param candidateIndex The index of the candidate (accounting for current page)
+         */
+        fun onZiranmaCandidateSelected(candidate: String, candidateIndex: Int)
+    }
+
+    /**
      * Callback for Zhenma candidate selection with index information.
      */
     interface OnZhenmaCandidateSelectedListener {
@@ -200,6 +212,40 @@ object VariationButtonHandler {
 
             // Notify Shuangpin-specific listener with index
             shuangpinListener?.onShuangpinCandidateSelected(candidate, candidateIndex)
+
+            // Also notify general listener
+            listener?.onVariationSelected(candidate)
+        }
+    }
+
+    /**
+     * Creates a listener for a Ziranma candidate button.
+     * When clicked, commits the Chinese character and notifies with the candidate index.
+     * Does NOT delete any committed text - the Ziranma buffer is shown as composing text.
+     * Note: Vibration is handled by VariationBarView, not here.
+     */
+    fun createZiranmaCandidateClickListener(
+        candidate: String,
+        candidateIndex: Int,
+        inputConnection: InputConnection?,
+        ziranmaListener: OnZiranmaCandidateSelectedListener? = null,
+        listener: OnVariationSelectedListener? = null,
+        @Suppress("UNUSED_PARAMETER") context: Context? = null
+    ): View.OnClickListener {
+        return View.OnClickListener {
+            Log.d(TAG, "Click on Ziranma candidate $candidateIndex: $candidate")
+
+            if (inputConnection == null) {
+                Log.w(TAG, "No inputConnection available to insert candidate")
+                return@OnClickListener
+            }
+
+            // Commit the Chinese character - this automatically replaces any composing text
+            inputConnection.commitText(candidate, 1)
+            Log.d(TAG, "Ziranma candidate '$candidate' inserted")
+
+            // Notify Ziranma-specific listener with index
+            ziranmaListener?.onZiranmaCandidateSelected(candidate, candidateIndex)
 
             // Also notify general listener
             listener?.onVariationSelected(candidate)

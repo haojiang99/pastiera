@@ -108,6 +108,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getZhenmaEnabled(context))
     }
 
+    var ziranmaEnabled by remember {
+        mutableStateOf(SettingsManager.getZiranmaEnabled(context))
+    }
+
     var juyingModeEnabled by remember {
         mutableStateOf(SettingsManager.getJuyingModeEnabled(context))
     }
@@ -775,6 +779,49 @@ fun TextInputSettingsScreen(
                 }
             }
 
+            // Ziranma Toggle
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.chinese_input_ziranma),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.chinese_input_ziranma_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                    Switch(
+                        checked = ziranmaEnabled,
+                        onCheckedChange = { enabled ->
+                            ziranmaEnabled = enabled
+                            SettingsManager.setZiranmaEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
+
             // Wubi Toggle
             Surface(
                 modifier = Modifier
@@ -862,7 +909,7 @@ fun TextInputSettingsScreen(
             }
 
             // Info text when multiple are enabled
-            val enabledCount = listOf(pinyinEnabled, shuangpinEnabled, wubiEnabled, zhenmaEnabled).count { it }
+            val enabledCount = listOf(pinyinEnabled, shuangpinEnabled, ziranmaEnabled, wubiEnabled, zhenmaEnabled).count { it }
             if (enabledCount >= 2) {
                 Text(
                     text = stringResource(R.string.chinese_input_both_enabled_info),
@@ -873,7 +920,7 @@ fun TextInputSettingsScreen(
             }
 
             // Juying Mode Section (only show if any Chinese input is enabled)
-            if (pinyinEnabled || shuangpinEnabled || wubiEnabled || zhenmaEnabled) {
+            if (pinyinEnabled || shuangpinEnabled || ziranmaEnabled || wubiEnabled || zhenmaEnabled) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 // Section header
@@ -1071,7 +1118,9 @@ fun TextInputSettingsScreen(
                                 "english" -> stringResource(R.string.input_mode_english)
                                 "pinyin" -> stringResource(R.string.input_mode_pinyin)
                                 "shuangpin" -> stringResource(R.string.input_mode_shuangpin)
+                                "ziranma" -> stringResource(R.string.input_mode_ziranma)
                                 "wubi" -> stringResource(R.string.input_mode_wubi)
+                                "zhenma" -> stringResource(R.string.input_mode_zhenma)
                                 else -> stringResource(R.string.input_mode_english)
                             },
                             style = MaterialTheme.typography.bodySmall,
@@ -1088,7 +1137,7 @@ fun TextInputSettingsScreen(
             }
 
             // Next Word Prediction Toggle (only show if Chinese input is enabled)
-            if (pinyinEnabled || shuangpinEnabled || wubiEnabled || zhenmaEnabled) {
+            if (pinyinEnabled || shuangpinEnabled || ziranmaEnabled || wubiEnabled || zhenmaEnabled) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1221,7 +1270,7 @@ fun TextInputSettingsScreen(
             }
 
             // Custom Dictionary (only show if Chinese input is enabled)
-            if (pinyinEnabled || shuangpinEnabled || wubiEnabled || zhenmaEnabled) {
+            if (pinyinEnabled || shuangpinEnabled || ziranmaEnabled || wubiEnabled || zhenmaEnabled) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1357,6 +1406,36 @@ fun TextInputSettingsScreen(
                             )
                             Text(
                                 text = stringResource(R.string.input_mode_shuangpin),
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+
+                    // Ziranma option (only if enabled)
+                    if (ziranmaEnabled) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    defaultInputMode = "ziranma"
+                                    SettingsManager.setDefaultInputMode(context, "ziranma")
+                                    SettingsManager.setLastInputMode(context, "ziranma")
+                                    showDefaultModeDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = defaultInputMode == "ziranma",
+                                onClick = {
+                                    defaultInputMode = "ziranma"
+                                    SettingsManager.setDefaultInputMode(context, "ziranma")
+                                    SettingsManager.setLastInputMode(context, "ziranma")
+                                    showDefaultModeDialog = false
+                                }
+                            )
+                            Text(
+                                text = stringResource(R.string.input_mode_ziranma),
                                 modifier = Modifier.padding(start = 8.dp)
                             )
                         }

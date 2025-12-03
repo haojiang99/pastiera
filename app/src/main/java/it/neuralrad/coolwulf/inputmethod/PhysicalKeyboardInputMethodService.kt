@@ -26,6 +26,7 @@ import it.neuralrad.coolwulf.core.PinyinInputController
 import it.neuralrad.coolwulf.core.ShuangpinInputController
 import it.neuralrad.coolwulf.core.WubiInputController
 import it.neuralrad.coolwulf.core.ZhenmaInputController
+import it.neuralrad.coolwulf.core.ZiranmaInputController
 import it.neuralrad.coolwulf.core.SymLayoutController
 import it.neuralrad.coolwulf.core.TextInputController
 import it.neuralrad.coolwulf.data.layout.LayoutMappingRepository
@@ -144,6 +145,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private lateinit var shuangpinInputController: ShuangpinInputController
     private lateinit var wubiInputController: WubiInputController
     private lateinit var zhenmaInputController: ZhenmaInputController
+    private lateinit var ziranmaInputController: ZiranmaInputController
     private lateinit var englishWordPredictionController: it.neuralrad.coolwulf.core.EnglishWordPredictionController
     private var clearAltOnSpaceEnabled: Boolean = false
 
@@ -181,7 +183,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private var savedAltSuggestion: String? = null  // The suggestion that was committed
     private var savedAltCandidatesForNextPage: List<String> = emptyList()
     private var savedAltCurrentPage: Int = 0
-    private var savedAltChineseMode: String? = null  // "pinyin", "shuangpin", "wubi", "zhenma"
+    private var savedAltChineseMode: String? = null  // "pinyin", "shuangpin", "ziranma", "wubi", "zhenma"
     private var savedAltBuffer: String = ""  // Save buffer for double-click restore
     private var savedAltFirstSyllable: String = ""  // Save syllable parsing state for Alt selection
     private var savedAltMatchedPinyin: String = ""
@@ -462,6 +464,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         shuangpinInputController = ShuangpinInputController(this)
         wubiInputController = WubiInputController(this)
         zhenmaInputController = ZhenmaInputController(this)
+        ziranmaInputController = ZiranmaInputController(this)
 
         // Apply Chinese next word prediction setting
         val chineseNextWordPredictionEnabled = SettingsManager.getChineseNextWordPredictionEnabled(this)
@@ -469,6 +472,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         shuangpinInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
         wubiInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
         zhenmaInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
+        ziranmaInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
 
         // Apply fuzzy pinyin setting (模糊音)
         val fuzzyPinyinEnabled = SettingsManager.getPinyinFuzzyEnabled(this)
@@ -627,6 +631,28 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
         candidatesBarController.onZhenmaCandidateSelectedListener = zhenmaListener
 
+        // Register listener for Ziranma candidate selection (with index)
+        val ziranmaListener = object : VariationButtonHandler.OnZiranmaCandidateSelectedListener {
+            override fun onZiranmaCandidateSelected(candidate: String, candidateIndex: Int) {
+                val ic = currentInputConnection ?: return
+                val isJuyingMode = SettingsManager.getJuyingModeEnabled(this@PhysicalKeyboardInputMethodService)
+                val candidateCount = ziranmaInputController.getCurrentPageCandidates().size
+                val originalIndex = if (isJuyingMode) {
+                    reverseJuyingDisplayIndex(candidateIndex, candidateCount)
+                } else candidateIndex
+                // VariationButtonHandler already committed the text, we just update buffer state
+                ziranmaInputController.selectCandidate(originalIndex)
+                val remainingBuffer = ziranmaInputController.getBuffer()
+                if (remainingBuffer.isNotEmpty()) {
+                    ic.setComposingText(remainingBuffer, 1)
+                }
+                // Clear Alt state after touch selection
+                modifierStateController.clearAltState(resetPressedState = true)
+                updateStatusBarText()
+            }
+        }
+        candidatesBarController.onZiranmaCandidateSelectedListener = ziranmaListener
+
         // Register listener for cursor movement (both controllers)
         val cursorListener = {
             updateStatusBarText()
@@ -635,11 +661,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Register listeners for page navigation
         candidatesBarController.onNextPageListener = {
-            // Navigate to next page (Pinyin, Shuangpin, Wubi, Zhenma, or word prediction)
+            // Navigate to next page (Pinyin, Shuangpin, Ziranma, Wubi, Zhenma, or word prediction)
             if (pinyinInputController.isPinyinMode()) {
                 pinyinInputController.nextPage()
             } else if (shuangpinInputController.isShuangpinMode()) {
                 shuangpinInputController.nextPage()
+            } else if (ziranmaInputController.isZiranmaMode()) {
+                ziranmaInputController.nextPage()
             } else if (wubiInputController.isWubiMode()) {
                 wubiInputController.nextPage()
             } else if (zhenmaInputController.isZhenmaMode()) {
@@ -650,11 +678,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             updateStatusBarText()
         }
         candidatesBarController.onPrevPageListener = {
-            // Navigate to previous page (Pinyin, Shuangpin, Wubi, Zhenma, or word prediction)
+            // Navigate to previous page (Pinyin, Shuangpin, Ziranma, Wubi, Zhenma, or word prediction)
             if (pinyinInputController.isPinyinMode()) {
                 pinyinInputController.prevPage()
             } else if (shuangpinInputController.isShuangpinMode()) {
                 shuangpinInputController.prevPage()
+            } else if (ziranmaInputController.isZiranmaMode()) {
+                ziranmaInputController.prevPage()
             } else if (wubiInputController.isWubiMode()) {
                 wubiInputController.prevPage()
             } else if (zhenmaInputController.isZhenmaMode()) {
@@ -902,7 +932,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     /**
      * Toggles Chinese input mode on/off.
-     * When multiple methods are enabled, cycles through them: EN -> Pinyin -> Shuangpin -> Wubi -> EN
+     * When multiple methods are enabled, cycles through them: EN -> Pinyin -> Shuangpin -> Ziranma -> Wubi -> Zhenma -> EN
      * When only one is enabled, toggles that mode on/off.
      * Called from EN/CN toggle button and Shift+Enter shortcut.
      */
@@ -917,6 +947,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         val isPinyinActive = pinyinInputController.isPinyinMode()
         val isShuangpinActive = shuangpinInputController.isShuangpinMode()
+        val isZiranmaActive = ziranmaInputController.isZiranmaMode()
         val isWubiActive = wubiInputController.isWubiMode()
         val isZhenmaActive = zhenmaInputController.isZhenmaMode()
 
@@ -936,6 +967,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         currentInputConnection?.finishComposingText()
                     }
                 }
+                "ziranma" -> {
+                    ziranmaInputController.toggleZiranmaMode()
+                    if (!ziranmaInputController.isZiranmaMode()) {
+                        currentInputConnection?.finishComposingText()
+                    }
+                }
                 "wubi" -> {
                     wubiInputController.toggleWubiMode()
                     if (!wubiInputController.isWubiMode()) {
@@ -951,10 +988,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         } else {
             // Multiple methods enabled - cycle through them in order: EN -> first -> second -> ... -> EN
-            // Order is based on enabledMethods list: pinyin, shuangpin, wubi, zhenma
+            // Order is based on enabledMethods list: pinyin, shuangpin, ziranma, wubi, zhenma
             val currentMethod = when {
                 isPinyinActive -> "pinyin"
                 isShuangpinActive -> "shuangpin"
+                isZiranmaActive -> "ziranma"
                 isWubiActive -> "wubi"
                 isZhenmaActive -> "zhenma"
                 else -> null  // EN mode
@@ -973,6 +1011,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     shuangpinInputController.setShuangpinMode(false)
                     currentInputConnection?.finishComposingText()
                 }
+                "ziranma" -> {
+                    ziranmaInputController.setZiranmaMode(false)
+                    currentInputConnection?.finishComposingText()
+                }
                 "wubi" -> {
                     wubiInputController.setWubiMode(false)
                     currentInputConnection?.finishComposingText()
@@ -988,6 +1030,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 when (enabledMethods[nextIndex]) {
                     "pinyin" -> pinyinInputController.setPinyinMode(true)
                     "shuangpin" -> shuangpinInputController.setShuangpinMode(true)
+                    "ziranma" -> ziranmaInputController.setZiranmaMode(true)
                     "wubi" -> wubiInputController.setWubiMode(true)
                     "zhenma" -> zhenmaInputController.setZhenmaMode(true)
                 }
@@ -1002,19 +1045,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
 
     /**
-     * Checks if any Chinese input mode is active (Pinyin, Shuangpin, Wubi, or Zhenma).
+     * Checks if any Chinese input mode is active (Pinyin, Shuangpin, Ziranma, Wubi, or Zhenma).
      */
     private fun isChineseInputModeActive(): Boolean {
-        return pinyinInputController.isPinyinMode() || shuangpinInputController.isShuangpinMode() || wubiInputController.isWubiMode() || zhenmaInputController.isZhenmaMode()
+        return pinyinInputController.isPinyinMode() || shuangpinInputController.isShuangpinMode() || ziranmaInputController.isZiranmaMode() || wubiInputController.isWubiMode() || zhenmaInputController.isZhenmaMode()
     }
 
     /**
-     * Gets the current input mode as a string ("english", "pinyin", "shuangpin", "wubi", or "zhenma").
+     * Gets the current input mode as a string ("english", "pinyin", "shuangpin", "ziranma", "wubi", or "zhenma").
      */
     private fun getCurrentInputMode(): String {
         return when {
             pinyinInputController.isPinyinMode() -> "pinyin"
             shuangpinInputController.isShuangpinMode() -> "shuangpin"
+            ziranmaInputController.isZiranmaMode() -> "ziranma"
             wubiInputController.isWubiMode() -> "wubi"
             zhenmaInputController.isZhenmaMode() -> "zhenma"
             else -> "english"
@@ -1023,7 +1067,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     /**
      * Sets the input mode directly without cycling.
-     * @param mode One of "english", "pinyin", "shuangpin", "wubi", or "zhenma"
+     * @param mode One of "english", "pinyin", "shuangpin", "ziranma", "wubi", or "zhenma"
      * @param saveToSettings If true, saves this mode as the last used mode
      */
     private fun setInputMode(mode: String, saveToSettings: Boolean = true) {
@@ -1034,6 +1078,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
         if (shuangpinInputController.isShuangpinMode()) {
             shuangpinInputController.setShuangpinMode(false)
+            currentInputConnection?.finishComposingText()
+        }
+        if (ziranmaInputController.isZiranmaMode()) {
+            ziranmaInputController.setZiranmaMode(false)
             currentInputConnection?.finishComposingText()
         }
         if (wubiInputController.isWubiMode()) {
@@ -1055,6 +1103,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             "shuangpin" -> {
                 if (SettingsManager.getShuangpinEnabled(this)) {
                     shuangpinInputController.setShuangpinMode(true)
+                }
+            }
+            "ziranma" -> {
+                if (SettingsManager.getZiranmaEnabled(this)) {
+                    ziranmaInputController.setZiranmaMode(true)
                 }
             }
             "wubi" -> {
@@ -1104,6 +1157,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private fun togglePunctuationMode() {
         val isPinyinMode = pinyinInputController.isPinyinMode()
         val isShuangpinMode = shuangpinInputController.isShuangpinMode()
+        val isZiranmaMode = ziranmaInputController.isZiranmaMode()
         val isWubiMode = wubiInputController.isWubiMode()
         val isZhenmaMode = zhenmaInputController.isZhenmaMode()
 
@@ -1112,6 +1166,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // Sync other controllers to match
             val newMode = pinyinInputController.isChinesePunctuationMode()
             shuangpinInputController.setChinesePunctuationMode(newMode)
+            ziranmaInputController.setChinesePunctuationMode(newMode)
             wubiInputController.setChinesePunctuationMode(newMode)
             zhenmaInputController.setChinesePunctuationMode(newMode)
         } else if (isShuangpinMode) {
@@ -1119,6 +1174,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // Sync other controllers to match
             val newMode = shuangpinInputController.isChinesePunctuationMode()
             pinyinInputController.setChinesePunctuationMode(newMode)
+            ziranmaInputController.setChinesePunctuationMode(newMode)
+            wubiInputController.setChinesePunctuationMode(newMode)
+            zhenmaInputController.setChinesePunctuationMode(newMode)
+        } else if (isZiranmaMode) {
+            ziranmaInputController.togglePunctuationMode()
+            // Sync other controllers to match
+            val newMode = ziranmaInputController.isChinesePunctuationMode()
+            pinyinInputController.setChinesePunctuationMode(newMode)
+            shuangpinInputController.setChinesePunctuationMode(newMode)
             wubiInputController.setChinesePunctuationMode(newMode)
             zhenmaInputController.setChinesePunctuationMode(newMode)
         } else if (isWubiMode) {
@@ -1127,6 +1191,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val newMode = wubiInputController.isChinesePunctuationMode()
             pinyinInputController.setChinesePunctuationMode(newMode)
             shuangpinInputController.setChinesePunctuationMode(newMode)
+            ziranmaInputController.setChinesePunctuationMode(newMode)
             zhenmaInputController.setChinesePunctuationMode(newMode)
         } else if (isZhenmaMode) {
             zhenmaInputController.togglePunctuationMode()
@@ -1134,6 +1199,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val newMode = zhenmaInputController.isChinesePunctuationMode()
             pinyinInputController.setChinesePunctuationMode(newMode)
             shuangpinInputController.setChinesePunctuationMode(newMode)
+            ziranmaInputController.setChinesePunctuationMode(newMode)
             wubiInputController.setChinesePunctuationMode(newMode)
         }
         updateStatusBarText()
@@ -1147,6 +1213,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             pinyinInputController.isChinesePunctuationMode()
         } else if (shuangpinInputController.isShuangpinMode()) {
             shuangpinInputController.isChinesePunctuationMode()
+        } else if (ziranmaInputController.isZiranmaMode()) {
+            ziranmaInputController.isChinesePunctuationMode()
         } else if (wubiInputController.isWubiMode()) {
             wubiInputController.isChinesePunctuationMode()
         } else if (zhenmaInputController.isZhenmaMode()) {
@@ -1160,9 +1228,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      * Aggiorna la status bar delegando al controller dedicato.
      */
     private fun updateStatusBarText() {
-        // Check if Pinyin, Shuangpin, Wubi, or Zhenma mode is active and use their candidates
+        // Check if Pinyin, Shuangpin, Ziranma, Wubi, or Zhenma mode is active and use their candidates
         val pinyinSnapshot = pinyinInputController.getSnapshot()
         val shuangpinSnapshot = shuangpinInputController.getSnapshot()
+        val ziranmaSnapshot = ziranmaInputController.getSnapshot()
         val wubiSnapshot = wubiInputController.getSnapshot()
         val zhenmaSnapshot = zhenmaInputController.getSnapshot()
 
@@ -1173,10 +1242,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Determine which variations to show:
         // 1. Pinyin candidates (when Pinyin mode active)
         // 2. Shuangpin candidates (when Shuangpin mode active)
-        // 3. Wubi candidates (when Wubi mode active)
-        // 4. Zhenma candidates (when Zhenma mode active)
-        // 5. Accent variations (when lastInsertedChar has variations)
-        // 6. English word predictions (when typing and no accent variations)
+        // 3. Ziranma candidates (when Ziranma mode active)
+        // 4. Wubi candidates (when Wubi mode active)
+        // 5. Zhenma candidates (when Zhenma mode active)
+        // 6. Accent variations (when lastInsertedChar has variations)
+        // 7. English word predictions (when typing and no accent variations)
         val variationSnapshot: VariationStateController.Snapshot
         var wordPredictionActive = false
         var wordPredictionPrefix = ""
@@ -1230,6 +1300,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             totalPages = shuangpinSnapshot.totalPages
             hasNextPage = shuangpinSnapshot.hasNextPage
             hasPrevPage = shuangpinSnapshot.hasPrevPage
+        } else if (ziranmaSnapshot.isActive) {
+            // Ziranma mode
+            val rawCandidates = ziranmaSnapshot.candidates.take(candidateLimit)
+            variationSnapshot = VariationStateController.Snapshot(
+                isActive = true,
+                lastInsertedChar = if (ziranmaSnapshot.buffer.isNotEmpty()) ziranmaSnapshot.buffer.last() else null,
+                variations = reorderForJuyingDisplay(rawCandidates)
+            )
+            // Pagination info from Ziranma
+            currentPage = ziranmaSnapshot.currentPage
+            totalPages = ziranmaSnapshot.totalPages
+            hasNextPage = ziranmaSnapshot.hasNextPage
+            hasPrevPage = ziranmaSnapshot.hasPrevPage
         } else if (wubiSnapshot.isActive) {
             // Wubi mode
             val rawCandidates = wubiSnapshot.candidates.take(candidateLimit)
@@ -1309,6 +1392,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             pinyinBuffer = pinyinSnapshot.buffer,
             shuangpinModeActive = shuangpinSnapshot.isActive,
             shuangpinBuffer = shuangpinSnapshot.buffer,
+            ziranmaModeActive = ziranmaSnapshot.isActive,
+            ziranmaBuffer = ziranmaSnapshot.buffer,
             wubiModeActive = wubiSnapshot.isActive,
             wubiBuffer = wubiSnapshot.buffer,
             zhenmaModeActive = zhenmaSnapshot.isActive,
@@ -1333,6 +1418,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val hasSuggestions = variationSnapshot.variations.isNotEmpty() ||
                             pinyinSnapshot.hasCandidates ||
                             shuangpinSnapshot.hasCandidates ||
+                            ziranmaSnapshot.hasCandidates ||
                             wubiSnapshot.hasCandidates ||
                             zhenmaSnapshot.hasCandidates
         if (compactModeEnabled) {
@@ -1422,7 +1508,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val chineseNextWordPredictionEnabled = SettingsManager.getChineseNextWordPredictionEnabled(this)
         pinyinInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
         shuangpinInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
+        ziranmaInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
         wubiInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
+        zhenmaInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
 
         // Refresh fuzzy pinyin setting (may have changed in settings)
         val fuzzyPinyinEnabled = SettingsManager.getPinyinFuzzyEnabled(this)
@@ -1469,6 +1557,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val juyingModeEnabled = SettingsManager.getJuyingModeEnabled(this)
         pinyinInputController.setJuyingMode(juyingModeEnabled)
         shuangpinInputController.setJuyingMode(juyingModeEnabled)
+        ziranmaInputController.setJuyingMode(juyingModeEnabled)
         wubiInputController.setJuyingMode(juyingModeEnabled)
         zhenmaInputController.setJuyingMode(juyingModeEnabled)
 
@@ -2395,6 +2484,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
 
+            // Commit Ziranma buffer as-is (without conversion) with plain Enter
+            // Don't add space - user is typing English in Chinese mode
+            if (ziranmaInputController.isZiranmaMode() && !shiftPressed && !ctrlPressed && !altPressed && ic != null) {
+                val buffer = ziranmaInputController.getBuffer()
+                if (buffer.isNotEmpty()) {
+                    val committed = ziranmaInputController.commitBufferAsIs()
+                    if (committed != null) {
+                        ic.commitText(committed, 1)
+                        updateStatusBarText()
+                        return true
+                    }
+                }
+            }
+
             // Commit Wubi buffer as-is (without conversion) with plain Enter
             // Don't add space - user is typing English in Chinese mode
             if (wubiInputController.isWubiMode() && !shiftPressed && !ctrlPressed && !altPressed && ic != null) {
@@ -3191,6 +3294,216 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (keyCode == KeyEvent.KEYCODE_ESCAPE ||
                 (keyCode == KeyEvent.KEYCODE_Q && ctrlPressed)) {
                 shuangpinInputController.setShuangpinMode(false)
+                ic.finishComposingText()
+                updateStatusBarText()
+                return true
+            }
+        }
+
+        // Handle Ziranma input mode
+        if (ziranmaInputController.isZiranmaMode() && ic != null) {
+            // Handle SYM mode - when SYM is active, allow symbol input just like in English mode
+            if (symLayoutController.isSymActive()) {
+                val symResult = symLayoutController.handleKeyWhenActive(
+                    keyCode,
+                    event,
+                    ic,
+                    ctrlLatchActive = ctrlLatchActive,
+                    altLatchActive = altLatchActive,
+                    updateStatusBar = { updateStatusBarText() }
+                )
+                when (symResult) {
+                    SymLayoutController.SymKeyResult.CONSUME -> return true
+                    SymLayoutController.SymKeyResult.CALL_SUPER -> return super.onKeyDown(keyCode, event)
+                    SymLayoutController.SymKeyResult.NOT_HANDLED -> { /* Continue to Ziranma handling */ }
+                }
+            }
+
+            // Handle number keys 1-9 for candidate selection (not in Juying mode)
+            if (!juyingModeEnabled && keyCode >= KeyEvent.KEYCODE_1 && keyCode <= KeyEvent.KEYCODE_9) {
+                val index = keyCode - KeyEvent.KEYCODE_1
+                val bufferLengthBeforeSelect = ziranmaInputController.getBuffer().length
+                val selected = ziranmaInputController.selectCandidate(index)
+                if (selected != null) {
+                    var remainingBuffer = ziranmaInputController.getBuffer()
+                    if (remainingBuffer.length == bufferLengthBeforeSelect) {
+                        ziranmaInputController.clearBuffer()
+                        remainingBuffer = ""
+                    }
+                    ic.finishComposingText()
+                    if (bufferLengthBeforeSelect > 0) {
+                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
+                    }
+                    ic.commitText(selected, 1)
+                    if (remainingBuffer.isNotEmpty()) {
+                        ic.setComposingText(remainingBuffer, 1)
+                    }
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // Handle Shift+Del to clear entire Ziranma buffer
+            if (keyCode == KeyEvent.KEYCODE_DEL && shiftPressed) {
+                val buffer = ziranmaInputController.getBuffer()
+                if (buffer.isNotEmpty()) {
+                    ziranmaInputController.clearBuffer()
+                    ic.setComposingText("", 1)
+                    ic.finishComposingText()
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // Handle backspace in Ziranma mode
+            if (keyCode == KeyEvent.KEYCODE_DEL) {
+                val hadBuffer = ziranmaInputController.getBuffer().isNotEmpty()
+                if (ziranmaInputController.handleBackspace()) {
+                    val buffer = ziranmaInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        ic.setComposingText(buffer, 1)
+                    } else if (hadBuffer) {
+                        ic.finishComposingText()
+                        ic.deleteSurroundingText(1, 0)
+                    }
+                    modifierStateController.clearAltState(resetPressedState = true)
+                    modifierStateController.clearCtrlState(resetPressedState = true)
+                    updateStatusBarText()
+                    return true
+                } else {
+                    ic.finishComposingText()
+                    val selectedText = ic.getSelectedText(0)
+                    if (selectedText != null && selectedText.isNotEmpty()) {
+                        ic.commitText("", 1)
+                    } else {
+                        ic.deleteSurroundingText(1, 0)
+                    }
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // Handle space key - select first candidate
+            if (keyCode == KeyEvent.KEYCODE_SPACE && ziranmaInputController.hasCandidates()) {
+                val bufferLengthBeforeSelect = ziranmaInputController.getBuffer().length
+                val selected = ziranmaInputController.selectFirstCandidate()
+                if (selected != null) {
+                    var remainingBuffer = ziranmaInputController.getBuffer()
+                    if (remainingBuffer.length == bufferLengthBeforeSelect) {
+                        ziranmaInputController.clearBuffer()
+                        remainingBuffer = ""
+                    }
+                    ic.finishComposingText()
+                    if (bufferLengthBeforeSelect > 0) {
+                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
+                    }
+                    ic.commitText(selected, 1)
+                    if (remainingBuffer.isNotEmpty()) {
+                        ic.setComposingText(remainingBuffer, 1)
+                    }
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // Handle space key when no candidates and empty buffer - just insert a space
+            if (keyCode == KeyEvent.KEYCODE_SPACE && !ziranmaInputController.hasCandidates() && ziranmaInputController.getBuffer().isEmpty()) {
+                ic.commitText(" ", 1)
+                return true
+            }
+
+            // Handle letter keys for Ziranma input
+            if (event != null && event.unicodeChar != 0) {
+                val char = event.unicodeChar.toChar()
+
+                if (char.isLetter()) {
+                    // If Shift is pressed, commit buffer and input capital letter directly
+                    if (shiftPressed) {
+                        val buffer = ziranmaInputController.getBuffer()
+                        if (buffer.isNotEmpty()) {
+                            val committed = ziranmaInputController.commitBufferAsIs()
+                            if (committed != null) {
+                                ic.commitText(committed, 1)
+                            }
+                        }
+                        ic.commitText(char.toString(), 1)
+                        updateStatusBarText()
+                        return true
+                    }
+
+                    // Add to Ziranma buffer (lowercase)
+                    if (ziranmaInputController.handleLetterKey(char)) {
+                        val buffer = ziranmaInputController.getBuffer()
+                        ic.setComposingText(buffer, 1)
+                        updateStatusBarText()
+                        return true
+                    }
+                }
+            }
+
+            // Handle punctuation - use Chinese punctuation in Ziranma mode
+            if (event != null && event.unicodeChar != 0 && ziranmaInputController.isChinesePunctuationMode()) {
+                val char = event.unicodeChar.toChar()
+                val chinesePunctuation: String? = when (char) {
+                    ',' -> "，"
+                    '.' -> "。"
+                    '!' -> "！"
+                    '?' -> "？"
+                    ':' -> "："
+                    ';' -> "；"
+                    '(' -> "（"
+                    ')' -> "）"
+                    '[' -> "【"
+                    ']' -> "】"
+                    '<' -> "《"
+                    '>' -> "》"
+                    '~' -> "～"
+                    '\\' -> "、"
+                    '^' -> "……"
+                    '_' -> "——"
+                    '"' -> {
+                        val result = if (ziranmaInputController.isNextDoubleQuoteOpening()) {
+                            "\u201C"
+                        } else {
+                            "\u201D"
+                        }
+                        ziranmaInputController.toggleDoubleQuoteState()
+                        result
+                    }
+                    '\'' -> {
+                        val result = if (ziranmaInputController.isNextSingleQuoteOpening()) {
+                            "\u2018"
+                        } else {
+                            "\u2019"
+                        }
+                        ziranmaInputController.toggleSingleQuoteState()
+                        result
+                    }
+                    else -> null
+                }
+
+                if (chinesePunctuation != null) {
+                    val buffer = ziranmaInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        val committed = ziranmaInputController.commitBufferAsIs()
+                        if (committed != null) {
+                            ic.commitText(committed, 1)
+                        }
+                    }
+                    ic.commitText(chinesePunctuation, 1)
+                    ziranmaInputController.onPunctuationInput()
+                    if (altOneShot) {
+                        altOneShot = false
+                    }
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // ESC key or Ctrl+Q to exit Ziranma mode
+            if (keyCode == KeyEvent.KEYCODE_ESCAPE ||
+                (keyCode == KeyEvent.KEYCODE_Q && ctrlPressed)) {
+                ziranmaInputController.setZiranmaMode(false)
                 ic.finishComposingText()
                 updateStatusBarText()
                 return true

@@ -1,10 +1,10 @@
-package it.neuralrad.coolwulf.data.shuangpin
+package it.neuralrad.coolwulf.data.ziranma
 
 /**
- * Converts Shuangpin (双拼) input to standard Pinyin.
- * Uses the 小鹤双拼 (Xiaohe Shuangpin) scheme.
+ * Converts Ziranma (自然码) input to standard Pinyin.
+ * 自然码 is a Shuangpin scheme where each Chinese syllable is typed with exactly 2 keys.
  *
- * In Shuangpin, each Chinese syllable is typed with exactly 2 keys:
+ * In Ziranma:
  * - First key: Initial consonant (声母)
  * - Second key: Final vowel (韵母)
  *
@@ -18,35 +18,35 @@ package it.neuralrad.coolwulf.data.shuangpin
  * - Double letter finals: first letter + second letter (e.g., ai=ai, ei=ei, ou=ou, er=er)
  * - Triple letter finals: first letter + final key (e.g., ang=ah)
  */
-object ShuangpinConverter {
-    private const val TAG = "ShuangpinConverter"
+object ZiranmaConverter {
+    private const val TAG = "ZiranmaConverter"
 
-    // Map of second key to final vowels (韵母)
-    // Some keys map to multiple finals depending on the initial
+    // Map of second key to final vowels (韵母) for 自然码
+    // Key differences from 小鹤: different final mappings
     private val keyToFinals = mapOf(
         'q' to listOf("iu"),
-        'w' to listOf("ei"),
+        'w' to listOf("ia", "ua"),  // ia after j/q/x/y, ua after others
         'e' to listOf("e"),
         'r' to listOf("uan", "er"),
         't' to listOf("ue", "ve"),  // üe for j/q/x/y, ue for others
-        'y' to listOf("un"),
+        'y' to listOf("ing", "uai"),  // uai for specific initials, ing for others
         'o' to listOf("uo", "o"),
-        'p' to listOf("ie"),
+        'p' to listOf("un"),
         'a' to listOf("a"),
         's' to listOf("ong", "iong"),  // iong only after j/q/x/y
-        'd' to listOf("ai"),
+        'd' to listOf("iang", "uang"),  // iang after j/q/x/y, uang after others
         'f' to listOf("en"),
         'g' to listOf("eng"),
         'h' to listOf("ang"),
         'j' to listOf("an"),
-        'k' to listOf("ing", "uai"),  // uai only after specific initials
-        'l' to listOf("uang", "iang"),  // iang after j/q/x/y, uang after others
-        'z' to listOf("ou"),
-        'x' to listOf("ia", "ua"),  // ia after j/q/x/y, ua after others
-        'c' to listOf("ao"),
+        'k' to listOf("ao"),
+        'l' to listOf("ai"),
+        'z' to listOf("ei"),
+        'x' to listOf("ie"),
+        'c' to listOf("iao"),
         'v' to listOf("ui", "v"),  // v (ü) for n/l
-        'b' to listOf("in"),
-        'n' to listOf("iao"),
+        'b' to listOf("ou"),
+        'n' to listOf("in"),
         'm' to listOf("ian"),
         'i' to listOf("i"),
         'u' to listOf("u")
@@ -57,7 +57,7 @@ object ShuangpinConverter {
     private val nlInitials = setOf("n", "l")
 
     // Map of first key to initial consonants (声母)
-    // Most are same as pinyin, except zh/ch/sh
+    // Same as 小鹤: zh/ch/sh mapped to v/i/u
     private val keyToInitial = mapOf(
         'v' to "zh",
         'i' to "ch",
@@ -65,8 +65,7 @@ object ShuangpinConverter {
         // All other letters map to themselves as initials
     )
 
-    // Valid pinyin syllables (we'll validate against PinyinDictionary)
-    // This is a subset used for quick validation
+    // Valid pinyin syllables
     private val validInitials = setOf(
         "b", "p", "m", "f",
         "d", "t", "n", "l",
@@ -84,17 +83,17 @@ object ShuangpinConverter {
     )
 
     /**
-     * Converts a two-character Shuangpin code to standard Pinyin.
-     * @param shuangpin The two-character Shuangpin input (e.g., "nh" for "ni hao" initial)
+     * Converts a two-character Ziranma code to standard Pinyin.
+     * @param ziranma The two-character Ziranma input
      * @return The corresponding Pinyin syllable, or null if invalid
      */
-    fun toPinyin(shuangpin: String): String? {
-        if (shuangpin.length != 2) {
+    fun toPinyin(ziranma: String): String? {
+        if (ziranma.length != 2) {
             return null
         }
 
-        val firstKey = shuangpin[0].lowercaseChar()
-        val secondKey = shuangpin[1].lowercaseChar()
+        val firstKey = ziranma[0].lowercaseChar()
+        val secondKey = ziranma[1].lowercaseChar()
 
         // Determine initial
         val initial = getInitial(firstKey)
@@ -131,10 +130,6 @@ object ShuangpinConverter {
 
     /**
      * Checks if this is a zero-initial (vowel-only) syllable.
-     * Zero-initial rules:
-     * - Single vowel: key + same key (aa, oo, ee)
-     * - Double vowel: first letter + second letter (ai, ei, ou)
-     * - Triple vowel ending in ng: first letter + final key (ah for ang)
      */
     private fun isZeroInitialKey(firstKey: Char, secondKey: Char): Boolean {
         // Vowel keys that can be zero-initial
@@ -146,7 +141,7 @@ object ShuangpinConverter {
      * Gets pinyin for zero-initial syllables.
      */
     private fun getZeroInitialPinyin(firstKey: Char, secondKey: Char): String? {
-        // Map of zero-initial Shuangpin codes to Pinyin
+        // Map of zero-initial Ziranma codes to Pinyin
         val zeroInitialMap = mapOf(
             // Single vowel (key + same key)
             "aa" to "a",
@@ -163,14 +158,13 @@ object ShuangpinConverter {
             // Triple vowels (first letter + final key)
             "ah" to "ang",
             "eg" to "eng",
-            // Additional zero-initial finals
-            "ad" to "ai",
-            "af" to "en",  // Not standard but some schemes use it
-            "aj" to "an",
-            "ac" to "ao",
-            "az" to "ou",
-            "oh" to "ang",  // o + h for ang when starting with o sound
-            "og" to "ong"   // o + g for ong
+            // Additional zero-initial finals using Ziranma mapping
+            "al" to "ai",  // l=ai in Ziranma
+            "af" to "en",  // f=en in Ziranma
+            "aj" to "an",  // j=an in Ziranma
+            "ak" to "ao",  // k=ao in Ziranma
+            "ab" to "ou",  // b=ou in Ziranma
+            "og" to "ong"  // o + g for ong
         )
 
         val code = "$firstKey$secondKey"
@@ -192,23 +186,22 @@ object ShuangpinConverter {
                 // üe (ve) for j/q/x/y, ue for l/n
                 if (initial in jqxyInitials) "ue" else if (initial in nlInitials) "ve" else "ue"
             }
+            'w' -> {
+                // ia for j/q/x/y, ua for others
+                if (initial in jqxyInitials) "ia" else "ua"
+            }
             's' -> {
                 // iong for j/q/x/y, ong for others
                 if (initial in jqxyInitials) "iong" else "ong"
             }
-            'k' -> {
+            'y' -> {
                 // uai for some initials, ing for others
-                // In 小鹤, k primarily maps to ing; uai is less common
                 if (initial in setOf("g", "k", "h", "zh", "ch", "sh", "z", "c", "s")) "uai" else "ing"
             }
-            'l' -> {
+            'd' -> {
                 // iang for j/q/x/y and n/l (niang, liang are valid; nuang, luang are not)
                 // uang for g/k/h/zh/ch/sh/z/c/s/d/w/r (guang, kuang, huang, zhuang, chuang, shuang)
                 if (initial in jqxyInitials || initial in nlInitials) "iang" else "uang"
-            }
-            'x' -> {
-                // ia for j/q/x/y, ua for others
-                if (initial in jqxyInitials) "ia" else "ua"
             }
             'v' -> {
                 // ü (v) for n/l/j/q/x/y, ui for others
@@ -216,7 +209,6 @@ object ShuangpinConverter {
             }
             'o' -> {
                 // uo for most, o for b/p/m/f/w
-                // w + o = wo (not wuo)
                 if (initial in setOf("b", "p", "m", "f", "w")) "o" else "uo"
             }
             'r' -> {
@@ -257,9 +249,9 @@ object ShuangpinConverter {
     }
 
     /**
-     * Converts a complete Shuangpin input string to Pinyin syllables.
+     * Converts a complete Ziranma input string to Pinyin syllables.
      * Each pair of characters is one syllable.
-     * @param input The Shuangpin input string
+     * @param input The Ziranma input string
      * @return List of Pinyin syllables, or empty list if invalid
      */
     fun toPinyinSyllables(input: String): List<String> {
@@ -289,8 +281,8 @@ object ShuangpinConverter {
     }
 
     /**
-     * Gets the complete Pinyin string from Shuangpin input.
-     * @param input The Shuangpin input string
+     * Gets the complete Pinyin string from Ziranma input.
+     * @param input The Ziranma input string
      * @return The combined Pinyin string (without spaces), or null if invalid
      */
     fun toPinyinString(input: String): String? {
@@ -303,22 +295,21 @@ object ShuangpinConverter {
     }
 
     /**
-     * Checks if a single character is a valid Shuangpin initial key.
+     * Checks if a single character is a valid Ziranma initial key.
      */
     fun isValidInitialKey(key: Char): Boolean {
         return key.lowercaseChar() in 'a'..'z'
     }
 
     /**
-     * Checks if a single character is a valid Shuangpin final key.
+     * Checks if a single character is a valid Ziranma final key.
      */
     fun isValidFinalKey(key: Char): Boolean {
         return keyToFinals.containsKey(key.lowercaseChar())
     }
 
     /**
-     * Gets the display help for a key (what it represents in Shuangpin).
-     * Useful for showing hints in the status bar.
+     * Gets the display help for a key (what it represents in Ziranma).
      */
     fun getKeyHelp(key: Char): String {
         val lowerKey = key.lowercaseChar()
@@ -336,17 +327,7 @@ object ShuangpinConverter {
     }
 
     /**
-     * Gets all possible pinyin prefixes for a single Shuangpin key.
-     * Used to show candidates when user has typed only one character.
-     *
-     * For example:
-     * - 'n' as initial → returns ["n"] (for ni, na, ne, etc.)
-     * - 'v' as initial → returns ["zh"] (zh is mapped to v)
-     * - 'i' as initial → returns ["ch"] (ch is mapped to i)
-     * - 'u' as initial → returns ["sh"] (sh is mapped to u)
-     *
-     * @param key The single Shuangpin key
-     * @return List of possible pinyin initials/prefixes
+     * Gets all possible pinyin prefixes for a single Ziranma key.
      */
     fun getPossiblePinyinPrefixes(key: Char): List<String> {
         val lowerKey = key.lowercaseChar()
@@ -357,10 +338,8 @@ object ShuangpinConverter {
             prefixes.add(specialInitial)
         }
 
-        // Also add the key itself as a potential initial (most letters are their own initial)
+        // Also add the key itself as a potential initial
         if (lowerKey.isLetter() && lowerKey != 'v') {
-            // v is special (maps to zh), so don't add 'v' as itself
-            // For i and u, they can also be vowels (yi, wu based syllables)
             val keyStr = lowerKey.toString()
             if (keyStr !in prefixes) {
                 prefixes.add(keyStr)
@@ -370,15 +349,12 @@ object ShuangpinConverter {
         // Handle vowel keys that can start zero-initial syllables
         when (lowerKey) {
             'a' -> {
-                // 'a' can start: a, ai, an, ang, ao
                 if ("a" !in prefixes) prefixes.add("a")
             }
             'o' -> {
-                // 'o' can start: o, ou
                 if ("o" !in prefixes) prefixes.add("o")
             }
             'e' -> {
-                // 'e' can start: e, ei, en, eng, er
                 if ("e" !in prefixes) prefixes.add("e")
             }
         }
@@ -388,10 +364,6 @@ object ShuangpinConverter {
 
     /**
      * Gets all possible complete pinyin syllables that start with the given initial.
-     * Used for showing candidate characters for single-key input.
-     *
-     * @param initial The pinyin initial (e.g., "n", "zh", "sh")
-     * @return List of possible complete pinyin syllables
      */
     fun getPossibleSyllablesForInitial(initial: String): List<String> {
         val syllables = mutableListOf<String>()
@@ -411,10 +383,8 @@ object ShuangpinConverter {
 
     /**
      * Basic validation of pinyin syllable.
-     * More comprehensive validation is done by PinyinDictionary.
      */
     private fun isValidPinyinSyllable(syllable: String): Boolean {
-        // Very basic validation - just check it's not empty and reasonable length
         return syllable.isNotEmpty() && syllable.length <= 6
     }
 }

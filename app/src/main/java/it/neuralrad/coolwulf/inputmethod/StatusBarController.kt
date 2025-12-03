@@ -71,6 +71,13 @@ class StatusBarController(
             variationBarView?.onShuangpinCandidateSelectedListener = value
         }
 
+    // Listener for Ziranma candidate selection (with index)
+    var onZiranmaCandidateSelectedListener: VariationButtonHandler.OnZiranmaCandidateSelectedListener? = null
+        set(value) {
+            field = value
+            variationBarView?.onZiranmaCandidateSelectedListener = value
+        }
+
     // Listener for Zhenma candidate selection (with index)
     var onZhenmaCandidateSelectedListener: VariationButtonHandler.OnZhenmaCandidateSelectedListener? = null
         set(value) {
@@ -151,6 +158,8 @@ class StatusBarController(
         val pinyinBuffer: String = "",
         val shuangpinModeActive: Boolean = false,
         val shuangpinBuffer: String = "",
+        val ziranmaModeActive: Boolean = false,
+        val ziranmaBuffer: String = "",
         val wubiModeActive: Boolean = false,
         val wubiBuffer: String = "",
         val zhenmaModeActive: Boolean = false,
@@ -988,6 +997,7 @@ class StatusBarController(
         variationBarView?.onPinyinCandidateSelectedListener = onPinyinCandidateSelectedListener
         variationBarView?.onWubiCandidateSelectedListener = onWubiCandidateSelectedListener
         variationBarView?.onShuangpinCandidateSelectedListener = onShuangpinCandidateSelectedListener
+        variationBarView?.onZiranmaCandidateSelectedListener = onZiranmaCandidateSelectedListener
         variationBarView?.onZhenmaCandidateSelectedListener = onZhenmaCandidateSelectedListener
         variationBarView?.onCursorMovedListener = onCursorMovedListener
         variationBarView?.onLanguageToggleListener = onLanguageToggleListener
@@ -996,6 +1006,7 @@ class StatusBarController(
         variationBarView?.setSymModeActive(snapshot.symPage > 0)
         variationBarView?.setPinyinModeActive(snapshot.pinyinModeActive)
         variationBarView?.setShuangpinModeActive(snapshot.shuangpinModeActive)
+        variationBarView?.setZiranmaModeActive(snapshot.ziranmaModeActive)
         variationBarView?.setWubiModeActive(snapshot.wubiModeActive)
         variationBarView?.setZhenmaModeActive(snapshot.zhenmaModeActive)
         variationBarView?.setChinesePunctuationMode(snapshot.chinesePunctuationMode)

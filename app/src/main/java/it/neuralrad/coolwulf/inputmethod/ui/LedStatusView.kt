@@ -101,8 +101,8 @@ class LedStatusView(
         val altActive = (snapshot.altPhysicallyPressed || snapshot.altOneShot) && !altLocked
         updateLed(altLed, altLocked, altActive)
 
-        // Update Pinyin LED - orange for Pinyin mode, blue for Shuangpin mode
-        updatePinyinLed(pinyinLed, snapshot.pinyinModeActive, snapshot.shuangpinModeActive)
+        // Update Pinyin LED - orange for Pinyin mode, blue for Shuangpin/Ziranma mode
+        updatePinyinLed(pinyinLed, snapshot.pinyinModeActive, snapshot.shuangpinModeActive || snapshot.ziranmaModeActive)
 
         // Update Wubi/Zhenma LED - orange for Wubi mode, blue for Zhenma mode
         updateWubiZhenmaLed(wubiLed, snapshot.wubiModeActive, snapshot.zhenmaModeActive)

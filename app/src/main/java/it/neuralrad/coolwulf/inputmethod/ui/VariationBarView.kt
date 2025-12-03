@@ -46,6 +46,7 @@ class VariationBarView(
     var onPinyinCandidateSelectedListener: VariationButtonHandler.OnPinyinCandidateSelectedListener? = null
     var onWubiCandidateSelectedListener: VariationButtonHandler.OnWubiCandidateSelectedListener? = null
     var onShuangpinCandidateSelectedListener: VariationButtonHandler.OnShuangpinCandidateSelectedListener? = null
+    var onZiranmaCandidateSelectedListener: VariationButtonHandler.OnZiranmaCandidateSelectedListener? = null
     var onZhenmaCandidateSelectedListener: VariationButtonHandler.OnZhenmaCandidateSelectedListener? = null
     var onCursorMovedListener: (() -> Unit)? = null
     var onNextPageListener: (() -> Unit)? = null
@@ -60,6 +61,7 @@ class VariationBarView(
     private var punctuationToggleButtonView: TextView? = null
     private var isPinyinModeActive: Boolean = false
     private var isShuangpinModeActive: Boolean = false
+    private var isZiranmaModeActive: Boolean = false
     private var isWubiModeActive: Boolean = false
     private var isZhenmaModeActive: Boolean = false
     private var isChinesePunctuationMode: Boolean = true
@@ -168,6 +170,13 @@ class VariationBarView(
     fun setShuangpinModeActive(active: Boolean) {
         if (isShuangpinModeActive != active) {
             isShuangpinModeActive = active
+            updateLanguageToggleButton()
+        }
+    }
+
+    fun setZiranmaModeActive(active: Boolean) {
+        if (isZiranmaModeActive != active) {
+            isZiranmaModeActive = active
             updateLanguageToggleButton()
         }
     }
@@ -577,7 +586,7 @@ class VariationBarView(
             val button = createVariationButton(
                 variation, inputConnection, individualButtonWidth, showNumberedButtons, index + 1,
                 snapshot.wordPredictionActive, wordPredictionPrefixLength, snapshot.pinyinModeActive,
-                snapshot.shuangpinModeActive, snapshot.wubiModeActive, snapshot.zhenmaModeActive, candidateIndex = index,
+                snapshot.shuangpinModeActive, snapshot.ziranmaModeActive, snapshot.wubiModeActive, snapshot.zhenmaModeActive, candidateIndex = index,
                 isJuyingMode = snapshot.isJuyingMode, isBestCandidate = isBestCandidate
             )
             variationButtons.add(button)
@@ -594,8 +603,8 @@ class VariationBarView(
         // Force a layout pass
         containerView.requestLayout()
 
-        // Add navigation arrows when in Pinyin, Shuangpin, Wubi, Zhenma, or word prediction mode with suggestions
-        val showPagination = (snapshot.pinyinModeActive || snapshot.shuangpinModeActive || snapshot.wubiModeActive || snapshot.zhenmaModeActive || snapshot.wordPredictionActive) &&
+        // Add navigation arrows when in Pinyin, Shuangpin, Ziranma, Wubi, Zhenma, or word prediction mode with suggestions
+        val showPagination = (snapshot.pinyinModeActive || snapshot.shuangpinModeActive || snapshot.ziranmaModeActive || snapshot.wubiModeActive || snapshot.zhenmaModeActive || snapshot.wordPredictionActive) &&
                              snapshot.variations.isNotEmpty()
 
         // Smaller arrow button size
@@ -898,7 +907,7 @@ class VariationBarView(
                 (btn.parent as? ViewGroup)?.removeView(btn)
                 btn.visibility = View.GONE
             }
-        } else if (isPinyinModeActive || isShuangpinModeActive || isWubiModeActive || isZhenmaModeActive) {
+        } else if (isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive) {
             val punctuationToggleButton = punctuationToggleButtonView ?: createPunctuationToggleButton(buttonWidth).also {
                 punctuationToggleButtonView = it
             }
@@ -1220,6 +1229,7 @@ class VariationBarView(
         wordPredictionPrefixLength: Int = 0,
         isPinyinMode: Boolean = false,
         isShuangpinMode: Boolean = false,
+        isZiranmaMode: Boolean = false,
         isWubiMode: Boolean = false,
         isZhenmaMode: Boolean = false,
         candidateIndex: Int = 0,
@@ -1314,6 +1324,17 @@ class VariationBarView(
                     context
                 )
             }
+            isZiranmaMode -> {
+                // Ziranma candidate - just commit (replaces composing text automatically)
+                VariationButtonHandler.createZiranmaCandidateClickListener(
+                    variation,
+                    candidateIndex,
+                    inputConnection,
+                    onZiranmaCandidateSelectedListener,
+                    onVariationSelectedListener,
+                    context
+                )
+            }
             isWubiMode -> {
                 // Wubi candidate - just commit (replaces composing text automatically)
                 VariationButtonHandler.createWubiCandidateClickListener(
@@ -1347,7 +1368,7 @@ class VariationBarView(
         }
 
         // Capture flags for closure
-        val shouldVibrate = isWordPrediction || isPinyinMode || isShuangpinMode || isWubiMode || isZhenmaMode
+        val shouldVibrate = isWordPrediction || isPinyinMode || isShuangpinMode || isZiranmaMode || isWubiMode || isZhenmaMode
 
         // Use golden/yellow text for best candidate in Juying mode
         val textColor = if (isBestCandidate) {
@@ -1540,12 +1561,15 @@ class VariationBarView(
         return TextView(context).apply {
             text = when {
                 isPinyinModeActive -> "拼"
+                isShuangpinModeActive -> "双"
+                isZiranmaModeActive -> "自"
                 isWubiModeActive -> "五"
+                isZhenmaModeActive -> "真"
                 else -> "EN"
             }
             textSize = 12f
             setTextColor(when {
-                isPinyinModeActive || isWubiModeActive -> Color.rgb(100, 200, 255)
+                isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive -> Color.rgb(100, 200, 255)
                 else -> Color.WHITE
             })
             setTypeface(null, android.graphics.Typeface.BOLD)
@@ -1563,12 +1587,13 @@ class VariationBarView(
             text = when {
                 isPinyinModeActive -> "拼"
                 isShuangpinModeActive -> "双"
+                isZiranmaModeActive -> "自"
                 isWubiModeActive -> "五"
                 isZhenmaModeActive -> "真"
                 else -> "EN"
             }
             setTextColor(when {
-                isPinyinModeActive || isShuangpinModeActive || isWubiModeActive || isZhenmaModeActive -> Color.rgb(100, 200, 255)
+                isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive -> Color.rgb(100, 200, 255)
                 else -> Color.WHITE
             })
         }
