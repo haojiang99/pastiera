@@ -55,6 +55,9 @@ class PinyinInputController(
     // Track how many candidates are phrase candidates (vs single-character candidates)
     private var phraseCandidateCount: Int = 0
 
+    // Set of candidates that are phrases (for determining syllable consumption in mixed-sorted list)
+    private var phraseCandidateSet: Set<String> = emptySet()
+
     // Track the first syllable for single-character fallback
     private var firstSyllable: String = ""
 
@@ -286,7 +289,8 @@ class PinyinInputController(
         val actualIndex = currentPage * pageSize + index
 
         // Determine which pinyin to consume based on candidate type
-        val isPhrase = actualIndex < phraseCandidateCount
+        // Use phraseCandidateSet for accurate phrase detection in mixed-sorted lists
+        val isPhrase = selected in phraseCandidateSet
         val pinyinToConsume: String
 
         if (isPhrase) {
@@ -388,6 +392,7 @@ class PinyinInputController(
                 allCandidates = nextWordSuggestions
                 currentPage = 0
                 phraseCandidateCount = nextWordSuggestions.size  // All are "phrase" type for selection
+                phraseCandidateSet = nextWordSuggestions.toSet()  // All predictions are phrases
                 matchedPinyin = ""
                 firstSyllable = ""
                 Log.d(TAG, "Showing next-word predictions: $nextWordSuggestions")
@@ -484,6 +489,7 @@ class PinyinInputController(
         allCandidates = emptyList()
         matchedPinyin = ""
         phraseCandidateCount = 0
+        phraseCandidateSet = emptySet()
         firstSyllable = ""
         currentPage = 0
         Log.d(TAG, "Buffer cleared")
@@ -755,6 +761,7 @@ class PinyinInputController(
             allCandidates = emptyList()
             matchedPinyin = ""
             phraseCandidateCount = 0
+            phraseCandidateSet = emptySet()
             firstSyllable = ""
             return
         }
@@ -824,6 +831,7 @@ class PinyinInputController(
                 // We have abbreviation or custom phrases, use them
                 allCandidates = resultCandidates
                 phraseCandidateCount = resultCandidates.size
+                phraseCandidateSet = resultCandidates.toSet()  // All are phrases
                 matchedPinyin = bufferWithoutSep
                 Log.d(TAG, "Using only abbreviation/custom matches for '$bufferWithoutSep': $resultCandidates")
                 return
@@ -833,47 +841,85 @@ class PinyinInputController(
             return
         }
 
-        // If we have multiple segments, create combined phrase candidates
+        // Collect phrase candidates and single-character candidates, then sort together by frequency
+        val phraseCandidatesRaw = mutableListOf<String>()
+
         if (segments.size > 1) {
             // Generate combined phrases by taking top candidates from each segment
             val combinedPhrases = generateCombinedPhrases(segments)
-            for (phrase in combinedPhrases) {
-                if (phrase !in resultCandidates) {
-                    resultCandidates.add(phrase)
-                }
-            }
-            phraseCandidateCount = resultCandidates.size  // All added so far are phrases
-
+            phraseCandidatesRaw.addAll(combinedPhrases)
             // Calculate the pinyin that will be consumed for phrase candidates
-            // (all segments combined, without separators)
             matchedPinyin = segments.joinToString("") { it.pinyin }
-
             Log.d(TAG, "Multi-segment: ${segments.map { it.pinyin }} → ${combinedPhrases.size} combined phrases")
         } else {
             // Single segment - check for dictionary phrase first
-            val phraseCandidates = PinyinDictionary.getPhraseCandidates(bufferWithoutSep)
-            if (phraseCandidates.isNotEmpty()) {
-                val sortedPhrases = sortByFrequencyIfEnabled(bufferWithoutSep, phraseCandidates)
-                for (phrase in sortedPhrases) {
-                    if (phrase !in resultCandidates) {
-                        resultCandidates.add(phrase)
-                    }
-                }
-                phraseCandidateCount = resultCandidates.size  // All added so far are phrases
-                matchedPinyin = bufferWithoutSep
-            } else {
-                phraseCandidateCount = resultCandidates.size  // Only custom phrases if any
-                matchedPinyin = if (customPhrases.isNotEmpty()) bufferWithoutSep else actualFirstSyllable
+            val dictPhraseCandidates = PinyinDictionary.getPhraseCandidates(bufferWithoutSep)
+            phraseCandidatesRaw.addAll(dictPhraseCandidates)
+            matchedPinyin = if (dictPhraseCandidates.isNotEmpty() || customPhrases.isNotEmpty()) bufferWithoutSep else actualFirstSyllable
+        }
+
+        // Now combine phrases and single characters, sorted by effective priority
+        // Phrases get baseline priority, but high-frequency single chars can beat lower phrases
+        // Use data class to track whether each candidate is a phrase or single char
+        data class CandidateWithType(val text: String, val isPhrase: Boolean, val effectiveRank: Int)
+
+        // Priority offset for single characters - phrases get this head start
+        // A single char needs to be in top SINGLE_CHAR_PRIORITY_OFFSET positions to beat phrases
+        val SINGLE_CHAR_PRIORITY_OFFSET = 3
+
+        val combinedWithFreq = mutableListOf<CandidateWithType>()
+        val seenInCombined = resultCandidates.toMutableSet()  // Already have abbreviations/custom
+
+        // Sort phrases by frequency first (user memory + dictionary)
+        val sortedPhrases = sortByFrequencyIfEnabled(bufferWithoutSep, phraseCandidatesRaw)
+
+        // Add phrase candidates - use position in sorted list as rank (already sorted by frequency)
+        for ((index, phrase) in sortedPhrases.withIndex()) {
+            if (phrase !in seenInCombined) {
+                // Phrase rank = position in sorted list
+                combinedWithFreq.add(CandidateWithType(phrase, true, index))
+                seenInCombined.add(phrase)
             }
         }
 
-        // Always add single-character candidates for the first syllable as fallback
-        // This ensures user can still type character-by-character even when phrases are shown
-        for (candidate in firstSyllableCharCandidates) {
-            if (candidate !in resultCandidates) {
-                resultCandidates.add(candidate)
+        // Add single-character candidates - already sorted by user memory + frequency
+        // Apply priority offset so phrases generally appear first
+        // But top user-learned characters (position < OFFSET) can still beat lower phrases
+        for ((index, char) in firstSyllableCharCandidates.withIndex()) {
+            if (char !in seenInCombined) {
+                // Single char rank = position + offset (so phrase at position 3 ties with char at position 0)
+                combinedWithFreq.add(CandidateWithType(char, false, index + SINGLE_CHAR_PRIORITY_OFFSET))
+                seenInCombined.add(char)
             }
         }
+
+        // Sort by effective rank (lower = higher priority)
+        val sortedCombined = combinedWithFreq.sortedBy { it.effectiveRank }
+
+        // Add sorted candidates to result, tracking phrase count
+        // Phrases that appear before the first single-char are counted as phrase candidates
+        var foundFirstSingleChar = false
+        var phraseCountFromSorted = 0
+        for (item in sortedCombined) {
+            resultCandidates.add(item.text)
+            if (item.isPhrase && !foundFirstSingleChar) {
+                phraseCountFromSorted++
+            } else if (!item.isPhrase) {
+                foundFirstSingleChar = true
+            }
+        }
+
+        // Build the set of phrase candidates for accurate phrase detection in selectCandidate
+        val phraseSet = mutableSetOf<String>()
+        phraseSet.addAll(phraseCandidatesRaw)
+        phraseSet.addAll(abbreviationCandidates)
+        phraseSet.addAll(customPhrases)
+        phraseCandidateSet = phraseSet
+
+        // phraseCandidateCount for compatibility (used in some places)
+        phraseCandidateCount = phraseSet.size
+
+        Log.d(TAG, "Combined sorting: ${phraseCandidatesRaw.size} phrases + ${firstSyllableCharCandidates.size} chars → sorted by frequency, phraseSet=${phraseSet.size}")
 
         allCandidates = resultCandidates
         Log.d(TAG, "Final candidates: ${allCandidates.size} (${phraseCandidateCount} phrases, ${firstSyllableCharCandidates.size} single chars for '$actualFirstSyllable')")
@@ -967,18 +1013,25 @@ class PinyinInputController(
             allCandidates = resultCandidates
             matchedPinyin = PinyinDictionary.getFirstSyllableForPrefix(cleanBuffer) ?: cleanBuffer
             firstSyllable = matchedPinyin
-            phraseCandidateCount = abbreviationCandidates.size + customPhrases.size
+            // Build phrase set for accurate detection
+            val phraseSet = mutableSetOf<String>()
+            phraseSet.addAll(abbreviationCandidates)
+            phraseSet.addAll(customPhrases)
+            phraseCandidateSet = phraseSet
+            phraseCandidateCount = phraseSet.size
             Log.d(TAG, "Prefix fallback: $cleanBuffer → ${allCandidates.size} candidates (${abbreviationCandidates.size} abbrev, ${customPhrases.size} custom)")
         } else if (resultCandidates.isNotEmpty()) {
             // Only abbreviation/custom phrases available
             allCandidates = resultCandidates
             matchedPinyin = cleanBuffer
             firstSyllable = cleanBuffer
+            phraseCandidateSet = resultCandidates.toSet()
             phraseCandidateCount = resultCandidates.size
             Log.d(TAG, "Only abbreviation/custom phrases for '$cleanBuffer': $resultCandidates")
         } else {
             allCandidates = emptyList()
             matchedPinyin = ""
+            phraseCandidateSet = emptySet()
             firstSyllable = ""
             phraseCandidateCount = 0
             Log.d(TAG, "No match for: $bufferStr")
@@ -995,12 +1048,14 @@ class PinyinInputController(
             matchedPinyin = firstSegment.pinyin
             firstSyllable = firstSegment.pinyin
             phraseCandidateCount = 0
+            phraseCandidateSet = emptySet()  // Single-char only, no phrases
             Log.d(TAG, "Single segment fallback: ${firstSegment.pinyin} → ${allCandidates.size} candidates")
         } else {
             allCandidates = emptyList()
             matchedPinyin = ""
             firstSyllable = ""
             phraseCandidateCount = 0
+            phraseCandidateSet = emptySet()
         }
     }
 

@@ -242,6 +242,15 @@ class ModifierStateController(
     }
 
     fun handleAltKeyDown(keyCode: Int): ModifierKeyHandler.ModifierKeyResult {
+        // CRITICAL: When Alt latch is active, ALWAYS process the key down to disable the latch
+        // This ensures a single press of Alt can always disable the lock, even if altPressed is stale
+        if (altLatchActive) {
+            altLatchActive = false
+            altState.lastReleaseTime = 0
+            altPressed = true
+            return ModifierKeyHandler.ModifierKeyResult(shouldUpdateStatusBar = true)
+        }
+
         if (altPressed) {
             return ModifierKeyHandler.ModifierKeyResult()
         }
@@ -287,6 +296,17 @@ class ModifierStateController(
         if (resetPressedState) {
             ctrlState.pressed = false
             ctrlState.physicallyPressed = false
+        }
+    }
+
+    /**
+     * Clears Shift state (resets state machine to NORMAL) and, when requested,
+     * resets pressed tracking to avoid leaving Shift active after pagination.
+     */
+    fun clearShiftState(resetPressedState: Boolean = false) {
+        shiftStateMachine.reset()
+        if (resetPressedState) {
+            shiftPressedFlag = false
         }
     }
 

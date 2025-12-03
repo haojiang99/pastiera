@@ -158,7 +158,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private val DOUBLE_TAP_THRESHOLD = 500L
     private val CURSOR_UPDATE_DELAY = 50L
     private val MULTI_TAP_TIMEOUT_MS = 800L
-    private val PAGINATION_DOUBLE_PRESS_THRESHOLD = 200L
+    private val PAGINATION_DOUBLE_PRESS_THRESHOLD = 250L
     private val ALT_SINGLE_CLICK_DELAY = 250L  // Delay to distinguish single from double click
 
     // Pending Alt selection for delayed single-click handling
@@ -167,6 +167,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     // Track if Alt was used for symbol input during the current press (for Juying mode)
     private var altUsedForSymbolInput: Boolean = false
+
+    // Track if Alt was used for pagination (skip normal Alt UP handling to prevent latch)
+    private var altUsedForPagination: Boolean = false
+
+    // Track if Alt latch was just disabled (ignore event meta state until next Alt press)
+    private var altLatchJustDisabled: Boolean = false
 
     // Saved state when Alt is pressed in Juying mode (instant selection with undo on double-click)
     // On Alt DOWN: immediately commit suggestion, save state for undo
@@ -1595,8 +1601,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 // UNDO: Delete the character that was committed on Alt DOWN
                 val ic = currentInputConnection
                 if (altCommittedCharacter != null && ic != null) {
-                    // First clear any composing text (remaining buffer)
-                    ic.finishComposingText()
+                    // First clear any composing text WITHOUT committing it
+                    ic.setComposingText("", 1)
                     // Delete the committed character
                     ic.deleteSurroundingText(altCommittedCharacter!!.length, 0)
                     altCommittedCharacter = null
@@ -1664,6 +1670,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
                 updateStatusBarText()
                 altLastPressTime = 0L
+                // Clear full Alt state to prevent latch from triggering on rapid double-clicks
+                modifierStateController.clearAltState(resetPressedState = true)
+                // Mark that Alt was used for pagination - skip normal Alt UP handling
+                altUsedForPagination = true
                 return true
             }
         }
@@ -1688,8 +1698,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 // UNDO: Delete the character that was committed on Alt DOWN
                 val ic = currentInputConnection
                 if (ic != null) {
-                    // First clear any composing text (remaining buffer)
-                    ic.finishComposingText()
+                    // First clear any composing text WITHOUT committing it
+                    ic.setComposingText("", 1)
                     // Delete the committed character
                     ic.deleteSurroundingText(altCommittedCharacter!!.length, 0)
                     altCommittedCharacter = null
@@ -1732,8 +1742,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 // UNDO: Delete the character that was committed on Alt DOWN
                 val ic = currentInputConnection
                 if (altCommittedCharacter != null && ic != null) {
-                    // First clear any composing text (remaining buffer)
-                    ic.finishComposingText()
+                    // First clear any composing text WITHOUT committing it
+                    ic.setComposingText("", 1)
                     // Delete the committed character
                     ic.deleteSurroundingText(altCommittedCharacter!!.length, 0)
                     altCommittedCharacter = null
@@ -1842,8 +1852,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // UNDO: Delete the character that was committed on Alt DOWN
                     val ic = currentInputConnection
                     if (altCommittedCharacter != null && ic != null) {
-                        // First clear any composing text (remaining buffer)
-                        ic.finishComposingText()
+                        // First clear any composing text WITHOUT committing it
+                        ic.setComposingText("", 1)
                         // Delete the committed character
                         ic.deleteSurroundingText(altCommittedCharacter!!.length, 0)
                         altCommittedCharacter = null
@@ -1911,6 +1921,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
                     updateStatusBarText()
                     altLastPressTime = 0L
+                    // Clear full Alt state to prevent latch from triggering on rapid double-clicks
+                    modifierStateController.clearAltState(resetPressedState = true)
+                    // Mark that Alt was used for pagination - skip normal Alt UP handling
+                    altUsedForPagination = true
                     return true
                 } else if (isDeviceAltKey(keyCode) && isChineseInputActive) {
                     // Alt pressed in Chinese mode with candidates
@@ -2208,6 +2222,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             }
                         }
                         altLastPressTime = 0L
+                        // Clear full Alt state to prevent latch from triggering on rapid double-clicks
+                        modifierStateController.clearAltState(resetPressedState = true)
+                        // Mark that Alt was used for pagination - skip normal Alt UP handling
+                        altUsedForPagination = true
                         return true
                     }
                     altLastPressTime = currentTime
@@ -2239,6 +2257,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             }
                         }
                         shiftLastPressTime = 0L
+                        // Clear full Shift state to prevent latch from triggering on rapid double-clicks
+                        modifierStateController.clearShiftState(resetPressedState = true)
                         return true
                     }
                     shiftLastPressTime = currentTime
@@ -2312,11 +2332,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
             // Commit Pinyin buffer as-is (without conversion) with plain Enter
             // Don't add space - user is typing English in Chinese mode
-            if (pinyinInputController.isPinyinMode() && !shiftPressed && !ctrlPressed && !altPressed) {
+            if (pinyinInputController.isPinyinMode() && !shiftPressed && !ctrlPressed && !altPressed && ic != null) {
                 val buffer = pinyinInputController.getBuffer()
                 if (buffer.isNotEmpty()) {
                     val committed = pinyinInputController.commitBufferAsIs()
-                    if (committed != null && ic != null) {
+                    if (committed != null) {
                         ic.commitText(committed, 1)
                         updateStatusBarText()
                         return true
@@ -2326,11 +2346,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
             // Commit Shuangpin buffer as-is (without conversion) with plain Enter
             // Don't add space - user is typing English in Chinese mode
-            if (shuangpinInputController.isShuangpinMode() && !shiftPressed && !ctrlPressed && !altPressed) {
+            if (shuangpinInputController.isShuangpinMode() && !shiftPressed && !ctrlPressed && !altPressed && ic != null) {
                 val buffer = shuangpinInputController.getBuffer()
                 if (buffer.isNotEmpty()) {
                     val committed = shuangpinInputController.commitBufferAsIs()
-                    if (committed != null && ic != null) {
+                    if (committed != null) {
                         ic.commitText(committed, 1)
                         updateStatusBarText()
                         return true
@@ -2340,11 +2360,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
             // Commit Wubi buffer as-is (without conversion) with plain Enter
             // Don't add space - user is typing English in Chinese mode
-            if (wubiInputController.isWubiMode() && !shiftPressed && !ctrlPressed && !altPressed) {
+            if (wubiInputController.isWubiMode() && !shiftPressed && !ctrlPressed && !altPressed && ic != null) {
                 val buffer = wubiInputController.getBuffer()
                 if (buffer.isNotEmpty()) {
                     val committed = wubiInputController.commitBufferAsIs()
-                    if (committed != null && ic != null) {
+                    if (committed != null) {
                         ic.commitText(committed, 1)
                         updateStatusBarText()
                         return true
@@ -2354,11 +2374,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
             // Commit Zhenma buffer as-is (without conversion) with plain Enter
             // Don't add space - user is typing English in Chinese mode
-            if (zhenmaInputController.isZhenmaMode() && !shiftPressed && !ctrlPressed && !altPressed) {
+            if (zhenmaInputController.isZhenmaMode() && !shiftPressed && !ctrlPressed && !altPressed && ic != null) {
                 val buffer = zhenmaInputController.getBuffer()
                 if (buffer.isNotEmpty()) {
                     val committed = zhenmaInputController.commitBufferAsIs()
-                    if (committed != null && ic != null) {
+                    if (committed != null) {
                         ic.commitText(committed, 1)
                         updateStatusBarText()
                         return true
@@ -2431,16 +2451,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val isAltLongPress = altHoldDuration >= longPressThreshold
             // Check multiple ways Alt might be active:
             // 1. Controller knows (altLatchActive, altOneShot, altPressed)
-            // 2. Event meta state has ALT_ON
+            // 2. Event meta state has ALT_ON (ignored if latch was just disabled to prevent stuck Alt)
             // 3. altLastPressTime > 0 (Alt key was pressed in Juying mode and we're tracking it)
-            val altFromEvent = event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
+            val altFromEvent = !altLatchJustDisabled && event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
             val altFromJuyingTracking = altLastPressTime > 0
-            if (event != null && (altLatchActive || altOneShot || altPressed || altFromEvent || altFromJuyingTracking)) {
+            // Skip Alt handling if latch was just disabled (user wants to stop using Alt)
+            val shouldSkipAltHandling = altLatchJustDisabled && !altLatchActive && !altOneShot
+            if (event != null && !shouldSkipAltHandling && (altLatchActive || altOneShot || altPressed || altFromEvent || altFromJuyingTracking)) {
                 // Get the character with Alt modifier applied
                 val altChar = event.getUnicodeChar(KeyEvent.META_ALT_ON)
                 // Only proceed if we get a valid alternate character that's different from the normal one
                 if (altChar != 0 && altChar != event.unicodeChar) {
-                    // In Juying mode, always clear buffer/predictions and set flags when Alt symbol is about to be committed
+                    // Clear buffer/predictions when Alt symbol is about to be committed
+                    // This prevents pinyin from becoming English text in the input
                     if (juyingModeEnabled) {
                         pinyinInputController.clearBuffer()
                         pinyinInputController.clearNextWordPredictions()
@@ -2455,13 +2478,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         pendingAltSelectionRunnable?.let { mainHandler.removeCallbacks(it) }
                         pendingAltSelectionRunnable = null
                     } else {
-                        // Non-Juying mode: Commit any existing buffer first (normal behavior)
+                        // Non-Juying mode: Clear buffer instead of committing as English
+                        // When user presses Alt+key for symbol, they want to cancel pinyin input
                         val buffer = pinyinInputController.getBuffer()
                         if (buffer.isNotEmpty()) {
-                            val committed = pinyinInputController.commitBufferAsIs()
-                            if (committed != null) {
-                                ic.commitText(committed, 1)
-                            }
+                            pinyinInputController.clearBuffer()
+                            pinyinInputController.clearNextWordPredictions()
+                            ic.finishComposingText()  // Remove composing text without committing
                         }
                     }
 
@@ -2511,12 +2534,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
 
                     // Handle Alt state clearing based on mode
-                    if (isAltLongPress && juyingModeEnabled) {
+                    // In Juying mode with long-press, OR in non-Juying mode with suggestions visible,
+                    // clear all Alt state (including latch) - this prevents Alt getting stuck
+                    val shouldClearAllAltState = (isAltLongPress && juyingModeEnabled) ||
+                        (!juyingModeEnabled && hasCandidatesToPaginate && altLatchActive)
+                    if (shouldClearAllAltState) {
                         modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
                         altLastPressTime = 0L  // Reset timing state
+                        altLatchJustDisabled = true
                     } else if (altOneShot && !altLatchActive) {
                         // Only clear Alt state if it's one-shot mode, keep it if latched (double-click locked)
                         modifierStateController.clearAltState(resetPressedState = false)
+                    }
+
+                    // If Chinese punctuation was committed while Alt is held (not latch),
+                    // set flag to prevent stale event meta state from keeping Alt active
+                    if (chinesePunctuation != null && !altLatchActive && !shouldClearAllAltState) {
+                        altLatchJustDisabled = true
                     }
 
                     updateStatusBarText()
@@ -2541,6 +2575,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
                         // Clear Alt modifier (including latch state from double-tap)
                         modifierStateController.clearAltState(resetPressedState = true)
+                        altUsedForPagination = false
+                        altLastPressTime = 0L
 
                         updateStatusBarText()
                         return true
@@ -2564,6 +2600,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
                             // Clear Alt modifier (including latch state from double-tap)
                             modifierStateController.clearAltState(resetPressedState = true)
+                            altUsedForPagination = false
+                            altLastPressTime = 0L
 
                             updateStatusBarText()
                             return true
@@ -2636,6 +2674,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     updateStatusBarText()
                     return true
                 }
+            }
+
+            // Handle space key when no candidates and empty buffer - just insert a space
+            if (keyCode == KeyEvent.KEYCODE_SPACE && !pinyinInputController.hasCandidates() && pinyinInputController.getBuffer().isEmpty()) {
+                ic.commitText(" ", 1)
+                return true
             }
 
             // Handle letter and symbol keys
@@ -2782,9 +2826,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val altHoldDurationShuangpin = if (altLastPressTime > 0) currentTimeShuangpin - altLastPressTime else 0L
             val isAltLongPressShuangpin = altHoldDurationShuangpin >= longPressThresholdShuangpin
             // Check multiple ways Alt might be active
-            val altFromEventShuangpin = event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
+            val altFromEventShuangpin = !altLatchJustDisabled && event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
             val altFromJuyingTrackingShuangpin = altLastPressTime > 0
-            if (event != null && (altLatchActive || altOneShot || altPressed || altFromEventShuangpin || altFromJuyingTrackingShuangpin)) {
+            // Skip Alt handling if latch was just disabled (user wants to stop using Alt)
+            val shouldSkipAltHandlingShuangpin = altLatchJustDisabled && !altLatchActive && !altOneShot
+            if (event != null && !shouldSkipAltHandlingShuangpin && (altLatchActive || altOneShot || altPressed || altFromEventShuangpin || altFromJuyingTrackingShuangpin)) {
                 val altChar = event.getUnicodeChar(KeyEvent.META_ALT_ON)
                 if (altChar != 0 && altChar != event.unicodeChar) {
                     // In Juying mode, always clear buffer/predictions and set flags when Alt symbol is about to be committed
@@ -2802,13 +2848,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         pendingAltSelectionRunnable?.let { mainHandler.removeCallbacks(it) }
                         pendingAltSelectionRunnable = null
                     } else {
-                        // Non-Juying mode: Commit any existing buffer first (normal behavior)
+                        // Non-Juying mode: Clear buffer instead of committing as English
+                        // When user presses Alt+key for symbol, they want to cancel input
                         val buffer = shuangpinInputController.getBuffer()
                         if (buffer.isNotEmpty()) {
-                            val committed = shuangpinInputController.commitBufferAsIs()
-                            if (committed != null) {
-                                ic.commitText(committed, 1)
-                            }
+                            shuangpinInputController.clearBuffer()
+                            shuangpinInputController.clearNextWordPredictions()
+                            ic.finishComposingText()  // Remove composing text without committing
                         }
                     }
 
@@ -2857,11 +2903,22 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
 
                     // Handle Alt state clearing based on mode
-                    if (isAltLongPressShuangpin && juyingModeEnabled) {
+                    // In Juying mode with long-press, OR in non-Juying mode with suggestions visible,
+                    // clear all Alt state (including latch) - this prevents Alt getting stuck
+                    val shouldClearAllAltStateShuangpin = (isAltLongPressShuangpin && juyingModeEnabled) ||
+                        (!juyingModeEnabled && hasCandidatesToPaginate && altLatchActive)
+                    if (shouldClearAllAltStateShuangpin) {
                         modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
                         altLastPressTime = 0L  // Reset timing state
+                        altLatchJustDisabled = true
                     } else if (altOneShot && !altLatchActive) {
                         modifierStateController.clearAltState(resetPressedState = false)
+                    }
+
+                    // If Chinese punctuation was committed while Alt is held (not latch),
+                    // set flag to prevent stale event meta state from keeping Alt active
+                    if (chinesePunctuation != null && !altLatchActive && !shouldClearAllAltStateShuangpin) {
+                        altLatchJustDisabled = true
                     }
 
                     updateStatusBarText()
@@ -2883,6 +2940,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         }
 
                         modifierStateController.clearAltState(resetPressedState = true)
+                        altUsedForPagination = false
+                        altLastPressTime = 0L
                         updateStatusBarText()
                         return true
                     }
@@ -2903,6 +2962,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             }
 
                             modifierStateController.clearAltState(resetPressedState = true)
+                            altUsedForPagination = false
+                            altLastPressTime = 0L
                             updateStatusBarText()
                             return true
                         }
@@ -2971,6 +3032,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     updateStatusBarText()
                     return true
                 }
+            }
+
+            // Handle space key when no candidates and empty buffer - just insert a space
+            if (keyCode == KeyEvent.KEYCODE_SPACE && !shuangpinInputController.hasCandidates() && shuangpinInputController.getBuffer().isEmpty()) {
+                ic.commitText(" ", 1)
+                return true
             }
 
             // Handle letter keys for Shuangpin input
@@ -3098,9 +3165,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val altHoldDurationWubi = if (altLastPressTime > 0) currentTimeWubi - altLastPressTime else 0L
             val isAltLongPressWubi = altHoldDurationWubi >= longPressThresholdWubi
             // Check multiple ways Alt might be active
-            val altFromEventWubi = event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
+            val altFromEventWubi = !altLatchJustDisabled && event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
             val altFromJuyingTrackingWubi = altLastPressTime > 0
-            if (event != null && (altLatchActive || altOneShot || altPressed || altFromEventWubi || altFromJuyingTrackingWubi)) {
+            // Skip Alt handling if latch was just disabled (user wants to stop using Alt)
+            val shouldSkipAltHandlingWubi = altLatchJustDisabled && !altLatchActive && !altOneShot
+            if (event != null && !shouldSkipAltHandlingWubi && (altLatchActive || altOneShot || altPressed || altFromEventWubi || altFromJuyingTrackingWubi)) {
                 // Get the character with Alt modifier applied
                 val altChar = event.getUnicodeChar(KeyEvent.META_ALT_ON)
                 // Only proceed if we get a valid alternate character that's different from the normal one
@@ -3120,13 +3189,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         pendingAltSelectionRunnable?.let { mainHandler.removeCallbacks(it) }
                         pendingAltSelectionRunnable = null
                     } else {
-                        // Non-Juying mode: Commit any existing buffer first (normal behavior)
+                        // Non-Juying mode: Clear buffer instead of committing as English
+                        // When user presses Alt+key for symbol, they want to cancel input
                         val buffer = wubiInputController.getBuffer()
                         if (buffer.isNotEmpty()) {
-                            val committed = wubiInputController.commitBufferAsIs()
-                            if (committed != null) {
-                                ic.commitText(committed, 1)
-                            }
+                            wubiInputController.clearBuffer()
+                            wubiInputController.clearNextWordPredictions()
+                            ic.finishComposingText()  // Remove composing text without committing
                         }
                     }
 
@@ -3176,12 +3245,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
 
                     // Handle Alt state clearing based on mode
-                    if (isAltLongPressWubi && juyingModeEnabled) {
+                    // In Juying mode with long-press, OR in non-Juying mode with suggestions visible,
+                    // clear all Alt state (including latch) - this prevents Alt getting stuck
+                    val shouldClearAllAltStateWubi = (isAltLongPressWubi && juyingModeEnabled) ||
+                        (!juyingModeEnabled && hasCandidatesToPaginate && altLatchActive)
+                    if (shouldClearAllAltStateWubi) {
                         modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
                         altLastPressTime = 0L  // Reset timing state
+                        altLatchJustDisabled = true
                     } else if (altOneShot && !altLatchActive) {
                         // Only clear Alt state if it's one-shot mode, keep it if latched (double-click locked)
                         modifierStateController.clearAltState(resetPressedState = false)
+                    }
+
+                    // If Chinese punctuation was committed while Alt is held (not latch),
+                    // set flag to prevent stale event meta state from keeping Alt active
+                    if (chinesePunctuation != null && !altLatchActive && !shouldClearAllAltStateWubi) {
+                        altLatchJustDisabled = true
                     }
 
                     updateStatusBarText()
@@ -3198,6 +3278,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.commitText(selected, 1)
                         // Clear Alt modifier (including latch state from double-tap)
                         modifierStateController.clearAltState(resetPressedState = true)
+                        altUsedForPagination = false
+                        altLastPressTime = 0L
                         updateStatusBarText()
                         return true
                     }
@@ -3212,6 +3294,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         if (selected != null) {
                             ic.commitText(selected, 1)
                             modifierStateController.clearAltState(resetPressedState = true)
+                            altUsedForPagination = false
+                            altLastPressTime = 0L
                             updateStatusBarText()
                             return true
                         }
@@ -3275,6 +3359,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     updateStatusBarText()
                     return true
                 }
+            }
+
+            // Handle space key when no candidates and empty buffer - just insert a space
+            if (keyCode == KeyEvent.KEYCODE_SPACE && !wubiInputController.hasCandidates() && wubiInputController.getBuffer().isEmpty()) {
+                ic.commitText(" ", 1)
+                return true
             }
 
             // Handle letter keys for Wubi code input
@@ -3407,9 +3497,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val altHoldDurationZhenma = if (altLastPressTime > 0) currentTimeZhenma - altLastPressTime else 0L
             val isAltLongPressZhenma = altHoldDurationZhenma >= longPressThresholdZhenma
             // Check multiple ways Alt might be active
-            val altFromEventZhenma = event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
+            val altFromEventZhenma = !altLatchJustDisabled && event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
             val altFromJuyingTrackingZhenma = altLastPressTime > 0
-            if (event != null && (altLatchActive || altOneShot || altPressed || altFromEventZhenma || altFromJuyingTrackingZhenma)) {
+            // Skip Alt handling if latch was just disabled (user wants to stop using Alt)
+            val shouldSkipAltHandlingZhenma = altLatchJustDisabled && !altLatchActive && !altOneShot
+            if (event != null && !shouldSkipAltHandlingZhenma && (altLatchActive || altOneShot || altPressed || altFromEventZhenma || altFromJuyingTrackingZhenma)) {
                 // Get the character with Alt modifier applied
                 val altChar = event.getUnicodeChar(KeyEvent.META_ALT_ON)
                 // Only proceed if we get a valid alternate character that's different from the normal one
@@ -3429,13 +3521,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         pendingAltSelectionRunnable?.let { mainHandler.removeCallbacks(it) }
                         pendingAltSelectionRunnable = null
                     } else {
-                        // Non-Juying mode: Commit any existing buffer first (normal behavior)
+                        // Non-Juying mode: Clear buffer instead of committing as English
+                        // When user presses Alt+key for symbol, they want to cancel input
                         val buffer = zhenmaInputController.getBuffer()
                         if (buffer.isNotEmpty()) {
-                            val committed = zhenmaInputController.commitBufferAsIs()
-                            if (committed != null) {
-                                ic.commitText(committed, 1)
-                            }
+                            zhenmaInputController.clearBuffer()
+                            zhenmaInputController.clearNextWordPredictions()
+                            ic.finishComposingText()  // Remove composing text without committing
                         }
                     }
 
@@ -3485,12 +3577,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
 
                     // Handle Alt state clearing based on mode
-                    if (isAltLongPressZhenma && juyingModeEnabled) {
+                    // In Juying mode with long-press, OR in non-Juying mode with suggestions visible,
+                    // clear all Alt state (including latch) - this prevents Alt getting stuck
+                    val shouldClearAllAltStateZhenma = (isAltLongPressZhenma && juyingModeEnabled) ||
+                        (!juyingModeEnabled && hasCandidatesToPaginate && altLatchActive)
+                    if (shouldClearAllAltStateZhenma) {
                         modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
                         altLastPressTime = 0L  // Reset timing state
+                        altLatchJustDisabled = true
                     } else if (altOneShot && !altLatchActive) {
                         // Only clear Alt state if it's one-shot mode, keep it if latched (double-click locked)
                         modifierStateController.clearAltState(resetPressedState = false)
+                    }
+
+                    // If Chinese punctuation was committed while Alt is held (not latch),
+                    // set flag to prevent stale event meta state from keeping Alt active
+                    if (chinesePunctuation != null && !altLatchActive && !shouldClearAllAltStateZhenma) {
+                        altLatchJustDisabled = true
                     }
 
                     updateStatusBarText()
@@ -3507,6 +3610,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.commitText(selected, 1)
                         // Clear Alt modifier (including latch state from double-tap)
                         modifierStateController.clearAltState(resetPressedState = true)
+                        altUsedForPagination = false
+                        altLastPressTime = 0L
                         updateStatusBarText()
                         return true
                     }
@@ -3521,6 +3626,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         if (selected != null) {
                             ic.commitText(selected, 1)
                             modifierStateController.clearAltState(resetPressedState = true)
+                            altUsedForPagination = false
+                            altLastPressTime = 0L
                             updateStatusBarText()
                             return true
                         }
@@ -3584,6 +3691,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     updateStatusBarText()
                     return true
                 }
+            }
+
+            // Handle space key when no candidates and empty buffer - just insert a space
+            if (keyCode == KeyEvent.KEYCODE_SPACE && !zhenmaInputController.hasCandidates() && zhenmaInputController.getBuffer().isEmpty()) {
+                ic.commitText(" ", 1)
+                return true
             }
 
             // Handle letter keys for Zhenma code input
@@ -3728,7 +3841,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 shiftOneShot = shiftOneShot,
                 capsLockEnabled = capsLockEnabled,
                 cursorUpdateDelayMs = CURSOR_UPDATE_DELAY,
-                juyingModeShouldInterceptAlt = juyingModeShouldInterceptAlt
+                juyingModeShouldInterceptAlt = juyingModeShouldInterceptAlt,
+                altLatchJustDisabled = altLatchJustDisabled,
+                hasSuggestionsVisible = hasCandidatesToPaginate,
+                juyingModeEnabled = juyingModeEnabled
             ),
             controllers = InputEventRouter.EditableFieldKeyDownControllers(
                 modifierStateController = modifierStateController,
@@ -3761,7 +3877,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         false
                     }
                 },
-                isLongPressSuppressed = { code -> multiTapController.isLongPressSuppressed(code) }
+                isLongPressSuppressed = { code -> multiTapController.isLongPressSuppressed(code) },
+                onAltLatchDisabled = { altLatchJustDisabled = true },
+                clearAltLatchJustDisabled = { altLatchJustDisabled = false }
             )
         )
 
@@ -3947,6 +4065,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Handle Alt release for double-tap
         if (isDeviceAltKey(keyCode)) {
+            // If Alt was used for pagination, skip normal handling to prevent latch
+            if (altUsedForPagination) {
+                altUsedForPagination = false
+                altPressed = false
+                return super.onKeyUp(keyCode, event)
+            }
             if (altPressed) {
                 val result = modifierStateController.handleAltKeyUp(translatedKeyCode)
                 if (result.shouldUpdateStatusBar) {

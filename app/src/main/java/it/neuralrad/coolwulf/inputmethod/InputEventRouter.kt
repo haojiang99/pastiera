@@ -177,7 +177,10 @@ class InputEventRouter(
         val shiftOneShot: Boolean,
         val capsLockEnabled: Boolean,
         val cursorUpdateDelayMs: Long,
-        val juyingModeShouldInterceptAlt: Boolean = false // True when Juying mode should intercept Alt key
+        val juyingModeShouldInterceptAlt: Boolean = false, // True when Juying mode should intercept Alt key
+        val altLatchJustDisabled: Boolean = false, // True when Alt latch was just disabled (ignore event meta state)
+        val hasSuggestionsVisible: Boolean = false, // True when suggestions/predictions are visible (prevent Alt latch in non-Juying mode)
+        val juyingModeEnabled: Boolean = false // True when Juying mode is enabled
     )
 
     data class EditableFieldKeyDownControllers(
@@ -200,7 +203,9 @@ class InputEventRouter(
         val startSpeechRecognition: () -> Unit,
         val getMapping: (Int) -> LayoutMapping?,
         val handleMultiTapCommit: (Int, LayoutMapping, Boolean, InputConnection?, Boolean) -> Boolean,
-        val isLongPressSuppressed: (Int) -> Boolean
+        val isLongPressSuppressed: (Int) -> Boolean,
+        val onAltLatchDisabled: () -> Unit,
+        val clearAltLatchJustDisabled: () -> Unit
     )
 
     fun routeEditableFieldKeyDown(
@@ -278,8 +283,28 @@ class InputEventRouter(
                     callbacks.updateStatusBar()
                 }
             }
-            if (!params.altPressed) {
+            // CRITICAL: Always route Alt key handling when latch is active (to allow disabling it)
+            // Also route when altPressed is false (normal case)
+            if (!params.altPressed || params.altLatchActive) {
+                // Track if latch was active before handling Alt key
+                val wasLatchActive = params.altLatchActive
                 val result = controllers.modifierStateController.handleAltKeyDown(keyCode)
+
+                // In non-Juying mode with suggestions visible, prevent Alt latch
+                // Only allow one-shot mode for symbol input, not latch
+                val preventLatch = params.hasSuggestionsVisible && !params.juyingModeEnabled
+                if (preventLatch && controllers.modifierStateController.altLatchActive) {
+                    // Latch was just enabled but we want to prevent it - disable latch, keep one-shot
+                    controllers.modifierStateController.altLatchActive = false
+                    controllers.modifierStateController.altOneShot = true
+                    callbacks.onAltLatchDisabled()
+                } else if (wasLatchActive && !controllers.modifierStateController.altLatchActive) {
+                    // Check if latch was just disabled (was active, now not)
+                    callbacks.onAltLatchDisabled()
+                } else if (!wasLatchActive && !preventLatch) {
+                    // User pressing Alt to enter one-shot or latch - clear the just-disabled flag
+                    callbacks.clearAltLatchJustDisabled()
+                }
                 if (result.shouldUpdateStatusBar) {
                     callbacks.updateStatusBar()
                 }
@@ -338,7 +363,9 @@ class InputEventRouter(
             return EditableFieldRoutingResult.Consume
         }
 
-        if (event?.isAltPressed == true || altLatchActive || altOneShotActive) {
+        // Check event Alt state only if latch wasn't just disabled (to prevent stuck Alt from system meta state)
+        val altFromEvent = !params.altLatchJustDisabled && event?.isAltPressed == true
+        if (altFromEvent || altLatchActive || altOneShotActive) {
             controllers.altSymManager.cancelPendingLongPress(keyCode)
             if (altOneShotActive) {
                 callbacks.clearAltOneShot()
@@ -347,7 +374,13 @@ class InputEventRouter(
             }
 
             // Allow DEL (backspace) and BACK keys to work normally even when Alt is active/latched
+            // Also cancel Alt latch when DEL is pressed (user wants to delete, not use Alt symbols)
             if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_DEL) {
+                if (altLatchActive) {
+                    controllers.modifierStateController.altLatchActive = false
+                    callbacks.onAltLatchDisabled()
+                    callbacks.updateStatusBar()
+                }
                 return EditableFieldRoutingResult.CallSuper
             }
 
@@ -361,6 +394,13 @@ class InputEventRouter(
                     callSuperWithKey = callbacks.callSuperWithKey
                 )
             ) {
+                // In non-Juying mode with suggestions visible, clear Alt latch after symbol input
+                // This mirrors Juying mode behavior where altUsedForSymbolInput clears Alt state
+                if (altLatchActive && params.hasSuggestionsVisible && !params.juyingModeEnabled) {
+                    controllers.modifierStateController.clearAltState(resetPressedState = true)
+                    callbacks.onAltLatchDisabled()
+                    callbacks.updateStatusBar()
+                }
                 return EditableFieldRoutingResult.Consume
             }
         }
