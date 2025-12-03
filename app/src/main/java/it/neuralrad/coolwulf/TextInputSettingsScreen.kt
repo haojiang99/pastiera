@@ -10,6 +10,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -117,6 +118,10 @@ fun TextInputSettingsScreen(
 
     var memoryFunctionEnabled by remember {
         mutableStateOf(SettingsManager.getMemoryFunctionEnabled(context))
+    }
+
+    var shiftAltSwapped by remember {
+        mutableStateOf(SettingsManager.getShiftAltSwapped(context))
     }
 
     var showJuyingKeyDialog by remember { mutableStateOf(false) }
@@ -924,6 +929,49 @@ fun TextInputSettingsScreen(
 
                 // Juying key configuration (only show when Juying mode is enabled)
                 if (juyingModeEnabled) {
+                    // Shift/Alt swap toggle (Titan 2 specific)
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(72.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.SwapHoriz,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.shift_alt_swap_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = stringResource(R.string.shift_alt_swap_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2
+                                )
+                            }
+                            Switch(
+                                checked = shiftAltSwapped,
+                                onCheckedChange = { swapped ->
+                                    shiftAltSwapped = swapped
+                                    SettingsManager.setShiftAltSwapped(context, swapped)
+                                }
+                            )
+                        }
+                    }
+
                     // Key 1-5 configuration rows
                     for (keyIndex in 1..5) {
                         val keyCode = juyingKeys.getOrElse(keyIndex - 1) { 0 }

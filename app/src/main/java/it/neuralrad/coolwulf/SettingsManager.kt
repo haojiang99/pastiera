@@ -63,6 +63,7 @@ object SettingsManager {
     private const val KEY_JUYING_KEY_4 = "juying_key_4" // Fourth Juying key (default: Fn)
     private const val KEY_JUYING_KEY_5 = "juying_key_5" // Fifth Juying key (default: Alt)
     private const val KEY_MEMORY_FUNCTION_ENABLED = "memory_function_enabled" // Enable memory function to reorder candidates by selection frequency
+    private const val KEY_SHIFT_ALT_SWAPPED = "shift_alt_swapped" // Titan 2: Shift and Alt buttons are swapped (Alt is 1st, Shift is 5th)
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -102,6 +103,7 @@ object SettingsManager {
     private const val DEFAULT_SHOW_CLIPBOARD_BUTTON = true
     private const val DEFAULT_JUYING_MODE_ENABLED = false
     private const val DEFAULT_MEMORY_FUNCTION_ENABLED = true  // Memory function enabled by default
+    private const val DEFAULT_SHIFT_ALT_SWAPPED = false  // Shift and Alt buttons are not swapped by default
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
@@ -1297,6 +1299,25 @@ object SettingsManager {
     fun setMemoryFunctionEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_MEMORY_FUNCTION_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets whether Shift and Alt buttons are swapped (for Titan 2).
+     * When enabled, the physical Alt button (1st position) sends Shift keycode,
+     * and the physical Shift button (5th position) sends Alt keycode.
+     * This affects Juying mode candidate selection: Alt selects 1st candidate, Shift selects 5th.
+     */
+    fun getShiftAltSwapped(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SHIFT_ALT_SWAPPED, DEFAULT_SHIFT_ALT_SWAPPED)
+    }
+
+    /**
+     * Sets whether Shift and Alt buttons are swapped.
+     */
+    fun setShiftAltSwapped(context: Context, swapped: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SHIFT_ALT_SWAPPED, swapped)
             .apply()
     }
 

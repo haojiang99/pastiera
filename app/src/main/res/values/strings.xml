@@ -106,6 +106,8 @@
     <string name="juying_key_5">Key 5 (Candidate 5)</string>
     <string name="juying_reset_keys">Reset to Default Keys</string>
     <string name="juying_press_key">Press a key…</string>
+    <string name="shift_alt_swap_title">Swap Shift/Alt Buttons</string>
+    <string name="shift_alt_swap_description">Enable if your Titan 2 has Shift and Alt buttons swapped. Alt becomes 1st key and Shift becomes 5th key for candidate selection.</string>
 
     <!-- Default Input Mode -->
     <string name="default_input_mode_title">Default Input Mode</string>

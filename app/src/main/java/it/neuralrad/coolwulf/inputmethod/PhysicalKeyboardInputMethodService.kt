@@ -1783,10 +1783,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // This handles cases where RIGHT variants (e.g., KEYCODE_ALT_RIGHT) are pressed
             // but the Juying keys list only contains LEFT variants
             if (juyingCandidateIndex < 0) {
+                // Check if Shift/Alt are swapped (Alt is 1st button, Shift is 5th button)
+                val shiftAltSwapped = SettingsManager.getShiftAltSwapped(this)
                 when {
-                    isDeviceShiftKey(keyCode) -> juyingCandidateIndex = 0  // Shift is 1st key (index 0)
+                    isDeviceShiftKey(keyCode) -> juyingCandidateIndex = if (shiftAltSwapped) 4 else 0  // Shift is 1st or 5th key
                     isDeviceCtrlKey(keyCode) -> juyingCandidateIndex = 3   // Ctrl is 4th key (index 3)
-                    isDeviceAltKey(keyCode) -> juyingCandidateIndex = 4    // Alt is 5th key (index 4)
+                    isDeviceAltKey(keyCode) -> juyingCandidateIndex = if (shiftAltSwapped) 0 else 4    // Alt is 5th or 1st key
                 }
             }
 
@@ -4003,10 +4005,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // Fallback: Check modifier keys using device-specific detection
             // This handles cases where RIGHT variants (e.g., KEYCODE_ALT_RIGHT) are pressed
             if (juyingCandidateIndex < 0) {
+                // Check if Shift/Alt are swapped (Alt is 1st button, Shift is 5th button)
+                val shiftAltSwapped = SettingsManager.getShiftAltSwapped(this)
                 when {
-                    isDeviceShiftKey(keyCode) -> juyingCandidateIndex = 0  // Shift is 1st key (index 0)
+                    isDeviceShiftKey(keyCode) -> juyingCandidateIndex = if (shiftAltSwapped) 4 else 0  // Shift is 1st or 5th key
                     isDeviceCtrlKey(keyCode) -> juyingCandidateIndex = 3   // Ctrl is 4th key (index 3)
-                    isDeviceAltKey(keyCode) -> juyingCandidateIndex = 4    // Alt is 5th key (index 4)
+                    isDeviceAltKey(keyCode) -> juyingCandidateIndex = if (shiftAltSwapped) 0 else 4    // Alt is 5th or 1st key
                 }
             }
 
