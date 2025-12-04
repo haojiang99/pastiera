@@ -290,7 +290,9 @@ class PinyinInputController(
 
         // Determine which pinyin to consume based on candidate type
         // Use phraseCandidateSet for accurate phrase detection in mixed-sorted lists
-        val isPhrase = selected in phraseCandidateSet
+        // ALSO check if the selected string has multiple characters (length > 1) to catch phrases
+        // that may have come from user learning/memory but aren't in phraseCandidateSet
+        val isPhrase = (selected in phraseCandidateSet) || (selected.length > 1)
         val pinyinToConsume: String
 
         if (isPhrase) {
