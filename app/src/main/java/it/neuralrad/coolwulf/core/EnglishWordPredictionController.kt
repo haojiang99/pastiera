@@ -244,18 +244,12 @@ class EnglishWordPredictionController(
     fun selectSuggestion(index: Int): SelectionResult? {
         val currentPageSuggestions = getCurrentPageSuggestions()
 
-        // Display layout: [left/Shift, middle/Sym, right/Ctrl] = [2nd, best, 3rd]
-        // Input index: 0=Shift(left), 1=Sym(middle), 2=Ctrl(right)
-        // Map display position to underlying suggestion index:
-        // - Shift(0) picks left display = 2nd best = underlying index 1
-        // - Sym(1) picks middle display = best = underlying index 0
-        // - Ctrl(2) picks right display = 3rd best = underlying index 2
-        val underlyingIndex = when (index) {
-            0 -> 1  // Shift -> 2nd best (index 1)
-            1 -> 0  // Sym -> best (index 0)
-            2 -> 2  // Ctrl -> 3rd best (index 2)
-            else -> index
-        }
+        // Input index: 0=Shift, 1=Sym, 2=Ctrl
+        // Map key to underlying suggestion index:
+        // - Shift(0) picks best = underlying index 0
+        // - Sym(1) picks 2nd best = underlying index 1
+        // - Ctrl(2) picks 3rd best = underlying index 2
+        val underlyingIndex = index  // Direct mapping: Shift->0, Sym->1, Ctrl->2
 
         if (underlyingIndex < 0 || underlyingIndex >= currentPageSuggestions.size) {
             return null
@@ -431,15 +425,12 @@ class EnglishWordPredictionController(
         }
 
         // Always show exactly 3 suggestion slots: [left/Shift, middle/Sym, right/Ctrl]
-        // Layout depends on how many suggestions we have:
-        // - 1 suggestion: ["", best, ""] - best in middle (Sym)
-        // - 2 suggestions: [2nd, best, ""] - best in middle (Sym), 2nd on left (Shift)
-        // - 3+ suggestions: [2nd, best, 3rd] - best in middle (Sym), 2nd on left (Shift), 3rd on right (Ctrl)
+        // Layout: [best, 2nd, 3rd] - best on left (Shift), 2nd in middle (Sym), 3rd on right (Ctrl)
         val finalSuggestions = when (casedSuggestions.size) {
             0 -> listOf("", "", "")
-            1 -> listOf("", casedSuggestions[0], "")  // Best in middle
-            2 -> listOf(casedSuggestions[1], casedSuggestions[0], "")  // Best in middle, 2nd on left
-            else -> listOf(casedSuggestions[1], casedSuggestions[0], casedSuggestions[2])  // Best in middle, 2nd on left, 3rd on right
+            1 -> listOf(casedSuggestions[0], "", "")  // Best on left
+            2 -> listOf(casedSuggestions[0], casedSuggestions[1], "")  // Best on left, 2nd in middle
+            else -> listOf(casedSuggestions[0], casedSuggestions[1], casedSuggestions[2])  // Best on left, 2nd in middle, 3rd on right
         }
 
         val totalPages = getTotalPages()
