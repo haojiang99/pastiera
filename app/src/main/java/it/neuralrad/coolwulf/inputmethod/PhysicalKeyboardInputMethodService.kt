@@ -2270,10 +2270,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                         pinyinInputController.clearBuffer()
                                         remainingBuffer = ""
                                     }
-                                    ic.finishComposingText()
-                                    if (bufferLengthBeforeSelect > 0) {
-                                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
-                                    }
+                                    // Clear composing text first, then commit - this avoids race conditions
+                                    // where finishComposingText commits the pinyin and deleteSurroundingText
+                                    // may not work properly in some apps
+                                    ic.setComposingText("", 1)
                                     ic.commitText(selected, 1)
                                     // Set remaining buffer as composing text (e.g., 'wode' -> '我' + 'de' underlined)
                                     if (remainingBuffer.isNotEmpty()) {
@@ -2291,10 +2291,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                         shuangpinInputController.clearBuffer()
                                         remainingBuffer = ""
                                     }
-                                    ic.finishComposingText()
-                                    if (bufferLengthBeforeSelect > 0) {
-                                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
-                                    }
+                                    // Clear composing text first, then commit
+                                    ic.setComposingText("", 1)
                                     ic.commitText(selected, 1)
                                     if (remainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(remainingBuffer, 1)
@@ -2311,10 +2309,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                         wubiInputController.clearBuffer()
                                         remainingBuffer = ""
                                     }
-                                    ic.finishComposingText()
-                                    if (bufferLengthBeforeSelect > 0) {
-                                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
-                                    }
+                                    // Clear composing text first, then commit
+                                    ic.setComposingText("", 1)
                                     ic.commitText(selected, 1)
                                     if (remainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(remainingBuffer, 1)
@@ -2331,10 +2327,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                         zhenmaInputController.clearBuffer()
                                         remainingBuffer = ""
                                     }
-                                    ic.finishComposingText()
-                                    if (bufferLengthBeforeSelect > 0) {
-                                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
-                                    }
+                                    // Clear composing text first, then commit
+                                    ic.setComposingText("", 1)
                                     ic.commitText(selected, 1)
                                     if (remainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(remainingBuffer, 1)
@@ -2976,11 +2970,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         pinyinInputController.clearBuffer()
                         remainingBuffer = ""
                     }
-                    // Delete the full original buffer and commit Chinese
-                    ic.finishComposingText()
-                    if (bufferLengthBeforeSelect > 0) {
-                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
-                    }
+                    // Clear composing text first, then commit - avoids race conditions in some apps
+                    ic.setComposingText("", 1)
                     ic.commitText(selected, 1)
                     if (remainingBuffer.isNotEmpty()) {
                         ic.setComposingText(remainingBuffer, 1)
@@ -3419,10 +3410,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         shuangpinInputController.clearBuffer()
                         remainingBuffer = ""
                     }
-                    ic.finishComposingText()
-                    if (bufferLengthBeforeSelect > 0) {
-                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
-                    }
+                    // Clear composing text first, then commit - avoids race conditions in some apps
+                    ic.setComposingText("", 1)
                     ic.commitText(selected, 1)
                     if (remainingBuffer.isNotEmpty()) {
                         ic.setComposingText(remainingBuffer, 1)
@@ -4055,10 +4044,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         wubiInputController.clearBuffer()
                         remainingBuffer = ""
                     }
-                    ic.finishComposingText()
-                    if (bufferLengthBeforeSelect > 0) {
-                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
-                    }
+                    // Clear composing text first, then commit - avoids race conditions in some apps
+                    ic.setComposingText("", 1)
                     ic.commitText(selected, 1)
                     if (remainingBuffer.isNotEmpty()) {
                         ic.setComposingText(remainingBuffer, 1)
@@ -4473,10 +4460,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         zhenmaInputController.clearBuffer()
                         remainingBuffer = ""
                     }
-                    ic.finishComposingText()
-                    if (bufferLengthBeforeSelect > 0) {
-                        ic.deleteSurroundingText(bufferLengthBeforeSelect, 0)
-                    }
+                    // Clear composing text first, then commit - avoids race conditions in some apps
+                    ic.setComposingText("", 1)
                     ic.commitText(selected, 1)
                     if (remainingBuffer.isNotEmpty()) {
                         ic.setComposingText(remainingBuffer, 1)
