@@ -1924,19 +1924,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (isChineseNoCandidate) {
                 // No Chinese candidates - don't use any keys for Juying selection, let them work normally
                 juyingCandidateIndex = -1
-            } else if (isEnglishNextWordMode && (juyingCandidateIndex == 2 || juyingCandidateIndex == 4)) {
-                // Space or Alt key pressed when showing NEXT-WORD predictions - don't use for Juying selection
-                // But allow Shift to select 1st prediction (index 0 remains valid for Juying selection)
-                juyingCandidateIndex = -1
-            } else if (isEnglishOnlyMode && (juyingCandidateIndex == 2 || juyingCandidateIndex == 4)) {
-                // Space or Alt key pressed in English mode (prefix-based predictions) - don't use for Juying selection
+            } else if (isEnglishOnlyMode && (juyingCandidateIndex == 0 || juyingCandidateIndex == 2 || juyingCandidateIndex == 4)) {
+                // English mode: Skip Shift(0), Space(2), Alt(4) for Juying selection
+                // Shift is reserved for typing capital letters
+                // Space is reserved for typing space
+                // Alt is reserved for other functions
                 juyingCandidateIndex = -1
             } else if (isEnglishOnlyMode && juyingCandidateIndex >= 0) {
-                // Remap for English (prefix-based): Shift(0)→0, Sym(1)→1, Ctrl(3)→2
+                // Remap for English: Sym(1)→0, Ctrl(3)→1
+                // Only Sym and Ctrl can select English suggestions
                 juyingCandidateIndex = when (juyingCandidateIndex) {
-                    0 -> 0  // Shift -> 1st suggestion
-                    1 -> 1  // Sym -> 2nd suggestion
-                    3 -> 2  // Ctrl -> 3rd suggestion
+                    1 -> 0  // Sym -> 1st suggestion (best, displayed in middle)
+                    3 -> 1  // Ctrl -> 2nd suggestion (displayed on right)
                     else -> -1
                 }
             }

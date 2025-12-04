@@ -245,15 +245,14 @@ class EnglishWordPredictionController(
         val currentPageSuggestions = getCurrentPageSuggestions()
 
         // Display in Juying mode is reordered by status bar: [2nd, best, 3rd]
-        // Input index: 0=Shift(left), 1=Sym(middle), 2=Ctrl(right)
-        // Map display position to underlying suggestion index:
-        // - Shift(0) picks left = 2nd best = underlying index 1
-        // - Sym(1) picks middle = best = underlying index 0
-        // - Ctrl(2) picks right = 3rd best = underlying index 2
+        // English mode only uses Sym and Ctrl for selection (Shift is for capitals)
+        // Input index from service: 0=Sym(middle), 1=Ctrl(right)
+        // Map to underlying suggestion index:
+        // - Sym(0) picks middle = best = underlying index 0
+        // - Ctrl(1) picks right = 3rd best = underlying index 2
         val underlyingIndex = when (index) {
-            0 -> 1  // Shift picks 2nd (displayed on left)
-            1 -> 0  // Sym picks best (displayed in middle)
-            2 -> 2  // Ctrl picks 3rd (displayed on right)
+            0 -> 0  // Sym picks best (displayed in middle)
+            1 -> 2  // Ctrl picks 3rd (displayed on right)
             else -> index
         }
 
