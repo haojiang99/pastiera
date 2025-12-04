@@ -2350,6 +2350,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 if (result != null) {
                                     ic.deleteSurroundingText(result.prefixLength, 0)
                                     ic.commitText(result.word + " ", 1)
+                                    // Record space press for double-space-to-period detection
+                                    textInputController.recordSpacePress()
                                     englishWordPredictionController.updateFromCursor(ic)
                                     updateStatusBarText()
                                 } else if (juyingCandidateIndex == 1) {
