@@ -1348,13 +1348,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             hasNextPage = zhenmaSnapshot.hasNextPage
             hasPrevPage = zhenmaSnapshot.hasPrevPage
         } else if (wordPredictionSnapshot.hasSuggestions && !shouldDisableSmartFeatures) {
-            // Show English word predictions (BlackBerry-style: 3 per page)
-            // In Juying mode, reorder to put best suggestion in middle: [1st, 2nd, 3rd] -> [2nd, 1st, 3rd]
+            // Show English word predictions
+            // In Juying mode: [1st best (Sym), current typed word (Space), 2nd best (Ctrl)]
             val rawSuggestions = wordPredictionSnapshot.suggestions.take(3)
-            val displaySuggestions = if (isJuyingMode && rawSuggestions.size >= 2) {
-                when (rawSuggestions.size) {
-                    2 -> listOf(rawSuggestions[1], rawSuggestions[0]) // [2nd, 1st]
-                    else -> listOf(rawSuggestions[1], rawSuggestions[0], rawSuggestions[2]) // [2nd, 1st, 3rd]
+            val prefix = wordPredictionSnapshot.prefix
+            val displaySuggestions = if (isJuyingMode) {
+                // For prefix-based predictions: show [1st best, typed prefix, 2nd best]
+                // For next-word predictions (no prefix): show [1st best, "", 2nd best]
+                val typedWord = if (prefix.isNotEmpty()) prefix else ""
+                when {
+                    rawSuggestions.isEmpty() -> listOf(typedWord)
+                    rawSuggestions.size == 1 -> listOf(rawSuggestions[0], typedWord, "")
+                    else -> listOf(rawSuggestions[0], typedWord, rawSuggestions[1])
                 }
             } else {
                 rawSuggestions
@@ -1365,7 +1370,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 variations = displaySuggestions
             )
             wordPredictionActive = true
-            wordPredictionPrefix = wordPredictionSnapshot.prefix
+            wordPredictionPrefix = prefix
             // Pagination info from word prediction
             currentPage = wordPredictionSnapshot.currentPage
             totalPages = wordPredictionSnapshot.totalPages
@@ -1924,18 +1929,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (isChineseNoCandidate) {
                 // No Chinese candidates - don't use any keys for Juying selection, let them work normally
                 juyingCandidateIndex = -1
-            } else if (isEnglishOnlyMode && (juyingCandidateIndex == 0 || juyingCandidateIndex == 2 || juyingCandidateIndex == 4)) {
-                // English mode: Skip Shift(0), Space(2), Alt(4) for Juying selection
+            } else if (isEnglishOnlyMode && (juyingCandidateIndex == 0 || juyingCandidateIndex == 4)) {
+                // English mode: Skip Shift(0), Alt(4) for Juying selection
                 // Shift is reserved for typing capital letters
-                // Space is reserved for typing space
                 // Alt is reserved for other functions
                 juyingCandidateIndex = -1
             } else if (isEnglishOnlyMode && juyingCandidateIndex >= 0) {
-                // Remap for English: Sym(1)→0, Ctrl(3)→1
-                // Only Sym and Ctrl can select English suggestions
+                // Remap for English: Sym(1)→0, Space(2)→1, Ctrl(3)→2
+                // Display: [1st best (left), current typed word (middle), 2nd best (right)]
+                // Sym picks left (1st best), Space picks middle (current word), Ctrl picks right (2nd best)
                 juyingCandidateIndex = when (juyingCandidateIndex) {
-                    1 -> 0  // Sym -> 1st suggestion (best, displayed in middle)
-                    3 -> 1  // Ctrl -> 2nd suggestion (displayed on right)
+                    1 -> 0  // Sym -> left (1st best)
+                    2 -> 1  // Space -> middle (current typed word)
+                    3 -> 2  // Ctrl -> right (2nd best)
                     else -> -1
                 }
             }

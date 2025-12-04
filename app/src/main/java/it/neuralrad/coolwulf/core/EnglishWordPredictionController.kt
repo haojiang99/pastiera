@@ -244,15 +244,35 @@ class EnglishWordPredictionController(
     fun selectSuggestion(index: Int): SelectionResult? {
         val currentPageSuggestions = getCurrentPageSuggestions()
 
-        // Display in Juying mode is reordered by status bar: [2nd, best, 3rd]
-        // English mode only uses Sym and Ctrl for selection (Shift is for capitals)
-        // Input index from service: 0=Sym(middle), 1=Ctrl(right)
+        // Display in Juying mode: [1st best (Sym), current typed word (Space), 2nd best (Ctrl)]
+        // Input index from service: 0=Sym(left), 1=Space(middle), 2=Ctrl(right)
         // Map to underlying suggestion index:
-        // - Sym(0) picks middle = best = underlying index 0
-        // - Ctrl(1) picks right = 3rd best = underlying index 2
+        // - Sym(0) picks left = 1st best = underlying index 0
+        // - Space(1) picks middle = current typed word (return prefix, not a suggestion)
+        // - Ctrl(2) picks right = 2nd best = underlying index 1
+
+        // Special case: Space (index 1) commits the current typed word (prefix)
+        if (index == 1) {
+            // Return the prefix as the word to commit (with prefixLength=0 to not delete anything extra)
+            if (originalPrefix.isEmpty()) {
+                return null  // No prefix to commit
+            }
+            val casedPrefix = originalPrefix  // Already has correct case
+            Log.d(TAG, "Space selected - committing typed word: '$casedPrefix'")
+
+            // Clear predictions after committing
+            clearSuggestions()
+
+            return SelectionResult(
+                word = casedPrefix,
+                prefixLength = originalPrefix.length,  // Delete the prefix since we're replacing it
+                isNextWordPrediction = false
+            )
+        }
+
         val underlyingIndex = when (index) {
-            0 -> 0  // Sym picks best (displayed in middle)
-            1 -> 2  // Ctrl picks 3rd (displayed on right)
+            0 -> 0  // Sym picks 1st best (displayed on left)
+            2 -> 1  // Ctrl picks 2nd best (displayed on right)
             else -> index
         }
 
