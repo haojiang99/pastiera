@@ -2618,14 +2618,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
 
-            // Handle Shift+letter when English next-word predictions are showing:
+            // Handle Shift+letter when English predictions are showing (both next-word and prefix-based):
             // - Only type the capital letter
-            // - Clear the next-word predictions completely
-            // - Don't commit the 1st prediction word
+            // - Clear the predictions completely
+            // - Don't commit any prediction word
             if (shiftPressed && !ctrlPressed && !altPressed && ic != null && event != null) {
                 val snapshot = englishWordPredictionController.getSnapshot()
-                // Only apply this behavior for next-word predictions (not prefix-based)
-                if (snapshot.hasSuggestions && snapshot.isNextWordPrediction && event.unicodeChar != 0) {
+                // Apply to ALL English predictions (next-word and prefix-based)
+                if (snapshot.hasSuggestions && event.unicodeChar != 0) {
                     val char = event.unicodeChar.toChar()
                     if (char.isLetter()) {
                         // Clear the predictions without committing anything
