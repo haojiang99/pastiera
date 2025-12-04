@@ -371,9 +371,12 @@ class InputEventRouter(
             return EditableFieldRoutingResult.Consume
         }
 
-        // Check event Alt state only if latch wasn't just disabled (to prevent stuck Alt from system meta state)
-        val altFromEvent = !params.altLatchJustDisabled && event?.isAltPressed == true
-        if (altFromEvent || altLatchActive || altOneShotActive) {
+        // Use Alt LED status as the source of truth: if LED is off, Alt is not active
+        val altLedIsOff = !params.altLatchActive && !params.altOneShot && !params.altPressed
+
+        // Check event Alt state only if latch wasn't just disabled and LED is on (to prevent stuck Alt from system meta state)
+        val altFromEvent = !params.altLatchJustDisabled && !altLedIsOff && event?.isAltPressed == true
+        if (!altLedIsOff && (altFromEvent || altLatchActive || altOneShotActive)) {
             controllers.altSymManager.cancelPendingLongPress(keyCode)
             if (altOneShotActive) {
                 callbacks.clearAltOneShot()
@@ -392,7 +395,16 @@ class InputEventRouter(
                 return EditableFieldRoutingResult.CallSuper
             }
 
-            if (
+            // Check if Alt produces a digit - if Chinese candidates are visible in non-Juying mode,
+            // let it fall through to the Chinese input handler for candidate selection
+            val altMappedChar = controllers.altSymManager.getAltMappings()[keyCode]
+            val isDigitForCandidateSelection = altMappedChar?.firstOrNull()?.isDigit() == true &&
+                                                altMappedChar.firstOrNull() in '1'..'9' &&
+                                                params.hasSuggestionsVisible &&
+                                                !params.juyingModeEnabled &&
+                                                params.isChineseInputActive
+
+            if (!isDigitForCandidateSelection &&
                 handleAltModifiedKey(
                     keyCode = keyCode,
                     event = event,
@@ -403,7 +415,6 @@ class InputEventRouter(
                 )
             ) {
                 // Check if the Alt character is a digit - if so, allow continuous input
-                val altMappedChar = controllers.altSymManager.getAltMappings()[keyCode]
                 val isDigit = altMappedChar?.firstOrNull()?.isDigit() == true
 
                 // After Alt symbol input, set altLatchJustDisabled to prevent subsequent

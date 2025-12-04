@@ -176,6 +176,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     // Track if Alt latch was just disabled (ignore event meta state until next Alt press)
     private var altLatchJustDisabled: Boolean = false
 
+    // Track if Alt was just used for candidate selection (ignore Alt until key released)
+    private var altUsedForCandidateSelection: Boolean = false
+
     // Saved state when Alt is pressed in Juying mode (instant selection with undo on double-click)
     // On Alt DOWN: immediately commit suggestion, save state for undo
     // On double-click: undo the committed character and go to next page
@@ -2599,14 +2602,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val longPressThreshold = SettingsManager.getLongPressThreshold(this)
             val altHoldDuration = if (altLastPressTime > 0) currentTime - altLastPressTime else 0L
             val isAltLongPress = altHoldDuration >= longPressThreshold
+
+            // Use Alt LED status as the source of truth: if LED is off (no latch, no one-shot, not pressed),
+            // then Alt is definitively not active regardless of event meta state or tracking
+            val altLedIsOff = !altLatchActive && !altOneShot && !altPressed
+
             // Check multiple ways Alt might be active:
             // 1. Controller knows (altLatchActive, altOneShot, altPressed)
-            // 2. Event meta state has ALT_ON (ignored if latch was just disabled to prevent stuck Alt)
+            // 2. Event meta state has ALT_ON (ignored if latch was just disabled or LED is off)
             // 3. altLastPressTime > 0 (Alt key was pressed in Juying mode and we're tracking it)
-            val altFromEvent = !altLatchJustDisabled && event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
-            val altFromJuyingTracking = altLastPressTime > 0
-            // Skip Alt handling if latch was just disabled (user wants to stop using Alt)
-            val shouldSkipAltHandling = altLatchJustDisabled && !altLatchActive && !altOneShot
+            val altFromEvent = !altLatchJustDisabled && !altUsedForCandidateSelection && !altLedIsOff && event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
+            val altFromJuyingTracking = !altLedIsOff && altLastPressTime > 0
+            // Skip Alt handling if latch was just disabled or Alt was used for candidate selection
+            val shouldSkipAltHandling = (altLatchJustDisabled && !altLatchActive && !altOneShot) || altUsedForCandidateSelection || altLedIsOff
             if (event != null && !shouldSkipAltHandling && (altLatchActive || altOneShot || altPressed || altFromEvent || altFromJuyingTracking)) {
                 // Get the character with Alt modifier applied
                 // IMPORTANT: Use Pastiera's altSymManager mapping (device-specific) instead of
@@ -2617,11 +2625,40 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val baseChar = event.getUnicodeChar(0)
 
                 // In non-Juying mode, if Alt produces a digit (1-9) and there are candidates,
-                // skip Alt symbol input and let it fall through to candidate selection
+                // handle candidate selection right here using the Alt-mapped digit
                 val isDigitForSelection = !juyingModeEnabled &&
                                           pinyinInputController.hasCandidates() &&
                                           altChar.toChar().isDigit() &&
                                           altChar.toChar() in '1'..'9'
+
+                // Handle candidate selection when Alt+key produces a digit
+                if (isDigitForSelection) {
+                    val number = altChar.toChar().digitToInt()
+                    val index = number - 1
+                    val selected = pinyinInputController.selectCandidate(index)
+                    if (selected != null) {
+                        ic.commitText(selected, 1)
+
+                        // Set remaining buffer as new composing text
+                        val remainingBuffer = pinyinInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+
+                        // Clear Alt modifier (including latch state from double-tap)
+                        modifierStateController.clearAltState(resetPressedState = true)
+                        altUsedForPagination = false
+                        altLastPressTime = 0L
+
+                        // Set flag to ignore Alt until physical key is released
+                        // This prevents Alt from staying active after selection when Alt key is still held
+                        altLatchJustDisabled = true
+                        altUsedForCandidateSelection = true
+
+                        updateStatusBarText()
+                        return true
+                    }
+                }
 
                 // Only proceed if we get a valid alternate character that's different from the base one
                 // AND it's not a digit for candidate selection
@@ -2752,6 +2789,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         altUsedForPagination = false
                         altLastPressTime = 0L
 
+                        // Set flag to ignore Alt until physical key is released
+                        // This prevents Alt from staying active after selection when Alt key is still held
+                        altLatchJustDisabled = true
+                        altUsedForCandidateSelection = true
+
                         updateStatusBarText()
                         return true
                     }
@@ -2776,6 +2818,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             modifierStateController.clearAltState(resetPressedState = true)
                             altUsedForPagination = false
                             altLastPressTime = 0L
+
+                            // Set flag to ignore Alt until physical key is released
+                            // This prevents Alt from staying active after selection when Alt key is still held
+                            altLatchJustDisabled = true
+                            altUsedForCandidateSelection = true
 
                             updateStatusBarText()
                             return true
@@ -3022,11 +3069,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val longPressThresholdShuangpin = SettingsManager.getLongPressThreshold(this)
             val altHoldDurationShuangpin = if (altLastPressTime > 0) currentTimeShuangpin - altLastPressTime else 0L
             val isAltLongPressShuangpin = altHoldDurationShuangpin >= longPressThresholdShuangpin
+
+            // Use Alt LED status as the source of truth: if LED is off, Alt is not active
+            val altLedIsOffShuangpin = !altLatchActive && !altOneShot && !altPressed
+
             // Check multiple ways Alt might be active
-            val altFromEventShuangpin = !altLatchJustDisabled && event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
-            val altFromJuyingTrackingShuangpin = altLastPressTime > 0
-            // Skip Alt handling if latch was just disabled (user wants to stop using Alt)
-            val shouldSkipAltHandlingShuangpin = altLatchJustDisabled && !altLatchActive && !altOneShot
+            val altFromEventShuangpin = !altLatchJustDisabled && !altUsedForCandidateSelection && !altLedIsOffShuangpin && event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
+            val altFromJuyingTrackingShuangpin = !altLedIsOffShuangpin && altLastPressTime > 0
+            // Skip Alt handling if latch was just disabled or Alt was used for candidate selection or LED is off
+            val shouldSkipAltHandlingShuangpin = (altLatchJustDisabled && !altLatchActive && !altOneShot) || altUsedForCandidateSelection || altLedIsOffShuangpin
             if (event != null && !shouldSkipAltHandlingShuangpin && (altLatchActive || altOneShot || altPressed || altFromEventShuangpin || altFromJuyingTrackingShuangpin)) {
                 // Use Pastiera's altSymManager mapping (device-specific) instead of system's getUnicodeChar
                 val altMappedCharShuangpin = altSymManager.getAltMappings()[keyCode]
@@ -3035,11 +3086,39 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val baseCharShuangpin = event.getUnicodeChar(0)
 
                 // In non-Juying mode, if Alt produces a digit (1-9) and there are candidates,
-                // skip Alt symbol input and let it fall through to candidate selection
+                // handle candidate selection right here using the Alt-mapped digit
                 val isDigitForSelectionShuangpin = !juyingModeEnabled &&
                                                    shuangpinInputController.hasCandidates() &&
                                                    altChar.toChar().isDigit() &&
                                                    altChar.toChar() in '1'..'9'
+
+                // Handle candidate selection when Alt+key produces a digit
+                if (isDigitForSelectionShuangpin) {
+                    val number = altChar.toChar().digitToInt()
+                    val index = number - 1
+                    val selected = shuangpinInputController.selectCandidate(index)
+                    if (selected != null) {
+                        ic.commitText(selected, 1)
+
+                        // Set remaining buffer as new composing text
+                        val remainingBuffer = shuangpinInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+
+                        // Clear Alt modifier (including latch state from double-tap)
+                        modifierStateController.clearAltState(resetPressedState = true)
+                        altUsedForPagination = false
+                        altLastPressTime = 0L
+
+                        // Set flag to ignore Alt until physical key is released
+                        altLatchJustDisabled = true
+                        altUsedForCandidateSelection = true
+
+                        updateStatusBarText()
+                        return true
+                    }
+                }
 
                 // Only proceed if we get a valid alternate character that's different from the base one
                 // AND it's not a digit for candidate selection
@@ -3164,6 +3243,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         modifierStateController.clearAltState(resetPressedState = true)
                         altUsedForPagination = false
                         altLastPressTime = 0L
+                        altLatchJustDisabled = true
+                        altUsedForCandidateSelection = true
                         updateStatusBarText()
                         return true
                     }
@@ -3186,6 +3267,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             modifierStateController.clearAltState(resetPressedState = true)
                             altUsedForPagination = false
                             altLastPressTime = 0L
+                            altLatchJustDisabled = true
+                            altUsedForCandidateSelection = true
                             updateStatusBarText()
                             return true
                         }
@@ -3631,11 +3714,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val longPressThresholdWubi = SettingsManager.getLongPressThreshold(this)
             val altHoldDurationWubi = if (altLastPressTime > 0) currentTimeWubi - altLastPressTime else 0L
             val isAltLongPressWubi = altHoldDurationWubi >= longPressThresholdWubi
+
+            // Use Alt LED status as the source of truth: if LED is off, Alt is not active
+            val altLedIsOffWubi = !altLatchActive && !altOneShot && !altPressed
+
             // Check multiple ways Alt might be active
-            val altFromEventWubi = !altLatchJustDisabled && event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
-            val altFromJuyingTrackingWubi = altLastPressTime > 0
-            // Skip Alt handling if latch was just disabled (user wants to stop using Alt)
-            val shouldSkipAltHandlingWubi = altLatchJustDisabled && !altLatchActive && !altOneShot
+            val altFromEventWubi = !altLatchJustDisabled && !altUsedForCandidateSelection && !altLedIsOffWubi && event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
+            val altFromJuyingTrackingWubi = !altLedIsOffWubi && altLastPressTime > 0
+            // Skip Alt handling if latch was just disabled or Alt was used for candidate selection or LED is off
+            val shouldSkipAltHandlingWubi = (altLatchJustDisabled && !altLatchActive && !altOneShot) || altUsedForCandidateSelection || altLedIsOffWubi
             if (event != null && !shouldSkipAltHandlingWubi && (altLatchActive || altOneShot || altPressed || altFromEventWubi || altFromJuyingTrackingWubi)) {
                 // Use Pastiera's altSymManager mapping (device-specific) instead of system's getUnicodeChar
                 val altMappedCharWubi = altSymManager.getAltMappings()[keyCode]
@@ -3644,11 +3731,39 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val baseCharWubi = event.getUnicodeChar(0)
 
                 // In non-Juying mode, if Alt produces a digit (1-9) and there are candidates,
-                // skip Alt symbol input and let it fall through to candidate selection
+                // handle candidate selection right here using the Alt-mapped digit
                 val isDigitForSelectionWubi = !juyingModeEnabled &&
                                               wubiInputController.hasCandidates() &&
                                               altChar.toChar().isDigit() &&
                                               altChar.toChar() in '1'..'9'
+
+                // Handle candidate selection when Alt+key produces a digit
+                if (isDigitForSelectionWubi) {
+                    val number = altChar.toChar().digitToInt()
+                    val index = number - 1
+                    val selected = wubiInputController.selectCandidate(index)
+                    if (selected != null) {
+                        ic.commitText(selected, 1)
+
+                        // Set remaining buffer as new composing text
+                        val remainingBuffer = wubiInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+
+                        // Clear Alt modifier (including latch state from double-tap)
+                        modifierStateController.clearAltState(resetPressedState = true)
+                        altUsedForPagination = false
+                        altLastPressTime = 0L
+
+                        // Set flag to ignore Alt until physical key is released
+                        altLatchJustDisabled = true
+                        altUsedForCandidateSelection = true
+
+                        updateStatusBarText()
+                        return true
+                    }
+                }
 
                 // Only proceed if we get a valid alternate character that's different from the base one
                 // AND it's not a digit for candidate selection
@@ -3769,6 +3884,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         modifierStateController.clearAltState(resetPressedState = true)
                         altUsedForPagination = false
                         altLastPressTime = 0L
+                        altLatchJustDisabled = true
+                        altUsedForCandidateSelection = true
                         updateStatusBarText()
                         return true
                     }
@@ -3785,6 +3902,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             modifierStateController.clearAltState(resetPressedState = true)
                             altUsedForPagination = false
                             altLastPressTime = 0L
+                            altLatchJustDisabled = true
+                            altUsedForCandidateSelection = true
                             updateStatusBarText()
                             return true
                         }
@@ -4013,11 +4132,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val longPressThresholdZhenma = SettingsManager.getLongPressThreshold(this)
             val altHoldDurationZhenma = if (altLastPressTime > 0) currentTimeZhenma - altLastPressTime else 0L
             val isAltLongPressZhenma = altHoldDurationZhenma >= longPressThresholdZhenma
+
+            // Use Alt LED status as the source of truth: if LED is off, Alt is not active
+            val altLedIsOffZhenma = !altLatchActive && !altOneShot && !altPressed
+
             // Check multiple ways Alt might be active
-            val altFromEventZhenma = !altLatchJustDisabled && event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
-            val altFromJuyingTrackingZhenma = altLastPressTime > 0
-            // Skip Alt handling if latch was just disabled (user wants to stop using Alt)
-            val shouldSkipAltHandlingZhenma = altLatchJustDisabled && !altLatchActive && !altOneShot
+            val altFromEventZhenma = !altLatchJustDisabled && !altUsedForCandidateSelection && !altLedIsOffZhenma && event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
+            val altFromJuyingTrackingZhenma = !altLedIsOffZhenma && altLastPressTime > 0
+            // Skip Alt handling if latch was just disabled or Alt was used for candidate selection or LED is off
+            val shouldSkipAltHandlingZhenma = (altLatchJustDisabled && !altLatchActive && !altOneShot) || altUsedForCandidateSelection || altLedIsOffZhenma
             if (event != null && !shouldSkipAltHandlingZhenma && (altLatchActive || altOneShot || altPressed || altFromEventZhenma || altFromJuyingTrackingZhenma)) {
                 // Use Pastiera's altSymManager mapping (device-specific) instead of system's getUnicodeChar
                 val altMappedCharZhenma = altSymManager.getAltMappings()[keyCode]
@@ -4026,11 +4149,39 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val baseCharZhenma = event.getUnicodeChar(0)
 
                 // In non-Juying mode, if Alt produces a digit (1-9) and there are candidates,
-                // skip Alt symbol input and let it fall through to candidate selection
+                // handle candidate selection right here using the Alt-mapped digit
                 val isDigitForSelectionZhenma = !juyingModeEnabled &&
                                                 zhenmaInputController.hasCandidates() &&
                                                 altChar.toChar().isDigit() &&
                                                 altChar.toChar() in '1'..'9'
+
+                // Handle candidate selection when Alt+key produces a digit
+                if (isDigitForSelectionZhenma) {
+                    val number = altChar.toChar().digitToInt()
+                    val index = number - 1
+                    val selected = zhenmaInputController.selectCandidate(index)
+                    if (selected != null) {
+                        ic.commitText(selected, 1)
+
+                        // Set remaining buffer as new composing text
+                        val remainingBuffer = zhenmaInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+
+                        // Clear Alt modifier (including latch state from double-tap)
+                        modifierStateController.clearAltState(resetPressedState = true)
+                        altUsedForPagination = false
+                        altLastPressTime = 0L
+
+                        // Set flag to ignore Alt until physical key is released
+                        altLatchJustDisabled = true
+                        altUsedForCandidateSelection = true
+
+                        updateStatusBarText()
+                        return true
+                    }
+                }
 
                 // Only proceed if we get a valid alternate character that's different from the base one
                 // AND it's not a digit for candidate selection
@@ -4151,6 +4302,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         modifierStateController.clearAltState(resetPressedState = true)
                         altUsedForPagination = false
                         altLastPressTime = 0L
+                        altLatchJustDisabled = true
+                        altUsedForCandidateSelection = true
                         updateStatusBarText()
                         return true
                     }
@@ -4167,6 +4320,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             modifierStateController.clearAltState(resetPressedState = true)
                             altUsedForPagination = false
                             altLastPressTime = 0L
+                            altLatchJustDisabled = true
+                            altUsedForCandidateSelection = true
                             updateStatusBarText()
                             return true
                         }
@@ -4639,6 +4794,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (altUsedForPagination) {
                 altUsedForPagination = false
                 altPressed = false
+                altUsedForCandidateSelection = false
+                return super.onKeyUp(keyCode, event)
+            }
+            // Clear candidate selection flag when Alt is released
+            // Also clear any lingering Alt states to prevent stuck Alt
+            if (altUsedForCandidateSelection) {
+                altUsedForCandidateSelection = false
+                modifierStateController.clearAltState(resetPressedState = true)
+                altLatchJustDisabled = false
+                altPressed = false
+                updateStatusBarText()
                 return super.onKeyUp(keyCode, event)
             }
             if (altPressed) {
