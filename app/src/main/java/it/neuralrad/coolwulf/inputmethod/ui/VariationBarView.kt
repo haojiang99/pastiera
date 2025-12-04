@@ -557,10 +557,8 @@ class VariationBarView(
             //   - 2 candidates: [2nd, 1st] -> best is at position 1
             //   - 3 candidates: [2nd, 1st, 3rd] -> best is at position 1 (middle)
             //   - 4+ candidates: [2nd, 3rd, 1st, ...] -> best is at position 2
-            // - English word prediction: best candidate is in middle (Sym key selects 1st/best)
-            //   - 1 candidate: best is at position 0
-            //   - 2 candidates: [2nd, 1st] -> best is at position 1
-            //   - 3 candidates: [2nd, 1st, 3rd] -> best is at position 1 (middle)
+            // - English word prediction: [1st best, typed word, 2nd best]
+            //   - Best candidate is always at position 0 (left, Sym key)
             val isChineseMode = snapshot.pinyinModeActive || snapshot.shuangpinModeActive ||
                                 snapshot.wubiModeActive || snapshot.zhenmaModeActive
             val bestCandidatePosition = when {
@@ -570,10 +568,7 @@ class VariationBarView(
                     3 -> 1  // 3 candidates: best at position 1 (middle)
                     else -> 2  // 4+ candidates: best at position 2
                 }
-                snapshot.wordPredictionActive -> when (limitedVariations.size) {
-                    1 -> 0  // 1 candidate: best at position 0
-                    else -> 1  // 2+ candidates: best at position 1 (middle)
-                }
+                snapshot.wordPredictionActive -> 0  // English: best is always at position 0 (left)
                 else -> -1
             }
             // Highlight best candidate: in Juying mode it's at bestCandidatePosition (reordered),
