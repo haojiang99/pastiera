@@ -498,6 +498,201 @@ class UserCustomDictionary(context: Context) {
         }
     }
 
+    /**
+     * Exports all custom dictionary data to a JSON string.
+     * @return JSON string containing all mappings
+     */
+    fun exportToJson(): String {
+        val exportJson = JSONObject()
+
+        // Export Pinyin mappings
+        val pinyinJson = JSONObject()
+        for ((code, phrases) in pinyinMappings) {
+            val phrasesArray = JSONArray()
+            for (phrase in phrases) {
+                phrasesArray.put(phrase)
+            }
+            pinyinJson.put(code, phrasesArray)
+        }
+        exportJson.put("pinyin", pinyinJson)
+
+        // Export Shuangpin mappings
+        val shuangpinJson = JSONObject()
+        for ((code, phrases) in shuangpinMappings) {
+            val phrasesArray = JSONArray()
+            for (phrase in phrases) {
+                phrasesArray.put(phrase)
+            }
+            shuangpinJson.put(code, phrasesArray)
+        }
+        exportJson.put("shuangpin", shuangpinJson)
+
+        // Export Ziranma mappings
+        val ziranmaJson = JSONObject()
+        for ((code, phrases) in ziranmaMappings) {
+            val phrasesArray = JSONArray()
+            for (phrase in phrases) {
+                phrasesArray.put(phrase)
+            }
+            ziranmaJson.put(code, phrasesArray)
+        }
+        exportJson.put("ziranma", ziranmaJson)
+
+        // Export Wubi mappings
+        val wubiJson = JSONObject()
+        for ((code, phrases) in wubiMappings) {
+            val phrasesArray = JSONArray()
+            for (phrase in phrases) {
+                phrasesArray.put(phrase)
+            }
+            wubiJson.put(code, phrasesArray)
+        }
+        exportJson.put("wubi", wubiJson)
+
+        // Export Zhenma mappings
+        val zhenmaJson = JSONObject()
+        for ((code, phrases) in zhenmaMappings) {
+            val phrasesArray = JSONArray()
+            for (phrase in phrases) {
+                phrasesArray.put(phrase)
+            }
+            zhenmaJson.put(code, phrasesArray)
+        }
+        exportJson.put("zhenma", zhenmaJson)
+
+        return exportJson.toString(2)  // Pretty print with 2-space indentation
+    }
+
+    /**
+     * Imports custom dictionary data from a JSON string.
+     * @param jsonString JSON string containing mappings
+     * @param mergeMode If true, merges with existing data; if false, replaces all data
+     * @return Number of entries imported
+     */
+    fun importFromJson(jsonString: String, mergeMode: Boolean = true): Int {
+        try {
+            val importJson = JSONObject(jsonString)
+            var importedCount = 0
+
+            if (!mergeMode) {
+                // Clear all existing data
+                pinyinMappings.clear()
+                shuangpinMappings.clear()
+                ziranmaMappings.clear()
+                wubiMappings.clear()
+                zhenmaMappings.clear()
+            }
+
+            // Import Pinyin mappings
+            if (importJson.has("pinyin")) {
+                val pinyinJson = importJson.getJSONObject("pinyin")
+                val keys = pinyinJson.keys()
+                while (keys.hasNext()) {
+                    val code = keys.next()
+                    val phrasesArray = pinyinJson.getJSONArray(code)
+                    val phrases = pinyinMappings.getOrPut(code) { mutableListOf() }
+                    for (i in 0 until phrasesArray.length()) {
+                        val phrase = phrasesArray.getString(i)
+                        if (!phrases.contains(phrase)) {
+                            phrases.add(phrase)
+                            importedCount++
+                        }
+                    }
+                }
+            }
+
+            // Import Shuangpin mappings
+            if (importJson.has("shuangpin")) {
+                val shuangpinJson = importJson.getJSONObject("shuangpin")
+                val keys = shuangpinJson.keys()
+                while (keys.hasNext()) {
+                    val code = keys.next()
+                    val phrasesArray = shuangpinJson.getJSONArray(code)
+                    val phrases = shuangpinMappings.getOrPut(code) { mutableListOf() }
+                    for (i in 0 until phrasesArray.length()) {
+                        val phrase = phrasesArray.getString(i)
+                        if (!phrases.contains(phrase)) {
+                            phrases.add(phrase)
+                            importedCount++
+                        }
+                    }
+                }
+            }
+
+            // Import Ziranma mappings
+            if (importJson.has("ziranma")) {
+                val ziranmaJson = importJson.getJSONObject("ziranma")
+                val keys = ziranmaJson.keys()
+                while (keys.hasNext()) {
+                    val code = keys.next()
+                    val phrasesArray = ziranmaJson.getJSONArray(code)
+                    val phrases = ziranmaMappings.getOrPut(code) { mutableListOf() }
+                    for (i in 0 until phrasesArray.length()) {
+                        val phrase = phrasesArray.getString(i)
+                        if (!phrases.contains(phrase)) {
+                            phrases.add(phrase)
+                            importedCount++
+                        }
+                    }
+                }
+            }
+
+            // Import Wubi mappings
+            if (importJson.has("wubi")) {
+                val wubiJson = importJson.getJSONObject("wubi")
+                val keys = wubiJson.keys()
+                while (keys.hasNext()) {
+                    val code = keys.next()
+                    val phrasesArray = wubiJson.getJSONArray(code)
+                    val phrases = wubiMappings.getOrPut(code) { mutableListOf() }
+                    for (i in 0 until phrasesArray.length()) {
+                        val phrase = phrasesArray.getString(i)
+                        if (!phrases.contains(phrase)) {
+                            phrases.add(phrase)
+                            importedCount++
+                        }
+                    }
+                }
+            }
+
+            // Import Zhenma mappings
+            if (importJson.has("zhenma")) {
+                val zhenmaJson = importJson.getJSONObject("zhenma")
+                val keys = zhenmaJson.keys()
+                while (keys.hasNext()) {
+                    val code = keys.next()
+                    val phrasesArray = zhenmaJson.getJSONArray(code)
+                    val phrases = zhenmaMappings.getOrPut(code) { mutableListOf() }
+                    for (i in 0 until phrasesArray.length()) {
+                        val phrase = phrasesArray.getString(i)
+                        if (!phrases.contains(phrase)) {
+                            phrases.add(phrase)
+                            importedCount++
+                        }
+                    }
+                }
+            }
+
+            saveToPreferencesAsync()
+            Log.d(TAG, "Imported $importedCount custom dictionary entries")
+            return importedCount
+        } catch (e: Exception) {
+            Log.e(TAG, "Error importing custom dictionary", e)
+            return -1
+        }
+    }
+
+    /**
+     * Gets the total count of all mappings across all input methods.
+     */
+    fun getTotalMappingCount(): Int {
+        return pinyinMappings.values.sumOf { it.size } +
+               shuangpinMappings.values.sumOf { it.size } +
+               ziranmaMappings.values.sumOf { it.size } +
+               wubiMappings.values.sumOf { it.size } +
+               zhenmaMappings.values.sumOf { it.size }
+    }
+
     companion object {
         private const val TAG = "UserCustomDictionary"
         private const val PREFS_NAME = "user_custom_dictionary"

@@ -503,4 +503,34 @@
     <string name="custom_dictionary_empty">No custom mappings yet. Tap + to add one.</string>
     <string name="custom_dictionary_settings_title">Custom Dictionary</string>
     <string name="custom_dictionary_settings_description">Define custom letter → phrase mappings</string>
+
+    <!-- Import/Export Custom Dictionary and User Memory -->
+    <string name="custom_dictionary_export">Export</string>
+    <string name="custom_dictionary_import">Import</string>
+    <string name="custom_dictionary_export_description">Export custom dictionary to file</string>
+    <string name="custom_dictionary_import_description">Import custom dictionary from file</string>
+    <string name="custom_dictionary_export_success">Exported %1$d entries successfully</string>
+    <string name="custom_dictionary_import_success">Imported %1$d entries successfully</string>
+    <string name="custom_dictionary_export_failed">Export failed</string>
+    <string name="custom_dictionary_import_failed">Import failed</string>
+    <string name="custom_dictionary_import_invalid">Invalid file format</string>
+    <string name="custom_dictionary_no_data">No data to export</string>
+    <string name="user_memory_title">User Memory</string>
+    <string name="user_memory_description">Your input history and learned preferences</string>
+    <string name="user_memory_export">Export User Memory</string>
+    <string name="user_memory_import">Import User Memory</string>
+    <string name="user_memory_export_success">Exported user memory successfully</string>
+    <string name="user_memory_import_success">Imported user memory successfully</string>
+    <string name="user_memory_export_failed">Export failed</string>
+    <string name="user_memory_import_failed">Import failed</string>
+    <string name="user_memory_pinyin_entries">Pinyin: %1$d entries</string>
+    <string name="user_memory_wubi_entries">Wubi: %1$d entries</string>
+    <string name="user_memory_zhenma_entries">Zhenma: %1$d entries</string>
+    <string name="import_mode_merge">Merge with existing</string>
+    <string name="import_mode_replace">Replace all</string>
+    <string name="import_mode_title">Import Mode</string>
+
+    <!-- Shift+Enter Toggle Input -->
+    <string name="shift_enter_toggle_title">Shift+Enter Toggle</string>
+    <string name="shift_enter_toggle_description">Use Shift+Enter to cycle between enabled Chinese input methods</string>
 </resources>

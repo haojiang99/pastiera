@@ -66,6 +66,7 @@ object SettingsManager {
     private const val KEY_MEMORY_FUNCTION_ENABLED = "memory_function_enabled" // Enable memory function to reorder candidates by selection frequency
     private const val KEY_SHIFT_ALT_SWAPPED = "shift_alt_swapped" // Titan 2: Shift and Alt buttons are swapped (Alt is 1st, Shift is 5th)
     private const val KEY_MAX_CANDIDATES_NON_JUYING = "max_candidates_non_juying" // Maximum number of candidates to display in non-Juying mode
+    private const val KEY_SHIFT_ENTER_TOGGLE_INPUT = "shift_enter_toggle_input" // Enable Shift+Enter to toggle between Chinese input methods
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -108,6 +109,7 @@ object SettingsManager {
     private const val DEFAULT_MEMORY_FUNCTION_ENABLED = true  // Memory function enabled by default
     private const val DEFAULT_SHIFT_ALT_SWAPPED = false  // Shift and Alt buttons are not swapped by default
     private const val DEFAULT_MAX_CANDIDATES_NON_JUYING = 9  // Default 9 candidates in non-Juying mode
+    private const val DEFAULT_SHIFT_ENTER_TOGGLE_INPUT = true  // Shift+Enter toggles input methods by default
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
@@ -1358,6 +1360,22 @@ object SettingsManager {
     fun setMaxCandidatesNonJuying(context: Context, maxCandidates: Int) {
         getPreferences(context).edit()
             .putInt(KEY_MAX_CANDIDATES_NON_JUYING, maxCandidates)
+            .apply()
+    }
+
+    /**
+     * Gets whether Shift+Enter should toggle between Chinese input methods.
+     */
+    fun isShiftEnterToggleInputEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SHIFT_ENTER_TOGGLE_INPUT, DEFAULT_SHIFT_ENTER_TOGGLE_INPUT)
+    }
+
+    /**
+     * Sets whether Shift+Enter should toggle between Chinese input methods.
+     */
+    fun setShiftEnterToggleInputEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SHIFT_ENTER_TOGGLE_INPUT, enabled)
             .apply()
     }
 

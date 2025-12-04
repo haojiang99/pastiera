@@ -2463,8 +2463,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Handle Enter key in Pinyin mode
         if (keyCode == KeyEvent.KEYCODE_ENTER) {
-            // Toggle Chinese input mode (Pinyin or Wubi) with Shift+Enter
-            if (shiftPressed && !ctrlPressed && !altPressed) {
+            // Toggle Chinese input mode (Pinyin or Wubi) with Shift+Enter (if enabled)
+            if (shiftPressed && !ctrlPressed && !altPressed && SettingsManager.isShiftEnterToggleInputEnabled(this)) {
                 toggleChineseInputMode()
                 return true
             }

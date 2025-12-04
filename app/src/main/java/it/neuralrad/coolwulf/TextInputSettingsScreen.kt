@@ -128,6 +128,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getShiftAltSwapped(context))
     }
 
+    var shiftEnterToggleInput by remember {
+        mutableStateOf(SettingsManager.isShiftEnterToggleInputEnabled(context))
+    }
+
     var showJuyingKeyDialog by remember { mutableStateOf(false) }
     var editingJuyingKeyIndex by remember { mutableStateOf(0) }
 
@@ -923,6 +927,51 @@ fun TextInputSettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
+            }
+
+            // Shift+Enter toggle input methods (show when any Chinese input is enabled)
+            if (pinyinEnabled || shuangpinEnabled || ziranmaEnabled || wubiEnabled || zhenmaEnabled) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.SwapHoriz,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.shift_enter_toggle_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = stringResource(R.string.shift_enter_toggle_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                        }
+                        Switch(
+                            checked = shiftEnterToggleInput,
+                            onCheckedChange = { enabled ->
+                                shiftEnterToggleInput = enabled
+                                SettingsManager.setShiftEnterToggleInputEnabled(context, enabled)
+                            }
+                        )
+                    }
+                }
             }
 
             // Juying Mode Section (only show if any Chinese input is enabled)

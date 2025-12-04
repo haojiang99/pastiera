@@ -247,6 +247,116 @@ class UserZhenmaMemory(context: Context) {
         }
     }
 
+    /**
+     * Exports all user memory data to a JSON string.
+     * @return JSON string containing all memory data
+     */
+    fun exportToJson(): String {
+        val exportJson = JSONObject()
+
+        // Export memory cache
+        val memoryJson = JSONObject()
+        for ((code, charMap) in memoryCache) {
+            val charsJson = JSONObject()
+            for ((char, frequency) in charMap) {
+                charsJson.put(char, frequency)
+            }
+            memoryJson.put(code, charsJson)
+        }
+        exportJson.put("memory", memoryJson)
+
+        // Export abbreviation cache
+        val abbreviationJson = JSONObject()
+        for ((abbrev, phraseMap) in abbreviationCache) {
+            val phrasesJson = JSONObject()
+            for ((phrase, frequency) in phraseMap) {
+                phrasesJson.put(phrase, frequency)
+            }
+            abbreviationJson.put(abbrev, phrasesJson)
+        }
+        exportJson.put("abbreviations", abbreviationJson)
+
+        return exportJson.toString(2)  // Pretty print with 2-space indentation
+    }
+
+    /**
+     * Imports user memory data from a JSON string.
+     * @param jsonString JSON string containing memory data
+     * @param mergeMode If true, merges with existing data (keeps higher frequency); if false, replaces all data
+     * @return Number of entries imported
+     */
+    fun importFromJson(jsonString: String, mergeMode: Boolean = true): Int {
+        try {
+            val importJson = JSONObject(jsonString)
+            var importedCount = 0
+
+            if (!mergeMode) {
+                memoryCache.clear()
+                abbreviationCache.clear()
+            }
+
+            // Import memory data
+            if (importJson.has("memory")) {
+                val memoryJson = importJson.getJSONObject("memory")
+                val keys = memoryJson.keys()
+                while (keys.hasNext()) {
+                    val code = keys.next()
+                    val charsJson = memoryJson.getJSONObject(code)
+                    val charMap = memoryCache.getOrPut(code) { mutableMapOf() }
+                    val charKeys = charsJson.keys()
+                    while (charKeys.hasNext()) {
+                        val char = charKeys.next()
+                        val frequency = charsJson.getInt(char)
+                        val existingFreq = charMap[char] ?: 0
+                        if (mergeMode) {
+                            charMap[char] = maxOf(existingFreq, frequency)
+                        } else {
+                            charMap[char] = frequency
+                        }
+                        importedCount++
+                    }
+                }
+            }
+
+            // Import abbreviation data
+            if (importJson.has("abbreviations")) {
+                val abbreviationJson = importJson.getJSONObject("abbreviations")
+                val keys = abbreviationJson.keys()
+                while (keys.hasNext()) {
+                    val abbrev = keys.next()
+                    val phrasesJson = abbreviationJson.getJSONObject(abbrev)
+                    val phraseMap = abbreviationCache.getOrPut(abbrev) { mutableMapOf() }
+                    val phraseKeys = phrasesJson.keys()
+                    while (phraseKeys.hasNext()) {
+                        val phrase = phraseKeys.next()
+                        val frequency = phrasesJson.getInt(phrase)
+                        val existingFreq = phraseMap[phrase] ?: 0
+                        if (mergeMode) {
+                            phraseMap[phrase] = maxOf(existingFreq, frequency)
+                        } else {
+                            phraseMap[phrase] = frequency
+                        }
+                        importedCount++
+                    }
+                }
+            }
+
+            saveToPreferencesAsync()
+            Log.d(TAG, "Imported $importedCount Zhenma user memory entries")
+            return importedCount
+        } catch (e: Exception) {
+            Log.e(TAG, "Error importing Zhenma user memory", e)
+            return -1
+        }
+    }
+
+    /**
+     * Gets the total count of all memory entries.
+     */
+    fun getTotalEntryCount(): Int {
+        return memoryCache.values.sumOf { it.size } + abbreviationCache.values.sumOf { it.size }
+    }
+
     companion object {
         private const val TAG = "UserZhenmaMemory"
         private const val PREFS_NAME = "zhenma_user_memory"

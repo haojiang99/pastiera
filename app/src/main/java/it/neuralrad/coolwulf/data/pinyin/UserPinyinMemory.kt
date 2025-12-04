@@ -303,6 +303,119 @@ class UserPinyinMemory(context: Context) {
         val abbreviationCandidates: Int = 0
     )
 
+    /**
+     * Exports all user memory data to a JSON string.
+     * @return JSON string containing all memory data
+     */
+    fun exportToJson(): String {
+        val exportJson = JSONObject()
+
+        // Export memory cache
+        val memoryJson = JSONObject()
+        for ((pinyin, candidateMap) in memoryCache) {
+            val candidatesJson = JSONObject()
+            for ((candidate, frequency) in candidateMap) {
+                candidatesJson.put(candidate, frequency)
+            }
+            memoryJson.put(pinyin, candidatesJson)
+        }
+        exportJson.put("memory", memoryJson)
+
+        // Export abbreviation cache
+        val abbreviationJson = JSONObject()
+        for ((abbrev, candidateMap) in abbreviationCache) {
+            val candidatesJson = JSONObject()
+            for ((candidate, frequency) in candidateMap) {
+                candidatesJson.put(candidate, frequency)
+            }
+            abbreviationJson.put(abbrev, candidatesJson)
+        }
+        exportJson.put("abbreviations", abbreviationJson)
+
+        return exportJson.toString(2)  // Pretty print with 2-space indentation
+    }
+
+    /**
+     * Imports user memory data from a JSON string.
+     * @param jsonString JSON string containing memory data
+     * @param mergeMode If true, merges with existing data (keeps higher frequency); if false, replaces all data
+     * @return Number of entries imported
+     */
+    fun importFromJson(jsonString: String, mergeMode: Boolean = true): Int {
+        try {
+            val importJson = JSONObject(jsonString)
+            var importedCount = 0
+
+            if (!mergeMode) {
+                // Clear all existing data
+                memoryCache.clear()
+                abbreviationCache.clear()
+            }
+
+            // Import memory data
+            if (importJson.has("memory")) {
+                val memoryJson = importJson.getJSONObject("memory")
+                val keys = memoryJson.keys()
+                while (keys.hasNext()) {
+                    val pinyin = keys.next()
+                    val candidatesJson = memoryJson.getJSONObject(pinyin)
+                    val candidateMap = memoryCache.getOrPut(pinyin) { mutableMapOf() }
+                    val candidateKeys = candidatesJson.keys()
+                    while (candidateKeys.hasNext()) {
+                        val candidate = candidateKeys.next()
+                        val frequency = candidatesJson.getInt(candidate)
+                        val existingFreq = candidateMap[candidate] ?: 0
+                        // Keep higher frequency in merge mode
+                        if (mergeMode) {
+                            candidateMap[candidate] = maxOf(existingFreq, frequency)
+                        } else {
+                            candidateMap[candidate] = frequency
+                        }
+                        importedCount++
+                    }
+                }
+            }
+
+            // Import abbreviation data
+            if (importJson.has("abbreviations")) {
+                val abbreviationJson = importJson.getJSONObject("abbreviations")
+                val keys = abbreviationJson.keys()
+                while (keys.hasNext()) {
+                    val abbrev = keys.next()
+                    val candidatesJson = abbreviationJson.getJSONObject(abbrev)
+                    val candidateMap = abbreviationCache.getOrPut(abbrev) { mutableMapOf() }
+                    val candidateKeys = candidatesJson.keys()
+                    while (candidateKeys.hasNext()) {
+                        val candidate = candidateKeys.next()
+                        val frequency = candidatesJson.getInt(candidate)
+                        val existingFreq = candidateMap[candidate] ?: 0
+                        // Keep higher frequency in merge mode
+                        if (mergeMode) {
+                            candidateMap[candidate] = maxOf(existingFreq, frequency)
+                        } else {
+                            candidateMap[candidate] = frequency
+                        }
+                        importedCount++
+                    }
+                }
+            }
+
+            saveToPreferences()
+            Log.d(TAG, "Imported $importedCount user memory entries")
+            return importedCount
+        } catch (e: Exception) {
+            Log.e(TAG, "Error importing user memory", e)
+            return -1
+        }
+    }
+
+    /**
+     * Gets the total count of all memory entries.
+     */
+    fun getTotalEntryCount(): Int {
+        return memoryCache.values.sumOf { it.size } + abbreviationCache.values.sumOf { it.size }
+    }
+
     companion object {
         private const val TAG = "UserPinyinMemory"
         private const val PREFS_NAME = "pinyin_user_memory"
