@@ -31,9 +31,10 @@ class PinyinInputController(
     /**
      * Sets the page size for candidates.
      * @param juyingMode Whether Juying mode is enabled (uses 5 candidates per page)
+     * @param maxCandidatesNonJuying Maximum number of candidates in non-Juying mode (default 9)
      */
-    fun setJuyingMode(juyingMode: Boolean) {
-        val newPageSize = if (juyingMode) JUYING_PAGE_SIZE else DEFAULT_PAGE_SIZE
+    fun setJuyingMode(juyingMode: Boolean, maxCandidatesNonJuying: Int = DEFAULT_PAGE_SIZE) {
+        val newPageSize = if (juyingMode) JUYING_PAGE_SIZE else maxCandidatesNonJuying
         if (newPageSize != pageSize) {
             pageSize = newPageSize
             currentPage = 0 // Reset to first page when page size changes

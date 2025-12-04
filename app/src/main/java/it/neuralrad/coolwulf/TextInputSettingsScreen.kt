@@ -145,6 +145,12 @@ fun TextInputSettingsScreen(
 
     var showDefaultModeDialog by remember { mutableStateOf(false) }
 
+    var maxCandidatesNonJuying by remember {
+        mutableStateOf(SettingsManager.getMaxCandidatesNonJuying(context))
+    }
+
+    var showMaxCandidatesDialog by remember { mutableStateOf(false) }
+
     // Handle system back button
     BackHandler { onBack() }
     
@@ -1084,6 +1090,50 @@ fun TextInputSettingsScreen(
                         }
                     }
                 }
+
+                // Max Candidates in Non-Juying Mode (only show when Juying mode is disabled)
+                if (!juyingModeEnabled) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(72.dp)
+                            .clickable { showMaxCandidatesDialog = true }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.TextFields,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.max_candidates_non_juying_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = stringResource(R.string.max_candidates_non_juying_description, maxCandidatesNonJuying),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
             }
 
             // Default Input Mode Selection
@@ -1520,6 +1570,57 @@ fun TextInputSettingsScreen(
                 showJuyingKeyDialog = false
             },
             onDismiss = { showJuyingKeyDialog = false }
+        )
+    }
+
+    // Max Candidates in Non-Juying Mode dialog
+    if (showMaxCandidatesDialog) {
+        AlertDialog(
+            onDismissRequest = { showMaxCandidatesDialog = false },
+            title = { Text(stringResource(R.string.max_candidates_non_juying_title)) },
+            text = {
+                Column {
+                    Text(
+                        text = stringResource(R.string.max_candidates_non_juying_dialog_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    // Options: 5, 6, 7, 8, 9
+                    val options = listOf(5, 6, 7, 8, 9)
+                    options.forEach { count ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    maxCandidatesNonJuying = count
+                                    SettingsManager.setMaxCandidatesNonJuying(context, count)
+                                    showMaxCandidatesDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = maxCandidatesNonJuying == count,
+                                onClick = {
+                                    maxCandidatesNonJuying = count
+                                    SettingsManager.setMaxCandidatesNonJuying(context, count)
+                                    showMaxCandidatesDialog = false
+                                }
+                            )
+                            Text(
+                                text = "$count ${stringResource(R.string.max_candidates_candidates)}",
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showMaxCandidatesDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
         )
     }
 }

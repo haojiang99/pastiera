@@ -111,6 +111,12 @@
     <string name="shift_alt_swap_title">Swap Shift/Alt Buttons</string>
     <string name="shift_alt_swap_description">Enable if your Titan 2 has Shift and Alt buttons swapped. Alt becomes 1st key and Shift becomes 5th key for candidate selection.</string>
 
+    <!-- Max Candidates -->
+    <string name="max_candidates_non_juying_title">Max Candidates (Normal Mode)</string>
+    <string name="max_candidates_non_juying_description">Current: %1$d candidates per page. Tap to change.</string>
+    <string name="max_candidates_non_juying_dialog_description">Select the maximum number of candidates to display per page in normal mode. This affects page navigation and word selection.</string>
+    <string name="max_candidates_candidates">candidates</string>
+
     <!-- Default Input Mode -->
     <string name="default_input_mode_title">Default Input Mode</string>
     <string name="default_input_mode_description">Choose which input mode to use when starting to type. The keyboard will remember your last used mode.</string>

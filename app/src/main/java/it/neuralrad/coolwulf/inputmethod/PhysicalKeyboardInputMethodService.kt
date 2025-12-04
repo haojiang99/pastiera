@@ -1555,11 +1555,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Refresh Juying mode page size for all Chinese input controllers
         val juyingModeEnabled = SettingsManager.getJuyingModeEnabled(this)
-        pinyinInputController.setJuyingMode(juyingModeEnabled)
-        shuangpinInputController.setJuyingMode(juyingModeEnabled)
-        ziranmaInputController.setJuyingMode(juyingModeEnabled)
-        wubiInputController.setJuyingMode(juyingModeEnabled)
-        zhenmaInputController.setJuyingMode(juyingModeEnabled)
+        val maxCandidatesNonJuying = SettingsManager.getMaxCandidatesNonJuying(this)
+        pinyinInputController.setJuyingMode(juyingModeEnabled, maxCandidatesNonJuying)
+        shuangpinInputController.setJuyingMode(juyingModeEnabled, maxCandidatesNonJuying)
+        ziranmaInputController.setJuyingMode(juyingModeEnabled, maxCandidatesNonJuying)
+        wubiInputController.setJuyingMode(juyingModeEnabled, maxCandidatesNonJuying)
+        zhenmaInputController.setJuyingMode(juyingModeEnabled, maxCandidatesNonJuying)
 
         updateStatusBarText()
     }

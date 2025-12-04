@@ -65,6 +65,7 @@ object SettingsManager {
     private const val KEY_JUYING_KEY_5 = "juying_key_5" // Fifth Juying key (default: Alt)
     private const val KEY_MEMORY_FUNCTION_ENABLED = "memory_function_enabled" // Enable memory function to reorder candidates by selection frequency
     private const val KEY_SHIFT_ALT_SWAPPED = "shift_alt_swapped" // Titan 2: Shift and Alt buttons are swapped (Alt is 1st, Shift is 5th)
+    private const val KEY_MAX_CANDIDATES_NON_JUYING = "max_candidates_non_juying" // Maximum number of candidates to display in non-Juying mode
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -106,6 +107,7 @@ object SettingsManager {
     private const val DEFAULT_JUYING_MODE_ENABLED = false
     private const val DEFAULT_MEMORY_FUNCTION_ENABLED = true  // Memory function enabled by default
     private const val DEFAULT_SHIFT_ALT_SWAPPED = false  // Shift and Alt buttons are not swapped by default
+    private const val DEFAULT_MAX_CANDIDATES_NON_JUYING = 9  // Default 9 candidates in non-Juying mode
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
@@ -1339,6 +1341,23 @@ object SettingsManager {
     fun setShiftAltSwapped(context: Context, swapped: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_SHIFT_ALT_SWAPPED, swapped)
+            .apply()
+    }
+
+    /**
+     * Gets the maximum number of candidates to display in non-Juying mode.
+     * Default is 9 candidates.
+     */
+    fun getMaxCandidatesNonJuying(context: Context): Int {
+        return getPreferences(context).getInt(KEY_MAX_CANDIDATES_NON_JUYING, DEFAULT_MAX_CANDIDATES_NON_JUYING)
+    }
+
+    /**
+     * Sets the maximum number of candidates to display in non-Juying mode.
+     */
+    fun setMaxCandidatesNonJuying(context: Context, maxCandidates: Int) {
+        getPreferences(context).edit()
+            .putInt(KEY_MAX_CANDIDATES_NON_JUYING, maxCandidates)
             .apply()
     }
 
