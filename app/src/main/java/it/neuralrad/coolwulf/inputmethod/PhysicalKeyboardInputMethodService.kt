@@ -3032,7 +3032,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val altChar = altMappedCharShuangpin?.firstOrNull()?.code ?: event.getUnicodeChar(KeyEvent.META_ALT_ON)
                 // Get the base character without any modifiers (when Alt is held, event.unicodeChar equals altChar)
                 val baseCharShuangpin = event.getUnicodeChar(0)
-                if (altChar != 0 && altChar != baseCharShuangpin) {
+
+                // In non-Juying mode, if Alt produces a digit (1-9) and there are candidates,
+                // skip Alt symbol input and let it fall through to candidate selection
+                val isDigitForSelectionShuangpin = !juyingModeEnabled &&
+                                                   shuangpinInputController.hasCandidates() &&
+                                                   altChar.toChar().isDigit() &&
+                                                   altChar.toChar() in '1'..'9'
+
+                // Only proceed if we get a valid alternate character that's different from the base one
+                // AND it's not a digit for candidate selection
+                if (altChar != 0 && altChar != baseCharShuangpin && !isDigitForSelectionShuangpin) {
                     // In Juying mode, always clear buffer/predictions and set flags when Alt symbol is about to be committed
                     if (juyingModeEnabled) {
                         shuangpinInputController.clearBuffer()
@@ -3631,8 +3641,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val altChar = altMappedCharWubi?.firstOrNull()?.code ?: event.getUnicodeChar(KeyEvent.META_ALT_ON)
                 // Get the base character without any modifiers (when Alt is held, event.unicodeChar equals altChar)
                 val baseCharWubi = event.getUnicodeChar(0)
+
+                // In non-Juying mode, if Alt produces a digit (1-9) and there are candidates,
+                // skip Alt symbol input and let it fall through to candidate selection
+                val isDigitForSelectionWubi = !juyingModeEnabled &&
+                                              wubiInputController.hasCandidates() &&
+                                              altChar.toChar().isDigit() &&
+                                              altChar.toChar() in '1'..'9'
+
                 // Only proceed if we get a valid alternate character that's different from the base one
-                if (altChar != 0 && altChar != baseCharWubi) {
+                // AND it's not a digit for candidate selection
+                if (altChar != 0 && altChar != baseCharWubi && !isDigitForSelectionWubi) {
                     // In Juying mode, always clear buffer/predictions and set flags when Alt symbol is about to be committed
                     if (juyingModeEnabled) {
                         wubiInputController.clearBuffer()
@@ -4004,8 +4023,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val altChar = altMappedCharZhenma?.firstOrNull()?.code ?: event.getUnicodeChar(KeyEvent.META_ALT_ON)
                 // Get the base character without any modifiers (when Alt is held, event.unicodeChar equals altChar)
                 val baseCharZhenma = event.getUnicodeChar(0)
+
+                // In non-Juying mode, if Alt produces a digit (1-9) and there are candidates,
+                // skip Alt symbol input and let it fall through to candidate selection
+                val isDigitForSelectionZhenma = !juyingModeEnabled &&
+                                                zhenmaInputController.hasCandidates() &&
+                                                altChar.toChar().isDigit() &&
+                                                altChar.toChar() in '1'..'9'
+
                 // Only proceed if we get a valid alternate character that's different from the base one
-                if (altChar != 0 && altChar != baseCharZhenma) {
+                // AND it's not a digit for candidate selection
+                if (altChar != 0 && altChar != baseCharZhenma && !isDigitForSelectionZhenma) {
                     // In Juying mode, always clear buffer/predictions and set flags when Alt symbol is about to be committed
                     if (juyingModeEnabled) {
                         zhenmaInputController.clearBuffer()
