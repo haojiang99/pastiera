@@ -194,9 +194,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private var altCommittedCharacter: String? = null  // Character committed on Alt DOWN (for undo)
     private var altRemainingBuffer: String = ""  // Remaining buffer after selection (for undo)
 
-    // Alt candidate index: 4 (5th suggestion) for Titan2, 3 (4th suggestion) for BlackBerry
+    // Alt candidate index: When shiftAltSwapped is ON, Alt selects index 1 (leftmost suggestion in Juying mode)
+    // Otherwise: 4 (5th suggestion) for Titan2, 3 (4th suggestion) for BlackBerry
     private val altCandidateIndex: Int
-        get() = if (SettingsManager.isBlackBerryDevice(this)) 3 else 4
+        get() = if (SettingsManager.getShiftAltSwapped(this)) 1
+                else if (SettingsManager.isBlackBerryDevice(this)) 3 else 4
 
     private val symPage: Int
         get() = if (::symLayoutController.isInitialized) symLayoutController.currentSymPage() else 0
@@ -1809,7 +1811,21 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Handle Juying mode candidate selection for all configured keys
         // Juying: single-click selects candidate (Chinese: 5, English: 3)
         // Double-click Shift for prev page, double-click Alt for next page (Chinese only)
+        // Also handle DEL to clear English next-word predictions
         if (juyingModeEnabled && hasAnyCandidates && event?.repeatCount == 0) {
+            // Handle DEL to clear English next-word predictions AND perform backspace
+            if (keyCode == KeyEvent.KEYCODE_DEL && hasWordPredictions && currentInputConnection != null) {
+                val snapshot = englishWordPredictionController.getSnapshot()
+                if (snapshot.hasSuggestions && snapshot.isNextWordPrediction) {
+                    englishWordPredictionController.onBackspaceInput()
+                    englishWordPredictionController.clearNextWordPredictions()
+                    englishWordPredictionController.clearSuggestions()
+                    updateStatusBarText()
+                    // Don't consume the key - let backspace happen too
+                    // Fall through to normal DEL/backspace handling
+                }
+            }
+
             // IMPORTANT: If Alt is held and user presses a NON-Alt key,
             // this is Alt+key for symbol input, NOT candidate selection.
             // Clear predictions and cancel pending runnable immediately, then let normal handling proceed.
@@ -1872,33 +1888,48 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 juyingCandidateIndex = SettingsManager.getJuyingCandidateIndex(this, keyCode)
             }
 
+            // Apply swap logic for Shift/Alt keycodes when swap mode is ON
+            // When swapped: Shift keycode -> index 4, Alt keycode -> index 1
+            val shiftAltSwapped = SettingsManager.getShiftAltSwapped(this)
+            if (shiftAltSwapped && juyingCandidateIndex >= 0) {
+                if (isDeviceShiftKey(keyCode)) {
+                    juyingCandidateIndex = 4  // Shift keycode picks rightmost (index 4)
+                } else if (isDeviceAltKey(keyCode)) {
+                    juyingCandidateIndex = 1  // Alt keycode picks leftmost (index 1)
+                }
+            }
+
             // Fallback: Check modifier keys using device-specific detection
             // This handles cases where RIGHT variants (e.g., KEYCODE_ALT_RIGHT) are pressed
             // but the Juying keys list only contains LEFT variants
             if (juyingCandidateIndex < 0) {
-                // Check if Shift/Alt are swapped (Alt is 1st button, Shift is 5th button)
-                val shiftAltSwapped = SettingsManager.getShiftAltSwapped(this)
                 when {
-                    isDeviceShiftKey(keyCode) -> juyingCandidateIndex = if (shiftAltSwapped) 4 else 0  // Shift is 1st or 5th key
+                    isDeviceShiftKey(keyCode) -> juyingCandidateIndex = if (shiftAltSwapped) 4 else 0  // Shift keycode: swapped->4, normal->0
                     isDeviceCtrlKey(keyCode) -> juyingCandidateIndex = 3   // Ctrl is 4th key (index 3)
-                    isDeviceAltKey(keyCode) -> juyingCandidateIndex = if (shiftAltSwapped) 0 else 4    // Alt is 5th or 1st key
+                    isDeviceAltKey(keyCode) -> juyingCandidateIndex = if (shiftAltSwapped) 1 else 4    // Alt keycode: swapped->1 (leftmost), normal->4
                 }
             }
 
             // For English word predictions, skip Space key (index 2 in 5-key layout) - let it type space normally
             // Also skip Alt key (index 4) in English mode - it acts normally
+            // Also skip Shift when showing NEXT-WORD predictions (not prefix-based) - user should hold Shift to type capital letter
             // English uses only Shift/Sym/Ctrl for 3 suggestions, remapped to indices 0-2
             val isEnglishOnlyMode = hasWordPredictions && !isChineseInputActive
+            val isEnglishNextWordMode = isEnglishOnlyMode && englishWordPredictionController.getSnapshot().isNextWordPrediction
             // For Chinese mode with NO candidates (buffer empty after selection), skip ALL keys - let them work normally
             val isChineseNoCandidate = isChineseInputActive && !hasChineseCandidates
             if (isChineseNoCandidate) {
                 // No Chinese candidates - don't use any keys for Juying selection, let them work normally
                 juyingCandidateIndex = -1
+            } else if (isEnglishNextWordMode && (juyingCandidateIndex == 0 || juyingCandidateIndex == 2 || juyingCandidateIndex == 4)) {
+                // Shift, Space, or Alt key pressed when showing NEXT-WORD predictions - don't use for Juying selection
+                // Let Shift be held for modifier, Space type space, Alt work normally
+                juyingCandidateIndex = -1
             } else if (isEnglishOnlyMode && (juyingCandidateIndex == 2 || juyingCandidateIndex == 4)) {
-                // Space or Alt key pressed in English mode - don't use for Juying selection
+                // Space or Alt key pressed in English mode (prefix-based predictions) - don't use for Juying selection
                 juyingCandidateIndex = -1
             } else if (isEnglishOnlyMode && juyingCandidateIndex >= 0) {
-                // Remap for English: Shift(0)→0, Sym(1)→1, Ctrl(3)→2
+                // Remap for English (prefix-based): Shift(0)→0, Sym(1)→1, Ctrl(3)→2
                 juyingCandidateIndex = when (juyingCandidateIndex) {
                     0 -> 0  // Shift -> 1st suggestion
                     1 -> 1  // Sym -> 2nd suggestion
@@ -2540,22 +2571,30 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
 
+        // Handle DEL to clear English next-word predictions AND perform backspace
+        // Check this BEFORE Chinese input mode handling since Juying mode can show English predictions
+        if (keyCode == KeyEvent.KEYCODE_DEL && ic != null) {
+            val snapshot = englishWordPredictionController.getSnapshot()
+            if (snapshot.hasSuggestions && snapshot.isNextWordPrediction) {
+                englishWordPredictionController.onBackspaceInput()
+                englishWordPredictionController.clearNextWordPredictions()
+                englishWordPredictionController.clearSuggestions()
+                updateStatusBarText()
+                // Don't return - let backspace handling continue below
+            }
+        }
+
         // Handle English word prediction (when NOT in Chinese input mode)
         if (!isChineseInputModeActive() && ic != null) {
             // Update suggestions from current cursor position
             englishWordPredictionController.updateFromCursor(ic)
 
-            // Handle backspace to clear next-word predictions
-            if (keyCode == KeyEvent.KEYCODE_DEL && englishWordPredictionController.isShowingNextWordPredictions()) {
-                englishWordPredictionController.onBackspaceInput()
-                updateStatusBarText()
-                // Don't return true - let the backspace delete character as normal
-            }
-
             if (englishWordPredictionController.hasSuggestions()) {
                 // Alt+letter keys select suggestion - mapping depends on device type
                 // (determined by alt_key_mappings.json for each device)
-                val number = if (altPressed && !ctrlPressed && !shiftPressed) {
+                // Skip in Juying mode - Alt+W/E/R should input numbers, not select suggestions
+                val juyingModeEnabled = SettingsManager.getJuyingModeEnabled(this)
+                val number = if (altPressed && !ctrlPressed && !shiftPressed && !juyingModeEnabled) {
                     altSymManager.getAltKeyNumber(keyCode)
                 } else {
                     0
@@ -2571,6 +2610,24 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         modifierStateController.clearAltState(resetPressedState = true)
                         updateStatusBarText()
                         return true
+                    }
+                }
+            }
+
+            // Handle Shift+letter when English next-word predictions are showing:
+            // - Only type the capital letter
+            // - Clear the next-word predictions
+            // - Don't commit the 1st prediction word
+            if (shiftPressed && !ctrlPressed && !altPressed && ic != null && event != null) {
+                val snapshot = englishWordPredictionController.getSnapshot()
+                // Only apply this behavior for next-word predictions (not prefix-based)
+                if (snapshot.hasSuggestions && snapshot.isNextWordPrediction && event.unicodeChar != 0) {
+                    val char = event.unicodeChar.toChar()
+                    if (char.isLetter()) {
+                        // Clear the predictions without committing anything
+                        englishWordPredictionController.clearSuggestions()
+                        updateStatusBarText()
+                        // Don't return - let normal letter handling with Shift occur (will type capital letter)
                     }
                 }
             }
@@ -4723,15 +4780,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 juyingCandidateIndex = SettingsManager.getJuyingCandidateIndex(this, keyCode)
             }
 
+            // Apply swap logic for Shift/Alt keycodes when swap mode is ON
+            val shiftAltSwapped = SettingsManager.getShiftAltSwapped(this)
+            if (shiftAltSwapped && juyingCandidateIndex >= 0) {
+                if (isDeviceShiftKey(keyCode)) {
+                    juyingCandidateIndex = 4  // Shift keycode picks rightmost (index 4)
+                } else if (isDeviceAltKey(keyCode)) {
+                    juyingCandidateIndex = 1  // Alt keycode picks leftmost (index 1)
+                }
+            }
+
             // Fallback: Check modifier keys using device-specific detection
             // This handles cases where RIGHT variants (e.g., KEYCODE_ALT_RIGHT) are pressed
             if (juyingCandidateIndex < 0) {
-                // Check if Shift/Alt are swapped (Alt is 1st button, Shift is 5th button)
-                val shiftAltSwapped = SettingsManager.getShiftAltSwapped(this)
                 when {
-                    isDeviceShiftKey(keyCode) -> juyingCandidateIndex = if (shiftAltSwapped) 4 else 0  // Shift is 1st or 5th key
+                    isDeviceShiftKey(keyCode) -> juyingCandidateIndex = if (shiftAltSwapped) 4 else 0  // Shift keycode: swapped->4, normal->0
                     isDeviceCtrlKey(keyCode) -> juyingCandidateIndex = 3   // Ctrl is 4th key (index 3)
-                    isDeviceAltKey(keyCode) -> juyingCandidateIndex = if (shiftAltSwapped) 0 else 4    // Alt is 5th or 1st key
+                    isDeviceAltKey(keyCode) -> juyingCandidateIndex = if (shiftAltSwapped) 1 else 4    // Alt keycode: swapped->1 (leftmost), normal->4
                 }
             }
 

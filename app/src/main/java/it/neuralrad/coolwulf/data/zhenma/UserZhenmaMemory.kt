@@ -93,10 +93,10 @@ class UserZhenmaMemory(context: Context) {
      * Sorts a list of character candidates by user preference frequency (descending).
      * Uses SEPARATE frequency tracking for single characters (words) and phrases (multi-character).
      * This means phrases and single characters are sorted independently within their own groups,
-     * with phrases appearing first, then single characters.
+     * with single characters appearing first, then phrases.
      * @param zhenmaCode The Zhenma code input
      * @param candidates The list of characters to sort
-     * @return Sorted list with phrases first (sorted by frequency), then single characters (sorted by frequency)
+     * @return Sorted list with single characters first (sorted by frequency), then phrases (sorted by frequency)
      */
     fun sortByFrequency(zhenmaCode: String, candidates: List<String>): List<String> {
         val normalizedCode = zhenmaCode.lowercase().trim()
@@ -106,14 +106,14 @@ class UserZhenmaMemory(context: Context) {
         val phrases = candidates.filter { it.length > 1 }
         val singleChars = candidates.filter { it.length == 1 }
 
-        // Sort phrases by frequency (descending)
-        val sortedPhrases = phrases.sortedByDescending { charMap[it] ?: 0 }
-
         // Sort single characters by frequency (descending)
         val sortedSingleChars = singleChars.sortedByDescending { charMap[it] ?: 0 }
 
-        // Phrases first, then single characters
-        return sortedPhrases + sortedSingleChars
+        // Sort phrases by frequency (descending)
+        val sortedPhrases = phrases.sortedByDescending { charMap[it] ?: 0 }
+
+        // Single characters first, then phrases
+        return sortedSingleChars + sortedPhrases
     }
 
     /**

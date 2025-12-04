@@ -392,7 +392,9 @@ class InputEventRouter(
                     callbacks.onAltLatchDisabled()
                     callbacks.updateStatusBar()
                 }
-                return EditableFieldRoutingResult.CallSuper
+                // For BACK, return CallSuper; for DEL, Continue to allow prediction clearing
+                return if (keyCode == KeyEvent.KEYCODE_BACK) EditableFieldRoutingResult.CallSuper
+                       else EditableFieldRoutingResult.Continue
             }
 
             // Check if Alt produces a digit - if Chinese candidates are visible in non-Juying mode,
