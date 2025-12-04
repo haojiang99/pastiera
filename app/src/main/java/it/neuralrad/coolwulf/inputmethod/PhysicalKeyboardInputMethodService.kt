@@ -2344,7 +2344,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             }
                             hasWordPredictions -> {
                                 // English mode: Direct index mapping regardless of prediction type or count
-                                // Shift = left (index 0), Sym = middle (index 1), Ctrl = right (index 2)
+                                // Sym = left (index 0), Space = middle (index 1), Ctrl = right (index 2)
                                 val englishOriginalIndex = juyingCandidateIndex
                                 val result = englishWordPredictionController.selectSuggestion(englishOriginalIndex)
                                 if (result != null) {
@@ -2352,13 +2352,30 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     ic.commitText(result.word + " ", 1)
                                     englishWordPredictionController.updateFromCursor(ic)
                                     updateStatusBarText()
+                                } else if (juyingCandidateIndex == 1) {
+                                    // Space pressed but no prefix to commit - let it type a space normally
+                                    // Don't consume the key event
+                                    if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
+                                    // Fall through to normal key handling below
                                 }
                             }
                         }
+                        // Check if we should return (consume the key)
+                        // For English mode Space with no prefix, don't consume - let it type space
+                        val shouldConsumeKey = when {
+                            hasWordPredictions && juyingCandidateIndex == 1 &&
+                                englishWordPredictionController.getCurrentPrefix().isEmpty() -> false
+                            else -> true
+                        }
+                        if (shouldConsumeKey) {
+                            if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
+                            return true
+                        }
+                    } else {
+                        // Update press time for double-click detection
+                        if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
+                        return true
                     }
-                    // Update press time for double-click detection
-                    if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
-                    return true
                 }
             }
         }
