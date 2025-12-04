@@ -244,12 +244,18 @@ class EnglishWordPredictionController(
     fun selectSuggestion(index: Int): SelectionResult? {
         val currentPageSuggestions = getCurrentPageSuggestions()
 
-        // Input index: 0=Shift, 1=Sym, 2=Ctrl
-        // Map key to underlying suggestion index:
-        // - Shift(0) picks best = underlying index 0
-        // - Sym(1) picks 2nd best = underlying index 1
-        // - Ctrl(2) picks 3rd best = underlying index 2
-        val underlyingIndex = index  // Direct mapping: Shift->0, Sym->1, Ctrl->2
+        // Display in Juying mode is reordered by status bar: [2nd, best, 3rd]
+        // Input index: 0=Shift(left), 1=Sym(middle), 2=Ctrl(right)
+        // Map display position to underlying suggestion index:
+        // - Shift(0) picks left = 2nd best = underlying index 1
+        // - Sym(1) picks middle = best = underlying index 0
+        // - Ctrl(2) picks right = 3rd best = underlying index 2
+        val underlyingIndex = when (index) {
+            0 -> 1  // Shift picks 2nd (displayed on left)
+            1 -> 0  // Sym picks best (displayed in middle)
+            2 -> 2  // Ctrl picks 3rd (displayed on right)
+            else -> index
+        }
 
         if (underlyingIndex < 0 || underlyingIndex >= currentPageSuggestions.size) {
             return null
@@ -424,14 +430,13 @@ class EnglishWordPredictionController(
             currentPageSuggestions.map { applyCasePattern(it) }
         }
 
-        // Always show exactly 3 suggestion slots: [left/Shift, middle/Sym, right/Ctrl]
-        // Layout: [best, 2nd, 3rd] - best on left (Shift), 2nd in middle (Sym), 3rd on right (Ctrl)
-        val finalSuggestions = when (casedSuggestions.size) {
-            0 -> listOf("", "", "")
-            1 -> listOf(casedSuggestions[0], "", "")  // Best on left
-            2 -> listOf(casedSuggestions[0], casedSuggestions[1], "")  // Best on left, 2nd in middle
-            else -> listOf(casedSuggestions[0], casedSuggestions[1], casedSuggestions[2])  // Best on left, 2nd in middle, 3rd on right
+        // Always show exactly 3 suggestion slots in original order: [best, 2nd, 3rd]
+        // Note: The status bar (updateStatusBarText) handles display reordering for Juying mode
+        val paddedSuggestions = casedSuggestions.toMutableList()
+        while (paddedSuggestions.size < 3) {
+            paddedSuggestions.add("")
         }
+        val finalSuggestions = paddedSuggestions.take(3)
 
         val totalPages = getTotalPages()
         return Snapshot(
