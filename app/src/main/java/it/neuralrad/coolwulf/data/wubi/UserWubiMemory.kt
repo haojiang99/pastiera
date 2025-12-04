@@ -113,7 +113,14 @@ class UserWubiMemory(context: Context) {
         val charMap = memoryCache[normalizedCode] ?: return candidates
 
         // Sort by frequency (descending), maintaining original order for equal frequencies
-        return candidates.sortedByDescending { charMap[it] ?: 0 }
+        // Phrases (multi-character candidates) get a +2 frequency boost ONLY when unselected (frequency 0)
+        // This means a single character needs to be selected 3 times to surpass an unselected phrase
+        // Once either is selected, they compete on actual frequency
+        return candidates.sortedByDescending { candidate ->
+            val baseFreq = charMap[candidate] ?: 0
+            val phraseBoost = if (candidate.length > 1 && baseFreq == 0) 2 else 0
+            baseFreq + phraseBoost
+        }
     }
 
     /**

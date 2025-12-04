@@ -860,54 +860,45 @@ class PinyinInputController(
             matchedPinyin = if (dictPhraseCandidates.isNotEmpty() || customPhrases.isNotEmpty()) bufferWithoutSep else actualFirstSyllable
         }
 
-        // Now combine phrases and single characters, sorted by effective priority
-        // Phrases get baseline priority, but high-frequency single chars can beat lower phrases
-        // Use data class to track whether each candidate is a phrase or single char
-        data class CandidateWithType(val text: String, val isPhrase: Boolean, val effectiveRank: Int)
-
-        // Priority offset for single characters - phrases get this head start
-        // A single char needs to be in top SINGLE_CHAR_PRIORITY_OFFSET positions to beat phrases
-        val SINGLE_CHAR_PRIORITY_OFFSET = 3
-
-        val combinedWithFreq = mutableListOf<CandidateWithType>()
+        // Now combine phrases and single characters by merging frequency-sorted lists
+        // Both lists are already sorted by user frequency (with +2 boost for unselected phrases in UserPinyinMemory)
+        // We need to merge them while preserving the frequency-based order from BOTH lists
         val seenInCombined = resultCandidates.toMutableSet()  // Already have abbreviations/custom
 
         // Sort phrases by frequency first (user memory + dictionary)
         val sortedPhrases = sortByFrequencyIfEnabled(bufferWithoutSep, phraseCandidatesRaw)
 
-        // Add phrase candidates - use position in sorted list as rank (already sorted by frequency)
-        for ((index, phrase) in sortedPhrases.withIndex()) {
-            if (phrase !in seenInCombined) {
-                // Phrase rank = position in sorted list
-                combinedWithFreq.add(CandidateWithType(phrase, true, index))
-                seenInCombined.add(phrase)
-            }
+        // Get user frequency for accurate merging
+        val userFreqMap = if (isMemoryEnabled()) userMemory.getFrequencyMap(bufferWithoutSep) else emptyMap()
+
+        // Merge phrases and single chars, sorted by effective user frequency
+        // Phrases get +2 boost when frequency is 0
+        val allCandidatesWithFreq = mutableListOf<Pair<String, Int>>()
+        for (phrase in sortedPhrases) {
+            val freq = userFreqMap[phrase] ?: 0
+            val boost = if (freq == 0) 2 else 0
+            allCandidatesWithFreq.add(phrase to (freq + boost))
+        }
+        for (char in firstSyllableCharCandidates) {
+            val freq = userFreqMap[char] ?: 0
+            allCandidatesWithFreq.add(char to freq)
         }
 
-        // Add single-character candidates - already sorted by user memory + frequency
-        // Apply priority offset so phrases generally appear first
-        // But top user-learned characters (position < OFFSET) can still beat lower phrases
-        for ((index, char) in firstSyllableCharCandidates.withIndex()) {
-            if (char !in seenInCombined) {
-                // Single char rank = position + offset (so phrase at position 3 ties with char at position 0)
-                combinedWithFreq.add(CandidateWithType(char, false, index + SINGLE_CHAR_PRIORITY_OFFSET))
-                seenInCombined.add(char)
-            }
-        }
+        // Sort by effective frequency (descending)
+        val mergedSorted = allCandidatesWithFreq.sortedByDescending { it.second }.map { it.first }
 
-        // Sort by effective rank (lower = higher priority)
-        val sortedCombined = combinedWithFreq.sortedBy { it.effectiveRank }
-
-        // Add sorted candidates to result, tracking phrase count
-        // Phrases that appear before the first single-char are counted as phrase candidates
-        var foundFirstSingleChar = false
+        // Add to result
         var phraseCountFromSorted = 0
-        for (item in sortedCombined) {
-            resultCandidates.add(item.text)
-            if (item.isPhrase && !foundFirstSingleChar) {
-                phraseCountFromSorted++
-            } else if (!item.isPhrase) {
-                foundFirstSingleChar = true
+        var foundFirstSingleChar = false
+        for (candidate in mergedSorted) {
+            if (candidate !in seenInCombined) {
+                resultCandidates.add(candidate)
+                seenInCombined.add(candidate)
+                if (candidate.length > 1 && !foundFirstSingleChar) {
+                    phraseCountFromSorted++
+                } else if (candidate.length == 1) {
+                    foundFirstSingleChar = true
+                }
             }
         }
 

@@ -137,12 +137,30 @@ class UserPinyinMemory(context: Context) {
         }
 
         // Sort: user selections first (by user frequency), then by base frequency order
+        // Phrases (multi-character candidates) get a +2 frequency boost ONLY when unselected (frequency 0)
+        // This means a single character needs to be selected 3 times to surpass an unselected phrase
+        // Once either is selected, they compete on actual frequency
         return frequencySorted.sortedWith(compareBy(
             // User selections get negative scores (appear first), sorted by frequency descending
-            { -(userFreqMap[it] ?: 0) },
+            // Phrases get +2 boost only when frequency is 0
+            { candidate ->
+                val baseFreq = userFreqMap[candidate] ?: 0
+                val phraseBoost = if (candidate.length > 1 && baseFreq == 0) 2 else 0
+                -(baseFreq + phraseBoost)
+            },
             // For items with same user frequency (including 0), maintain base frequency order
             { frequencySorted.indexOf(it) }
         ))
+    }
+
+    /**
+     * Gets the frequency map for a specific pinyin.
+     * @param pinyin The pinyin input
+     * @return Map of candidate to frequency count, or empty map if no data
+     */
+    fun getFrequencyMap(pinyin: String): Map<String, Int> {
+        val normalizedPinyin = pinyin.lowercase().trim()
+        return memoryCache[normalizedPinyin] ?: emptyMap()
     }
 
     /**

@@ -2614,8 +2614,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val altChar = altMappedChar?.firstOrNull()?.code ?: event.getUnicodeChar(KeyEvent.META_ALT_ON)
                 // Get the base character without any modifiers
                 val baseChar = event.getUnicodeChar(0)
+
+                // In non-Juying mode, if Alt produces a digit (1-9) and there are candidates,
+                // skip Alt symbol input and let it fall through to candidate selection
+                val isDigitForSelection = !juyingModeEnabled &&
+                                          pinyinInputController.hasCandidates() &&
+                                          altChar.toChar().isDigit() &&
+                                          altChar.toChar() in '1'..'9'
+
                 // Only proceed if we get a valid alternate character that's different from the base one
-                if (altChar != 0 && altChar != baseChar) {
+                // AND it's not a digit for candidate selection
+                if (altChar != 0 && altChar != baseChar && !isDigitForSelection) {
                     // Clear buffer/predictions when Alt symbol is about to be committed
                     // This prevents pinyin from becoming English text in the input
                     if (juyingModeEnabled) {
