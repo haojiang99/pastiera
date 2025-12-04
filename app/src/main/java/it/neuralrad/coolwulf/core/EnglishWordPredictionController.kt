@@ -244,12 +244,15 @@ class EnglishWordPredictionController(
     fun selectSuggestion(index: Int): SelectionResult? {
         val currentPageSuggestions = getCurrentPageSuggestions()
 
-        // Pad suggestions to ensure exactly 3 slots (same as display)
-        val paddedSuggestions = currentPageSuggestions.toMutableList()
-        while (paddedSuggestions.size < 3) {
-            paddedSuggestions.add("")
+        // Reorder suggestions to match display layout: [left/Shift, middle/Sym, right/Ctrl]
+        // Display layout: best in middle (Sym), 2nd on left (Shift), 3rd on right (Ctrl)
+        // So index mapping is: 0(Shift)->1(2nd), 1(Sym)->0(best), 2(Ctrl)->2(3rd)
+        val finalSuggestions = when (currentPageSuggestions.size) {
+            0 -> listOf("", "", "")
+            1 -> listOf("", currentPageSuggestions[0], "")  // Best in middle
+            2 -> listOf(currentPageSuggestions[1], currentPageSuggestions[0], "")  // Best in middle, 2nd on left
+            else -> listOf(currentPageSuggestions[1], currentPageSuggestions[0], currentPageSuggestions[2])  // Best in middle, 2nd on left, 3rd on right
         }
-        val finalSuggestions = paddedSuggestions.take(3)
 
         if (index < 0 || index >= finalSuggestions.size) {
             return null
@@ -424,12 +427,17 @@ class EnglishWordPredictionController(
             currentPageSuggestions.map { applyCasePattern(it) }
         }
 
-        // Always show exactly 3 suggestion slots (pad with empty strings if fewer than 3)
-        val paddedSuggestions = casedSuggestions.toMutableList()
-        while (paddedSuggestions.size < 3) {
-            paddedSuggestions.add("")
+        // Always show exactly 3 suggestion slots: [left/Shift, middle/Sym, right/Ctrl]
+        // Layout depends on how many suggestions we have:
+        // - 1 suggestion: ["", best, ""] - best in middle (Sym)
+        // - 2 suggestions: [2nd, best, ""] - best in middle (Sym), 2nd on left (Shift)
+        // - 3+ suggestions: [2nd, best, 3rd] - best in middle (Sym), 2nd on left (Shift), 3rd on right (Ctrl)
+        val finalSuggestions = when (casedSuggestions.size) {
+            0 -> listOf("", "", "")
+            1 -> listOf("", casedSuggestions[0], "")  // Best in middle
+            2 -> listOf(casedSuggestions[1], casedSuggestions[0], "")  // Best in middle, 2nd on left
+            else -> listOf(casedSuggestions[1], casedSuggestions[0], casedSuggestions[2])  // Best in middle, 2nd on left, 3rd on right
         }
-        val finalSuggestions = paddedSuggestions.take(3)  // Ensure exactly 3
 
         val totalPages = getTotalPages()
         return Snapshot(
