@@ -244,21 +244,24 @@ class EnglishWordPredictionController(
     fun selectSuggestion(index: Int): SelectionResult? {
         val currentPageSuggestions = getCurrentPageSuggestions()
 
-        // Reorder suggestions to match display layout: [left/Shift, middle/Sym, right/Ctrl]
-        // Display layout: best in middle (Sym), 2nd on left (Shift), 3rd on right (Ctrl)
-        // So index mapping is: 0(Shift)->1(2nd), 1(Sym)->0(best), 2(Ctrl)->2(3rd)
-        val finalSuggestions = when (currentPageSuggestions.size) {
-            0 -> listOf("", "", "")
-            1 -> listOf("", currentPageSuggestions[0], "")  // Best in middle
-            2 -> listOf(currentPageSuggestions[1], currentPageSuggestions[0], "")  // Best in middle, 2nd on left
-            else -> listOf(currentPageSuggestions[1], currentPageSuggestions[0], currentPageSuggestions[2])  // Best in middle, 2nd on left, 3rd on right
+        // Display layout: [left/Shift, middle/Sym, right/Ctrl] = [2nd, best, 3rd]
+        // Input index: 0=Shift(left), 1=Sym(middle), 2=Ctrl(right)
+        // Map display position to underlying suggestion index:
+        // - Shift(0) picks left display = 2nd best = underlying index 1
+        // - Sym(1) picks middle display = best = underlying index 0
+        // - Ctrl(2) picks right display = 3rd best = underlying index 2
+        val underlyingIndex = when (index) {
+            0 -> 1  // Shift -> 2nd best (index 1)
+            1 -> 0  // Sym -> best (index 0)
+            2 -> 2  // Ctrl -> 3rd best (index 2)
+            else -> index
         }
 
-        if (index < 0 || index >= finalSuggestions.size) {
+        if (underlyingIndex < 0 || underlyingIndex >= currentPageSuggestions.size) {
             return null
         }
 
-        val selectedWord = finalSuggestions[index]
+        val selectedWord = currentPageSuggestions.getOrNull(underlyingIndex) ?: ""
 
         // Ignore empty slots (user pressed button for non-existent suggestion)
         if (selectedWord.isEmpty()) {
