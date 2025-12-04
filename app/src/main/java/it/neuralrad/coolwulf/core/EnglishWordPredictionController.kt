@@ -252,20 +252,24 @@ class EnglishWordPredictionController(
         // - Ctrl(2) picks right = 2nd best = underlying index 1
 
         // Special case: Space (index 1) commits the current typed word (prefix)
+        // The word is already typed, so just return empty string to add only a space
         if (index == 1) {
-            // Return the prefix as the word to commit (with prefixLength=0 to not delete anything extra)
             if (originalPrefix.isEmpty()) {
                 return null  // No prefix to commit
             }
-            val casedPrefix = originalPrefix  // Already has correct case
-            Log.d(TAG, "Space selected - committing typed word: '$casedPrefix'")
+            Log.d(TAG, "Space selected - keeping typed word: '$originalPrefix', just adding space")
+
+            // Record the committed word for next-word prediction learning
+            nextWordPredictor.recordCommittedWord(originalPrefix.lowercase())
 
             // Clear predictions after committing
             clearSuggestions()
 
+            // Return empty word with 0 prefixLength - the service will add " " after it
+            // This means: delete 0 chars, insert "" + " " = just add a space
             return SelectionResult(
-                word = casedPrefix,
-                prefixLength = originalPrefix.length,  // Delete the prefix since we're replacing it
+                word = "",
+                prefixLength = 0,
                 isNextWordPrediction = false
             )
         }
