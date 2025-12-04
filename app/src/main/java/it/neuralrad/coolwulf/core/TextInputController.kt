@@ -166,13 +166,4 @@ class TextInputController(
 
         return false
     }
-
-    /**
-     * Records that a space was pressed (e.g., from Juying mode word selection).
-     * This allows double-space-to-period to work when the first space was
-     * committed via Juying mode selection rather than normal key handling.
-     */
-    fun recordSpacePress() {
-        lastSpacePressTime = System.currentTimeMillis()
-    }
 }

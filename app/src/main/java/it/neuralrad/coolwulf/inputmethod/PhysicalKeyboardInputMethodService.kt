@@ -2346,30 +2346,26 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 // English mode: Direct index mapping regardless of prediction type or count
                                 // Sym = left (index 0), Space = middle (index 1), Ctrl = right (index 2)
                                 val englishOriginalIndex = juyingCandidateIndex
+                                // Check prefix BEFORE calling selectSuggestion (which may clear it)
+                                val prefixWasEmpty = englishWordPredictionController.getCurrentPrefix().isEmpty()
                                 val result = englishWordPredictionController.selectSuggestion(englishOriginalIndex)
                                 if (result != null) {
                                     ic.deleteSurroundingText(result.prefixLength, 0)
                                     ic.commitText(result.word + " ", 1)
-                                    // Record space press for double-space-to-period detection
-                                    textInputController.recordSpacePress()
                                     englishWordPredictionController.updateFromCursor(ic)
                                     updateStatusBarText()
-                                } else if (juyingCandidateIndex == 1) {
-                                    // Space pressed but no prefix to commit - let it type a space normally
-                                    // Don't consume the key event
+                                    // Consumed - always return after successful selection
                                     if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
-                                    // Fall through to normal key handling below
+                                    return true
+                                } else if (juyingCandidateIndex == 1 && prefixWasEmpty) {
+                                    // Space pressed but no prefix to commit - let it type a space normally
+                                    // Don't consume the key event, fall through to normal handling
                                 }
                             }
                         }
-                        // Check if we should return (consume the key)
-                        // For English mode Space with no prefix, don't consume - let it type space
-                        val shouldConsumeKey = when {
-                            hasWordPredictions && juyingCandidateIndex == 1 &&
-                                englishWordPredictionController.getCurrentPrefix().isEmpty() -> false
-                            else -> true
-                        }
-                        if (shouldConsumeKey) {
+                        // If we reach here, either no word predictions or Space with no prefix
+                        // For non-Space Juying keys, still consume the key
+                        if (!(hasWordPredictions && juyingCandidateIndex == 1)) {
                             if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
                             return true
                         }
