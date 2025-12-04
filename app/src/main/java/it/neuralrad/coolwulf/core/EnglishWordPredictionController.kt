@@ -243,11 +243,25 @@ class EnglishWordPredictionController(
      */
     fun selectSuggestion(index: Int): SelectionResult? {
         val currentPageSuggestions = getCurrentPageSuggestions()
-        if (index < 0 || index >= currentPageSuggestions.size) {
+
+        // Pad suggestions to ensure exactly 3 slots (same as display)
+        val paddedSuggestions = currentPageSuggestions.toMutableList()
+        while (paddedSuggestions.size < 3) {
+            paddedSuggestions.add("")
+        }
+        val finalSuggestions = paddedSuggestions.take(3)
+
+        if (index < 0 || index >= finalSuggestions.size) {
             return null
         }
 
-        val selectedWord = currentPageSuggestions[index]
+        val selectedWord = finalSuggestions[index]
+
+        // Ignore empty slots (user pressed button for non-existent suggestion)
+        if (selectedWord.isEmpty()) {
+            return null
+        }
+
         // Apply the case pattern from the original prefix to the suggestion
         val casedWord = applyCasePattern(selectedWord)
         val prefixLength = if (isShowingNextWordPredictions) 0 else originalPrefix.length

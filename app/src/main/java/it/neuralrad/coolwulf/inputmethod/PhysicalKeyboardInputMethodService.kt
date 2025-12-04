@@ -2338,25 +2338,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 }
                             }
                             hasWordPredictions -> {
-                                // Different mapping for next-word predictions vs prefix-based predictions
-                                val snapshot = englishWordPredictionController.getSnapshot()
-                                val englishOriginalIndex = if (snapshot.isNextWordPrediction) {
-                                    // For next-word predictions: Shift(0)->0, Sym(1)->1, Space(2)->2
-                                    when (juyingCandidateIndex) {
-                                        0 -> 0  // Shift selects 1st (best) suggestion
-                                        1 -> 1  // Sym selects 2nd suggestion
-                                        2 -> 2  // Space selects 3rd suggestion
-                                        else -> juyingCandidateIndex
-                                    }
-                                } else {
-                                    // For prefix-based predictions: Display reordering [2nd, 1st, 3rd] -> 0->1, 1->0, 2->2
-                                    when (juyingCandidateIndex) {
-                                        0 -> 1  // Shift selects 2nd suggestion
-                                        1 -> 0  // Sym selects 1st (best) suggestion
-                                        2 -> 2  // Space selects 3rd suggestion
-                                        else -> juyingCandidateIndex
-                                    }
-                                }
+                                // English mode: Direct index mapping regardless of prediction type or count
+                                // Shift = left (index 0), Sym = middle (index 1), Ctrl = right (index 2)
+                                val englishOriginalIndex = juyingCandidateIndex
                                 val result = englishWordPredictionController.selectSuggestion(englishOriginalIndex)
                                 if (result != null) {
                                     ic.deleteSurroundingText(result.prefixLength, 0)
