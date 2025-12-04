@@ -180,7 +180,8 @@ class InputEventRouter(
         val juyingModeShouldInterceptAlt: Boolean = false, // True when Juying mode should intercept Alt key
         val altLatchJustDisabled: Boolean = false, // True when Alt latch was just disabled (ignore event meta state)
         val hasSuggestionsVisible: Boolean = false, // True when suggestions/predictions are visible (prevent Alt latch in non-Juying mode)
-        val juyingModeEnabled: Boolean = false // True when Juying mode is enabled
+        val juyingModeEnabled: Boolean = false, // True when Juying mode is enabled
+        val isChineseInputActive: Boolean = false // True when Chinese input mode is active (Pinyin, Shuangpin, Wubi, Zhenma)
     )
 
     data class EditableFieldKeyDownControllers(
@@ -222,14 +223,21 @@ class InputEventRouter(
 
         if (keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT) {
             if (!params.shiftPressed) {
-                val result = controllers.modifierStateController.handleShiftKeyDown(keyCode)
+                // In Chinese mode, disable Shift LED
+                val result = controllers.modifierStateController.handleShiftKeyDown(keyCode, disableLed = params.isChineseInputActive)
                 if (result.shouldUpdateStatusBar) {
                     callbacks.updateStatusBar()
                 } else if (result.shouldRefreshStatusBar) {
                     callbacks.refreshStatusBar()
                 }
             }
-            return EditableFieldRoutingResult.CallSuper
+            // In Chinese mode, consume the event to prevent system from turning on LED
+            // In non-Chinese mode, call super to allow normal Shift handling
+            return if (params.isChineseInputActive) {
+                EditableFieldRoutingResult.Consume
+            } else {
+                EditableFieldRoutingResult.CallSuper
+            }
         }
 
         if (keyCode == KeyEvent.KEYCODE_CTRL_LEFT || keyCode == KeyEvent.KEYCODE_CTRL_RIGHT) {
@@ -394,10 +402,16 @@ class InputEventRouter(
                     callSuperWithKey = callbacks.callSuperWithKey
                 )
             ) {
-                // After ANY Alt symbol input, set altLatchJustDisabled to prevent subsequent
+                // Check if the Alt character is a digit - if so, allow continuous input
+                val altMappedChar = controllers.altSymManager.getAltMappings()[keyCode]
+                val isDigit = altMappedChar?.firstOrNull()?.isDigit() == true
+
+                // After Alt symbol input, set altLatchJustDisabled to prevent subsequent
                 // keys from being treated as Alt+key (especially when Alt is physically held)
-                // This applies to: one-shot, latch, or physical Alt press
-                callbacks.onAltLatchDisabled()
+                // EXCEPTION: For digits, allow continuous Alt input when holding Alt key
+                if (!isDigit) {
+                    callbacks.onAltLatchDisabled()
+                }
 
                 // In non-Juying mode with suggestions visible, also clear Alt latch state
                 if (altLatchActive && params.hasSuggestionsVisible && !params.juyingModeEnabled) {

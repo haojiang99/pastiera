@@ -180,7 +180,7 @@ class ModifierStateController(
         )
     }
 
-    fun handleShiftKeyDown(keyCode: Int): ModifierKeyHandler.ModifierKeyResult {
+    fun handleShiftKeyDown(keyCode: Int, disableLed: Boolean = false): ModifierKeyHandler.ModifierKeyResult {
         if (keyCode != KeyEvent.KEYCODE_SHIFT_LEFT &&
             keyCode != KeyEvent.KEYCODE_SHIFT_RIGHT
         ) {
@@ -191,7 +191,8 @@ class ModifierStateController(
             return ModifierKeyHandler.ModifierKeyResult()
         }
 
-        shiftPhysicallyPressedFlag = true
+        // In Chinese mode, don't turn on the LED
+        shiftPhysicallyPressedFlag = !disableLed
         shiftPressedFlag = true
         val previous = shiftStateMachine.state
         val isConsecutiveTap = registerModifierTap(keyCode)

@@ -89,8 +89,11 @@ class LedStatusView(
     fun getView(): LinearLayout? = container
 
     fun update(snapshot: StatusBarController.StatusSnapshot) {
-        val shiftLocked = snapshot.capsLockEnabled
-        val shiftActive = (snapshot.shiftPhysicallyPressed || snapshot.shiftOneShot) && !shiftLocked
+        // In Chinese mode, hide Shift LED completely
+        val isChineseMode = snapshot.pinyinModeActive || snapshot.shuangpinModeActive ||
+                           snapshot.ziranmaModeActive || snapshot.wubiModeActive || snapshot.zhenmaModeActive
+        val shiftLocked = snapshot.capsLockEnabled && !isChineseMode
+        val shiftActive = (snapshot.shiftPhysicallyPressed || snapshot.shiftOneShot) && !shiftLocked && !isChineseMode
         updateLed(shiftLed, shiftLocked, shiftActive)
 
         val ctrlLocked = snapshot.ctrlLatchActive

@@ -28,10 +28,11 @@ class TextInputController(
         keyCode: Int,
         inputConnection: InputConnection?,
         shouldDisableSmartFeatures: Boolean,
-        onStatusBarUpdate: () -> Unit
+        onStatusBarUpdate: () -> Unit,
+        useChinesePunctuation: Boolean = false
     ): Boolean {
         // Detects a "double space" pattern and replaces the trailing space
-        // with ". ". The decision to enable Shift one-shot after that is
+        // with ". " (English) or "。" (Chinese). The decision to enable Shift one-shot after that is
         // delegated to AutoCapitalizeHelper so it can be tracked as a
         // smart auto-capitalization (and cleared when context changes).
         if (keyCode != KeyEvent.KEYCODE_SPACE || shouldDisableSmartFeatures) {
@@ -59,7 +60,7 @@ class TextInputController(
         }
 
         val textBeforeCursor = inputConnection.getTextBeforeCursor(100, 0) ?: return false
-        if (!textBeforeCursor.endsWith(" ") || 
+        if (!textBeforeCursor.endsWith(" ") ||
             (textBeforeCursor.length >= 2 && textBeforeCursor[textBeforeCursor.length - 2] == ' ')) {
             lastSpacePressTime = currentTime
             return false
@@ -76,14 +77,21 @@ class TextInputController(
         }
 
         val lastChar = textBeforeCursor[lastCharIndex]
-        val isEndPunctuation = lastChar in ".!?"
+        // Check for both English and Chinese end punctuation
+        val isEndPunctuation = lastChar in ".!?。！？"
         if (isEndPunctuation) {
             lastSpacePressTime = currentTime
             return false
         }
 
         inputConnection.deleteSurroundingText(1, 0)
-        inputConnection.commitText(". ", 1)
+        if (useChinesePunctuation) {
+            // Chinese punctuation: full-width period (no space after)
+            inputConnection.commitText("。", 1)
+        } else {
+            // English punctuation: period + space
+            inputConnection.commitText(". ", 1)
+        }
         AutoCapitalizeHelper.enableAfterPunctuation(
             context = context,
             inputConnection = inputConnection,

@@ -1885,7 +1885,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // Also skip Alt key (index 4) in English mode - it acts normally
             // English uses only Shift/Sym/Ctrl for 3 suggestions, remapped to indices 0-2
             val isEnglishOnlyMode = hasWordPredictions && !isChineseInputActive
-            if (isEnglishOnlyMode && (juyingCandidateIndex == 2 || juyingCandidateIndex == 4)) {
+            // For Chinese mode with NO candidates (buffer empty after selection), skip ALL keys - let them work normally
+            val isChineseNoCandidate = isChineseInputActive && !hasChineseCandidates
+            if (isChineseNoCandidate) {
+                // No Chinese candidates - don't use any keys for Juying selection, let them work normally
+                juyingCandidateIndex = -1
+            } else if (isEnglishOnlyMode && (juyingCandidateIndex == 2 || juyingCandidateIndex == 4)) {
                 // Space or Alt key pressed in English mode - don't use for Juying selection
                 juyingCandidateIndex = -1
             } else if (isEnglishOnlyMode && juyingCandidateIndex >= 0) {
@@ -2154,6 +2159,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     updateStatusBarText()
 
                     return true
+                } else if (isDeviceAltKey(keyCode) && isChineseInputActive && !hasChineseCandidates) {
+                    // Alt pressed in Chinese mode without candidates
+                    // Do NOT consume the event - let it fall through to normal Alt handling
+                    // (InputEventRouter will set up altOneShot for symbol input)
                 } else {
                     // Non-Alt keys or non-Chinese mode - select candidate immediately
                     val ic = currentInputConnection
@@ -2599,9 +2608,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val shouldSkipAltHandling = altLatchJustDisabled && !altLatchActive && !altOneShot
             if (event != null && !shouldSkipAltHandling && (altLatchActive || altOneShot || altPressed || altFromEvent || altFromJuyingTracking)) {
                 // Get the character with Alt modifier applied
-                val altChar = event.getUnicodeChar(KeyEvent.META_ALT_ON)
-                // Only proceed if we get a valid alternate character that's different from the normal one
-                if (altChar != 0 && altChar != event.unicodeChar) {
+                // IMPORTANT: Use Pastiera's altSymManager mapping (device-specific) instead of
+                // system's getUnicodeChar(META_ALT_ON) which may not have the correct mappings
+                val altMappedChar = altSymManager.getAltMappings()[keyCode]
+                val altChar = altMappedChar?.firstOrNull()?.code ?: event.getUnicodeChar(KeyEvent.META_ALT_ON)
+                // Get the base character without any modifiers
+                val baseChar = event.getUnicodeChar(0)
+                // Only proceed if we get a valid alternate character that's different from the base one
+                if (altChar != 0 && altChar != baseChar) {
                     // Clear buffer/predictions when Alt symbol is about to be committed
                     // This prevents pinyin from becoming English text in the input
                     if (juyingModeEnabled) {
@@ -2629,7 +2643,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
 
                     // Convert punctuation to Chinese if applicable (only when Chinese punctuation mode is enabled)
-                    val char = altChar.toChar()
+                    // Use altMappedChar directly if available, otherwise use altChar
+                    val char = altMappedChar?.firstOrNull() ?: altChar.toChar()
                     val chinesePunctuation: String? = if (pinyinInputController.isChinesePunctuationMode()) {
                         when (char) {
                             ',' -> "，"
@@ -2676,15 +2691,24 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Handle Alt state clearing based on mode
                     // In Juying mode with long-press, OR in non-Juying mode with suggestions visible,
                     // clear all Alt state (including latch) - this prevents Alt getting stuck
-                    val shouldClearAllAltState = (isAltLongPress && juyingModeEnabled) ||
+                    // EXCEPTION: For digits, don't clear Alt state - allow continuous digit input
+                    val shouldClearAllAltState = (isAltLongPress && juyingModeEnabled && !char.isDigit()) ||
                         (!juyingModeEnabled && hasCandidatesToPaginate && altLatchActive)
                     if (shouldClearAllAltState) {
                         modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
                         altLastPressTime = 0L  // Reset timing state
                         altLatchJustDisabled = true
+                    } else if (char.isDigit()) {
+                        // For continuous Alt input: ALWAYS update altLastPressTime for digits
+                        // This ensures altFromJuyingTracking remains true for subsequent digit keys
+                        altLastPressTime = currentTime
+                        if (altOneShot && !altLatchActive) {
+                            modifierStateController.clearAltState(resetPressedState = false)
+                        }
                     } else if (altOneShot && !altLatchActive) {
-                        // Only clear Alt state if it's one-shot mode, keep it if latched (double-click locked)
+                        // Non-digit character with one-shot: clear Alt state and disable continuous input
                         modifierStateController.clearAltState(resetPressedState = false)
+                        altLatchJustDisabled = true
                     }
 
                     // If Chinese punctuation was committed while Alt is held (not latch),
@@ -2827,8 +2851,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
 
-            // Handle space key when no candidates and empty buffer - just insert a space
+            // Handle space key when no candidates and empty buffer
             if (keyCode == KeyEvent.KEYCODE_SPACE && !pinyinInputController.hasCandidates() && pinyinInputController.getBuffer().isEmpty()) {
+                // Try double-space-to-period first (supports Chinese punctuation mode)
+                val useChinesePunctuation = pinyinInputController.isChinesePunctuationMode()
+                if (textInputController.handleDoubleSpaceToPeriod(
+                        keyCode = keyCode,
+                        inputConnection = ic,
+                        shouldDisableSmartFeatures = shouldDisableSmartFeatures,
+                        onStatusBarUpdate = { updateStatusBarText() },
+                        useChinesePunctuation = useChinesePunctuation
+                    )) {
+                    return true
+                }
+                // If not double-space, just insert a space
                 ic.commitText(" ", 1)
                 return true
             }
@@ -2982,8 +3018,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // Skip Alt handling if latch was just disabled (user wants to stop using Alt)
             val shouldSkipAltHandlingShuangpin = altLatchJustDisabled && !altLatchActive && !altOneShot
             if (event != null && !shouldSkipAltHandlingShuangpin && (altLatchActive || altOneShot || altPressed || altFromEventShuangpin || altFromJuyingTrackingShuangpin)) {
-                val altChar = event.getUnicodeChar(KeyEvent.META_ALT_ON)
-                if (altChar != 0 && altChar != event.unicodeChar) {
+                // Use Pastiera's altSymManager mapping (device-specific) instead of system's getUnicodeChar
+                val altMappedCharShuangpin = altSymManager.getAltMappings()[keyCode]
+                val altChar = altMappedCharShuangpin?.firstOrNull()?.code ?: event.getUnicodeChar(KeyEvent.META_ALT_ON)
+                // Get the base character without any modifiers (when Alt is held, event.unicodeChar equals altChar)
+                val baseCharShuangpin = event.getUnicodeChar(0)
+                if (altChar != 0 && altChar != baseCharShuangpin) {
                     // In Juying mode, always clear buffer/predictions and set flags when Alt symbol is about to be committed
                     if (juyingModeEnabled) {
                         shuangpinInputController.clearBuffer()
@@ -3010,7 +3050,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
 
                     // Convert punctuation to Chinese if applicable
-                    val char = altChar.toChar()
+                    // Use altMappedCharShuangpin directly if available, otherwise use altChar
+                    val char = altMappedCharShuangpin?.firstOrNull() ?: altChar.toChar()
                     val chinesePunctuation: String? = if (shuangpinInputController.isChinesePunctuationMode()) {
                         when (char) {
                             ',' -> "，"
@@ -3056,14 +3097,24 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Handle Alt state clearing based on mode
                     // In Juying mode with long-press, OR in non-Juying mode with suggestions visible,
                     // clear all Alt state (including latch) - this prevents Alt getting stuck
-                    val shouldClearAllAltStateShuangpin = (isAltLongPressShuangpin && juyingModeEnabled) ||
+                    // EXCEPTION: For digits, don't clear Alt state - allow continuous digit input
+                    val shouldClearAllAltStateShuangpin = (isAltLongPressShuangpin && juyingModeEnabled && !char.isDigit()) ||
                         (!juyingModeEnabled && hasCandidatesToPaginate && altLatchActive)
                     if (shouldClearAllAltStateShuangpin) {
                         modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
                         altLastPressTime = 0L  // Reset timing state
                         altLatchJustDisabled = true
+                    } else if (char.isDigit()) {
+                        // For continuous Alt input: ALWAYS update altLastPressTime for digits
+                        // This ensures altFromJuyingTracking remains true for subsequent digit keys
+                        altLastPressTime = currentTimeShuangpin
+                        if (altOneShot && !altLatchActive) {
+                            modifierStateController.clearAltState(resetPressedState = false)
+                        }
                     } else if (altOneShot && !altLatchActive) {
+                        // Non-digit character with one-shot: clear Alt state and disable continuous input
                         modifierStateController.clearAltState(resetPressedState = false)
+                        altLatchJustDisabled = true
                     }
 
                     // If Chinese punctuation was committed while Alt is held (not latch),
@@ -3196,8 +3247,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
 
-            // Handle space key when no candidates and empty buffer - just insert a space
+            // Handle space key when no candidates and empty buffer
             if (keyCode == KeyEvent.KEYCODE_SPACE && !shuangpinInputController.hasCandidates() && shuangpinInputController.getBuffer().isEmpty()) {
+                // Try double-space-to-period first (supports Chinese punctuation mode)
+                val useChinesePunctuation = shuangpinInputController.isChinesePunctuationMode()
+                if (textInputController.handleDoubleSpaceToPeriod(
+                        keyCode = keyCode,
+                        inputConnection = ic,
+                        shouldDisableSmartFeatures = shouldDisableSmartFeatures,
+                        onStatusBarUpdate = { updateStatusBarText() },
+                        useChinesePunctuation = useChinesePunctuation
+                    )) {
+                    return true
+                }
+                // If not double-space, just insert a space
                 ic.commitText(" ", 1)
                 return true
             }
@@ -3406,8 +3469,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
 
-            // Handle space key when no candidates and empty buffer - just insert a space
+            // Handle space key when no candidates and empty buffer
             if (keyCode == KeyEvent.KEYCODE_SPACE && !ziranmaInputController.hasCandidates() && ziranmaInputController.getBuffer().isEmpty()) {
+                // Try double-space-to-period first (supports Chinese punctuation mode)
+                val useChinesePunctuation = ziranmaInputController.isChinesePunctuationMode()
+                if (textInputController.handleDoubleSpaceToPeriod(
+                        keyCode = keyCode,
+                        inputConnection = ic,
+                        shouldDisableSmartFeatures = shouldDisableSmartFeatures,
+                        onStatusBarUpdate = { updateStatusBarText() },
+                        useChinesePunctuation = useChinesePunctuation
+                    )) {
+                    return true
+                }
+                // If not double-space, just insert a space
                 ic.commitText(" ", 1)
                 return true
             }
@@ -3542,10 +3617,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // Skip Alt handling if latch was just disabled (user wants to stop using Alt)
             val shouldSkipAltHandlingWubi = altLatchJustDisabled && !altLatchActive && !altOneShot
             if (event != null && !shouldSkipAltHandlingWubi && (altLatchActive || altOneShot || altPressed || altFromEventWubi || altFromJuyingTrackingWubi)) {
-                // Get the character with Alt modifier applied
-                val altChar = event.getUnicodeChar(KeyEvent.META_ALT_ON)
-                // Only proceed if we get a valid alternate character that's different from the normal one
-                if (altChar != 0 && altChar != event.unicodeChar) {
+                // Use Pastiera's altSymManager mapping (device-specific) instead of system's getUnicodeChar
+                val altMappedCharWubi = altSymManager.getAltMappings()[keyCode]
+                val altChar = altMappedCharWubi?.firstOrNull()?.code ?: event.getUnicodeChar(KeyEvent.META_ALT_ON)
+                // Get the base character without any modifiers (when Alt is held, event.unicodeChar equals altChar)
+                val baseCharWubi = event.getUnicodeChar(0)
+                // Only proceed if we get a valid alternate character that's different from the base one
+                if (altChar != 0 && altChar != baseCharWubi) {
                     // In Juying mode, always clear buffer/predictions and set flags when Alt symbol is about to be committed
                     if (juyingModeEnabled) {
                         wubiInputController.clearBuffer()
@@ -3572,7 +3650,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
 
                     // Convert punctuation to Chinese if applicable (only when Chinese punctuation mode is enabled)
-                    val char = altChar.toChar()
+                    // Use altMappedCharWubi directly if available, otherwise use altChar
+                    val char = altMappedCharWubi?.firstOrNull() ?: altChar.toChar()
                     val chinesePunctuation: String? = if (wubiInputController.isChinesePunctuationMode()) {
                         when (char) {
                             ',' -> "，"
@@ -3619,15 +3698,24 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Handle Alt state clearing based on mode
                     // In Juying mode with long-press, OR in non-Juying mode with suggestions visible,
                     // clear all Alt state (including latch) - this prevents Alt getting stuck
-                    val shouldClearAllAltStateWubi = (isAltLongPressWubi && juyingModeEnabled) ||
+                    // EXCEPTION: For digits, don't clear Alt state - allow continuous digit input
+                    val shouldClearAllAltStateWubi = (isAltLongPressWubi && juyingModeEnabled && !char.isDigit()) ||
                         (!juyingModeEnabled && hasCandidatesToPaginate && altLatchActive)
                     if (shouldClearAllAltStateWubi) {
                         modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
                         altLastPressTime = 0L  // Reset timing state
                         altLatchJustDisabled = true
+                    } else if (char.isDigit()) {
+                        // For continuous Alt input: ALWAYS update altLastPressTime for digits
+                        // This ensures altFromJuyingTracking remains true for subsequent digit keys
+                        altLastPressTime = currentTimeWubi
+                        if (altOneShot && !altLatchActive) {
+                            modifierStateController.clearAltState(resetPressedState = false)
+                        }
                     } else if (altOneShot && !altLatchActive) {
-                        // Only clear Alt state if it's one-shot mode, keep it if latched (double-click locked)
+                        // Non-digit character with one-shot: clear Alt state and disable continuous input
                         modifierStateController.clearAltState(resetPressedState = false)
+                        altLatchJustDisabled = true
                     }
 
                     // If Chinese punctuation was committed while Alt is held (not latch),
@@ -3749,8 +3837,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
 
-            // Handle space key when no candidates and empty buffer - just insert a space
+            // Handle space key when no candidates and empty buffer
             if (keyCode == KeyEvent.KEYCODE_SPACE && !wubiInputController.hasCandidates() && wubiInputController.getBuffer().isEmpty()) {
+                // Try double-space-to-period first (supports Chinese punctuation mode)
+                val useChinesePunctuation = wubiInputController.isChinesePunctuationMode()
+                if (textInputController.handleDoubleSpaceToPeriod(
+                        keyCode = keyCode,
+                        inputConnection = ic,
+                        shouldDisableSmartFeatures = shouldDisableSmartFeatures,
+                        onStatusBarUpdate = { updateStatusBarText() },
+                        useChinesePunctuation = useChinesePunctuation
+                    )) {
+                    return true
+                }
+                // If not double-space, just insert a space
                 ic.commitText(" ", 1)
                 return true
             }
@@ -3890,10 +3990,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // Skip Alt handling if latch was just disabled (user wants to stop using Alt)
             val shouldSkipAltHandlingZhenma = altLatchJustDisabled && !altLatchActive && !altOneShot
             if (event != null && !shouldSkipAltHandlingZhenma && (altLatchActive || altOneShot || altPressed || altFromEventZhenma || altFromJuyingTrackingZhenma)) {
-                // Get the character with Alt modifier applied
-                val altChar = event.getUnicodeChar(KeyEvent.META_ALT_ON)
-                // Only proceed if we get a valid alternate character that's different from the normal one
-                if (altChar != 0 && altChar != event.unicodeChar) {
+                // Use Pastiera's altSymManager mapping (device-specific) instead of system's getUnicodeChar
+                val altMappedCharZhenma = altSymManager.getAltMappings()[keyCode]
+                val altChar = altMappedCharZhenma?.firstOrNull()?.code ?: event.getUnicodeChar(KeyEvent.META_ALT_ON)
+                // Get the base character without any modifiers (when Alt is held, event.unicodeChar equals altChar)
+                val baseCharZhenma = event.getUnicodeChar(0)
+                // Only proceed if we get a valid alternate character that's different from the base one
+                if (altChar != 0 && altChar != baseCharZhenma) {
                     // In Juying mode, always clear buffer/predictions and set flags when Alt symbol is about to be committed
                     if (juyingModeEnabled) {
                         zhenmaInputController.clearBuffer()
@@ -3920,7 +4023,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
 
                     // Convert punctuation to Chinese if applicable (only when Chinese punctuation mode is enabled)
-                    val char = altChar.toChar()
+                    // Use altMappedCharZhenma directly if available, otherwise use altChar
+                    val char = altMappedCharZhenma?.firstOrNull() ?: altChar.toChar()
                     val chinesePunctuation: String? = if (zhenmaInputController.isChinesePunctuationMode()) {
                         when (char) {
                             ',' -> "，"
@@ -3967,15 +4071,24 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Handle Alt state clearing based on mode
                     // In Juying mode with long-press, OR in non-Juying mode with suggestions visible,
                     // clear all Alt state (including latch) - this prevents Alt getting stuck
-                    val shouldClearAllAltStateZhenma = (isAltLongPressZhenma && juyingModeEnabled) ||
+                    // EXCEPTION: For digits, don't clear Alt state - allow continuous digit input
+                    val shouldClearAllAltStateZhenma = (isAltLongPressZhenma && juyingModeEnabled && !char.isDigit()) ||
                         (!juyingModeEnabled && hasCandidatesToPaginate && altLatchActive)
                     if (shouldClearAllAltStateZhenma) {
                         modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
                         altLastPressTime = 0L  // Reset timing state
                         altLatchJustDisabled = true
+                    } else if (char.isDigit()) {
+                        // For continuous Alt input: ALWAYS update altLastPressTime for digits
+                        // This ensures altFromJuyingTracking remains true for subsequent digit keys
+                        altLastPressTime = currentTimeZhenma
+                        if (altOneShot && !altLatchActive) {
+                            modifierStateController.clearAltState(resetPressedState = false)
+                        }
                     } else if (altOneShot && !altLatchActive) {
-                        // Only clear Alt state if it's one-shot mode, keep it if latched (double-click locked)
+                        // Non-digit character with one-shot: clear Alt state and disable continuous input
                         modifierStateController.clearAltState(resetPressedState = false)
+                        altLatchJustDisabled = true
                     }
 
                     // If Chinese punctuation was committed while Alt is held (not latch),
@@ -4097,8 +4210,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
 
-            // Handle space key when no candidates and empty buffer - just insert a space
+            // Handle space key when no candidates and empty buffer
             if (keyCode == KeyEvent.KEYCODE_SPACE && !zhenmaInputController.hasCandidates() && zhenmaInputController.getBuffer().isEmpty()) {
+                // Try double-space-to-period first (supports Chinese punctuation mode)
+                val useChinesePunctuation = zhenmaInputController.isChinesePunctuationMode()
+                if (textInputController.handleDoubleSpaceToPeriod(
+                        keyCode = keyCode,
+                        inputConnection = ic,
+                        shouldDisableSmartFeatures = shouldDisableSmartFeatures,
+                        onStatusBarUpdate = { updateStatusBarText() },
+                        useChinesePunctuation = useChinesePunctuation
+                    )) {
+                    return true
+                }
+                // If not double-space, just insert a space
                 ic.commitText(" ", 1)
                 return true
             }
@@ -4248,7 +4373,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 juyingModeShouldInterceptAlt = juyingModeShouldInterceptAlt,
                 altLatchJustDisabled = altLatchJustDisabled,
                 hasSuggestionsVisible = hasCandidatesToPaginate,
-                juyingModeEnabled = juyingModeEnabled
+                juyingModeEnabled = juyingModeEnabled,
+                isChineseInputActive = isChineseInputActive
             ),
             controllers = InputEventRouter.EditableFieldKeyDownControllers(
                 modifierStateController = modifierStateController,
