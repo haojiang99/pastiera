@@ -179,6 +179,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     // Track if Alt was just used for candidate selection (ignore Alt until key released)
     private var altUsedForCandidateSelection: Boolean = false
 
+    // Track if we just cleared next-word predictions due to Shift+letter (prevent re-triggering)
+    private var justClearedNextWordPredictions: Boolean = false
+
     // Saved state when Alt is pressed in Juying mode (instant selection with undo on double-click)
     // On Alt DOWN: immediately commit suggestion, save state for undo
     // On double-click: undo the committed character and go to next page
@@ -1921,9 +1924,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (isChineseNoCandidate) {
                 // No Chinese candidates - don't use any keys for Juying selection, let them work normally
                 juyingCandidateIndex = -1
-            } else if (isEnglishNextWordMode && (juyingCandidateIndex == 0 || juyingCandidateIndex == 2 || juyingCandidateIndex == 4)) {
-                // Shift, Space, or Alt key pressed when showing NEXT-WORD predictions - don't use for Juying selection
-                // Let Shift be held for modifier, Space type space, Alt work normally
+            } else if (isEnglishNextWordMode && (juyingCandidateIndex == 2 || juyingCandidateIndex == 4)) {
+                // Space or Alt key pressed when showing NEXT-WORD predictions - don't use for Juying selection
+                // But allow Shift to select 1st prediction (index 0 remains valid for Juying selection)
                 juyingCandidateIndex = -1
             } else if (isEnglishOnlyMode && (juyingCandidateIndex == 2 || juyingCandidateIndex == 4)) {
                 // Space or Alt key pressed in English mode (prefix-based predictions) - don't use for Juying selection
@@ -2335,13 +2338,24 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 }
                             }
                             hasWordPredictions -> {
-                                // Map display position to original index for Juying mode
-                                // Display reordering: [2nd, 1st, 3rd] -> display 0->1, 1->0, 2->2
-                                val englishOriginalIndex = when (juyingCandidateIndex) {
-                                    0 -> 1  // Shift selects 2nd suggestion
-                                    1 -> 0  // Sym selects 1st (best) suggestion
-                                    2 -> 2  // Space selects 3rd suggestion
-                                    else -> juyingCandidateIndex
+                                // Different mapping for next-word predictions vs prefix-based predictions
+                                val snapshot = englishWordPredictionController.getSnapshot()
+                                val englishOriginalIndex = if (snapshot.isNextWordPrediction) {
+                                    // For next-word predictions: Shift(0)->0, Sym(1)->1, Space(2)->2
+                                    when (juyingCandidateIndex) {
+                                        0 -> 0  // Shift selects 1st (best) suggestion
+                                        1 -> 1  // Sym selects 2nd suggestion
+                                        2 -> 2  // Space selects 3rd suggestion
+                                        else -> juyingCandidateIndex
+                                    }
+                                } else {
+                                    // For prefix-based predictions: Display reordering [2nd, 1st, 3rd] -> 0->1, 1->0, 2->2
+                                    when (juyingCandidateIndex) {
+                                        0 -> 1  // Shift selects 2nd suggestion
+                                        1 -> 0  // Sym selects 1st (best) suggestion
+                                        2 -> 2  // Space selects 3rd suggestion
+                                        else -> juyingCandidateIndex
+                                    }
                                 }
                                 val result = englishWordPredictionController.selectSuggestion(englishOriginalIndex)
                                 if (result != null) {
@@ -2587,7 +2601,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Handle English word prediction (when NOT in Chinese input mode)
         if (!isChineseInputModeActive() && ic != null) {
             // Update suggestions from current cursor position
-            englishWordPredictionController.updateFromCursor(ic)
+            // Skip if we just cleared predictions due to Shift+letter (let them stay cleared)
+            if (!justClearedNextWordPredictions) {
+                englishWordPredictionController.updateFromCursor(ic)
+            } else {
+                // Clear the flag after one key event so predictions can resume normally
+                justClearedNextWordPredictions = false
+            }
 
             if (englishWordPredictionController.hasSuggestions()) {
                 // Alt+letter keys select suggestion - mapping depends on device type
@@ -2616,7 +2636,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
             // Handle Shift+letter when English next-word predictions are showing:
             // - Only type the capital letter
-            // - Clear the next-word predictions
+            // - Clear the next-word predictions completely
             // - Don't commit the 1st prediction word
             if (shiftPressed && !ctrlPressed && !altPressed && ic != null && event != null) {
                 val snapshot = englishWordPredictionController.getSnapshot()
@@ -2626,6 +2646,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     if (char.isLetter()) {
                         // Clear the predictions without committing anything
                         englishWordPredictionController.clearSuggestions()
+                        englishWordPredictionController.clearNextWordPredictions()  // Also clear predictor state
+                        justClearedNextWordPredictions = true  // Flag to prevent re-triggering
                         updateStatusBarText()
                         // Don't return - let normal letter handling with Shift occur (will type capital letter)
                     }
@@ -4596,6 +4618,21 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             return true
         }
         
+        // Handle period/comma: remove space before it if present
+        // This improves punctuation spacing in English text
+        if (!isChineseInputModeActive() && ic != null && event != null && event.action == KeyEvent.ACTION_DOWN) {
+            val char = event.unicodeChar.toChar()
+            if (char in ".," && !shiftPressed && !ctrlPressed && !altPressed) {
+                // Get text before cursor to check for trailing space
+                val textBefore = ic.getTextBeforeCursor(1, 0)
+                if (textBefore != null && textBefore == " ") {
+                    // Delete the space before the punctuation
+                    ic.deleteSurroundingText(1, 0)
+                    Log.d("PunctuationSpacing", "Removed space before '$char'")
+                }
+            }
+        }
+
         // Check if Juying mode should intercept Alt key (for Chinese candidate selection)
         // Alt is the 5th Juying key - only intercept when there are Chinese candidates
         val juyingModeShouldInterceptAlt = juyingModeEnabled && hasChineseCandidates

@@ -409,10 +409,18 @@ class EnglishWordPredictionController(
         } else {
             currentPageSuggestions.map { applyCasePattern(it) }
         }
+
+        // Always show exactly 3 suggestion slots (pad with empty strings if fewer than 3)
+        val paddedSuggestions = casedSuggestions.toMutableList()
+        while (paddedSuggestions.size < 3) {
+            paddedSuggestions.add("")
+        }
+        val finalSuggestions = paddedSuggestions.take(3)  // Ensure exactly 3
+
         val totalPages = getTotalPages()
         return Snapshot(
             prefix = originalPrefix,
-            suggestions = casedSuggestions,
+            suggestions = finalSuggestions,
             hasSuggestions = allSuggestions.isNotEmpty(),
             currentPage = currentPage,
             totalPages = totalPages,
