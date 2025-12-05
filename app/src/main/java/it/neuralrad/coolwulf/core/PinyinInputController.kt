@@ -219,6 +219,14 @@ class PinyinInputController(
             return true
         }
 
+        // Finalize any pending session when user starts new input
+        // This captures phrases like "张四李三" when user starts typing next phrase
+        // Check sessionSelections directly since isShowingNextWordPredictions may not be set
+        // if next-word predictions are disabled
+        if (sessionSelections.size >= 2) {
+            finalizeSession()
+        }
+
         // Clear next-word prediction state when user starts typing
         if (isShowingNextWordPredictions) {
             isShowingNextWordPredictions = false
@@ -318,9 +326,11 @@ class PinyinInputController(
             pinyinToConsume = matchedPinyin
             // Record learning for the combined pinyin
             recordSelectionIfEnabled(pinyinToConsume, selected)
-            // For phrase selections, finalize current session and start fresh
-            // (phrase was selected as a unit, not built character by character)
-            finalizeSession()
+            // Track phrase selection for auto-phrase learning (include phrases in session)
+            // This allows learning longer phrases like "这个输入法" when user picks "这", "个", "输入法"
+            if (isAutoPhraseMemoryEnabled() && pinyinToConsume.isNotEmpty()) {
+                sessionSelections.add(pinyinToConsume to selected)
+            }
         } else {
             // Single-character candidate - consume only the first syllable
             pinyinToConsume = firstSyllable
@@ -397,10 +407,13 @@ class PinyinInputController(
         nextWordPredictor.recordCommittedWord(selected)
 
         // Update candidates for the remaining buffer
-        // If buffer is empty after selection, show next-word predictions
+        // If buffer is empty after selection, finalize and show next-word predictions
         if (buffer.isEmpty()) {
-            // Finalize the session when buffer is empty (phrase input complete)
-            finalizeSession()
+            // Finalize the session now that the phrase input is complete
+            // This records phrases like "姜浩的家" when user finishes picking all characters
+            if (sessionSelections.size >= 2) {
+                finalizeSession()
+            }
             showNextWordPredictions()
         } else {
             isShowingNextWordPredictions = false
