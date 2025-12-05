@@ -2371,6 +2371,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     return true
                 } else if (isDeviceAltKey(keyCode) && isChineseInputActive && !hasChineseCandidates) {
                     // Alt pressed in Chinese mode without candidates
+                    // Reset symbol input flag for new Alt press
+                    altUsedForSymbolInput = false
                     // Do NOT consume the event - let it fall through to normal Alt handling
                     // (InputEventRouter will set up altOneShot for symbol input)
                 } else {
@@ -3008,6 +3010,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         altLatchJustDisabled = true
                     }
 
+                    // IMPORTANT: Clear altUsedForSymbolInput now that symbol input is complete
+                    // This prevents the next Alt UP from incorrectly clearing one-shot mode
+                    altUsedForSymbolInput = false
+
                     updateStatusBarText()
                     return true
                 }
@@ -3462,6 +3468,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     if (chinesePunctuation != null && !altLatchActive && !shouldClearAllAltStateShuangpin) {
                         altLatchJustDisabled = true
                     }
+
+                    // IMPORTANT: Clear altUsedForSymbolInput now that symbol input is complete
+                    // This prevents the next Alt UP from incorrectly clearing one-shot mode
+                    altUsedForSymbolInput = false
 
                     updateStatusBarText()
                     return true
@@ -4107,6 +4117,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         altLatchJustDisabled = true
                     }
 
+                    // IMPORTANT: Clear altUsedForSymbolInput now that symbol input is complete
+                    // This prevents the next Alt UP from incorrectly clearing one-shot mode
+                    altUsedForSymbolInput = false
+
                     updateStatusBarText()
                     return true
                 }
@@ -4522,6 +4536,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     if (chinesePunctuation != null && !altLatchActive && !shouldClearAllAltStateZhenma) {
                         altLatchJustDisabled = true
                     }
+
+                    // IMPORTANT: Clear altUsedForSymbolInput now that symbol input is complete
+                    // This prevents the next Alt UP from incorrectly clearing one-shot mode
+                    altUsedForSymbolInput = false
 
                     updateStatusBarText()
                     return true
@@ -4962,6 +4980,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 // Clear altLastPressTime immediately since Alt was used for symbol input
                 // This prevents the next key press from being treated as Alt+key
                 altLastPressTime = 0L
+                // IMPORTANT: Reset altUsedForSymbolInput here since we return early
+                // and never reach the normal Alt UP handling at line 5090
+                altUsedForSymbolInput = false
                 modifierStateController.clearAltState(resetPressedState = true)
                 updateStatusBarText()
             }
