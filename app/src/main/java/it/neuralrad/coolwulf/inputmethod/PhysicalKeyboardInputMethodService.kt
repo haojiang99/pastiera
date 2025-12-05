@@ -2227,8 +2227,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
                     updateStatusBarText()
                     altLastPressTime = 0L
-                    // Clear full Alt state to prevent latch from triggering on rapid double-clicks
-                    modifierStateController.clearAltState(resetPressedState = true)
+                    // Clear Alt latch/one-shot to prevent latch from triggering on rapid double-clicks
+                    // BUT keep pressed state so Alt+key for symbol input still works if user holds Alt after pagination
+                    modifierStateController.clearAltState(resetPressedState = false)
+                    // Manually ensure pressed state is set since Alt is still physically held
+                    altPressed = true
+                    altPhysicallyPressed = true
                     // Mark that Alt was used for pagination - skip normal Alt UP handling
                     altUsedForPagination = true
                     return true
