@@ -1945,8 +1945,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Handle Alt+key for symbol input when character was committed on Alt DOWN (candidates already cleared)
         // This must be checked BEFORE the main Juying block since hasAnyCandidates is false after Alt DOWN
         if (juyingModeEnabled && altCommittedCharacter != null && !isDeviceAltKey(keyCode) && event?.repeatCount == 0) {
+            // Use Alt LED status as the source of truth: if LED is off, Alt is not active
+            val altLedIsOffCommit = !altLatchActive && !altOneShot && !altPressed
             val altHeldFromEvent = event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
-            val altIsActive = altLastPressTime > 0 || altPressed || altHeldFromEvent
+            val altFromJuyingTrackingCommit = !altLedIsOffCommit && altLastPressTime > 0
+            val altIsActive = altFromJuyingTrackingCommit || altPressed || altHeldFromEvent
             if (altIsActive) {
                 // Alt+key for symbol input - undo the committed character
                 altUsedForSymbolInput = true
@@ -1999,11 +2002,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // this is Alt+key for symbol input, NOT candidate selection.
             // Clear predictions and cancel pending runnable immediately, then let normal handling proceed.
             // Check multiple ways Alt might be active:
-            // 1. altLastPressTime > 0 (Alt was pressed in Juying mode)
+            // 1. altLastPressTime > 0 (Alt was pressed in Juying mode) - but only if Alt LED is still on
             // 2. altPressed is true (Alt physical state)
             // 3. Event meta state has META_ALT_ON (system reports Alt is held)
+            // Use Alt LED status as the source of truth: if LED is off, Alt is not active
+            val altLedIsOffJuying = !altLatchActive && !altOneShot && !altPressed
             val altHeldFromEvent = event != null && ((event.metaState and KeyEvent.META_ALT_ON) != 0)
-            val altIsActive = altLastPressTime > 0 || altPressed || altHeldFromEvent
+            val altFromJuyingTracking = !altLedIsOffJuying && altLastPressTime > 0
+            val altIsActive = altFromJuyingTracking || altPressed || altHeldFromEvent
             if (altIsActive && !isDeviceAltKey(keyCode)) {
                 // Alt+key for symbol input - clear saved Alt state (used for long hold)
                 // This marks that Alt was used for symbol input, not for candidate selection
