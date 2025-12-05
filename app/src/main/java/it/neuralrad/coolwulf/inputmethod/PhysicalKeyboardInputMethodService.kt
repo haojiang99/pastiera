@@ -119,6 +119,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     // Track compact mode state for hiding IME bar
     private var isCompactModeHidden = false
 
+    // Track virtual keyboard state
+    private var isVirtualKeyboardEnabled = false
+
     // Snapshot of the current input context (numeric/password/restricted fields, etc.)
     private var inputContextState: InputContextState = InputContextState.EMPTY
     
@@ -719,6 +722,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             togglePunctuationMode()
         }
 
+        // Register listeners for virtual keyboard
+        candidatesBarController.onVirtualKeyPressListener = { keyCode, isShifted ->
+            handleVirtualKeyPress(keyCode, isShifted)
+        }
+        candidatesBarController.onVirtualCharacterInputListener = { char ->
+            handleVirtualCharacterInput(char)
+        }
+
+        // Initialize virtual keyboard based on settings
+        isVirtualKeyboardEnabled = SettingsManager.isVirtualKeyboardEnabled(this)
+        candidatesBarController.setVirtualKeyboardEnabled(isVirtualKeyboardEnabled)
+
         altSymManager = AltSymManager(assets, prefs, this)
         altSymManager.reloadSymMappings() // Load custom mappings for page 1 if present
         altSymManager.reloadSymMappings2() // Load custom mappings for page 2 if present
@@ -897,7 +912,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         if (outInsets != null) {
             // In compact mode with no suggestions, report zero height to hide system IME bar
-            if (isCompactModeHidden) {
+            // But keep normal height when virtual keyboard is enabled
+            if (isCompactModeHidden && !isVirtualKeyboardEnabled) {
                 outInsets.contentTopInsets = outInsets.visibleTopInsets
                 outInsets.visibleTopInsets = outInsets.visibleTopInsets
                 // Set touchable region to empty so input goes through to the app
@@ -1233,6 +1249,144 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
 
     /**
+     * Handles key press from the virtual keyboard.
+     * @param keyCode The key code (e.g., KEYCODE_SPACE, KEYCODE_DEL, KEYCODE_ENTER)
+     * @param isShifted Whether shift is active on the virtual keyboard
+     */
+    private fun handleVirtualKeyPress(keyCode: Int, isShifted: Boolean) {
+        val ic = currentInputConnection ?: return
+
+        when (keyCode) {
+            KeyEvent.KEYCODE_SPACE -> {
+                // Handle space - select first candidate if in Chinese mode, otherwise insert space
+                if (pinyinInputController.hasCandidates()) {
+                    val selected = pinyinInputController.selectFirstCandidate()
+                    if (selected != null) {
+                        ic.setComposingText("", 1)
+                        ic.commitText(selected, 1)
+                        val remainingBuffer = pinyinInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+                    }
+                } else if (shuangpinInputController.hasCandidates()) {
+                    val selected = shuangpinInputController.selectFirstCandidate()
+                    if (selected != null) {
+                        ic.setComposingText("", 1)
+                        ic.commitText(selected, 1)
+                        val remainingBuffer = shuangpinInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+                    }
+                } else if (wubiInputController.hasCandidates()) {
+                    val selected = wubiInputController.selectFirstCandidate()
+                    if (selected != null) {
+                        ic.setComposingText("", 1)
+                        ic.commitText(selected, 1)
+                        val remainingBuffer = wubiInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+                    }
+                } else if (zhenmaInputController.hasCandidates()) {
+                    val selected = zhenmaInputController.selectFirstCandidate()
+                    if (selected != null) {
+                        ic.setComposingText("", 1)
+                        ic.commitText(selected, 1)
+                        val remainingBuffer = zhenmaInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+                    }
+                } else {
+                    ic.commitText(" ", 1)
+                }
+            }
+            KeyEvent.KEYCODE_DEL -> {
+                // Handle backspace
+                if (pinyinInputController.getBuffer().isNotEmpty()) {
+                    pinyinInputController.handleBackspace()
+                    val buffer = pinyinInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        ic.setComposingText(buffer, 1)
+                    } else {
+                        ic.setComposingText("", 1)
+                    }
+                } else if (shuangpinInputController.getBuffer().isNotEmpty()) {
+                    shuangpinInputController.handleBackspace()
+                    val buffer = shuangpinInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        ic.setComposingText(buffer, 1)
+                    } else {
+                        ic.setComposingText("", 1)
+                    }
+                } else if (wubiInputController.getBuffer().isNotEmpty()) {
+                    wubiInputController.handleBackspace()
+                    val buffer = wubiInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        ic.setComposingText(buffer, 1)
+                    } else {
+                        ic.setComposingText("", 1)
+                    }
+                } else if (zhenmaInputController.getBuffer().isNotEmpty()) {
+                    zhenmaInputController.handleBackspace()
+                    val buffer = zhenmaInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        ic.setComposingText(buffer, 1)
+                    } else {
+                        ic.setComposingText("", 1)
+                    }
+                } else {
+                    // Delete character from text
+                    val selectedText = ic.getSelectedText(0)
+                    if (selectedText != null && selectedText.isNotEmpty()) {
+                        ic.commitText("", 1)
+                    } else {
+                        ic.deleteSurroundingText(1, 0)
+                    }
+                }
+            }
+            KeyEvent.KEYCODE_ENTER -> {
+                // Send enter key event
+                sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+            }
+        }
+        updateStatusBarText()
+    }
+
+    /**
+     * Handles character input from the virtual keyboard.
+     * @param char The character to input
+     */
+    private fun handleVirtualCharacterInput(char: Char) {
+        val ic = currentInputConnection ?: return
+
+        // Check if we're in a Chinese input mode that handles this character
+        if (pinyinInputController.isPinyinMode() && char.isLetter()) {
+            pinyinInputController.handleLetterKey(char.lowercaseChar())
+            val buffer = pinyinInputController.getBuffer()
+            ic.setComposingText(buffer, 1)
+        } else if (shuangpinInputController.isShuangpinMode() && char.isLetter()) {
+            shuangpinInputController.handleLetterKey(char.lowercaseChar())
+            val buffer = shuangpinInputController.getBuffer()
+            ic.setComposingText(buffer, 1)
+        } else if (wubiInputController.isWubiMode() && char.isLetter()) {
+            wubiInputController.handleLetterKey(char.lowercaseChar())
+            val buffer = wubiInputController.getBuffer()
+            ic.setComposingText(buffer, 1)
+        } else if (zhenmaInputController.isZhenmaMode() && char.isLetter()) {
+            zhenmaInputController.handleLetterKey(char.lowercaseChar())
+            val buffer = zhenmaInputController.getBuffer()
+            ic.setComposingText(buffer, 1)
+        } else {
+            // Regular character input
+            ic.commitText(char.toString(), 1)
+        }
+        updateStatusBarText()
+    }
+
+    /**
      * Aggiorna la status bar delegando al controller dedicato.
      */
     private fun updateStatusBarText() {
@@ -1528,6 +1682,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Refresh fuzzy pinyin setting (may have changed in settings)
         val fuzzyPinyinEnabled = SettingsManager.getPinyinFuzzyEnabled(this)
         pinyinInputController.setFuzzyPinyinEnabled(fuzzyPinyinEnabled)
+
+        // Refresh virtual keyboard setting (may have changed in settings)
+        val newVirtualKeyboardEnabled = SettingsManager.isVirtualKeyboardEnabled(this)
+        if (newVirtualKeyboardEnabled != isVirtualKeyboardEnabled) {
+            isVirtualKeyboardEnabled = newVirtualKeyboardEnabled
+            candidatesBarController.setVirtualKeyboardEnabled(isVirtualKeyboardEnabled)
+        }
 
         val isEditable = inputContextState.isEditable
 

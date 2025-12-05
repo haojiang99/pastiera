@@ -99,6 +99,21 @@ class CandidatesBarController(
             candidatesStatusBar.onPunctuationToggleListener = value
         }
 
+    // Virtual keyboard listeners
+    var onVirtualKeyPressListener: ((keyCode: Int, isShifted: Boolean) -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onVirtualKeyPressListener = value
+            candidatesStatusBar.onVirtualKeyPressListener = value
+        }
+
+    var onVirtualCharacterInputListener: ((char: Char) -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onVirtualCharacterInputListener = value
+            candidatesStatusBar.onVirtualCharacterInputListener = value
+        }
+
     fun getInputView(emojiMapText: String = ""): LinearLayout {
         return inputStatusBar.getOrCreateLayout(emojiMapText)
     }
@@ -123,6 +138,22 @@ class CandidatesBarController(
     ) {
         inputStatusBar.update(snapshot, emojiMapText, inputConnection, symMappings)
         candidatesStatusBar.update(snapshot, emojiMapText, inputConnection, symMappings)
+    }
+
+    /**
+     * Enables or disables the virtual keyboard.
+     */
+    fun setVirtualKeyboardEnabled(enabled: Boolean) {
+        inputStatusBar.setVirtualKeyboardEnabled(enabled)
+        candidatesStatusBar.setVirtualKeyboardEnabled(enabled)
+    }
+
+    /**
+     * Updates the shift state of the virtual keyboard.
+     */
+    fun updateVirtualKeyboardShiftState(shifted: Boolean, capsLock: Boolean) {
+        inputStatusBar.updateVirtualKeyboardShiftState(shifted, capsLock)
+        candidatesStatusBar.updateVirtualKeyboardShiftState(shifted, capsLock)
     }
 }
 

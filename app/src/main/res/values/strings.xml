@@ -300,7 +300,11 @@
     <string name="power_shortcuts_title">Power Shortcuts</string>
     <string name="power_shortcuts_description">Press SYM then a key to launch shortcuts when not in a text field</string>
     <string name="power_shortcuts_press_key">Press shortcut key to launch</string>
-    
+
+    <!-- Virtual Keyboard -->
+    <string name="virtual_keyboard_title">Virtual Keyboard</string>
+    <string name="virtual_keyboard_description">Show on-screen keyboard for devices without physical keyboards</string>
+
     <!-- Notification Helper -->
     <string name="notification_nav_mode_channel_name">Coolwulf IME Nav Mode</string>
     <string name="notification_nav_mode_channel_description">Notifications for Coolwulf IME nav mode</string>

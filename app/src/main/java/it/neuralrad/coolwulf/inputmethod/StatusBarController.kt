@@ -29,6 +29,7 @@ import android.view.KeyEvent
 import kotlin.math.abs
 import it.neuralrad.coolwulf.inputmethod.ui.LedStatusView
 import it.neuralrad.coolwulf.inputmethod.ui.VariationBarView
+import it.neuralrad.coolwulf.inputmethod.ui.VirtualKeyboardView
 
 /**
  * Manages the status bar shown by the IME, handling view creation
@@ -197,6 +198,44 @@ class StatusBarController(
     private var forceMinimalUi: Boolean = false
     private var compactModeHidden: Boolean = false
 
+    // Virtual keyboard support
+    private var virtualKeyboardContainer: LinearLayout? = null
+    private var virtualKeyboardView: VirtualKeyboardView? = null
+    private var virtualKeyboardEnabled: Boolean = false
+
+    // Listener for virtual keyboard key presses
+    var onVirtualKeyPressListener: ((keyCode: Int, isShifted: Boolean) -> Unit)? = null
+
+    // Listener for virtual keyboard character input
+    var onVirtualCharacterInputListener: ((char: Char) -> Unit)? = null
+
+    /**
+     * Enables or disables the virtual keyboard.
+     */
+    fun setVirtualKeyboardEnabled(enabled: Boolean) {
+        virtualKeyboardEnabled = enabled
+        updateVirtualKeyboardVisibility()
+    }
+
+    /**
+     * Updates the visibility of the virtual keyboard based on the enabled state.
+     */
+    private fun updateVirtualKeyboardVisibility() {
+        virtualKeyboardContainer?.visibility = if (virtualKeyboardEnabled) View.VISIBLE else View.GONE
+    }
+
+    /**
+     * Returns whether the virtual keyboard is currently enabled.
+     */
+    fun isVirtualKeyboardEnabled(): Boolean = virtualKeyboardEnabled
+
+    /**
+     * Updates the shift state of the virtual keyboard.
+     */
+    fun updateVirtualKeyboardShiftState(shifted: Boolean, capsLock: Boolean) {
+        virtualKeyboardView?.setShiftState(shifted, capsLock)
+    }
+
     fun setForceMinimalUi(force: Boolean) {
         if (mode != Mode.FULL) {
             return
@@ -219,15 +258,27 @@ class StatusBarController(
         }
         compactModeHidden = hidden
         if (hidden) {
-            // Hide the entire status bar layout in compact mode when no suggestions
-            statusBarLayout?.apply {
-                visibility = View.GONE
-                // Set height to 0 to ensure no space is taken
-                layoutParams = layoutParams?.apply {
-                    height = 0
+            // If virtual keyboard is enabled, keep the layout visible but hide other components
+            if (virtualKeyboardEnabled) {
+                statusBarLayout?.visibility = View.VISIBLE
+                // Hide other components but keep virtual keyboard visible
+                modifiersContainer?.visibility = View.GONE
+                emojiMapTextView?.visibility = View.GONE
+                emojiKeyboardContainer?.visibility = View.GONE
+                variationsWrapper?.visibility = View.GONE
+                ledStatusView.ensureView().visibility = View.GONE
+                variationBarView?.hideImmediate()
+            } else {
+                // Hide the entire status bar layout in compact mode when no suggestions
+                statusBarLayout?.apply {
+                    visibility = View.GONE
+                    // Set height to 0 to ensure no space is taken
+                    layoutParams = layoutParams?.apply {
+                        height = 0
+                    }
                 }
+                variationBarView?.hideImmediate()
             }
-            variationBarView?.hideImmediate()
         } else {
             // Show the status bar layout when there are suggestions
             statusBarLayout?.apply {
@@ -237,6 +288,8 @@ class StatusBarController(
                     height = ViewGroup.LayoutParams.WRAP_CONTENT
                 }
             }
+            // Restore LED visibility
+            ledStatusView.ensureView().visibility = View.VISIBLE
         }
     }
 
@@ -321,13 +374,39 @@ class StatusBarController(
             variationsWrapper = variationBarView?.ensureView()
             val ledStrip = ledStatusView.ensureView()
 
+            // Create virtual keyboard container (hidden by default)
+            virtualKeyboardContainer = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+                visibility = View.GONE
+            }
+
+            // Create virtual keyboard view
+            virtualKeyboardView = VirtualKeyboardView(
+                context = context,
+                onKeyPress = { keyCode, isShifted ->
+                    onVirtualKeyPressListener?.invoke(keyCode, isShifted)
+                },
+                onCharacterInput = { char ->
+                    onVirtualCharacterInputListener?.invoke(char)
+                }
+            )
+            virtualKeyboardContainer?.addView(virtualKeyboardView?.ensureView())
+
             statusBarLayout?.apply {
                 addView(modifiersContainer)
                 addView(emojiMapTextView) // Pinyin buffer text
                 variationsWrapper?.let { addView(it) }
                 addView(emojiKeyboardContainer) // Griglia emoji prima dei LED
+                addView(virtualKeyboardContainer) // Virtual keyboard
                 addView(ledStrip) // LED sempre in fondo
             }
+
+            // Check if virtual keyboard should be enabled
+            updateVirtualKeyboardVisibility()
         } else if (emojiMapText.isNotEmpty()) {
             emojiMapTextView?.text = emojiMapText
         }
@@ -1035,8 +1114,8 @@ class StatusBarController(
             return
         }
 
-        // In compact mode with no suggestions, keep layout hidden
-        if (compactModeHidden) {
+        // In compact mode with no suggestions, keep layout hidden unless virtual keyboard is enabled
+        if (compactModeHidden && !virtualKeyboardEnabled) {
             layout.visibility = View.GONE
             return
         }

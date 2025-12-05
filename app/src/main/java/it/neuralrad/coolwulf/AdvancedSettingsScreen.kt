@@ -82,6 +82,9 @@ fun AdvancedSettingsScreen(
     var powerShortcutsEnabled by remember {
         mutableStateOf(SettingsManager.getPowerShortcutsEnabled(context))
     }
+    var virtualKeyboardEnabled by remember {
+        mutableStateOf(SettingsManager.isVirtualKeyboardEnabled(context))
+    }
     // Store the actual value (3 to 25), but display it inverted in the slider (25 to 3)
     var swipeIncrementalThreshold by remember {
         mutableStateOf(SettingsManager.getSwipeIncrementalThreshold(context))
@@ -366,7 +369,50 @@ fun AdvancedSettingsScreen(
                                 )
                             }
                         }
-                    
+
+                        // Virtual Keyboard Toggle
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.TouchApp,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.virtual_keyboard_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.virtual_keyboard_description),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2
+                                    )
+                                }
+                                Switch(
+                                    checked = virtualKeyboardEnabled,
+                                    onCheckedChange = { enabled ->
+                                        virtualKeyboardEnabled = enabled
+                                        SettingsManager.setVirtualKeyboardEnabled(context, enabled)
+                                    }
+                                )
+                            }
+                        }
+
                         // Launcher Shortcuts Settings (always visible)
                         Surface(
                             modifier = Modifier
