@@ -4953,10 +4953,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 savedAltCurrentPage = 0
                 savedAltChineseMode = null
                 savedAltBuffer = ""
+                // Clear altLastPressTime immediately since Alt was used for symbol input
+                // This prevents the next key press from being treated as Alt+key
+                altLastPressTime = 0L
+                modifierStateController.clearAltState(resetPressedState = true)
                 updateStatusBarText()
             }
 
-            // Don't clear altLastPressTime yet - it's needed for double-click detection on next Alt DOWN
+            // Don't clear altLastPressTime for pending selection branch - it's needed for double-click detection
             return true
         }
 
@@ -5012,6 +5016,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     if (result.shouldUpdateStatusBar) {
                         updateStatusBarText()
                     }
+                    // If Alt was used for symbol input, clear altLastPressTime to prevent
+                    // next key from being treated as Alt+key
+                    if (altUsedForSymbolInput) {
+                        altLastPressTime = 0L
+                        altUsedForSymbolInput = false
+                        modifierStateController.clearAltState(resetPressedState = true)
+                        updateStatusBarText()
+                    }
                 }
                 // Consume the key up event after handling modifier release
                 return true
@@ -5065,9 +5077,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     updateStatusBarText()
                 }
             }
+            // If Alt was used for symbol input, clear altLastPressTime to prevent
+            // next key from being treated as Alt+key
+            if (altUsedForSymbolInput) {
+                altLastPressTime = 0L
+                altUsedForSymbolInput = false
+                modifierStateController.clearAltState(resetPressedState = true)
+                updateStatusBarText()
+            }
             return super.onKeyUp(keyCode, event)
         }
-        
+
         // Handle SYM key release (nothing to do; it is a toggle)
         if (keyCode == KEYCODE_SYM) {
             // Consumiamo l'evento
