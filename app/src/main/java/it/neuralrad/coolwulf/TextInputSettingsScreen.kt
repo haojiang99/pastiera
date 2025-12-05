@@ -124,6 +124,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getMemoryFunctionEnabled(context))
     }
 
+    var autoPhraseMemoryEnabled by remember {
+        mutableStateOf(SettingsManager.isAutoPhrasMemoryEnabled(context))
+    }
+
     var shiftAltSwapped by remember {
         mutableStateOf(SettingsManager.getShiftAltSwapped(context))
     }
@@ -1320,6 +1324,51 @@ fun TextInputSettingsScreen(
                             SettingsManager.setMemoryFunctionEnabled(context, enabled)
                         }
                     )
+                }
+            }
+
+            // Auto-Phrase Memory Toggle (only show if memory function is enabled)
+            if (memoryFunctionEnabled) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Memory,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.auto_phrase_memory_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = stringResource(R.string.auto_phrase_memory_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                        }
+                        Switch(
+                            checked = autoPhraseMemoryEnabled,
+                            onCheckedChange = { enabled ->
+                                autoPhraseMemoryEnabled = enabled
+                                SettingsManager.setAutoPhraseMemoryEnabled(context, enabled)
+                            }
+                        )
+                    }
                 }
             }
 

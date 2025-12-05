@@ -92,6 +92,10 @@
     <string name="memory_function_title">Memory Function</string>
     <string name="memory_function_description">Learn from your selections to reorder candidates by frequency</string>
 
+    <!-- Auto Phrase Memory -->
+    <string name="auto_phrase_memory_title">Auto-Learn Phrases</string>
+    <string name="auto_phrase_memory_description">Automatically learn new phrases typed character-by-character when typed twice</string>
+
     <!-- Fuzzy Pinyin -->
     <string name="fuzzy_pinyin_title">Fuzzy Pinyin (模糊音)</string>
     <string name="fuzzy_pinyin_description">Allow z/zh, c/ch, s/sh, l/n, en/eng, in/ing substitutions</string>

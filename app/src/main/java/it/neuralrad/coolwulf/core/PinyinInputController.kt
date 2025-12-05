@@ -3,6 +3,7 @@ package it.neuralrad.coolwulf.core
 import android.content.Context
 import android.util.Log
 import android.view.KeyEvent
+import it.neuralrad.coolwulf.data.pinyin.AutoPhraseMemory
 import it.neuralrad.coolwulf.data.pinyin.PinyinDictionary
 import it.neuralrad.coolwulf.data.pinyin.UserPinyinMemory
 import it.neuralrad.coolwulf.data.NextWordPredictor
@@ -109,11 +110,25 @@ class PinyinInputController(
     // User memory for learning preferences
     private val userMemory: UserPinyinMemory = UserPinyinMemory.getInstance(context)
 
+    // Auto-phrase memory for learning new phrases from user input
+    private val autoPhraseMemory: AutoPhraseMemory = AutoPhraseMemory.getInstance(context)
+
+    // Session tracking for auto-phrase learning
+    // Tracks (pinyin, character) pairs selected in the current input session
+    private val sessionSelections = mutableListOf<Pair<String, String>>()
+
     /**
      * Checks if memory function is enabled.
      */
     private fun isMemoryEnabled(): Boolean {
         return SettingsManager.getMemoryFunctionEnabled(context)
+    }
+
+    /**
+     * Checks if auto-phrase memory is enabled.
+     */
+    private fun isAutoPhraseMemoryEnabled(): Boolean {
+        return isMemoryEnabled() && SettingsManager.isAutoPhrasMemoryEnabled(context)
     }
 
     /**
@@ -157,6 +172,8 @@ class PinyinInputController(
         if (isPinyinModeActive != active) {
             isPinyinModeActive = active
             if (!active) {
+                // Finalize session before exiting pinyin mode
+                finalizeSession()
                 clearBuffer()
             }
             Log.d(TAG, "========== Pinyin mode: ${if (active) "ENABLED" else "DISABLED"} ==========")
@@ -301,11 +318,18 @@ class PinyinInputController(
             pinyinToConsume = matchedPinyin
             // Record learning for the combined pinyin
             recordSelectionIfEnabled(pinyinToConsume, selected)
+            // For phrase selections, finalize current session and start fresh
+            // (phrase was selected as a unit, not built character by character)
+            finalizeSession()
         } else {
             // Single-character candidate - consume only the first syllable
             pinyinToConsume = firstSyllable
             // Record learning for just the first syllable
             recordSelectionIfEnabled(pinyinToConsume, selected)
+            // Track single-character selection for auto-phrase learning
+            if (isAutoPhraseMemoryEnabled() && pinyinToConsume.isNotEmpty()) {
+                sessionSelections.add(pinyinToConsume to selected)
+            }
         }
 
         Log.d(TAG, "Selected candidate $index (actual: $actualIndex): '$selected', consuming: '$pinyinToConsume' (phrase count: $phraseCandidateCount, isPhrase: $isPhrase)")
@@ -375,6 +399,8 @@ class PinyinInputController(
         // Update candidates for the remaining buffer
         // If buffer is empty after selection, show next-word predictions
         if (buffer.isEmpty()) {
+            // Finalize the session when buffer is empty (phrase input complete)
+            finalizeSession()
             showNextWordPredictions()
         } else {
             isShowingNextWordPredictions = false
@@ -382,6 +408,31 @@ class PinyinInputController(
         }
 
         return selected
+    }
+
+    /**
+     * Finalizes the current input session for auto-phrase learning.
+     * Combines all single-character selections into a phrase and records it.
+     */
+    private fun finalizeSession() {
+        if (!isAutoPhraseMemoryEnabled() || sessionSelections.size < 2) {
+            sessionSelections.clear()
+            return
+        }
+
+        // Combine all selections into a phrase
+        val combinedPinyin = sessionSelections.joinToString("") { it.first }
+        val combinedPhrase = sessionSelections.joinToString("") { it.second }
+
+        // Check if this phrase already exists in dictionary - if so, skip
+        val existingPhrases = PinyinDictionary.getPhraseCandidates(combinedPinyin)
+        if (combinedPhrase !in existingPhrases) {
+            // Record the new phrase for auto-learning
+            autoPhraseMemory.recordPhrase(combinedPinyin, combinedPhrase)
+            Log.d(TAG, "Session finalized: '$combinedPinyin' → '$combinedPhrase'")
+        }
+
+        sessionSelections.clear()
     }
 
     /**
@@ -495,6 +546,8 @@ class PinyinInputController(
         phraseCandidateSet = emptySet()
         firstSyllable = ""
         currentPage = 0
+        // Clear session without finalizing (user cancelled input)
+        sessionSelections.clear()
         Log.d(TAG, "Buffer cleared")
     }
 
@@ -828,6 +881,17 @@ class PinyinInputController(
             Log.d(TAG, "Custom dictionary phrases for '$bufferWithoutSep': $customPhrases")
         }
 
+        // Add auto-learned phrases third (third highest priority)
+        val autoLearnedPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrases(bufferWithoutSep) else emptyList()
+        for (phrase in autoLearnedPhrases) {
+            if (phrase !in resultCandidates) {
+                resultCandidates.add(phrase)
+            }
+        }
+        if (autoLearnedPhrases.isNotEmpty()) {
+            Log.d(TAG, "Auto-learned phrases for '$bufferWithoutSep': $autoLearnedPhrases")
+        }
+
         // If no regular candidates but we have abbreviation/custom matches, use them
         if (!allHaveCandidates && firstSyllableCharCandidates.isEmpty()) {
             if (resultCandidates.isNotEmpty()) {
@@ -908,6 +972,7 @@ class PinyinInputController(
         phraseSet.addAll(phraseCandidatesRaw)
         phraseSet.addAll(abbreviationCandidates)
         phraseSet.addAll(customPhrases)
+        phraseSet.addAll(autoLearnedPhrases)
         phraseCandidateSet = phraseSet
 
         // phraseCandidateCount for compatibility (used in some places)
@@ -995,6 +1060,17 @@ class PinyinInputController(
             Log.d(TAG, "Custom dictionary phrases for unparsable '$cleanBuffer': $customPhrases")
         }
 
+        // Check auto-learned phrases third (third highest priority)
+        val autoLearnedPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrases(cleanBuffer) else emptyList()
+        for (phrase in autoLearnedPhrases) {
+            if (phrase !in resultCandidates) {
+                resultCandidates.add(phrase)
+            }
+        }
+        if (autoLearnedPhrases.isNotEmpty()) {
+            Log.d(TAG, "Auto-learned phrases for unparsable '$cleanBuffer': $autoLearnedPhrases")
+        }
+
         val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(cleanBuffer)
 
         if (prefixCandidates.isNotEmpty()) {
@@ -1011,17 +1087,18 @@ class PinyinInputController(
             val phraseSet = mutableSetOf<String>()
             phraseSet.addAll(abbreviationCandidates)
             phraseSet.addAll(customPhrases)
+            phraseSet.addAll(autoLearnedPhrases)
             phraseCandidateSet = phraseSet
             phraseCandidateCount = phraseSet.size
-            Log.d(TAG, "Prefix fallback: $cleanBuffer → ${allCandidates.size} candidates (${abbreviationCandidates.size} abbrev, ${customPhrases.size} custom)")
+            Log.d(TAG, "Prefix fallback: $cleanBuffer → ${allCandidates.size} candidates (${abbreviationCandidates.size} abbrev, ${customPhrases.size} custom, ${autoLearnedPhrases.size} auto-learned)")
         } else if (resultCandidates.isNotEmpty()) {
-            // Only abbreviation/custom phrases available
+            // Only abbreviation/custom/auto-learned phrases available
             allCandidates = resultCandidates
             matchedPinyin = cleanBuffer
             firstSyllable = cleanBuffer
             phraseCandidateSet = resultCandidates.toSet()
             phraseCandidateCount = resultCandidates.size
-            Log.d(TAG, "Only abbreviation/custom phrases for '$cleanBuffer': $resultCandidates")
+            Log.d(TAG, "Only abbreviation/custom/auto-learned phrases for '$cleanBuffer': $resultCandidates")
         } else {
             allCandidates = emptyList()
             matchedPinyin = ""
@@ -1092,6 +1169,9 @@ class PinyinInputController(
      * Clears next-word predictions since punctuation ends the phrase context.
      */
     fun onPunctuationInput() {
+        // Finalize session before punctuation (phrase boundary)
+        finalizeSession()
+
         if (isShowingNextWordPredictions) {
             isShowingNextWordPredictions = false
             allCandidates = emptyList()
