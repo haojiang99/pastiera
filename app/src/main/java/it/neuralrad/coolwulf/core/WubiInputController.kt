@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.KeyEvent
 import it.neuralrad.coolwulf.data.wubi.WubiDictionary
 import it.neuralrad.coolwulf.data.wubi.UserWubiMemory
+import it.neuralrad.coolwulf.data.pinyin.PinyinDictionary
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
 import it.neuralrad.coolwulf.SettingsManager
@@ -348,9 +349,24 @@ class WubiInputController(
     }
 
     /**
+     * Checks if Wubi with Pinyin mode is enabled.
+     */
+    private fun isWubiWithPinyinEnabled(): Boolean {
+        return SettingsManager.isWubiWithPinyinEnabled(context)
+    }
+
+    /**
+     * Checks if Wubi phrases should be displayed first (before single characters).
+     */
+    private fun isPhrasesFirst(): Boolean {
+        return SettingsManager.isWubiPhrasesFirst(context)
+    }
+
+    /**
      * Updates candidate list based on current buffer.
      * Uses prefix matching to show all possible completions.
      * Abbreviation matches appear first, then custom dictionary phrases, then sorted by user frequency.
+     * If Wubi with Pinyin is enabled, Pinyin candidates are added after Wubi candidates.
      */
     private fun updateCandidates() {
         currentPage = 0  // Reset to first page when candidates change
@@ -390,6 +406,65 @@ class WubiInputController(
         for (candidate in sortedCandidates) {
             if (candidate !in resultCandidates) {
                 resultCandidates.add(candidate)
+            }
+        }
+
+        // Sort candidates based on phrases-first setting
+        // Custom phrases always stay at the top, then sort remaining by length preference
+        val customCount = customPhrases.size
+        if (resultCandidates.size > customCount) {
+            val phrasesFirst = isPhrasesFirst()
+            val wubiOnlyList = resultCandidates.subList(customCount, resultCandidates.size)
+            val sortedWubiList = if (phrasesFirst) {
+                // Phrases first: sort by length descending (longer = phrases first)
+                wubiOnlyList.sortedByDescending { it.length }
+            } else {
+                // Single characters first: sort by length ascending
+                wubiOnlyList.sortedBy { it.length }
+            }
+            // Rebuild the list: custom phrases + sorted wubi candidates
+            val newList = resultCandidates.subList(0, customCount).toMutableList()
+            newList.addAll(sortedWubiList)
+            resultCandidates.clear()
+            resultCandidates.addAll(newList)
+        }
+
+        val wubiCandidateCount = resultCandidates.size
+
+        // If Wubi with Pinyin is enabled, add Pinyin candidates after Wubi candidates
+        if (isWubiWithPinyinEnabled()) {
+            // Ensure Pinyin dictionary is loaded
+            if (!PinyinDictionary.isLoaded()) {
+                PinyinDictionary.load(context)
+            }
+
+            // Get Pinyin candidates for the same input
+            // First try exact syllable match, then prefix match
+            val pinyinCandidates = mutableListOf<String>()
+
+            // Get phrase candidates (multi-syllable matches)
+            val phraseCandidates = PinyinDictionary.getPhraseCandidates(bufferStr)
+            pinyinCandidates.addAll(phraseCandidates)
+
+            // Get single-character candidates (for prefix matching)
+            val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(bufferStr)
+            for (candidate in prefixCandidates) {
+                if (candidate !in pinyinCandidates) {
+                    pinyinCandidates.add(candidate)
+                }
+            }
+
+            // Add Pinyin candidates (excluding duplicates from Wubi)
+            var pinyinAddedCount = 0
+            for (candidate in pinyinCandidates) {
+                if (candidate !in resultCandidates) {
+                    resultCandidates.add(candidate)
+                    pinyinAddedCount++
+                }
+            }
+
+            if (pinyinAddedCount > 0) {
+                Log.d(TAG, "Added $pinyinAddedCount Pinyin candidates after $wubiCandidateCount Wubi candidates for '$bufferStr'")
             }
         }
 

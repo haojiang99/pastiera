@@ -51,6 +51,7 @@ sealed class SettingsDestination {
     object Customization : SettingsDestination()
     object Advanced : SettingsDestination()
     object CustomDictionary : SettingsDestination()
+    object LearnedPhrases : SettingsDestination()
 }
 
 /**
@@ -138,11 +139,18 @@ fun SettingsScreen(
                 TextInputSettingsScreen(
                     modifier = modifier,
                     onBack = { navigateBack() },
-                    onNavigateToCustomDictionary = { navigateTo(SettingsDestination.CustomDictionary) }
+                    onNavigateToCustomDictionary = { navigateTo(SettingsDestination.CustomDictionary) },
+                    onNavigateToLearnedPhrases = { navigateTo(SettingsDestination.LearnedPhrases) }
                 )
             }
             is SettingsDestination.CustomDictionary -> {
                 CustomDictionarySettingsScreen(
+                    modifier = modifier,
+                    onBack = { navigateBack() }
+                )
+            }
+            is SettingsDestination.LearnedPhrases -> {
+                LearnedPhrasesScreen(
                     modifier = modifier,
                     onBack = { navigateBack() }
                 )

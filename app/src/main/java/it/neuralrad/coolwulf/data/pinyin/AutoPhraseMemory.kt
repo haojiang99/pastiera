@@ -166,6 +166,49 @@ class AutoPhraseMemory(context: Context) {
     }
 
     /**
+     * Gets all learned phrases as a list of LearnedPhrase objects.
+     * Useful for displaying in settings UI.
+     */
+    fun getAllLearnedPhrases(): List<LearnedPhrase> {
+        val result = mutableListOf<LearnedPhrase>()
+        for ((pinyin, phraseMap) in learnedPhrases) {
+            for ((phrase, frequency) in phraseMap) {
+                result.add(LearnedPhrase(pinyin, phrase, frequency))
+            }
+        }
+        // Sort by frequency descending, then by phrase
+        return result.sortedWith(compareByDescending<LearnedPhrase> { it.frequency }.thenBy { it.phrase })
+    }
+
+    /**
+     * Deletes a specific learned phrase.
+     * @param pinyin The pinyin of the phrase
+     * @param phrase The phrase to delete
+     * @return true if deleted, false if not found
+     */
+    fun deleteLearnedPhrase(pinyin: String, phrase: String): Boolean {
+        val normalizedPinyin = pinyin.lowercase().trim()
+        val phraseMap = learnedPhrases[normalizedPinyin] ?: return false
+
+        if (phraseMap.remove(phrase) != null) {
+            // Remove the pinyin entry if no more phrases
+            if (phraseMap.isEmpty()) {
+                learnedPhrases.remove(normalizedPinyin)
+            }
+            saveToPreferences()
+            Log.d(TAG, "Deleted learned phrase: '$normalizedPinyin' → '$phrase'")
+            return true
+        }
+        return false
+    }
+
+    data class LearnedPhrase(
+        val pinyin: String,
+        val phrase: String,
+        val frequency: Int
+    )
+
+    /**
      * Gets statistics about the memory data.
      */
     fun getStats(): MemoryStats {

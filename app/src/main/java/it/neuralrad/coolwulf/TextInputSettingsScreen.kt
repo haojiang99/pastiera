@@ -7,7 +7,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -40,7 +42,8 @@ import it.neuralrad.coolwulf.R
 fun TextInputSettingsScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit,
-    onNavigateToCustomDictionary: () -> Unit = {}
+    onNavigateToCustomDictionary: () -> Unit = {},
+    onNavigateToLearnedPhrases: () -> Unit = {}
 ) {
     val context = LocalContext.current
     
@@ -98,6 +101,14 @@ fun TextInputSettingsScreen(
 
     var wubiEnabled by remember {
         mutableStateOf(SettingsManager.getWubiEnabled(context))
+    }
+
+    var wubiWithPinyinEnabled by remember {
+        mutableStateOf(SettingsManager.isWubiWithPinyinEnabled(context))
+    }
+
+    var wubiPhrasesFirst by remember {
+        mutableStateOf(SettingsManager.isWubiPhrasesFirst(context))
     }
 
     var shuangpinEnabled by remember {
@@ -879,6 +890,96 @@ fun TextInputSettingsScreen(
                 }
             }
 
+            // Wubi with Pinyin Toggle (only visible when Wubi is enabled)
+            if (wubiEnabled) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .padding(start = 40.dp) // Indent to show it's a sub-option
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.TextFields,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Wubi + Pinyin",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = "Show Pinyin candidates after Wubi candidates",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                        }
+                        Switch(
+                            checked = wubiWithPinyinEnabled,
+                            onCheckedChange = { enabled ->
+                                wubiWithPinyinEnabled = enabled
+                                SettingsManager.setWubiWithPinyinEnabled(context, enabled)
+                            }
+                        )
+                    }
+                }
+
+                // Wubi Phrases First Toggle
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .padding(start = 40.dp)  // Indent as sub-option
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.SwapHoriz,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Phrases First",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = if (wubiPhrasesFirst) "Phrases shown before single characters" else "Single characters shown first",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                        }
+                        Switch(
+                            checked = wubiPhrasesFirst,
+                            onCheckedChange = { enabled ->
+                                wubiPhrasesFirst = enabled
+                                SettingsManager.setWubiPhrasesFirst(context, enabled)
+                            }
+                        )
+                    }
+                }
+            }
+
             // Zhenma toggle
             Surface(
                 modifier = Modifier
@@ -1368,6 +1469,42 @@ fun TextInputSettingsScreen(
                                 SettingsManager.setAutoPhraseMemoryEnabled(context, enabled)
                             }
                         )
+                    }
+                }
+
+                // View Learned Phrases button (only if auto-phrase memory is enabled)
+                if (autoPhraseMemoryEnabled) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(start = 40.dp),  // Indent as sub-option
+                        onClick = onNavigateToLearnedPhrases
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.List,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "View Learned Phrases",
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(
+                                imageVector = Icons.Filled.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }

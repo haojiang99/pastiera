@@ -69,6 +69,8 @@ object SettingsManager {
     private const val KEY_SHIFT_ENTER_TOGGLE_INPUT = "shift_enter_toggle_input" // Enable Shift+Enter to toggle between Chinese input methods
     private const val KEY_VIRTUAL_KEYBOARD_ENABLED = "virtual_keyboard_enabled" // Enable virtual (on-screen) keyboard
     private const val KEY_AUTO_PHRASE_MEMORY_ENABLED = "auto_phrase_memory_enabled" // Enable auto-learning of new phrases
+    private const val KEY_WUBI_WITH_PINYIN_ENABLED = "wubi_with_pinyin_enabled" // Enable Pinyin fallback in Wubi mode
+    private const val KEY_WUBI_PHRASES_FIRST = "wubi_phrases_first" // Wubi: show phrases before single characters
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -114,6 +116,8 @@ object SettingsManager {
     private const val DEFAULT_SHIFT_ENTER_TOGGLE_INPUT = true  // Shift+Enter toggles input methods by default
     private const val DEFAULT_VIRTUAL_KEYBOARD_ENABLED = false  // Virtual keyboard disabled by default (for physical keyboard devices)
     private const val DEFAULT_AUTO_PHRASE_MEMORY_ENABLED = true  // Auto-phrase memory enabled by default
+    private const val DEFAULT_WUBI_WITH_PINYIN_ENABLED = false  // Wubi with Pinyin disabled by default
+    private const val DEFAULT_WUBI_PHRASES_FIRST = false  // Single characters first by default (traditional Wubi behavior)
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
@@ -1415,6 +1419,40 @@ object SettingsManager {
     fun setAutoPhraseMemoryEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_AUTO_PHRASE_MEMORY_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets whether Wubi with Pinyin mode is enabled.
+     * When enabled, Pinyin candidates are shown after Wubi candidates in Wubi mode.
+     */
+    fun isWubiWithPinyinEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_WUBI_WITH_PINYIN_ENABLED, DEFAULT_WUBI_WITH_PINYIN_ENABLED)
+    }
+
+    /**
+     * Sets whether Wubi with Pinyin mode is enabled.
+     */
+    fun setWubiWithPinyinEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_WUBI_WITH_PINYIN_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets whether Wubi phrases should be displayed before single characters.
+     * When true, multi-character phrases appear first; when false, single characters appear first.
+     */
+    fun isWubiPhrasesFirst(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_WUBI_PHRASES_FIRST, DEFAULT_WUBI_PHRASES_FIRST)
+    }
+
+    /**
+     * Sets whether Wubi phrases should be displayed before single characters.
+     */
+    fun setWubiPhrasesFirst(context: Context, phrasesFirst: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_WUBI_PHRASES_FIRST, phrasesFirst)
             .apply()
     }
 
