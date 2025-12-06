@@ -101,6 +101,36 @@ class AutoPhraseMemory(context: Context) {
     }
 
     /**
+     * Gets learned phrases whose pinyin starts with the given prefix.
+     * This enables partial matching - e.g., typing "wos" shows "我是" (woshi).
+     *
+     * @param prefix The pinyin prefix to match
+     * @return List of learned phrases sorted by frequency, most frequent first
+     */
+    fun getLearnedPhrasesWithPrefix(prefix: String): List<String> {
+        val normalizedPrefix = prefix.lowercase().trim()
+        if (normalizedPrefix.isEmpty()) return emptyList()
+
+        val results = mutableListOf<Pair<String, Int>>()  // phrase to frequency
+
+        for ((pinyin, phraseMap) in learnedPhrases) {
+            // Check if this pinyin starts with the prefix (but is longer - partial match)
+            if (pinyin.startsWith(normalizedPrefix) && pinyin.length > normalizedPrefix.length) {
+                for ((phrase, frequency) in phraseMap) {
+                    results.add(phrase to frequency)
+                }
+            }
+        }
+
+        // Sort by frequency descending and return phrases
+        return results
+            .sortedByDescending { it.second }
+            .map { it.first }
+            .distinct()
+            .take(9)  // Limit to avoid too many results
+    }
+
+    /**
      * Checks if a specific phrase is learned for a given pinyin.
      */
     fun isLearnedPhrase(pinyin: String, phrase: String): Boolean {

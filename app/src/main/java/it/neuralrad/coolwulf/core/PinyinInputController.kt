@@ -895,6 +895,7 @@ class PinyinInputController(
         }
 
         // Add auto-learned phrases third (third highest priority)
+        // First exact matches, then partial/prefix matches
         val autoLearnedPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrases(bufferWithoutSep) else emptyList()
         for (phrase in autoLearnedPhrases) {
             if (phrase !in resultCandidates) {
@@ -903,6 +904,14 @@ class PinyinInputController(
         }
         if (autoLearnedPhrases.isNotEmpty()) {
             Log.d(TAG, "Auto-learned phrases for '$bufferWithoutSep': $autoLearnedPhrases")
+        }
+
+        // Add partial/prefix matching phrases (e.g., "wos" matches "woshi" → "我是")
+        val partialMatchPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrasesWithPrefix(bufferWithoutSep) else emptyList()
+        for (phrase in partialMatchPhrases) {
+            if (phrase !in resultCandidates) {
+                resultCandidates.add(phrase)
+            }
         }
 
         // If no regular candidates but we have abbreviation/custom matches, use them
@@ -986,6 +995,7 @@ class PinyinInputController(
         phraseSet.addAll(abbreviationCandidates)
         phraseSet.addAll(customPhrases)
         phraseSet.addAll(autoLearnedPhrases)
+        phraseSet.addAll(partialMatchPhrases)  // Include partial matches as phrases
         phraseCandidateSet = phraseSet
 
         // phraseCandidateCount for compatibility (used in some places)
@@ -1084,6 +1094,14 @@ class PinyinInputController(
             Log.d(TAG, "Auto-learned phrases for unparsable '$cleanBuffer': $autoLearnedPhrases")
         }
 
+        // Check partial/prefix matching phrases (e.g., "wos" matches "woshi" → "我是")
+        val partialMatchPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrasesWithPrefix(cleanBuffer) else emptyList()
+        for (phrase in partialMatchPhrases) {
+            if (phrase !in resultCandidates) {
+                resultCandidates.add(phrase)
+            }
+        }
+
         val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(cleanBuffer)
 
         if (prefixCandidates.isNotEmpty()) {
@@ -1101,17 +1119,18 @@ class PinyinInputController(
             phraseSet.addAll(abbreviationCandidates)
             phraseSet.addAll(customPhrases)
             phraseSet.addAll(autoLearnedPhrases)
+            phraseSet.addAll(partialMatchPhrases)  // Include partial matches
             phraseCandidateSet = phraseSet
             phraseCandidateCount = phraseSet.size
-            Log.d(TAG, "Prefix fallback: $cleanBuffer → ${allCandidates.size} candidates (${abbreviationCandidates.size} abbrev, ${customPhrases.size} custom, ${autoLearnedPhrases.size} auto-learned)")
+            Log.d(TAG, "Prefix fallback: $cleanBuffer → ${allCandidates.size} candidates")
         } else if (resultCandidates.isNotEmpty()) {
-            // Only abbreviation/custom/auto-learned phrases available
+            // Only abbreviation/custom/auto-learned/partial-match phrases available
             allCandidates = resultCandidates
             matchedPinyin = cleanBuffer
             firstSyllable = cleanBuffer
             phraseCandidateSet = resultCandidates.toSet()
             phraseCandidateCount = resultCandidates.size
-            Log.d(TAG, "Only abbreviation/custom/auto-learned phrases for '$cleanBuffer': $resultCandidates")
+            Log.d(TAG, "Only abbreviation/custom/auto-learned/partial phrases for '$cleanBuffer': $resultCandidates")
         } else {
             allCandidates = emptyList()
             matchedPinyin = ""
