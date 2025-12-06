@@ -410,16 +410,29 @@ class WubiInputController(
         }
 
         // Sort candidates based on phrases-first setting
-        // Custom phrases always stay at the top, then sort remaining by length preference
+        // Custom phrases always stay at the top, then sort remaining by preference
         val customCount = customPhrases.size
         if (resultCandidates.size > customCount) {
             val phrasesFirst = isPhrasesFirst()
-            val wubiOnlyList = resultCandidates.subList(customCount, resultCandidates.size)
+            val wubiOnlyList = resultCandidates.subList(customCount, resultCandidates.size).toList()
+
             val sortedWubiList = if (phrasesFirst) {
-                // Phrases first: sort by length descending (longer = phrases first)
-                wubiOnlyList.sortedByDescending { it.length }
+                // Phrases first mode: only HIGH FREQUENCY phrases (used 2+ times) go before single characters
+                // Order: high-freq phrases -> single chars -> low-freq phrases
+                val highFreqPhrases = wubiOnlyList.filter {
+                    it.length > 1 && userMemory.getFrequency(bufferStr, it) >= 2
+                }.sortedByDescending { userMemory.getFrequency(bufferStr, it) }
+
+                val singleChars = wubiOnlyList.filter { it.length == 1 }
+                    .sortedByDescending { userMemory.getFrequency(bufferStr, it) }
+
+                val lowFreqPhrases = wubiOnlyList.filter {
+                    it.length > 1 && userMemory.getFrequency(bufferStr, it) < 2
+                }.sortedByDescending { userMemory.getFrequency(bufferStr, it) }
+
+                highFreqPhrases + singleChars + lowFreqPhrases
             } else {
-                // Single characters first: sort by length ascending
+                // Single characters first: sort by length ascending, keep frequency order within groups
                 wubiOnlyList.sortedBy { it.length }
             }
             // Rebuild the list: custom phrases + sorted wubi candidates
