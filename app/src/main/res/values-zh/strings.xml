@@ -50,6 +50,19 @@
     <string name="alt_ctrl_speech_shortcut_title">Alt+Ctrl语音识别</string>
     <string name="alt_ctrl_speech_shortcut_description">启用Alt+Ctrl键盘快捷键启动语音识别</string>
 
+    <!-- Voice Input Button -->
+    <string name="show_voice_input_button_title">语音输入按钮</string>
+    <string name="show_voice_input_button_description">在状态栏显示麦克风按钮</string>
+
+    <!-- Clipboard History -->
+    <string name="clipboard_history_enabled_title">剪贴板历史</string>
+    <string name="clipboard_history_enabled_description">存储复制的文本并允许从历史记录快速粘贴</string>
+    <string name="show_clipboard_button_title">剪贴板按钮</string>
+    <string name="show_clipboard_button_description">在状态栏显示剪贴板按钮</string>
+    <string name="clipboard_history_title">剪贴板历史</string>
+    <string name="clipboard_history_clear">清除</string>
+    <string name="clipboard_history_empty">暂无剪贴板历史</string>
+
     <!-- Static Variation Bar Mode -->
     <string name="static_variation_bar_mode_title">静态变体栏</string>
     <string name="static_variation_bar_mode_description">在变体栏中始终显示固定的实用键，而不是基于上下文的变体。即使智能功能被禁用，静态键仍然可用。</string>
@@ -64,11 +77,60 @@
     <string name="chinese_input_method_description">选择您偏好的中文输入法</string>
     <string name="chinese_input_pinyin">拼音</string>
     <string name="chinese_input_pinyin_description">启用拼音语音输入</string>
+    <string name="chinese_input_shuangpin">双拼</string>
+    <string name="chinese_input_shuangpin_description">启用小鹤双拼输入</string>
     <string name="chinese_input_wubi">五笔</string>
     <string name="chinese_input_wubi_description">启用五笔形码输入</string>
-    <string name="chinese_input_both_enabled_info">两种方法均已启用：按Shift+Enter或切换按钮循环 英文 → 拼音 → 五笔</string>
+    <string name="chinese_input_zhenma">真码</string>
+    <string name="chinese_input_zhenma_description">启用真码形码输入</string>
+    <string name="chinese_input_ziranma">自然码</string>
+    <string name="chinese_input_ziranma_description">启用自然码双拼输入</string>
+    <string name="chinese_input_both_enabled_info">多种输入法已启用：按Shift+Enter或切换按钮循环切换输入法</string>
     <string name="chinese_next_word_prediction_title">下一词预测</string>
     <string name="chinese_next_word_prediction_description">选择字符后显示预测的下一个词/词组</string>
+
+    <!-- Memory Function -->
+    <string name="memory_function_title">记忆功能</string>
+    <string name="memory_function_description">从您的选择中学习，按使用频率重新排序候选词</string>
+
+    <!-- Auto Phrase Memory -->
+    <string name="auto_phrase_memory_title">自动学习词组</string>
+    <string name="auto_phrase_memory_description">自动学习逐字输入两次的新词组</string>
+
+    <!-- Fuzzy Pinyin -->
+    <string name="fuzzy_pinyin_title">模糊音</string>
+    <string name="fuzzy_pinyin_description">允许z/zh、c/ch、s/sh、l/n、en/eng、in/ing替换</string>
+
+    <!-- Juying Mode -->
+    <string name="juying_mode_title">巨硬模式</string>
+    <string name="juying_mode_description">使用5个物理键选择候选词。中文：Shift/Sym/Space/Ctrl/Alt（空格选第1个，双击Alt翻页）。英文：Shift/Sym/Ctrl选择3个建议。</string>
+    <string name="juying_key_config_title">配置巨硬模式按键</string>
+    <string name="juying_key_config_description">按任意键将其分配到此位置</string>
+    <string name="juying_key_1">按键1（候选词2）</string>
+    <string name="juying_key_2">按键2（候选词3）</string>
+    <string name="juying_key_3">按键3（候选词1-最佳）</string>
+    <string name="juying_key_4">按键4（候选词4）</string>
+    <string name="juying_key_5">按键5（候选词5）</string>
+    <string name="juying_reset_keys">恢复默认按键</string>
+    <string name="juying_press_key">请按键…</string>
+    <string name="shift_alt_swap_title">交换Shift/Alt按钮</string>
+    <string name="shift_alt_swap_description">如果您的Titan 2的Shift和Alt按钮互换，请启用此选项。Alt变为第1键，Shift变为第5键用于候选词选择。</string>
+
+    <!-- Max Candidates -->
+    <string name="max_candidates_non_juying_title">最大候选词数（普通模式）</string>
+    <string name="max_candidates_non_juying_description">当前：每页%1$d个候选词。点击更改。</string>
+    <string name="max_candidates_non_juying_dialog_description">选择普通模式下每页显示的最大候选词数。这会影响翻页和词语选择。</string>
+    <string name="max_candidates_candidates">个候选词</string>
+
+    <!-- Default Input Mode -->
+    <string name="default_input_mode_title">默认输入模式</string>
+    <string name="default_input_mode_description">选择开始输入时使用哪种输入模式。键盘会记住您上次使用的模式。</string>
+    <string name="input_mode_english">英文</string>
+    <string name="input_mode_pinyin">拼音</string>
+    <string name="input_mode_shuangpin">双拼</string>
+    <string name="input_mode_wubi">五笔</string>
+    <string name="input_mode_zhenma">真码</string>
+    <string name="input_mode_ziranma">自然码</string>
 
     <!-- Info Section -->
     <string name="info_title">信息</string>
@@ -244,6 +306,10 @@
     <string name="power_shortcuts_description">不在文本框中时，按SYM然后按键启动快捷方式</string>
     <string name="power_shortcuts_press_key">按快捷键启动</string>
 
+    <!-- Virtual Keyboard -->
+    <string name="virtual_keyboard_title">虚拟键盘</string>
+    <string name="virtual_keyboard_description">为没有物理键盘的设备显示屏幕键盘</string>
+
     <!-- Notification Helper -->
     <string name="notification_nav_mode_channel_name">酷狼输入法导航模式</string>
     <string name="notification_nav_mode_channel_description">酷狼输入法导航模式通知</string>
@@ -287,6 +353,7 @@
     <string name="unicode_picker_title">选择Unicode字符</string>
     <string name="unicode_picker_close">关闭</string>
     <string name="unicode_category_punctuation">标点符号</string>
+    <string name="unicode_category_chinese_punctuation">中文标点</string>
     <string name="unicode_category_math">数学符号</string>
     <string name="unicode_category_currency">货币符号</string>
     <string name="unicode_category_technical">技术符号</string>
@@ -419,13 +486,22 @@
     <string name="custom_dictionary_title">自定义词典</string>
     <string name="custom_dictionary_description">定义您自己的快捷码进行快速短语输入。自定义短语优先显示在建议中。</string>
     <string name="custom_dictionary_pinyin_mode">拼音</string>
+    <string name="custom_dictionary_shuangpin_mode">双拼</string>
+    <string name="custom_dictionary_ziranma_mode">自然码</string>
     <string name="custom_dictionary_wubi_mode">五笔</string>
+    <string name="custom_dictionary_zhenma_mode">真码</string>
     <string name="custom_dictionary_add">添加映射</string>
     <string name="custom_dictionary_add_pinyin">添加拼音映射</string>
+    <string name="custom_dictionary_add_shuangpin">添加双拼映射</string>
+    <string name="custom_dictionary_add_ziranma">添加自然码映射</string>
     <string name="custom_dictionary_add_wubi">添加五笔映射</string>
+    <string name="custom_dictionary_add_zhenma">添加真码映射</string>
     <string name="custom_dictionary_code_label">编码</string>
     <string name="custom_dictionary_code_hint_pinyin">例如：nh</string>
+    <string name="custom_dictionary_code_hint_shuangpin">例如：nihc</string>
+    <string name="custom_dictionary_code_hint_ziranma">例如：nihc</string>
     <string name="custom_dictionary_code_hint_wubi">例如：wq</string>
+    <string name="custom_dictionary_code_hint_zhenma">例如：ab</string>
     <string name="custom_dictionary_phrase_label">短语</string>
     <string name="custom_dictionary_phrase_hint">例如：你好</string>
     <string name="custom_dictionary_save">保存</string>
@@ -436,4 +512,44 @@
     <string name="custom_dictionary_empty">暂无自定义映射。点击+添加。</string>
     <string name="custom_dictionary_settings_title">自定义词典</string>
     <string name="custom_dictionary_settings_description">定义自定义字母 → 短语映射</string>
+
+    <!-- Import/Export Custom Dictionary and User Memory -->
+    <string name="custom_dictionary_export">导出</string>
+    <string name="custom_dictionary_import">导入</string>
+    <string name="custom_dictionary_export_description">将自定义词典导出到文件</string>
+    <string name="custom_dictionary_import_description">从文件导入自定义词典</string>
+    <string name="custom_dictionary_export_success">成功导出%1$d个条目</string>
+    <string name="custom_dictionary_import_success">成功导入%1$d个条目</string>
+    <string name="custom_dictionary_export_failed">导出失败</string>
+    <string name="custom_dictionary_import_failed">导入失败</string>
+    <string name="custom_dictionary_import_invalid">无效的文件格式</string>
+    <string name="custom_dictionary_no_data">没有数据可导出</string>
+    <string name="user_memory_title">用户记忆</string>
+    <string name="user_memory_description">您的输入历史和学习偏好</string>
+    <string name="user_memory_export">导出用户记忆</string>
+    <string name="user_memory_import">导入用户记忆</string>
+    <string name="user_memory_export_success">用户记忆导出成功</string>
+    <string name="user_memory_import_success">用户记忆导入成功</string>
+    <string name="user_memory_export_failed">导出失败</string>
+    <string name="user_memory_import_failed">导入失败</string>
+    <string name="user_memory_pinyin_entries">拼音：%1$d个条目</string>
+    <string name="user_memory_wubi_entries">五笔：%1$d个条目</string>
+    <string name="user_memory_zhenma_entries">真码：%1$d个条目</string>
+    <string name="import_mode_merge">与现有数据合并</string>
+    <string name="import_mode_replace">替换全部</string>
+    <string name="import_mode_title">导入模式</string>
+
+    <!-- Shift+Enter Toggle Input -->
+    <string name="shift_enter_toggle_title">Shift+Enter切换</string>
+    <string name="shift_enter_toggle_description">使用Shift+Enter在已启用的中文输入法之间循环切换</string>
+
+    <!-- Wubi Settings -->
+    <string name="wubi_with_pinyin_title">五笔加拼音</string>
+    <string name="wubi_with_pinyin_description">在五笔模式下同时支持拼音输入，拼音候选词显示在五笔之后</string>
+    <string name="wubi_phrases_first_title">词组优先</string>
+    <string name="wubi_phrases_first_description">高频词组显示在单字之前（需使用2次以上）</string>
+
+    <!-- Learned Phrases -->
+    <string name="learned_phrases_title">已学习词组</string>
+    <string name="learned_phrases_description">查看和管理自动学习的词组</string>
 </resources>
