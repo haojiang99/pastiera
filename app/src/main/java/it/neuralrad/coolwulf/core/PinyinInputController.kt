@@ -907,8 +907,17 @@ class PinyinInputController(
         }
 
         // Add partial/prefix matching phrases (e.g., "wos" matches "woshi" → "我是")
+        // First from user-learned phrases (higher priority), then from dictionary (common words)
         val partialMatchPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrasesWithPrefix(bufferWithoutSep) else emptyList()
         for (phrase in partialMatchPhrases) {
+            if (phrase !in resultCandidates) {
+                resultCandidates.add(phrase)
+            }
+        }
+
+        // Add dictionary partial matches (common phrases sorted by frequency)
+        val dictPartialPhrases = PinyinDictionary.getPhraseCandidatesWithPrefix(bufferWithoutSep)
+        for (phrase in dictPartialPhrases) {
             if (phrase !in resultCandidates) {
                 resultCandidates.add(phrase)
             }
@@ -995,7 +1004,8 @@ class PinyinInputController(
         phraseSet.addAll(abbreviationCandidates)
         phraseSet.addAll(customPhrases)
         phraseSet.addAll(autoLearnedPhrases)
-        phraseSet.addAll(partialMatchPhrases)  // Include partial matches as phrases
+        phraseSet.addAll(partialMatchPhrases)  // Include user-learned partial matches
+        phraseSet.addAll(dictPartialPhrases)   // Include dictionary partial matches
         phraseCandidateSet = phraseSet
 
         // phraseCandidateCount for compatibility (used in some places)
@@ -1102,6 +1112,14 @@ class PinyinInputController(
             }
         }
 
+        // Add dictionary partial matches (common phrases sorted by frequency)
+        val dictPartialPhrases = PinyinDictionary.getPhraseCandidatesWithPrefix(cleanBuffer)
+        for (phrase in dictPartialPhrases) {
+            if (phrase !in resultCandidates) {
+                resultCandidates.add(phrase)
+            }
+        }
+
         val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(cleanBuffer)
 
         if (prefixCandidates.isNotEmpty()) {
@@ -1119,10 +1137,10 @@ class PinyinInputController(
             phraseSet.addAll(abbreviationCandidates)
             phraseSet.addAll(customPhrases)
             phraseSet.addAll(autoLearnedPhrases)
-            phraseSet.addAll(partialMatchPhrases)  // Include partial matches
+            phraseSet.addAll(partialMatchPhrases)
+            phraseSet.addAll(dictPartialPhrases)
             phraseCandidateSet = phraseSet
             phraseCandidateCount = phraseSet.size
-            Log.d(TAG, "Prefix fallback: $cleanBuffer → ${allCandidates.size} candidates")
         } else if (resultCandidates.isNotEmpty()) {
             // Only abbreviation/custom/auto-learned/partial-match phrases available
             allCandidates = resultCandidates

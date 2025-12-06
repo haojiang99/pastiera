@@ -208,6 +208,45 @@ object PinyinDictionary {
     }
 
     /**
+     * Gets phrase candidates whose pinyin starts with the given prefix.
+     * Results are sorted by frequency (common phrases first).
+     * @param prefix The pinyin prefix to match (e.g., "wos" matches "woshi")
+     * @param limit Maximum number of candidates to return
+     * @return List of phrases sorted by frequency
+     */
+    fun getPhraseCandidatesWithPrefix(prefix: String, limit: Int = 9): List<String> {
+        if (!isLoaded || prefix.length < 2) {
+            return emptyList()
+        }
+
+        val normalized = prefix.lowercase().trim()
+        val results = mutableListOf<Pair<String, Int>>()  // phrase to frequency rank
+        val seen = mutableSetOf<String>()
+
+        // Find all phrase pinyins starting with this prefix (but longer)
+        for ((pinyin, phraseList) in phrases) {
+            if (pinyin.startsWith(normalized) && pinyin.length > normalized.length) {
+                // Get frequency order for this pinyin if available
+                val freqOrder = frequencyOrder[pinyin]
+                for ((index, phrase) in phraseList.withIndex()) {
+                    if (phrase !in seen) {
+                        seen.add(phrase)
+                        // Use frequency rank if available, otherwise use index
+                        val rank = freqOrder?.indexOf(phrase)?.takeIf { it >= 0 } ?: (index + 1000)
+                        results.add(phrase to rank)
+                    }
+                }
+            }
+        }
+
+        // Sort by frequency rank and return
+        return results
+            .sortedBy { it.second }
+            .take(limit)
+            .map { it.first }
+    }
+
+    /**
      * Gets all candidates (both phrases and characters) for the given input.
      * Prioritizes phrase matches, then falls back to longest syllable match.
      * @param input The pinyin input string

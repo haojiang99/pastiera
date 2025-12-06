@@ -551,4 +551,8 @@
     <!-- Learned Phrases -->
     <string name="learned_phrases_title">Learned Phrases</string>
     <string name="learned_phrases_description">View and manage auto-learned phrases</string>
+
+    <!-- Candidate Font Size -->
+    <string name="candidate_font_size_title">Candidate Font Size</string>
+    <string name="candidate_font_size_description">Current: %1$d SP</string>
 </resources>

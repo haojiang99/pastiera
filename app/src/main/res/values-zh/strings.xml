@@ -552,4 +552,8 @@
     <!-- Learned Phrases -->
     <string name="learned_phrases_title">已学习词组</string>
     <string name="learned_phrases_description">查看和管理自动学习的词组</string>
+
+    <!-- Candidate Font Size -->
+    <string name="candidate_font_size_title">候选词字体大小</string>
+    <string name="candidate_font_size_description">当前：%1$d SP</string>
 </resources>

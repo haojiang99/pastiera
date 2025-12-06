@@ -71,6 +71,7 @@ object SettingsManager {
     private const val KEY_AUTO_PHRASE_MEMORY_ENABLED = "auto_phrase_memory_enabled" // Enable auto-learning of new phrases
     private const val KEY_WUBI_WITH_PINYIN_ENABLED = "wubi_with_pinyin_enabled" // Enable Pinyin fallback in Wubi mode
     private const val KEY_WUBI_PHRASES_FIRST = "wubi_phrases_first" // Wubi: show phrases before single characters
+    private const val KEY_CANDIDATE_FONT_SIZE = "candidate_font_size" // Font size for candidates/suggestions
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -118,6 +119,9 @@ object SettingsManager {
     private const val DEFAULT_AUTO_PHRASE_MEMORY_ENABLED = true  // Auto-phrase memory enabled by default
     private const val DEFAULT_WUBI_WITH_PINYIN_ENABLED = false  // Wubi with Pinyin disabled by default
     private const val DEFAULT_WUBI_PHRASES_FIRST = false  // Single characters first by default (traditional Wubi behavior)
+    private const val DEFAULT_CANDIDATE_FONT_SIZE = 18  // Default candidate font size in SP
+    private const val MIN_CANDIDATE_FONT_SIZE = 12
+    private const val MAX_CANDIDATE_FONT_SIZE = 28
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
@@ -1455,6 +1459,38 @@ object SettingsManager {
             .putBoolean(KEY_WUBI_PHRASES_FIRST, phrasesFirst)
             .apply()
     }
+
+    /**
+     * Gets the candidate/suggestion font size in SP.
+     */
+    fun getCandidateFontSize(context: Context): Int {
+        return getPreferences(context).getInt(KEY_CANDIDATE_FONT_SIZE, DEFAULT_CANDIDATE_FONT_SIZE)
+    }
+
+    /**
+     * Sets the candidate/suggestion font size in SP.
+     */
+    fun setCandidateFontSize(context: Context, size: Int) {
+        val clampedSize = size.coerceIn(MIN_CANDIDATE_FONT_SIZE, MAX_CANDIDATE_FONT_SIZE)
+        getPreferences(context).edit()
+            .putInt(KEY_CANDIDATE_FONT_SIZE, clampedSize)
+            .apply()
+    }
+
+    /**
+     * Gets the minimum candidate font size.
+     */
+    fun getMinCandidateFontSize(): Int = MIN_CANDIDATE_FONT_SIZE
+
+    /**
+     * Gets the maximum candidate font size.
+     */
+    fun getMaxCandidateFontSize(): Int = MAX_CANDIDATE_FONT_SIZE
+
+    /**
+     * Gets the default candidate font size.
+     */
+    fun getDefaultCandidateFontSize(): Int = DEFAULT_CANDIDATE_FONT_SIZE
 
     /**
      * Gets the key code for a Juying key (1-5).

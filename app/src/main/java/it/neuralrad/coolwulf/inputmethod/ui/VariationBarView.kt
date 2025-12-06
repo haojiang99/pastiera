@@ -414,7 +414,8 @@ class VariationBarView(
         // Show numbered buttons for Pinyin, Shuangpin, Wubi, and Zhenma only (not for English word prediction)
         // In Juying mode, hide numbers - users select with physical keys (Shift/Sym/Space/Ctrl)
         val showNumberedButtons = (snapshot.pinyinModeActive || snapshot.shuangpinModeActive || snapshot.wubiModeActive || snapshot.zhenmaModeActive) && !snapshot.isJuyingMode
-        val textSizeSp = if (showNumberedButtons || snapshot.wordPredictionActive) 18f else 17.6f
+        val userFontSize = SettingsManager.getCandidateFontSize(context).toFloat()
+        val textSizeSp = if (showNumberedButtons || snapshot.wordPredictionActive) userFontSize else (userFontSize - 0.4f)
         val textPaint = android.graphics.Paint().apply {
             textSize = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_SP,

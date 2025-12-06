@@ -170,6 +170,10 @@ fun TextInputSettingsScreen(
 
     var showMaxCandidatesDialog by remember { mutableStateOf(false) }
 
+    var candidateFontSize by remember {
+        mutableStateOf(SettingsManager.getCandidateFontSize(context))
+    }
+
     // Handle system back button
     BackHandler { onBack() }
     
@@ -1287,6 +1291,53 @@ fun TextInputSettingsScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // Candidate Font Size
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.TextFields,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.candidate_font_size_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = stringResource(R.string.candidate_font_size_description, candidateFontSize),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Slider(
+                        value = candidateFontSize.toFloat(),
+                        onValueChange = { newValue ->
+                            candidateFontSize = newValue.toInt()
+                            SettingsManager.setCandidateFontSize(context, newValue.toInt())
+                        },
+                        valueRange = SettingsManager.getMinCandidateFontSize().toFloat()..SettingsManager.getMaxCandidateFontSize().toFloat(),
+                        steps = SettingsManager.getMaxCandidateFontSize() - SettingsManager.getMinCandidateFontSize() - 1,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
 
