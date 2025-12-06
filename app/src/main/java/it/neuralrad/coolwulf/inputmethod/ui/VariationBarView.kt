@@ -229,6 +229,59 @@ class VariationBarView(
         overlay?.visibility = View.GONE
     }
 
+    /**
+     * Shows only the SYM button, hiding everything else.
+     * Used when SYM mode is active so user can click SYM again to close it.
+     */
+    fun showSymButtonOnly() {
+        val containerView = container ?: return
+        val wrapperView = wrapper ?: return
+
+        // Hide everything except SYM button
+        currentVariationsRow?.let { row ->
+            (row.parent as? ViewGroup)?.removeView(row)
+        }
+        currentVariationsRow = null
+        variationButtons.clear()
+        removeMicrophoneImmediate()
+        removeSettingsImmediate()
+        removeClipboardImmediate()
+        removeLanguageToggleImmediate()
+        removePunctuationToggleImmediate()
+        removeArrowsImmediate()
+        hideSwipeIndicator(immediate = true)
+        clipboardHistoryPopup?.dismiss()
+        overlay?.visibility = View.GONE
+
+        // Keep container and wrapper visible
+        wrapperView.visibility = View.VISIBLE
+        containerView.visibility = View.VISIBLE
+
+        // Show SYM button
+        val buttonWidth = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            36f,
+            context.resources.displayMetrics
+        ).toInt()
+        val symButton = symButtonView ?: createSymButton(buttonWidth).also {
+            symButtonView = it
+        }
+        if (symButton.parent == null) {
+            val symParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth)
+            containerView.addView(symButton, symParams)
+        }
+        symButton.setOnClickListener { onSymButtonListener?.invoke() }
+        symButton.alpha = 1f
+        symButton.visibility = View.VISIBLE
+    }
+
+    private fun removePunctuationToggleImmediate() {
+        punctuationToggleButtonView?.let { btn ->
+            (btn.parent as? ViewGroup)?.removeView(btn)
+            btn.visibility = View.GONE
+        }
+    }
+
     private fun removeSymButtonImmediate() {
         symButtonView?.let { sym ->
             (sym.parent as? ViewGroup)?.removeView(sym)

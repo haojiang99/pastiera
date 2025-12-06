@@ -1587,7 +1587,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             shuangpinSnapshot.hasCandidates ||
                             ziranmaSnapshot.hasCandidates ||
                             wubiSnapshot.hasCandidates ||
-                            zhenmaSnapshot.hasCandidates
+                            zhenmaSnapshot.hasCandidates ||
+                            symLayoutController.isSymActive()
         if (compactModeEnabled) {
             val shouldHide = !hasSuggestions
             candidatesBarController.setCompactModeHidden(shouldHide)

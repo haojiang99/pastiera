@@ -34,12 +34,21 @@ class VirtualKeyboardView(
         private val ROW_1 = listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p")
         private val ROW_2 = listOf("a", "s", "d", "f", "g", "h", "j", "k", "l")
         private val ROW_3 = listOf("z", "x", "c", "v", "b", "n", "m")
+
+        // Alt mode symbol mappings
+        private val ALT_NUMBERS = listOf("!", "@", "#", "$", "%", "^", "&", "*", "(", ")")
+        private val ALT_ROW_1 = listOf("`", "~", "€", "£", "¥", "[", "]", "{", "}", "\\")
+        private val ALT_ROW_2 = listOf("|", "=", "+", "-", "_", ";", ":", "'", "\"")
+        private val ALT_ROW_3 = listOf("<", ">", "/", "?", "!", "@", "#")
     }
 
     private var container: LinearLayout? = null
     private var isShifted = false
     private var isCapsLock = false
+    private var isAltMode = false
+    private var isAltLocked = false
     private var shiftKey: TextView? = null
+    private var altKey: TextView? = null
 
     private val keyHeight: Int by lazy {
         TypedValue.applyDimension(
@@ -185,10 +194,9 @@ class VirtualKeyboardView(
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
 
-            // Symbols/numbers toggle key
-            addView(createSpecialKey("123", 1.2f) {
-                // Could toggle to symbols/numbers layout in future
-            })
+            // Alt/Symbols toggle key (123 button)
+            altKey = createAltKey()
+            addView(altKey)
 
             // Comma key
             addView(createCharacterKey(",", 0.8f))
@@ -206,9 +214,83 @@ class VirtualKeyboardView(
         }
     }
 
+    private fun createAltKey(): TextView {
+        return TextView(context).apply {
+            text = "123"
+            setTextColor(KEY_TEXT_COLOR)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, specialKeyTextSize)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            background = createKeyBackground(KEY_BG_SPECIAL)
+
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                keyHeight,
+                1.2f
+            ).apply {
+                setMargins(keyMargin, keyMargin, keyMargin, keyMargin)
+            }
+
+            setOnTouchListener { v, event ->
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        background = createKeyBackground(KEY_BG_PRESSED)
+                        true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        if (isAltLocked) {
+                            // Disable alt lock
+                            isAltLocked = false
+                            isAltMode = false
+                        } else if (isAltMode) {
+                            // Double tap - enable alt lock
+                            isAltLocked = true
+                        } else {
+                            // Single tap - enable alt mode
+                            isAltMode = true
+                        }
+                        updateAltKeyAppearance()
+                        updateAllKeyLabels()
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        background = createKeyBackground(
+                            when {
+                                isAltLocked -> Color.argb(255, 100, 150, 255)  // Blue for alt lock
+                                isAltMode -> Color.argb(255, 80, 80, 90)       // Lighter for alt
+                                else -> KEY_BG_SPECIAL
+                            }
+                        )
+                        true
+                    }
+                    else -> false
+                }
+            }
+        }
+    }
+
+    private fun updateAltKeyAppearance() {
+        altKey?.apply {
+            text = when {
+                isAltLocked -> "ABC"  // Show ABC when locked in alt mode
+                isAltMode -> "ABC"    // Show ABC when alt active
+                else -> "123"         // Normal
+            }
+            background = createKeyBackground(
+                when {
+                    isAltLocked -> Color.argb(255, 100, 150, 255)  // Blue for alt lock (same as caps lock)
+                    isAltMode -> Color.argb(255, 80, 80, 90)       // Lighter for alt (same as shift)
+                    else -> KEY_BG_SPECIAL
+                }
+            )
+        }
+    }
+
     private fun createCharacterKey(char: String, weight: Float = 1f): TextView {
         return TextView(context).apply {
-            text = if (isShifted || isCapsLock) char.uppercase() else char
+            val displayText = getDisplayText(char)
+            text = displayText
             tag = char // Store original lowercase char
             setTextColor(KEY_TEXT_COLOR)
             setTextSize(TypedValue.COMPLEX_UNIT_PX, keyTextSize)
@@ -233,18 +315,25 @@ class VirtualKeyboardView(
                     }
                     MotionEvent.ACTION_UP -> {
                         background = createKeyBackground(KEY_BG_COLOR)
-                        val originalChar = (v.tag as String).first()
-                        val outputChar = if (isShifted || isCapsLock) {
-                            originalChar.uppercaseChar()
-                        } else {
-                            originalChar
+                        val originalChar = (v.tag as String)
+                        val outputText = getOutputText(originalChar)
+
+                        // Output each character (for multi-char symbols like \\)
+                        outputText.forEach { c ->
+                            onCharacterInput(c)
                         }
-                        onCharacterInput(outputChar)
 
                         // Clear shift after typing (unless caps lock)
                         if (isShifted && !isCapsLock) {
                             isShifted = false
                             updateShiftKeyAppearance()
+                            updateAllKeyLabels()
+                        }
+
+                        // Clear alt mode after typing (unless alt locked)
+                        if (isAltMode && !isAltLocked) {
+                            isAltMode = false
+                            updateAltKeyAppearance()
                             updateAllKeyLabels()
                         }
                         true
@@ -257,6 +346,50 @@ class VirtualKeyboardView(
                 }
             }
         }
+    }
+
+    private fun getDisplayText(char: String): String {
+        if (isAltMode || isAltLocked) {
+            val altChar = getAltSymbol(char)
+            if (altChar != null) return altChar
+        }
+        return if (isShifted || isCapsLock) char.uppercase() else char
+    }
+
+    private fun getOutputText(char: String): String {
+        if (isAltMode || isAltLocked) {
+            val altChar = getAltSymbol(char)
+            if (altChar != null) return altChar
+        }
+        return if (isShifted || isCapsLock) char.uppercase() else char
+    }
+
+    private fun getAltSymbol(char: String): String? {
+        // Check number row
+        val numIndex = ROW_NUMBERS.indexOf(char)
+        if (numIndex >= 0 && numIndex < ALT_NUMBERS.size) {
+            return ALT_NUMBERS[numIndex]
+        }
+
+        // Check row 1
+        val row1Index = ROW_1.indexOf(char.lowercase())
+        if (row1Index >= 0 && row1Index < ALT_ROW_1.size) {
+            return ALT_ROW_1[row1Index]
+        }
+
+        // Check row 2
+        val row2Index = ROW_2.indexOf(char.lowercase())
+        if (row2Index >= 0 && row2Index < ALT_ROW_2.size) {
+            return ALT_ROW_2[row2Index]
+        }
+
+        // Check row 3
+        val row3Index = ROW_3.indexOf(char.lowercase())
+        if (row3Index >= 0 && row3Index < ALT_ROW_3.size) {
+            return ALT_ROW_3[row3Index]
+        }
+
+        return null
     }
 
     private fun createSpecialKey(label: String, weight: Float, onClick: () -> Unit): TextView {
@@ -374,8 +507,11 @@ class VirtualKeyboardView(
                 is LinearLayout -> updateKeyLabelsRecursive(child)
                 is TextView -> {
                     val tag = child.tag as? String
-                    if (tag != null && tag.length == 1 && tag.first().isLetter()) {
-                        child.text = if (isShifted || isCapsLock) tag.uppercase() else tag
+                    if (tag != null && tag.isNotEmpty()) {
+                        // Skip special keys (shift, alt, backspace, enter, space)
+                        if (child == shiftKey || child == altKey) continue
+
+                        child.text = getDisplayText(tag)
                     }
                 }
             }

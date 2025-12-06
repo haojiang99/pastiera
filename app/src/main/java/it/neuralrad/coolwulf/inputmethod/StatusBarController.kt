@@ -290,6 +290,10 @@ class StatusBarController(
             }
             // Restore LED visibility
             ledStatusView.ensureView().visibility = View.VISIBLE
+            // Restore virtual keyboard visibility if enabled
+            if (virtualKeyboardEnabled) {
+                virtualKeyboardContainer?.visibility = View.VISIBLE
+            }
         }
     }
 
@@ -1111,6 +1115,10 @@ class StatusBarController(
         
         if (snapshot.navModeActive) {
             layout.visibility = View.GONE
+            // Keep virtual keyboard visible even in nav mode if enabled
+            if (virtualKeyboardEnabled) {
+                virtualKeyboardContainer?.visibility = View.VISIBLE
+            }
             return
         }
 
@@ -1118,6 +1126,11 @@ class StatusBarController(
         if (compactModeHidden && !virtualKeyboardEnabled) {
             layout.visibility = View.GONE
             return
+        }
+
+        // Always ensure virtual keyboard is visible if enabled
+        if (virtualKeyboardEnabled) {
+            virtualKeyboardContainer?.visibility = View.VISIBLE
         }
         layout.visibility = View.VISIBLE
         
@@ -1132,6 +1145,9 @@ class StatusBarController(
         val variationsBar = if (!forceMinimalUi) variationBarView else null
 
         if (snapshot.symPage > 0 && symMappings != null) {
+            // Clear cache to force rebuild of emoji keyboard
+            lastSymPageRendered = 0
+            lastSymMappingsRendered = null
             updateEmojiKeyboard(symMappings, snapshot.symPage, inputConnection)
             variationsBar?.resetVariationsState()
 
@@ -1140,31 +1156,59 @@ class StatusBarController(
                 layout.background = ColorDrawable(DEFAULT_BACKGROUND)
             }
             (layout.background as? ColorDrawable)?.alpha = 255
-            variationsWrapper?.apply {
-                visibility = View.INVISIBLE // keep space to avoid shrink/flash
-                isEnabled = false
-                isClickable = false
-            }
-            variationsBar?.hideImmediate()
 
-            val symHeight = ensureEmojiKeyboardMeasuredHeight(emojiKeyboardView, layout)
-            emojiKeyboardView.setBackgroundColor(DEFAULT_BACKGROUND)
-            emojiKeyboardView.visibility = View.VISIBLE
-            emojiKeyboardView.layoutParams = (emojiKeyboardView.layoutParams ?: LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                symHeight
-            )).apply { height = symHeight }
-            if (!symShown && !wasSymActive) {
-                emojiKeyboardView.alpha = 1f // keep black visible immediately
-                emojiKeyboardView.translationY = symHeight.toFloat()
-                animateEmojiKeyboardIn(emojiKeyboardView, layout)
-                symShown = true
-                wasSymActive = true
-            } else {
-                emojiKeyboardView.alpha = 1f
-                emojiKeyboardView.translationY = 0f
-                wasSymActive = true
+            // Keep variationsWrapper visible but show only SYM button so user can close SYM mode
+            variationsWrapper?.apply {
+                visibility = View.VISIBLE
+                isEnabled = true
+                isClickable = true
             }
+            variationsBar?.showSymButtonOnly()
+
+            // Set up emoji keyboard visibility BEFORE setting height
+            emojiKeyboardView.setBackgroundColor(DEFAULT_BACKGROUND)
+            emojiKeyboardView.translationY = 0f
+            emojiKeyboardView.alpha = 1f
+
+            // First set to WRAP_CONTENT to allow proper measurement
+            emojiKeyboardView.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            emojiKeyboardView.visibility = View.VISIBLE
+
+            // Force the parent layout to remeasure immediately
+            layout.requestLayout()
+
+            // Post to ensure measurement happens after content is added
+            emojiKeyboardView.post {
+                // Calculate exact height for 3 rows of emoji keys
+                val keyHeight = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 56f, context.resources.displayMetrics).toInt()
+                val keySpacing = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4f, context.resources.displayMetrics).toInt()
+                val bottomPadding = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12f, context.resources.displayMetrics).toInt()
+                val calculatedHeight = (keyHeight * 3) + (keySpacing * 2) + bottomPadding
+
+                // Use measured height if available, otherwise use calculated
+                val measuredHeight = emojiKeyboardView.measuredHeight
+                val finalHeight = if (measuredHeight > calculatedHeight / 2) measuredHeight else calculatedHeight
+
+                emojiKeyboardView.layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    finalHeight
+                )
+                emojiKeyboardView.requestLayout()
+
+                // Force another layout pass on the parent
+                layout.requestLayout()
+                layout.invalidate()
+            }
+
+            symShown = true
+            wasSymActive = true
+
+            // Hide virtual keyboard when SYM is shown to make room for emoji keyboard
+            // The SYM button remains visible so user can close the symbol layout
+            virtualKeyboardContainer?.visibility = View.GONE
             return
         }
         
@@ -1190,12 +1234,15 @@ class StatusBarController(
             symShown = false
             wasSymActive = false
         }
+
+        // Final check: ensure virtual keyboard stays visible if enabled
+        if (virtualKeyboardEnabled) {
+            virtualKeyboardContainer?.visibility = View.VISIBLE
+        }
     }
 
     private fun ensureEmojiKeyboardMeasuredHeight(view: View, parent: View): Int {
-        if (view.height > 0) {
-            return view.height
-        }
+        // Force measure the view to get accurate height
         val width = if (parent.width > 0) parent.width else context.resources.displayMetrics.widthPixels
         val widthSpec = View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY)
         val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
