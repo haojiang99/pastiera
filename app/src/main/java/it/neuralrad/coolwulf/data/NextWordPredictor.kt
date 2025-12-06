@@ -112,7 +112,7 @@ class NextWordPredictor(context: Context) {
      * Gets next-word suggestions based on the previous word(s).
      * Tries trigrams first (two previous words), falls back to bigrams (one previous word).
      * Filters out common stop words, just-typed word, and sorts by frequency.
-     * Only returns English words (no Chinese characters).
+     * Returns both English and Chinese words.
      * @param previousWords Pair of last two committed words
      * @return List of likely next words, sorted by frequency and quality
      */
@@ -128,8 +128,7 @@ class NextWordPredictor(context: Context) {
                     .sortedByDescending { it.value }
                     .filter {
                         !stopWords.contains(it.key) &&
-                        it.key != word2 &&
-                        isEnglishWord(it.key)  // Only English words
+                        it.key != word2
                     }
                     .take(limit)
                     .map { it.key }
@@ -146,21 +145,13 @@ class NextWordPredictor(context: Context) {
                 .sortedByDescending { it.value }
                 .filter {
                     !stopWords.contains(it.key) &&
-                    it.key != word2 &&
-                    isEnglishWord(it.key)  // Only English words
+                    it.key != word2
                 }
                 .take(limit)
                 .map { it.key }
         }
 
         return emptyList()
-    }
-
-    /**
-     * Checks if a word is English (contains only Latin letters and digits, no Chinese characters).
-     */
-    private fun isEnglishWord(word: String): Boolean {
-        return word.all { it.isLetter() && it.code < 128 || it.isDigit() }
     }
 
     /**
