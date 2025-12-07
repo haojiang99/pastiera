@@ -30,16 +30,14 @@ class VirtualKeyboardView(
         private val KEYBOARD_BG_COLOR = Color.argb(255, 30, 30, 35)
 
         // QWERTY layout rows
-        private val ROW_NUMBERS = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
         private val ROW_1 = listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p")
         private val ROW_2 = listOf("a", "s", "d", "f", "g", "h", "j", "k", "l")
         private val ROW_3 = listOf("z", "x", "c", "v", "b", "n", "m")
 
-        // Alt mode symbol mappings
-        private val ALT_NUMBERS = listOf("!", "@", "#", "$", "%", "^", "&", "*", "(", ")")
-        private val ALT_ROW_1 = listOf("`", "~", "€", "£", "¥", "[", "]", "{", "}", "\\")
-        private val ALT_ROW_2 = listOf("|", "=", "+", "-", "_", ";", ":", "'", "\"")
-        private val ALT_ROW_3 = listOf("<", ">", "/", "?", "!", "@", "#")
+        // Alt mode symbol mappings - numbers on top row
+        private val ALT_ROW_1 = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+        private val ALT_ROW_2 = listOf("@", "#", "$", "%", "&", "*", "(", ")", "_")
+        private val ALT_ROW_3 = listOf("-", "+", "=", ":", ";", "/", "?")
     }
 
     private var container: LinearLayout? = null
@@ -108,10 +106,7 @@ class VirtualKeyboardView(
             )
         }
 
-        // Add number row
-        container?.addView(createKeyRow(ROW_NUMBERS))
-
-        // Add QWERTY rows
+        // Add QWERTY rows (no number row - use 123/Alt for numbers)
         container?.addView(createKeyRow(ROW_1))
         container?.addView(createKeyRow(ROW_2, sidePadding = true))
         container?.addView(createRow3WithShiftAndBackspace())
@@ -365,25 +360,19 @@ class VirtualKeyboardView(
     }
 
     private fun getAltSymbol(char: String): String? {
-        // Check number row
-        val numIndex = ROW_NUMBERS.indexOf(char)
-        if (numIndex >= 0 && numIndex < ALT_NUMBERS.size) {
-            return ALT_NUMBERS[numIndex]
-        }
-
-        // Check row 1
+        // Check row 1 (QWERTY row -> numbers in alt mode)
         val row1Index = ROW_1.indexOf(char.lowercase())
         if (row1Index >= 0 && row1Index < ALT_ROW_1.size) {
             return ALT_ROW_1[row1Index]
         }
 
-        // Check row 2
+        // Check row 2 (ASDF row -> symbols in alt mode)
         val row2Index = ROW_2.indexOf(char.lowercase())
         if (row2Index >= 0 && row2Index < ALT_ROW_2.size) {
             return ALT_ROW_2[row2Index]
         }
 
-        // Check row 3
+        // Check row 3 (ZXCV row -> symbols in alt mode)
         val row3Index = ROW_3.indexOf(char.lowercase())
         if (row3Index >= 0 && row3Index < ALT_ROW_3.size) {
             return ALT_ROW_3[row3Index]
