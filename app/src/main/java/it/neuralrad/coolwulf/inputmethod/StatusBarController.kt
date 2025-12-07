@@ -1157,13 +1157,19 @@ class StatusBarController(
             }
             (layout.background as? ColorDrawable)?.alpha = 255
 
-            // Keep variationsWrapper visible but show only SYM button so user can close SYM mode
-            variationsWrapper?.apply {
-                visibility = View.VISIBLE
-                isEnabled = true
-                isClickable = true
+            // When virtual keyboard is enabled, keep status bar visible with SYM button
+            // When virtual keyboard is disabled, use original logic (hide status bar)
+            if (virtualKeyboardEnabled) {
+                variationsWrapper?.apply {
+                    visibility = View.VISIBLE
+                    isEnabled = true
+                    isClickable = true
+                }
+                variationsBar?.showSymButtonOnly()
+            } else {
+                // Original logic: hide status bar when showing emoji keyboard
+                variationsWrapper?.visibility = View.GONE
             }
-            variationsBar?.showSymButtonOnly()
 
             // Set up emoji keyboard visibility BEFORE setting height
             emojiKeyboardView.setBackgroundColor(DEFAULT_BACKGROUND)
