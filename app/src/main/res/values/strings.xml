@@ -555,4 +555,8 @@
     <!-- Candidate Font Size -->
     <string name="candidate_font_size_title">Candidate Font Size</string>
     <string name="candidate_font_size_description">Current: %1$d SP</string>
+
+    <!-- Partial Pinyin Matching -->
+    <string name="partial_pinyin_matching_title">Partial Pinyin Matching</string>
+    <string name="partial_pinyin_matching_description">Show phrase suggestions while typing partial pinyin (after first character selected)</string>
 </resources>

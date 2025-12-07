@@ -119,7 +119,7 @@ fun AdvancedSettingsScreen(
     
     fun defaultBackupName(): String {
         val formatter = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US)
-        return "pastiera-backup-${formatter.format(Date())}.zip"
+        return "coolwulf-backup-${formatter.format(Date())}.zip"
     }
 
     val backupLauncher = rememberLauncherForActivityResult(

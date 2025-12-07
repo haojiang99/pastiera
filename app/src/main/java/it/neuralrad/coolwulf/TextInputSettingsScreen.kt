@@ -139,6 +139,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.isAutoPhrasMemoryEnabled(context))
     }
 
+    var partialPinyinMatchingEnabled by remember {
+        mutableStateOf(SettingsManager.isPartialPinyinMatchingEnabled(context))
+    }
+
     var shiftAltSwapped by remember {
         mutableStateOf(SettingsManager.getShiftAltSwapped(context))
     }
@@ -1546,7 +1550,7 @@ fun TextInputSettingsScreen(
                                 modifier = Modifier.size(24.dp)
                             )
                             Text(
-                                text = "View Learned Phrases",
+                                text = stringResource(R.string.learned_phrases_title),
                                 style = MaterialTheme.typography.bodyLarge,
                                 modifier = Modifier.weight(1f)
                             )
@@ -1554,6 +1558,44 @@ fun TextInputSettingsScreen(
                                 imageVector = Icons.Filled.ChevronRight,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Partial Pinyin Matching Toggle (sub-option under auto phrase memory)
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp)
+                            .padding(start = 40.dp)  // Indent as sub-option
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.partial_pinyin_matching_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = stringResource(R.string.partial_pinyin_matching_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2
+                                )
+                            }
+                            Switch(
+                                checked = partialPinyinMatchingEnabled,
+                                onCheckedChange = { enabled ->
+                                    partialPinyinMatchingEnabled = enabled
+                                    SettingsManager.setPartialPinyinMatchingEnabled(context, enabled)
+                                }
                             )
                         }
                     }

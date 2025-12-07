@@ -72,6 +72,7 @@ object SettingsManager {
     private const val KEY_WUBI_WITH_PINYIN_ENABLED = "wubi_with_pinyin_enabled" // Enable Pinyin fallback in Wubi mode
     private const val KEY_WUBI_PHRASES_FIRST = "wubi_phrases_first" // Wubi: show phrases before single characters
     private const val KEY_CANDIDATE_FONT_SIZE = "candidate_font_size" // Font size for candidates/suggestions
+    private const val KEY_PARTIAL_PINYIN_MATCHING = "partial_pinyin_matching" // Enable partial pinyin matching for phrases
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -122,6 +123,7 @@ object SettingsManager {
     private const val DEFAULT_CANDIDATE_FONT_SIZE = 18  // Default candidate font size in SP
     private const val MIN_CANDIDATE_FONT_SIZE = 12
     private const val MAX_CANDIDATE_FONT_SIZE = 28
+    private const val DEFAULT_PARTIAL_PINYIN_MATCHING = false  // Partial pinyin matching disabled by default
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
@@ -1491,6 +1493,22 @@ object SettingsManager {
      * Gets the default candidate font size.
      */
     fun getDefaultCandidateFontSize(): Int = DEFAULT_CANDIDATE_FONT_SIZE
+
+    /**
+     * Gets whether partial pinyin matching is enabled.
+     */
+    fun isPartialPinyinMatchingEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_PARTIAL_PINYIN_MATCHING, DEFAULT_PARTIAL_PINYIN_MATCHING)
+    }
+
+    /**
+     * Sets whether partial pinyin matching is enabled.
+     */
+    fun setPartialPinyinMatchingEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_PARTIAL_PINYIN_MATCHING, enabled)
+            .apply()
+    }
 
     /**
      * Gets the key code for a Juying key (1-5).

@@ -907,20 +907,52 @@ class PinyinInputController(
         }
 
         // Add partial/prefix matching phrases (e.g., "wos" matches "woshi" → "我是")
-        // First from user-learned phrases (higher priority), then from dictionary (common words)
-        val partialMatchPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrasesWithPrefix(bufferWithoutSep) else emptyList()
-        for (phrase in partialMatchPhrases) {
-            if (phrase !in resultCandidates) {
-                resultCandidates.add(phrase)
-            }
-        }
+        // Only activate AFTER at least one character has been selected in the current session
+        // This prevents showing "woshi" candidates when user is still typing "wo"
+        // IMPORTANT: Strip already-committed characters from suggestions
+        val partialMatchPhrases: List<String>
+        val dictPartialPhrases: List<String>
+        val partialMatchingEnabled = SettingsManager.isPartialPinyinMatchingEnabled(context)
+        if (partialMatchingEnabled && sessionSelections.isNotEmpty()) {
+            // Build the full pinyin from session + current buffer
+            val sessionPinyin = sessionSelections.joinToString("") { it.first }
+            val fullPinyin = sessionPinyin + bufferWithoutSep
+            // Get already-committed characters to strip from suggestions
+            val committedChars = sessionSelections.joinToString("") { it.second }
 
-        // Add dictionary partial matches (common phrases sorted by frequency)
-        val dictPartialPhrases = PinyinDictionary.getPhraseCandidatesWithPrefix(bufferWithoutSep)
-        for (phrase in dictPartialPhrases) {
-            if (phrase !in resultCandidates) {
-                resultCandidates.add(phrase)
+            // Get partial matches using the full pinyin
+            val rawPartialPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrasesWithPrefix(fullPinyin) else emptyList()
+            // Strip already-committed prefix from each phrase
+            partialMatchPhrases = rawPartialPhrases.mapNotNull { phrase ->
+                if (phrase.startsWith(committedChars) && phrase.length > committedChars.length) {
+                    phrase.substring(committedChars.length)  // Return only the remaining part
+                } else {
+                    null  // Skip phrases that don't start with committed chars
+                }
             }
+            for (phrase in partialMatchPhrases) {
+                if (phrase !in resultCandidates) {
+                    resultCandidates.add(phrase)
+                }
+            }
+
+            // Add dictionary partial matches (common phrases sorted by frequency)
+            val rawDictPhrases = PinyinDictionary.getPhraseCandidatesWithPrefix(fullPinyin)
+            dictPartialPhrases = rawDictPhrases.mapNotNull { phrase ->
+                if (phrase.startsWith(committedChars) && phrase.length > committedChars.length) {
+                    phrase.substring(committedChars.length)
+                } else {
+                    null
+                }
+            }
+            for (phrase in dictPartialPhrases) {
+                if (phrase !in resultCandidates) {
+                    resultCandidates.add(phrase)
+                }
+            }
+        } else {
+            partialMatchPhrases = emptyList()
+            dictPartialPhrases = emptyList()
         }
 
         // If no regular candidates but we have abbreviation/custom matches, use them
@@ -1104,20 +1136,46 @@ class PinyinInputController(
             Log.d(TAG, "Auto-learned phrases for unparsable '$cleanBuffer': $autoLearnedPhrases")
         }
 
-        // Check partial/prefix matching phrases (e.g., "wos" matches "woshi" → "我是")
-        val partialMatchPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrasesWithPrefix(cleanBuffer) else emptyList()
-        for (phrase in partialMatchPhrases) {
-            if (phrase !in resultCandidates) {
-                resultCandidates.add(phrase)
-            }
-        }
+        // Check partial/prefix matching phrases - only after first character selected
+        // Strip already-committed characters from suggestions
+        val partialMatchPhrases: List<String>
+        val dictPartialPhrases: List<String>
+        val partialMatchingEnabled = SettingsManager.isPartialPinyinMatchingEnabled(context)
+        if (partialMatchingEnabled && sessionSelections.isNotEmpty()) {
+            val sessionPinyin = sessionSelections.joinToString("") { it.first }
+            val fullPinyin = sessionPinyin + cleanBuffer
+            val committedChars = sessionSelections.joinToString("") { it.second }
 
-        // Add dictionary partial matches (common phrases sorted by frequency)
-        val dictPartialPhrases = PinyinDictionary.getPhraseCandidatesWithPrefix(cleanBuffer)
-        for (phrase in dictPartialPhrases) {
-            if (phrase !in resultCandidates) {
-                resultCandidates.add(phrase)
+            val rawPartialPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrasesWithPrefix(fullPinyin) else emptyList()
+            partialMatchPhrases = rawPartialPhrases.mapNotNull { phrase ->
+                if (phrase.startsWith(committedChars) && phrase.length > committedChars.length) {
+                    phrase.substring(committedChars.length)
+                } else {
+                    null
+                }
             }
+            for (phrase in partialMatchPhrases) {
+                if (phrase !in resultCandidates) {
+                    resultCandidates.add(phrase)
+                }
+            }
+
+            val rawDictPhrases = PinyinDictionary.getPhraseCandidatesWithPrefix(fullPinyin)
+            dictPartialPhrases = rawDictPhrases.mapNotNull { phrase ->
+                if (phrase.startsWith(committedChars) && phrase.length > committedChars.length) {
+                    phrase.substring(committedChars.length)
+                } else {
+                    null
+                }
+            }
+            for (phrase in dictPartialPhrases) {
+                if (phrase !in resultCandidates) {
+                    resultCandidates.add(phrase)
+                }
+            }
+        } else {
+            partialMatchPhrases = emptyList()
+            dictPartialPhrases = emptyList()
         }
 
         val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(cleanBuffer)

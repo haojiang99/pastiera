@@ -1330,14 +1330,16 @@ class VariationBarView(
         }
 
         // Calculate text size based on content length (for word predictions which can be long)
+        // Use user's font size setting as base
+        val baseFontSize = SettingsManager.getCandidateFontSize(context).toFloat()
         val textSizeSp = when {
-            !showNumbered -> 17.6f  // Accent variations - single chars
-            displayText.length <= 3 -> 18f  // Short (e.g., "1我" or "1go")
-            displayText.length <= 5 -> 16f  // Medium words
-            displayText.length <= 7 -> 14f  // Longer words
-            displayText.length <= 9 -> 12f  // Even longer words
-            else -> 10f  // Very long words
-        }
+            !showNumbered -> baseFontSize - 0.4f  // Accent variations - single chars
+            displayText.length <= 3 -> baseFontSize  // Short (e.g., "1我" or "1go")
+            displayText.length <= 5 -> baseFontSize - 2f  // Medium words
+            displayText.length <= 7 -> baseFontSize - 4f  // Longer words
+            displayText.length <= 9 -> baseFontSize - 6f  // Even longer words
+            else -> baseFontSize - 8f  // Very long words
+        }.coerceAtLeast(10f)  // Minimum 10sp
 
         // Choose the appropriate click listener based on mode
         val clickListener = when {
