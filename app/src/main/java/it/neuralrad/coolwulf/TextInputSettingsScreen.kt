@@ -87,6 +87,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getShowClipboardButton(context))
     }
 
+    var showVirtualKeyboardButton by remember {
+        mutableStateOf(SettingsManager.getShowVirtualKeyboardButton(context))
+    }
+
     var staticVariationBarMode by remember {
         mutableStateOf(SettingsManager.isStaticVariationBarModeEnabled(context))
     }
@@ -624,6 +628,49 @@ fun TextInputSettingsScreen(
                         onCheckedChange = { enabled ->
                             showClipboardButton = enabled
                             SettingsManager.setShowClipboardButton(context, enabled)
+                        }
+                    )
+                }
+            }
+
+            // Show Virtual Keyboard Button
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.show_virtual_keyboard_button_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.show_virtual_keyboard_button_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                    Switch(
+                        checked = showVirtualKeyboardButton,
+                        onCheckedChange = { enabled ->
+                            showVirtualKeyboardButton = enabled
+                            SettingsManager.setShowVirtualKeyboardButton(context, enabled)
                         }
                     )
                 }

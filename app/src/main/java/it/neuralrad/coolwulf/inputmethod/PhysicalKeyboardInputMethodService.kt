@@ -722,6 +722,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             togglePunctuationMode()
         }
 
+        // Register listener for virtual keyboard toggle button
+        candidatesBarController.onVirtualKeyboardToggleListener = {
+            toggleVirtualKeyboard()
+        }
+
         // Register listeners for virtual keyboard
         candidatesBarController.onVirtualKeyPressListener = { keyCode, isShifted ->
             handleVirtualKeyPress(keyCode, isShifted)
@@ -1246,6 +1251,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         } else {
             true // Default to Chinese punctuation
         }
+    }
+
+    /**
+     * Toggles the virtual keyboard on/off.
+     */
+    private fun toggleVirtualKeyboard() {
+        isVirtualKeyboardEnabled = !isVirtualKeyboardEnabled
+        SettingsManager.setVirtualKeyboardEnabled(this, isVirtualKeyboardEnabled)
+        candidatesBarController.setVirtualKeyboardEnabled(isVirtualKeyboardEnabled)
+        updateStatusBarText()
     }
 
     /**

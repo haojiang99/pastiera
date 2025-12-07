@@ -99,6 +99,13 @@ class CandidatesBarController(
             candidatesStatusBar.onPunctuationToggleListener = value
         }
 
+    var onVirtualKeyboardToggleListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onVirtualKeyboardToggleListener = value
+            candidatesStatusBar.onVirtualKeyboardToggleListener = value
+        }
+
     // Virtual keyboard listeners
     var onVirtualKeyPressListener: ((keyCode: Int, isShifted: Boolean) -> Unit)? = null
         set(value) {

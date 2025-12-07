@@ -59,6 +59,8 @@
     <string name="clipboard_history_enabled_description">存储复制的文本并允许从历史记录快速粘贴</string>
     <string name="show_clipboard_button_title">剪贴板按钮</string>
     <string name="show_clipboard_button_description">在状态栏显示剪贴板按钮</string>
+    <string name="show_virtual_keyboard_button_title">虚拟键盘按钮</string>
+    <string name="show_virtual_keyboard_button_description">在状态栏显示虚拟键盘开关按钮</string>
     <string name="clipboard_history_title">剪贴板历史</string>
     <string name="clipboard_history_clear">清除</string>
     <string name="clipboard_history_empty">暂无剪贴板历史</string>

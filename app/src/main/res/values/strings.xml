@@ -58,6 +58,8 @@
     <string name="clipboard_history_enabled_description">Store copied text and allow quick paste from history</string>
     <string name="show_clipboard_button_title">Clipboard Button</string>
     <string name="show_clipboard_button_description">Show clipboard button in the status bar</string>
+    <string name="show_virtual_keyboard_button_title">Virtual Keyboard Button</string>
+    <string name="show_virtual_keyboard_button_description">Show virtual keyboard toggle button in the status bar</string>
     <string name="clipboard_history_title">Clipboard History</string>
     <string name="clipboard_history_clear">Clear</string>
     <string name="clipboard_history_empty">No clipboard history</string>

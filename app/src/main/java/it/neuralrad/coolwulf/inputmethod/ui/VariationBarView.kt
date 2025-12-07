@@ -74,7 +74,9 @@ class VariationBarView(
     private var microphoneButtonView: ImageView? = null
     private var settingsButtonView: ImageView? = null
     private var clipboardButtonView: ImageView? = null
+    private var keyboardToggleButtonView: ImageView? = null
     private var clipboardHistoryPopup: ClipboardHistoryPopup? = null
+    private var onVirtualKeyboardToggleListener: (() -> Unit)? = null
     private var lastDisplayedVariations: List<String> = emptyList()
     private var isSymModeActive = false
     private var isSwipeInProgress = false
@@ -219,6 +221,7 @@ class VariationBarView(
         removeMicrophoneImmediate()
         removeSettingsImmediate()
         removeClipboardImmediate()
+        removeKeyboardToggleImmediate()
         removeSymButtonImmediate()
         removeLanguageToggleImmediate()
         removeArrowsImmediate()
@@ -246,6 +249,7 @@ class VariationBarView(
         removeMicrophoneImmediate()
         removeSettingsImmediate()
         removeClipboardImmediate()
+        removeKeyboardToggleImmediate()
         removeLanguageToggleImmediate()
         removePunctuationToggleImmediate()
         removeArrowsImmediate()
@@ -312,6 +316,7 @@ class VariationBarView(
         removeMicrophoneImmediate()
         removeSettingsImmediate()
         removeClipboardImmediate()
+        removeKeyboardToggleImmediate()
         removeSymButtonImmediate()
         removeLanguageToggleImmediate()
         removeArrowsImmediate()
@@ -864,6 +869,51 @@ class VariationBarView(
             clipboardButton.visibility = View.GONE
         }
 
+        // Keyboard toggle button - reuse if already attached
+        val showKeyboardToggleButton = SettingsManager.getShowVirtualKeyboardButton(context) && !hideStatusBarIconsForJuying
+        val keyboardToggleButton = keyboardToggleButtonView ?: createKeyboardToggleButton(buttonWidth).also {
+            keyboardToggleButtonView = it
+        }
+        val keyboardToggleMargin = buttonMargin
+        if (showKeyboardToggleButton) {
+            if (keyboardToggleButton.parent == null) {
+                val keyboardParams = if (stretchButtons) {
+                    LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
+                        marginStart = keyboardToggleMargin
+                    }
+                } else {
+                    LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
+                        marginStart = keyboardToggleMargin
+                    }
+                }
+                containerView.addView(keyboardToggleButton, keyboardParams)
+            } else if (stretchButtons) {
+                (keyboardToggleButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                    width = 0
+                    weight = 1f
+                    marginStart = keyboardToggleMargin
+                }
+            } else {
+                (keyboardToggleButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                    width = buttonWidth
+                    weight = 0f
+                    marginStart = keyboardToggleMargin
+                }
+            }
+            keyboardToggleButton.setOnClickListener { onVirtualKeyboardToggleListener?.invoke() }
+            keyboardToggleButton.alpha = 1f
+            keyboardToggleButton.visibility = View.VISIBLE
+            // Update color based on current state
+            val isEnabled = SettingsManager.isVirtualKeyboardEnabled(context)
+            keyboardToggleButton.setColorFilter(if (isEnabled) Color.rgb(100, 200, 255) else Color.rgb(100, 100, 100))
+        } else {
+            // Hide/remove keyboard toggle button when disabled or in Juying mode with suggestions
+            if (keyboardToggleButton.parent != null) {
+                (keyboardToggleButton.parent as? ViewGroup)?.removeView(keyboardToggleButton)
+            }
+            keyboardToggleButton.visibility = View.GONE
+        }
+
         // SYM button - reuse if already attached
         val symButton = symButtonView ?: createSymButton(buttonWidth).also {
             symButtonView = it
@@ -1257,6 +1307,14 @@ class VariationBarView(
             (clipboard.parent as? ViewGroup)?.removeView(clipboard)
             clipboard.visibility = View.GONE
             clipboard.alpha = 1f
+        }
+    }
+
+    private fun removeKeyboardToggleImmediate() {
+        keyboardToggleButtonView?.let { toggle ->
+            (toggle.parent as? ViewGroup)?.removeView(toggle)
+            toggle.visibility = View.GONE
+            toggle.alpha = 1f
         }
     }
 
@@ -1700,6 +1758,41 @@ class VariationBarView(
             minimumWidth = buttonSize
             minimumHeight = buttonSize
             layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
+        }
+    }
+
+    private fun createKeyboardToggleButton(buttonSize: Int): ImageView {
+        val dp3 = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            3f,
+            context.resources.displayMetrics
+        ).toInt()
+        val drawable = GradientDrawable().apply {
+            setColor(Color.BLACK)
+            cornerRadius = 0f
+        }
+        return ImageView(context).apply {
+            setImageResource(R.drawable.ic_keyboard_24)
+            // Color depends on virtual keyboard state
+            val isEnabled = SettingsManager.isVirtualKeyboardEnabled(context)
+            setColorFilter(if (isEnabled) Color.rgb(100, 200, 255) else Color.rgb(100, 100, 100))
+            background = drawable
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            isClickable = true
+            isFocusable = true
+            setPadding(dp3, dp3, dp3, dp3)
+            layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
+        }
+    }
+
+    fun setOnVirtualKeyboardToggleListener(listener: (() -> Unit)?) {
+        onVirtualKeyboardToggleListener = listener
+    }
+
+    fun updateKeyboardToggleButtonState() {
+        keyboardToggleButtonView?.let { btn ->
+            val isEnabled = SettingsManager.isVirtualKeyboardEnabled(context)
+            btn.setColorFilter(if (isEnabled) Color.rgb(100, 200, 255) else Color.rgb(100, 100, 100))
         }
     }
 

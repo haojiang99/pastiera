@@ -73,6 +73,7 @@ object SettingsManager {
     private const val KEY_WUBI_PHRASES_FIRST = "wubi_phrases_first" // Wubi: show phrases before single characters
     private const val KEY_CANDIDATE_FONT_SIZE = "candidate_font_size" // Font size for candidates/suggestions
     private const val KEY_PARTIAL_PINYIN_MATCHING = "partial_pinyin_matching" // Enable partial pinyin matching for phrases
+    private const val KEY_SHOW_VIRTUAL_KEYBOARD_BUTTON = "show_virtual_keyboard_button" // Show virtual keyboard toggle button in status bar
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -124,6 +125,7 @@ object SettingsManager {
     private const val MIN_CANDIDATE_FONT_SIZE = 12
     private const val MAX_CANDIDATE_FONT_SIZE = 28
     private const val DEFAULT_PARTIAL_PINYIN_MATCHING = false  // Partial pinyin matching disabled by default
+    private const val DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON = false  // Virtual keyboard button hidden by default
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
@@ -1507,6 +1509,22 @@ object SettingsManager {
     fun setPartialPinyinMatchingEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_PARTIAL_PINYIN_MATCHING, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets whether virtual keyboard toggle button is shown in status bar.
+     */
+    fun getShowVirtualKeyboardButton(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SHOW_VIRTUAL_KEYBOARD_BUTTON, DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON)
+    }
+
+    /**
+     * Sets whether virtual keyboard toggle button is shown in status bar.
+     */
+    fun setShowVirtualKeyboardButton(context: Context, show: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SHOW_VIRTUAL_KEYBOARD_BUTTON, show)
             .apply()
     }
 

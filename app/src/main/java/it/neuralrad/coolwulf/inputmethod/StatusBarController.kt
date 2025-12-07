@@ -128,6 +128,13 @@ class StatusBarController(
             variationBarView?.onPunctuationToggleListener = value
         }
 
+    // Listener for virtual keyboard toggle button
+    var onVirtualKeyboardToggleListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            variationBarView?.setOnVirtualKeyboardToggleListener(value)
+        }
+
     companion object {
         private const val TAG = "StatusBarController"
         private const val NAV_MODE_LABEL = "NAV MODE"
