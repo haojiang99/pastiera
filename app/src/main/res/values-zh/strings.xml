@@ -61,6 +61,8 @@
     <string name="show_clipboard_button_description">在状态栏显示剪贴板按钮</string>
     <string name="show_virtual_keyboard_button_title">虚拟键盘按钮</string>
     <string name="show_virtual_keyboard_button_description">在状态栏显示虚拟键盘开关按钮</string>
+    <string name="semi_transparent_status_bar_title">半透明状态栏</string>
+    <string name="semi_transparent_status_bar_description">使状态栏半透明，以便查看其后面的内容</string>
     <string name="clipboard_history_title">剪贴板历史</string>
     <string name="clipboard_history_clear">清除</string>
     <string name="clipboard_history_empty">暂无剪贴板历史</string>
@@ -554,6 +556,20 @@
     <!-- Learned Phrases -->
     <string name="learned_phrases_title">已学习词组</string>
     <string name="learned_phrases_description">查看和管理自动学习的词组</string>
+    <string name="learned_phrases_tab_pinyin">拼音</string>
+    <string name="learned_phrases_tab_wubi">五笔</string>
+    <string name="learned_phrases_stats_learned">已学习</string>
+    <string name="learned_phrases_stats_uses">使用次数</string>
+    <string name="learned_phrases_stats_pending">待确认</string>
+    <string name="learned_phrases_empty">暂无已学习词组</string>
+    <string name="learned_phrases_empty_hint">输入两次相同词组后会自动学习</string>
+    <string name="learned_phrases_delete_title">删除词组？</string>
+    <string name="learned_phrases_delete_message">确定要删除这个已学习的词组吗？</string>
+    <string name="learned_phrases_deleted">词组已删除</string>
+    <string name="learned_phrases_delete_all_title">删除所有已学习词组？</string>
+    <string name="learned_phrases_delete_all_message">这将删除全部 %1$d 个%2$s已学习词组。此操作无法撤销。</string>
+    <string name="learned_phrases_all_deleted">所有词组已删除</string>
+    <string name="delete_all">全部删除</string>
 
     <!-- Candidate Font Size -->
     <string name="candidate_font_size_title">候选词字体大小</string>

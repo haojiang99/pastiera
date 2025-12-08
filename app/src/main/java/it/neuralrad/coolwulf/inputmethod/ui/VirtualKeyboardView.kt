@@ -12,6 +12,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
+import it.neuralrad.coolwulf.SettingsManager
 
 /**
  * Virtual (on-screen) keyboard for devices without physical keyboards.
@@ -28,6 +29,7 @@ class VirtualKeyboardView(
         private val KEY_BG_SPECIAL = Color.argb(255, 45, 45, 50)
         private val KEY_TEXT_COLOR = Color.WHITE
         private val KEYBOARD_BG_COLOR = Color.argb(255, 30, 30, 35)
+        private const val SEMI_TRANSPARENT_ALPHA = 0.4f  // 40% opacity for entire UI
 
         // QWERTY layout rows
         private val ROW_1 = listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p")
@@ -89,11 +91,19 @@ class VirtualKeyboardView(
     }
 
     fun ensureView(): LinearLayout {
-        container?.let { return it }
+        val isSemiTransparent = SettingsManager.isSemiTransparentStatusBar(context)
+
+        container?.let {
+            // Always apply transparency setting (check every time in case setting changed)
+            it.alpha = if (isSemiTransparent) SEMI_TRANSPARENT_ALPHA else 1.0f
+            return it
+        }
 
         container = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(KEYBOARD_BG_COLOR)
+            // Apply transparency to entire UI when setting is enabled, otherwise full opacity
+            alpha = if (isSemiTransparent) SEMI_TRANSPARENT_ALPHA else 1.0f
             val padding = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP,
                 4f,

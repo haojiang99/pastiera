@@ -140,6 +140,7 @@ class StatusBarController(
         private const val NAV_MODE_LABEL = "NAV MODE"
         private val DEFAULT_BACKGROUND = Color.parseColor("#000000")
         private val NAV_MODE_BACKGROUND = Color.argb(100, 0, 0, 0)
+        private const val SEMI_TRANSPARENT_ALPHA = 0.4f  // 40% opacity for entire UI
         
         // LED colors
         private val LED_COLOR_GRAY_OFF = Color.argb(26, 255, 255, 255) // Gray when LED is off
@@ -307,6 +308,7 @@ class StatusBarController(
     fun getLayout(): LinearLayout? = statusBarLayout
 
     fun getOrCreateLayout(emojiMapText: String = ""): LinearLayout {
+        val isSemiTransparent = SettingsManager.isSemiTransparentStatusBar(context)
         if (statusBarLayout == null) {
             statusBarLayout = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
@@ -421,6 +423,10 @@ class StatusBarController(
         } else if (emojiMapText.isNotEmpty()) {
             emojiMapTextView?.text = emojiMapText
         }
+
+        // Always apply transparency setting (check every time in case setting changed)
+        statusBarLayout?.alpha = if (isSemiTransparent) SEMI_TRANSPARENT_ALPHA else 1.0f
+
         return statusBarLayout!!
     }
     
@@ -849,6 +855,7 @@ class StatusBarController(
         onKeyClick: (Int, String) -> Unit,
         page: Int = 1 // Default a pagina 1 (emoji)
     ): View {
+        val isSemiTransparent = SettingsManager.isSemiTransparentStatusBar(context)
         val container = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             val bottomPadding = TypedValue.applyDimension(
@@ -858,7 +865,9 @@ class StatusBarController(
             ).toInt()
             setPadding(0, 0, 0, bottomPadding) // Nessun padding orizzontale, solo in basso
             // Aggiungi sfondo nero per migliorare la visibilità dei caratteri con tema chiaro
-            setBackgroundColor(Color.BLACK)
+            setBackgroundColor(DEFAULT_BACKGROUND)
+            // Apply transparency to entire UI when setting is enabled, otherwise full opacity
+            alpha = if (isSemiTransparent) SEMI_TRANSPARENT_ALPHA else 1.0f
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -1179,9 +1188,11 @@ class StatusBarController(
             }
 
             // Set up emoji keyboard visibility BEFORE setting height
+            val isSemiTransparent = SettingsManager.isSemiTransparentStatusBar(context)
             emojiKeyboardView.setBackgroundColor(DEFAULT_BACKGROUND)
             emojiKeyboardView.translationY = 0f
-            emojiKeyboardView.alpha = 1f
+            // Apply transparency to entire UI when setting is enabled
+            emojiKeyboardView.alpha = if (isSemiTransparent) SEMI_TRANSPARENT_ALPHA else 1f
 
             // First set to WRAP_CONTENT to allow proper measurement
             emojiKeyboardView.layoutParams = LinearLayout.LayoutParams(

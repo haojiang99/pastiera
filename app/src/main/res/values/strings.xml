@@ -60,6 +60,8 @@
     <string name="show_clipboard_button_description">Show clipboard button in the status bar</string>
     <string name="show_virtual_keyboard_button_title">Virtual Keyboard Button</string>
     <string name="show_virtual_keyboard_button_description">Show virtual keyboard toggle button in the status bar</string>
+    <string name="semi_transparent_status_bar_title">Semi-Transparent Status Bar</string>
+    <string name="semi_transparent_status_bar_description">Make the status bar semi-transparent to see content behind it</string>
     <string name="clipboard_history_title">Clipboard History</string>
     <string name="clipboard_history_clear">Clear</string>
     <string name="clipboard_history_empty">No clipboard history</string>
@@ -553,6 +555,20 @@
     <!-- Learned Phrases -->
     <string name="learned_phrases_title">Learned Phrases</string>
     <string name="learned_phrases_description">View and manage auto-learned phrases</string>
+    <string name="learned_phrases_tab_pinyin">Pinyin</string>
+    <string name="learned_phrases_tab_wubi">Wubi</string>
+    <string name="learned_phrases_stats_learned">Learned</string>
+    <string name="learned_phrases_stats_uses">Total Uses</string>
+    <string name="learned_phrases_stats_pending">Pending</string>
+    <string name="learned_phrases_empty">No learned phrases yet</string>
+    <string name="learned_phrases_empty_hint">Phrases are learned when you type them twice</string>
+    <string name="learned_phrases_delete_title">Delete Phrase?</string>
+    <string name="learned_phrases_delete_message">Are you sure you want to delete this learned phrase?</string>
+    <string name="learned_phrases_deleted">Phrase deleted</string>
+    <string name="learned_phrases_delete_all_title">Delete All Learned Phrases?</string>
+    <string name="learned_phrases_delete_all_message">This will delete all %1$d %2$s learned phrases. This action cannot be undone.</string>
+    <string name="learned_phrases_all_deleted">All phrases deleted</string>
+    <string name="delete_all">Delete All</string>
 
     <!-- Candidate Font Size -->
     <string name="candidate_font_size_title">Candidate Font Size</string>

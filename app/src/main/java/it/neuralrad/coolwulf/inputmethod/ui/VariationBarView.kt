@@ -1361,18 +1361,31 @@ class VariationBarView(
 
         val buttonHeight = buttonWidth
 
+        // Check if semi-transparent mode is enabled
+        val isSemiTransparent = SettingsManager.isSemiTransparentStatusBar(context)
+
         // Use highlighted background for best candidate in Juying mode (golden/yellow tint)
-        val normalColor = if (isBestCandidate) {
-            Color.rgb(50, 45, 10)  // Dark golden/yellow tint for best candidate
+        val normalColor = if (isSemiTransparent) {
+            // Transparent background when semi-transparent mode is on
+            if (isBestCandidate) {
+                Color.argb(100, 50, 45, 10)  // Semi-transparent golden/yellow
+            } else {
+                Color.argb(100, 17, 17, 17)  // Semi-transparent dark gray
+            }
         } else {
-            Color.rgb(17, 17, 17)  // Default dark gray
+            if (isBestCandidate) {
+                Color.rgb(50, 45, 10)  // Dark golden/yellow tint for best candidate
+            } else {
+                Color.rgb(17, 17, 17)  // Default dark gray
+            }
         }
         val drawable = GradientDrawable().apply {
             setColor(normalColor)
             cornerRadius = 0f
         }
+        val pressedColor = if (isSemiTransparent) Color.argb(100, 38, 0, 255) else Color.rgb(38, 0, 255)
         val pressedDrawable = GradientDrawable().apply {
-            setColor(Color.rgb(38, 0, 255))
+            setColor(pressedColor)
             cornerRadius = 0f
         }
         val stateListDrawable = android.graphics.drawable.StateListDrawable().apply {
@@ -1480,10 +1493,19 @@ class VariationBarView(
         val shouldVibrate = isWordPrediction || isPinyinMode || isShuangpinMode || isZiranmaMode || isWubiMode || isZhenmaMode
 
         // Use golden/yellow text for best candidate in Juying mode
-        val textColor = if (isBestCandidate) {
-            Color.rgb(255, 215, 0)  // Gold color for best candidate
+        // Apply transparency when semi-transparent mode is enabled
+        val textColor = if (isSemiTransparent) {
+            if (isBestCandidate) {
+                Color.argb(180, 255, 215, 0)  // Semi-transparent gold
+            } else {
+                Color.argb(180, 255, 255, 255)  // Semi-transparent white
+            }
         } else {
-            Color.WHITE
+            if (isBestCandidate) {
+                Color.rgb(255, 215, 0)  // Gold color for best candidate
+            } else {
+                Color.WHITE
+            }
         }
 
         return TextView(context).apply {

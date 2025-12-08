@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.KeyEvent
 import it.neuralrad.coolwulf.data.wubi.WubiDictionary
 import it.neuralrad.coolwulf.data.wubi.UserWubiMemory
+import it.neuralrad.coolwulf.data.wubi.WubiPhraseMemory
 import it.neuralrad.coolwulf.data.pinyin.PinyinDictionary
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
@@ -69,11 +70,25 @@ class WubiInputController(
     // User memory for learning preferences (prioritize frequently selected characters)
     private val userMemory: UserWubiMemory = UserWubiMemory.getInstance(context)
 
+    // Auto-phrase memory for learning new phrases from user input
+    private val wubiPhraseMemory: WubiPhraseMemory = WubiPhraseMemory.getInstance(context)
+
+    // Session tracking for auto-phrase learning
+    // Tracks (wubiCode, character) pairs selected in the current input session
+    private val sessionSelections = mutableListOf<Pair<String, String>>()
+
     /**
      * Checks if memory function is enabled.
      */
     private fun isMemoryEnabled(): Boolean {
         return SettingsManager.getMemoryFunctionEnabled(context)
+    }
+
+    /**
+     * Checks if auto-phrase memory is enabled.
+     */
+    private fun isAutoPhraseLearningEnabled(): Boolean {
+        return isMemoryEnabled() && SettingsManager.isAutoPhrasMemoryEnabled(context)
     }
 
     // User custom dictionary for user-defined shortcuts
@@ -115,6 +130,8 @@ class WubiInputController(
         if (isWubiModeActive != active) {
             isWubiModeActive = active
             if (!active) {
+                // Finalize session before exiting Wubi mode
+                finalizeSession()
                 clearBuffer()
             }
             Log.d(TAG, "========== Wubi mode: ${if (active) "ENABLED" else "DISABLED"} ==========")
@@ -152,6 +169,12 @@ class WubiInputController(
         if (!lowerChar.isLetter() || lowerChar < 'a' || lowerChar > 'z') {
             Log.d(TAG, "handleLetterKey: Invalid character '$char'")
             return false
+        }
+
+        // Finalize any pending session when user starts new input
+        // This captures phrases like "王五李四" when user starts typing next phrase
+        if (sessionSelections.size >= 2) {
+            finalizeSession()
         }
 
         // Clear next-word prediction state when user starts typing
@@ -230,12 +253,26 @@ class WubiInputController(
             userMemory.recordSelection(lastUsedWubiCode, selected)
         }
 
+        // Track selection for auto-phrase learning (only for single characters from Wubi code)
+        // Only track single characters - phrases are already in the dictionary
+        if (isAutoPhraseLearningEnabled() && !isShowingNextWordPredictions &&
+            lastUsedWubiCode.isNotEmpty() && selected.length == 1) {
+            sessionSelections.add(lastUsedWubiCode to selected)
+        }
+
         // Record the committed word for next-word prediction learning
         nextWordPredictor.recordCommittedWord(selected)
 
         // Clear the buffer after selection (Wubi consumes entire code)
         buffer.clear()
+        val savedWubiCode = lastUsedWubiCode
         lastUsedWubiCode = ""
+
+        // Finalize the session now that the phrase input is complete
+        // This records phrases like "王五" when user finishes picking all characters
+        if (sessionSelections.size >= 2) {
+            finalizeSession()
+        }
 
         // Show next-word predictions if available
         showNextWordPredictions()
@@ -259,6 +296,31 @@ class WubiInputController(
         }
         isShowingNextWordPredictions = false
         updateCandidates()
+    }
+
+    /**
+     * Finalizes the current input session for auto-phrase learning.
+     * Combines all single-character selections into a phrase and records it.
+     */
+    private fun finalizeSession() {
+        if (!isAutoPhraseLearningEnabled() || sessionSelections.size < 2) {
+            sessionSelections.clear()
+            return
+        }
+
+        // Combine all selections into a phrase
+        val combinedWubiCode = sessionSelections.joinToString("") { it.first }
+        val combinedPhrase = sessionSelections.joinToString("") { it.second }
+
+        // Check if this phrase already exists in dictionary - if so, skip
+        val existingPhrases = WubiDictionary.getCandidatesForPrefix(combinedWubiCode, limit = 50)
+        if (combinedPhrase !in existingPhrases) {
+            // Record the new phrase for auto-learning
+            wubiPhraseMemory.recordPhrase(combinedWubiCode, combinedPhrase)
+            Log.d(TAG, "Wubi session finalized: '$combinedWubiCode' → '$combinedPhrase'")
+        }
+
+        sessionSelections.clear()
     }
 
     /**
@@ -345,6 +407,8 @@ class WubiInputController(
         buffer.clear()
         allCandidates = emptyList()
         currentPage = 0
+        // Clear session without finalizing (user cancelled input)
+        sessionSelections.clear()
         Log.d(TAG, "Buffer cleared")
     }
 
@@ -396,6 +460,28 @@ class WubiInputController(
             Log.d(TAG, "Custom dictionary phrases for '$bufferStr': $customPhrases")
         }
 
+        // Get auto-learned phrases second (second highest priority)
+        val autoLearnedPhrases = if (isAutoPhraseLearningEnabled()) wubiPhraseMemory.getLearnedPhrases(bufferStr) else emptyList()
+        for (phrase in autoLearnedPhrases) {
+            if (phrase !in resultCandidates) {
+                resultCandidates.add(phrase)
+            }
+        }
+        if (autoLearnedPhrases.isNotEmpty()) {
+            Log.d(TAG, "Auto-learned Wubi phrases for '$bufferStr': $autoLearnedPhrases")
+        }
+
+        // Get partial/prefix matching learned phrases (e.g., "ggtt" matches "ggttk" → "王五")
+        val partialMatchPhrases = if (isAutoPhraseLearningEnabled()) wubiPhraseMemory.getLearnedPhrasesWithPrefix(bufferStr) else emptyList()
+        for (phrase in partialMatchPhrases) {
+            if (phrase !in resultCandidates) {
+                resultCandidates.add(phrase)
+            }
+        }
+        if (partialMatchPhrases.isNotEmpty()) {
+            Log.d(TAG, "Partial match Wubi phrases for '$bufferStr': $partialMatchPhrases")
+        }
+
         // Get candidates for the current code (both exact and prefix matches)
         val rawCandidates = WubiDictionary.getCandidatesForPrefix(bufferStr, limit = 50)
 
@@ -410,11 +496,11 @@ class WubiInputController(
         }
 
         // Sort candidates based on phrases-first setting
-        // Custom phrases always stay at the top, then sort remaining by preference
-        val customCount = customPhrases.size
-        if (resultCandidates.size > customCount) {
+        // Custom phrases and auto-learned phrases always stay at the top, then sort remaining by preference
+        val priorityCount = customPhrases.size + autoLearnedPhrases.size + partialMatchPhrases.size
+        if (resultCandidates.size > priorityCount) {
             val phrasesFirst = isPhrasesFirst()
-            val wubiOnlyList = resultCandidates.subList(customCount, resultCandidates.size).toList()
+            val wubiOnlyList = resultCandidates.subList(priorityCount, resultCandidates.size).toList()
 
             val sortedWubiList = if (phrasesFirst) {
                 // Phrases first mode: only HIGH FREQUENCY phrases (used 2+ times) go before single characters
@@ -436,7 +522,7 @@ class WubiInputController(
                 wubiOnlyList.sortedBy { it.length }
             }
             // Rebuild the list: custom phrases + sorted wubi candidates
-            val newList = resultCandidates.subList(0, customCount).toMutableList()
+            val newList = resultCandidates.subList(0, priorityCount).toMutableList()
             newList.addAll(sortedWubiList)
             resultCandidates.clear()
             resultCandidates.addAll(newList)
@@ -525,6 +611,9 @@ class WubiInputController(
      * Clears next-word predictions since punctuation ends the phrase context.
      */
     fun onPunctuationInput() {
+        // Finalize session before punctuation (phrase boundary)
+        finalizeSession()
+
         if (isShowingNextWordPredictions) {
             isShowingNextWordPredictions = false
             allCandidates = emptyList()
