@@ -340,7 +340,8 @@ class VoskSpeechActivity : Activity() {
         voskRecognizer.stopListening()
         stopListeningUI()
 
-        val resultText = currentText.toString().trim()
+        // Remove all spaces from Chinese text (Chinese doesn't use spaces between words)
+        val resultText = currentText.toString().replace(" ", "").trim()
         if (resultText.isNotEmpty()) {
             // Send result via broadcast
             val broadcastIntent = Intent(ACTION_VOSK_SPEECH_RESULT).apply {
