@@ -578,4 +578,20 @@
     <!-- Partial Pinyin Matching -->
     <string name="partial_pinyin_matching_title">部分拼音匹配</string>
     <string name="partial_pinyin_matching_description">输入部分拼音时显示词组建议（需先选择第一个字）</string>
+
+    <!-- Vosk Offline Speech Recognition -->
+    <string name="vosk_initializing">初始化中...</string>
+    <string name="vosk_extracting">正在解压语音模型...</string>
+    <string name="vosk_extract_failed">解压失败：%1$s</string>
+    <string name="vosk_loading_model">加载语音模型中...</string>
+    <string name="vosk_model_load_failed">模型加载失败：%1$s</string>
+    <string name="vosk_ready">准备就绪 - 点击开始</string>
+    <string name="vosk_start_listening">开始</string>
+    <string name="vosk_stop_send">发送</string>
+    <string name="vosk_listening">正在聆听... 请说普通话</string>
+    <string name="vosk_error">错误：%1$s</string>
+    <string name="vosk_permission_denied">麦克风权限被拒绝</string>
+    <string name="vosk_speech_title">离线语音输入（中文）</string>
+    <string name="offline_voice_input_title">离线语音输入</string>
+    <string name="offline_voice_input_description">使用 Vosk 进行离线中文语音识别</string>
 </resources>

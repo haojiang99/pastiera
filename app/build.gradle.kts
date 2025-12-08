@@ -45,10 +45,15 @@ android {
         applicationId = "it.neuralrad.coolwulf"
         minSdk = 23
         targetSdk = 36
-        versionCode = 17
-        versionName = "0.76 Beta"
+        versionCode = 18
+        versionName = "0.77"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Only include arm64-v8a to reduce APK size (for Titan 2 and modern devices)
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
         
         // Leggi build number e data dal file
         val buildNumber = if (buildPropertiesFile.exists()) {
@@ -149,6 +154,9 @@ dependencies {
     implementation("androidx.emoji2:emoji2-views:1.4.0")
     implementation("androidx.emoji2:emoji2-views-helper:1.4.0")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
+    // Vosk offline speech recognition for Mandarin Chinese
+    implementation("net.java.dev.jna:jna:5.13.0@aar")
+    implementation("com.alphacephei:vosk-android:0.3.47@aar")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

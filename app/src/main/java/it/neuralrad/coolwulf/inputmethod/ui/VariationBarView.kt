@@ -29,6 +29,7 @@ import it.neuralrad.coolwulf.inputmethod.StatusBarController
 import it.neuralrad.coolwulf.inputmethod.TextSelectionHelper
 import it.neuralrad.coolwulf.inputmethod.VariationButtonHandler
 import it.neuralrad.coolwulf.inputmethod.SpeechRecognitionActivity
+import it.neuralrad.coolwulf.inputmethod.VoskSpeechActivity
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -1263,13 +1264,22 @@ class VariationBarView(
 
     private fun startSpeechRecognition(inputConnection: android.view.inputmethod.InputConnection?) {
         try {
-            val intent = Intent(context, SpeechRecognitionActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_NO_HISTORY or
-                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+            // Choose between offline (Vosk) and online (Google) voice recognition
+            val useOffline = SettingsManager.isOfflineVoiceInput(context)
+            val intent = if (useOffline) {
+                Intent(context, VoskSpeechActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                }
+            } else {
+                Intent(context, SpeechRecognitionActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_NO_HISTORY or
+                            Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                }
             }
             context.startActivity(intent)
-            Log.d(TAG, "Speech recognition started")
+            Log.d(TAG, "Speech recognition started (offline=$useOffline)")
         } catch (e: Exception) {
             Log.e(TAG, "Unable to launch speech recognition", e)
         }

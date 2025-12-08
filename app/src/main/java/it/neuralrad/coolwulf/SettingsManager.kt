@@ -75,6 +75,7 @@ object SettingsManager {
     private const val KEY_PARTIAL_PINYIN_MATCHING = "partial_pinyin_matching" // Enable partial pinyin matching for phrases
     private const val KEY_SHOW_VIRTUAL_KEYBOARD_BUTTON = "show_virtual_keyboard_button" // Show virtual keyboard toggle button in status bar
     private const val KEY_SEMI_TRANSPARENT_STATUS_BAR = "semi_transparent_status_bar" // Make status bar semi-transparent
+    private const val KEY_OFFLINE_VOICE_INPUT = "offline_voice_input" // Use Vosk for offline Mandarin Chinese speech recognition
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -128,6 +129,7 @@ object SettingsManager {
     private const val DEFAULT_PARTIAL_PINYIN_MATCHING = false  // Partial pinyin matching disabled by default
     private const val DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON = false  // Virtual keyboard button hidden by default
     private const val DEFAULT_SEMI_TRANSPARENT_STATUS_BAR = false  // Status bar is opaque by default
+    private const val DEFAULT_OFFLINE_VOICE_INPUT = false  // Online (Google) voice recognition by default
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
@@ -1543,6 +1545,24 @@ object SettingsManager {
     fun setSemiTransparentStatusBar(context: Context, transparent: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_SEMI_TRANSPARENT_STATUS_BAR, transparent)
+            .apply()
+    }
+
+    /**
+     * Returns whether offline voice input (Vosk) is enabled.
+     * When enabled, uses Vosk for offline Mandarin Chinese speech recognition.
+     * When disabled, uses online Google voice recognition.
+     */
+    fun isOfflineVoiceInput(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_OFFLINE_VOICE_INPUT, DEFAULT_OFFLINE_VOICE_INPUT)
+    }
+
+    /**
+     * Sets whether to use offline voice input (Vosk).
+     */
+    fun setOfflineVoiceInput(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_OFFLINE_VOICE_INPUT, enabled)
             .apply()
     }
 

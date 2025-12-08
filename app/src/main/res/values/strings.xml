@@ -577,4 +577,20 @@
     <!-- Partial Pinyin Matching -->
     <string name="partial_pinyin_matching_title">Partial Pinyin Matching</string>
     <string name="partial_pinyin_matching_description">Show phrase suggestions while typing partial pinyin (after first character selected)</string>
+
+    <!-- Vosk Offline Speech Recognition -->
+    <string name="vosk_initializing">Initializing...</string>
+    <string name="vosk_extracting">Extracting speech model...</string>
+    <string name="vosk_extract_failed">Extraction failed: %1$s</string>
+    <string name="vosk_loading_model">Loading speech model...</string>
+    <string name="vosk_model_load_failed">Failed to load model: %1$s</string>
+    <string name="vosk_ready">Ready - Tap Start to begin</string>
+    <string name="vosk_start_listening">Start</string>
+    <string name="vosk_stop_send">Send</string>
+    <string name="vosk_listening">Listening... Speak in Mandarin Chinese</string>
+    <string name="vosk_error">Error: %1$s</string>
+    <string name="vosk_permission_denied">Microphone permission denied</string>
+    <string name="vosk_speech_title">Offline Voice Input (Chinese)</string>
+    <string name="offline_voice_input_title">Offline Voice Input</string>
+    <string name="offline_voice_input_description">Use Vosk for offline Mandarin Chinese speech recognition</string>
 </resources>

@@ -33,6 +33,7 @@ import it.neuralrad.coolwulf.data.layout.LayoutMappingRepository
 import it.neuralrad.coolwulf.data.mappings.KeyMappingLoader
 import it.neuralrad.coolwulf.data.variation.VariationRepository
 import it.neuralrad.coolwulf.inputmethod.SpeechRecognitionActivity
+import it.neuralrad.coolwulf.inputmethod.VoskSpeechActivity
 
 /**
  * Input method service specialized for physical keyboards.
@@ -288,13 +289,22 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     
     private fun startSpeechRecognition() {
         try {
-            val intent = Intent(this, SpeechRecognitionActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_NO_HISTORY or
-                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+            // Choose between offline (Vosk) and online (Google) voice recognition
+            val useOffline = SettingsManager.isOfflineVoiceInput(this)
+            val intent = if (useOffline) {
+                Intent(this, VoskSpeechActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                }
+            } else {
+                Intent(this, SpeechRecognitionActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_NO_HISTORY or
+                            Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                }
             }
             startActivity(intent)
-            Log.d(TAG, "Speech recognition started via Alt+Ctrl shortcut")
+            Log.d(TAG, "Speech recognition started (offline=$useOffline)")
         } catch (e: Exception) {
             Log.e(TAG, "Unable to launch speech recognition", e)
         }
@@ -814,23 +824,27 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
         
-        // Register broadcast receiver for speech recognition
+        // Register broadcast receiver for speech recognition (both online and offline)
         speechResultReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 Log.d(TAG, "Broadcast receiver called - action: ${intent?.action}")
-                if (intent?.action == SpeechRecognitionActivity.ACTION_SPEECH_RESULT) {
-                    val text = intent.getStringExtra(SpeechRecognitionActivity.EXTRA_TEXT)
+                // Handle both Google (online) and Vosk (offline) speech results
+                val isSpeechResult = intent?.action == SpeechRecognitionActivity.ACTION_SPEECH_RESULT ||
+                        intent?.action == VoskSpeechActivity.ACTION_VOSK_SPEECH_RESULT
+                if (isSpeechResult) {
+                    val text = intent?.getStringExtra(SpeechRecognitionActivity.EXTRA_TEXT)
+                        ?: intent?.getStringExtra(VoskSpeechActivity.EXTRA_TEXT)
                     Log.d(TAG, "Broadcast received with text: $text")
                     if (text != null && text.isNotEmpty()) {
                         Log.d(TAG, "Received speech recognition result: $text")
-                        
+
                         // Delay text insertion to give the system time to restore InputConnection
                         // after the speech recognition activity has closed.
                         Handler(Looper.getMainLooper()).postDelayed({
                             // Try multiple times if InputConnection is not immediately available
                             var attempts = 0
                             val maxAttempts = 10
-                            
+
                             fun tryInsertText() {
                                 val inputConnection = currentInputConnection
                                 if (inputConnection != null) {
@@ -846,24 +860,28 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     }
                                 }
                             }
-                            
+
                             tryInsertText()
                         }, 300) // Wait 300ms before trying to insert text
                     }
                 }
             }
         }
-        
-        val filter = IntentFilter(SpeechRecognitionActivity.ACTION_SPEECH_RESULT)
-        
+
+        // Register for both online (Google) and offline (Vosk) speech results
+        val filter = IntentFilter().apply {
+            addAction(SpeechRecognitionActivity.ACTION_SPEECH_RESULT)
+            addAction(VoskSpeechActivity.ACTION_VOSK_SPEECH_RESULT)
+        }
+
         // On Android 13+ (API 33+) we must specify whether the receiver is exported
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(speechResultReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(speechResultReceiver, filter)
         }
-        
-        Log.d(TAG, "Broadcast receiver registered for: ${SpeechRecognitionActivity.ACTION_SPEECH_RESULT}")
+
+        Log.d(TAG, "Broadcast receiver registered for speech results")
     }
     
     override fun onDestroy() {

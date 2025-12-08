@@ -26,3 +26,24 @@
 
 # Keep BuildConfig for runtime checks if needed
 -keep class it.neuralrad.coolwulf.BuildConfig { *; }
+
+# Vosk speech recognition - keep all classes and native methods
+-keep class org.vosk.** { *; }
+-keepclassmembers class org.vosk.** { *; }
+
+# JNA library (required by Vosk)
+-keep class com.sun.jna.** { *; }
+-keepclassmembers class com.sun.jna.** { *; }
+-keep class * implements com.sun.jna.** { *; }
+
+# Ignore missing AWT classes (JNA references them but they're not on Android)
+-dontwarn java.awt.**
+-dontwarn com.sun.jna.platform.win32.**
+-dontwarn com.sun.jna.platform.mac.**
+-dontwarn com.sun.jna.platform.linux.**
+-dontwarn com.sun.jna.platform.unix.**
+
+# Keep native methods
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
