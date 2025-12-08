@@ -701,6 +701,49 @@ fun TextInputSettingsScreen(
                 }
             }
 
+            // Voice Auto-Insert Toggle (shown when offline voice is enabled)
+            if (offlineVoiceInput) {
+                var voiceAutoInsert by remember {
+                    mutableStateOf(SettingsManager.isVoiceAutoInsert(context))
+                }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.voice_auto_insert_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = stringResource(R.string.voice_auto_insert_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                        Switch(
+                            checked = voiceAutoInsert,
+                            onCheckedChange = { enabled ->
+                                voiceAutoInsert = enabled
+                                SettingsManager.setVoiceAutoInsert(context, enabled)
+                            }
+                        )
+                    }
+                }
+            }
+
             // Vosk Model Selector (shown when offline voice is enabled and Vosk is selected)
             if (offlineVoiceInput && selectedVoiceEngine == "vosk") {
                 // File picker launcher for zip files

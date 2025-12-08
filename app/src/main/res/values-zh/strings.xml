@@ -627,6 +627,10 @@
     <string name="voice_engine_title">语音识别引擎</string>
     <string name="voice_engine_description">Vosk：精度良好，模型较小。Sherpa-ONNX：中文识别精度更高，模型较大。</string>
 
+    <!-- Voice Auto-Insert -->
+    <string name="voice_auto_insert_title">静音后自动输入</string>
+    <string name="voice_auto_insert_description">检测到停止说话后自动输入识别的文字，无需点击发送按钮</string>
+
     <!-- Sherpa-ONNX Model Selection -->
     <string name="sherpa_model_path_title">Sherpa-ONNX 模型（更高精度）</string>
     <string name="sherpa_model_not_selected">未选择 zip 文件</string>

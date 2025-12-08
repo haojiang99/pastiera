@@ -16,6 +16,7 @@ import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import it.neuralrad.coolwulf.R
+import it.neuralrad.coolwulf.SettingsManager
 
 /**
  * Activity for offline Mandarin Chinese speech recognition using Sherpa-ONNX.
@@ -295,37 +296,48 @@ class SherpaSpeechActivity : Activity() {
             // Animate listening indicator
             animateListeningIndicator()
 
+            // Check if auto-insert is enabled
+            val autoInsertEnabled = SettingsManager.isVoiceAutoInsert(this)
+
             sherpaRecognizer.startListening(
-            onResult = { text ->
-                runOnUiThread {
-                    Log.d(TAG, "Result: $text")
-                    if (text.isNotEmpty()) {
-                        if (currentText.isNotEmpty()) {
-                            currentText.append(" ")
+                onResult = { text ->
+                    runOnUiThread {
+                        Log.d(TAG, "Result: $text")
+                        if (text.isNotEmpty()) {
+                            if (currentText.isNotEmpty()) {
+                                currentText.append(" ")
+                            }
+                            currentText.append(text)
+                            recognizedText.text = currentText.toString()
                         }
-                        currentText.append(text)
-                        recognizedText.text = currentText.toString()
                     }
-                }
-            },
-            onPartialResult = { partial ->
-                runOnUiThread {
-                    Log.d(TAG, "Partial: $partial")
-                    val displayText = if (currentText.isEmpty()) {
-                        partial
-                    } else {
-                        "${currentText} $partial"
+                },
+                onPartialResult = { partial ->
+                    runOnUiThread {
+                        Log.d(TAG, "Partial: $partial")
+                        val displayText = if (currentText.isEmpty()) {
+                            partial
+                        } else {
+                            "${currentText} $partial"
+                        }
+                        recognizedText.text = displayText
                     }
-                    recognizedText.text = displayText
-                }
-            },
-            onError = { error ->
-                runOnUiThread {
-                    statusText.text = getString(R.string.sherpa_error, error)
-                    stopListeningUI()
-                }
-            }
-        )
+                },
+                onError = { error ->
+                    runOnUiThread {
+                        statusText.text = getString(R.string.sherpa_error, error)
+                        stopListeningUI()
+                    }
+                },
+                onSilenceDetected = if (autoInsertEnabled) {
+                    {
+                        runOnUiThread {
+                            Log.d(TAG, "Silence detected - auto-sending")
+                            stopAndSend()
+                        }
+                    }
+                } else null
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Error starting listening", e)
             runOnUiThread {

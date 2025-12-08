@@ -85,6 +85,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
     private var onResultListener: ((String) -> Unit)? = null
     private var onPartialResultListener: ((String) -> Unit)? = null
     private var onErrorListener: ((String) -> Unit)? = null
+    private var onSilenceDetectedListener: (() -> Unit)? = null
 
     /**
      * Gets the extracted model directory in app's internal storage.
@@ -407,11 +408,13 @@ class SherpaSpeechRecognizer(private val context: Context) {
 
     /**
      * Starts speech recognition with audio recording.
+     * @param onSilenceDetected Called when silence is detected after speech (for auto-insert feature)
      */
     fun startListening(
         onResult: (String) -> Unit,
         onPartialResult: ((String) -> Unit)? = null,
-        onError: ((String) -> Unit)? = null
+        onError: ((String) -> Unit)? = null,
+        onSilenceDetected: (() -> Unit)? = null
     ) {
         if (!isLibraryAvailable()) {
             onError?.invoke("Sherpa-ONNX library not installed")
@@ -436,6 +439,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
         onResultListener = onResult
         onPartialResultListener = onPartialResult
         onErrorListener = onError
+        onSilenceDetectedListener = onSilenceDetected
 
         isListening = true
         audioSamples.clear()
@@ -468,9 +472,39 @@ class SherpaSpeechRecognizer(private val context: Context) {
                 var lastPartialTime = System.currentTimeMillis()
                 val partialInterval = 1500L // Process partial results every 1.5 seconds
 
+                // Silence detection variables
+                var silenceStartTime = 0L
+                var hasSpeechStarted = false
+                val silenceThreshold = 500 // Audio amplitude threshold for silence
+                val silenceDuration = 1500L // 1.5 seconds of silence to trigger auto-send
+
                 while (isListening && isActive) {
                     val readCount = audioRecord?.read(buffer, 0, buffer.size) ?: 0
                     if (readCount > 0) {
+                        // Calculate audio amplitude (RMS)
+                        var sum = 0L
+                        for (i in 0 until readCount) {
+                            sum += buffer[i] * buffer[i]
+                        }
+                        val rms = kotlin.math.sqrt(sum.toDouble() / readCount).toInt()
+
+                        // Detect speech/silence
+                        if (rms > silenceThreshold) {
+                            hasSpeechStarted = true
+                            silenceStartTime = 0L
+                        } else if (hasSpeechStarted) {
+                            if (silenceStartTime == 0L) {
+                                silenceStartTime = System.currentTimeMillis()
+                            } else if (System.currentTimeMillis() - silenceStartTime >= silenceDuration) {
+                                // Silence detected after speech - notify callback
+                                withContext(Dispatchers.Main) {
+                                    onSilenceDetectedListener?.invoke()
+                                }
+                                silenceStartTime = 0L // Reset to prevent multiple triggers
+                                hasSpeechStarted = false
+                            }
+                        }
+
                         // Convert short samples to float samples
                         synchronized(audioSamples) {
                             for (i in 0 until readCount) {

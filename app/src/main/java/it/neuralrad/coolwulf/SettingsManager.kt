@@ -81,6 +81,7 @@ object SettingsManager {
     private const val KEY_VOSK_MODEL_PATH = "vosk_model_path" // Path to Vosk model directory
     private const val KEY_SHERPA_MODEL_PATH = "sherpa_model_path" // Path to Sherpa-ONNX model zip file
     private const val KEY_VOICE_ENGINE = "voice_engine" // Voice recognition engine: "vosk" or "sherpa"
+    private const val KEY_VOICE_AUTO_INSERT = "voice_auto_insert" // Auto-insert recognized text after silence
     private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
     private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
 
@@ -142,7 +143,8 @@ object SettingsManager {
     private const val DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON = false  // Virtual keyboard button hidden by default
     private const val DEFAULT_SEMI_TRANSPARENT_STATUS_BAR = false  // Status bar is opaque by default
     private const val DEFAULT_OFFLINE_VOICE_INPUT = false  // Online (Google) voice recognition by default
-    private const val DEFAULT_VOICE_ENGINE = "vosk"  // Default to Vosk for voice recognition
+    private const val DEFAULT_VOICE_ENGINE = "sherpa"  // Default to Sherpa-ONNX for voice recognition
+    private const val DEFAULT_VOICE_AUTO_INSERT = true  // Auto-insert voice recognition result
     private const val DEFAULT_SHOW_LED_STATUS = true  // LED status indicator shown by default
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
@@ -1695,6 +1697,23 @@ object SettingsManager {
     fun setVoiceEngine(context: Context, engine: String) {
         getPreferences(context).edit()
             .putString(KEY_VOICE_ENGINE, engine)
+            .apply()
+    }
+
+    /**
+     * Returns whether voice auto-insert is enabled.
+     * When enabled, recognized text is automatically inserted after detecting silence.
+     */
+    fun isVoiceAutoInsert(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_VOICE_AUTO_INSERT, DEFAULT_VOICE_AUTO_INSERT)
+    }
+
+    /**
+     * Sets whether to auto-insert voice recognition result.
+     */
+    fun setVoiceAutoInsert(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_VOICE_AUTO_INSERT, enabled)
             .apply()
     }
 

@@ -626,6 +626,10 @@
     <string name="voice_engine_title">Voice Recognition Engine</string>
     <string name="voice_engine_description">Vosk: Good accuracy, smaller models. Sherpa-ONNX: Better accuracy for Mandarin, larger models.</string>
 
+    <!-- Voice Auto-Insert -->
+    <string name="voice_auto_insert_title">Auto-Insert After Silence</string>
+    <string name="voice_auto_insert_description">Automatically insert recognized text when you stop speaking, without pressing Send button</string>
+
     <!-- Sherpa-ONNX Model Selection -->
     <string name="sherpa_model_path_title">Sherpa-ONNX Model (Better Accuracy)</string>
     <string name="sherpa_model_not_selected">No zip file selected</string>
