@@ -776,6 +776,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             togglePunctuationMode()
         }
 
+        // Register listener for traditional Chinese toggle (简/繁)
+        candidatesBarController.onTraditionalChineseToggleListener = {
+            toggleTraditionalChineseMode()
+        }
+
         // Register listener for virtual keyboard toggle button
         candidatesBarController.onVirtualKeyboardToggleListener = {
             toggleVirtualKeyboard()
@@ -1296,6 +1301,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             ziranmaInputController.setChinesePunctuationMode(newMode)
             wubiInputController.setChinesePunctuationMode(newMode)
         }
+        updateStatusBarText()
+    }
+
+    /**
+     * Toggles between simplified and traditional Chinese mode.
+     */
+    private fun toggleTraditionalChineseMode() {
+        SettingsManager.toggleChineseCharacterSet(this)
+        // Update the status bar to reflect the change
         updateStatusBarText()
     }
 

@@ -546,6 +546,10 @@
     <string name="shift_enter_toggle_title">Shift+Enter Toggle</string>
     <string name="shift_enter_toggle_description">Use Shift+Enter to cycle between enabled Chinese input methods</string>
 
+    <!-- Traditional Chinese Toggle -->
+    <string name="traditional_chinese_toggle_title">Traditional Chinese Toggle (简/繁)</string>
+    <string name="traditional_chinese_toggle_description">Show 简/繁 button in status bar to switch between simplified and traditional Chinese output</string>
+
     <!-- Wubi Settings -->
     <string name="wubi_with_pinyin_title">Wubi with Pinyin</string>
     <string name="wubi_with_pinyin_description">Enable Pinyin input in Wubi mode, Pinyin candidates appear after Wubi candidates</string>

@@ -84,6 +84,7 @@ object SettingsManager {
     private const val KEY_VOICE_AUTO_INSERT = "voice_auto_insert" // Auto-insert recognized text after silence
     private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
     private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
+    private const val KEY_TRADITIONAL_CHINESE_TOGGLE_ENABLED = "traditional_chinese_toggle_enabled" // Show 简/繁 toggle button in status bar
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -146,6 +147,7 @@ object SettingsManager {
     private const val DEFAULT_VOICE_ENGINE = "sherpa"  // Default to Sherpa-ONNX for voice recognition
     private const val DEFAULT_VOICE_AUTO_INSERT = true  // Auto-insert voice recognition result
     private const val DEFAULT_SHOW_LED_STATUS = true  // LED status indicator shown by default
+    private const val DEFAULT_TRADITIONAL_CHINESE_TOGGLE_ENABLED = false  // 简/繁 toggle disabled by default
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
@@ -1052,6 +1054,38 @@ object SettingsManager {
         getPreferences(context).edit()
             .putString(KEY_PINYIN_CHARACTER_SET, characterSet)
             .apply()
+    }
+
+    /**
+     * Returns whether the 简/繁 (simplified/traditional) toggle button is enabled.
+     */
+    fun isTraditionalChineseToggleEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_TRADITIONAL_CHINESE_TOGGLE_ENABLED, DEFAULT_TRADITIONAL_CHINESE_TOGGLE_ENABLED)
+    }
+
+    /**
+     * Sets whether the 简/繁 (simplified/traditional) toggle button is enabled.
+     */
+    fun setTraditionalChineseToggleEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_TRADITIONAL_CHINESE_TOGGLE_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns true if currently in traditional Chinese mode.
+     */
+    fun isTraditionalChineseMode(context: Context): Boolean {
+        return getPinyinCharacterSet(context) == "traditional"
+    }
+
+    /**
+     * Toggles between simplified and traditional Chinese mode.
+     */
+    fun toggleChineseCharacterSet(context: Context) {
+        val current = getPinyinCharacterSet(context)
+        val newMode = if (current == "simplified") "traditional" else "simplified"
+        setPinyinCharacterSet(context, newMode)
     }
 
     /**

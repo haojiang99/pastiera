@@ -547,6 +547,10 @@
     <string name="shift_enter_toggle_title">Shift+Enter切换</string>
     <string name="shift_enter_toggle_description">使用Shift+Enter在已启用的中文输入法之间循环切换</string>
 
+    <!-- Traditional Chinese Toggle -->
+    <string name="traditional_chinese_toggle_title">简繁切换按钮</string>
+    <string name="traditional_chinese_toggle_description">在状态栏显示简/繁按钮，切换简体和繁体中文输出</string>
+
     <!-- Wubi Settings -->
     <string name="wubi_with_pinyin_title">五笔加拼音</string>
     <string name="wubi_with_pinyin_description">在五笔模式下同时支持拼音输入，拼音候选词显示在五笔之后</string>

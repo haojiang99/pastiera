@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.KeyEvent
 import it.neuralrad.coolwulf.data.zhenma.ZhenmaDictionary
 import it.neuralrad.coolwulf.data.zhenma.UserZhenmaMemory
+import it.neuralrad.coolwulf.data.pinyin.ChineseCharacterConverter
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
 import it.neuralrad.coolwulf.SettingsManager
@@ -392,10 +393,15 @@ class ZhenmaInputController(
     fun getSnapshot(): Snapshot {
         val currentPageCandidates = getCurrentPageCandidates()
         val totalPages = getTotalPages()
+
+        // Convert candidates to traditional Chinese if setting is enabled
+        val useTraditional = SettingsManager.isTraditionalChineseMode(context)
+        val convertedCandidates = ChineseCharacterConverter.convertCandidates(currentPageCandidates, useTraditional)
+
         return Snapshot(
             isActive = isZhenmaModeActive,
             buffer = buffer.toString(),
-            candidates = currentPageCandidates,
+            candidates = convertedCandidates,
             hasCandidates = allCandidates.isNotEmpty(),
             currentPage = currentPage,
             totalPages = totalPages,

@@ -56,17 +56,21 @@ class VariationBarView(
     var onLanguageToggleListener: (() -> Unit)? = null
     var onSymButtonListener: (() -> Unit)? = null
     var onPunctuationToggleListener: (() -> Unit)? = null
+    var onTraditionalChineseToggleListener: (() -> Unit)? = null
 
     private var wrapper: FrameLayout? = null
     private var symButtonView: TextView? = null
     private var languageToggleButtonView: TextView? = null
     private var punctuationToggleButtonView: TextView? = null
+    private var traditionalChineseToggleButtonView: TextView? = null
     private var isPinyinModeActive: Boolean = false
     private var isShuangpinModeActive: Boolean = false
     private var isZiranmaModeActive: Boolean = false
     private var isWubiModeActive: Boolean = false
     private var isZhenmaModeActive: Boolean = false
     private var isChinesePunctuationMode: Boolean = true
+    private var isTraditionalChineseMode: Boolean = false
+    private var isTraditionalChineseToggleEnabled: Boolean = false
     private var prevArrowButton: ImageView? = null
     private var nextArrowButton: ImageView? = null
     private var container: LinearLayout? = null
@@ -229,6 +233,20 @@ class VariationBarView(
         }
     }
 
+    fun setTraditionalChineseMode(active: Boolean) {
+        if (isTraditionalChineseMode != active) {
+            isTraditionalChineseMode = active
+            updateTraditionalChineseToggleButton()
+        }
+    }
+
+    fun setTraditionalChineseToggleEnabled(enabled: Boolean) {
+        if (isTraditionalChineseToggleEnabled != enabled) {
+            isTraditionalChineseToggleEnabled = enabled
+            // Toggle button visibility will be handled in ensureView
+        }
+    }
+
     fun updateInputConnection(inputConnection: android.view.inputmethod.InputConnection?) {
         currentInputConnection = inputConnection
     }
@@ -277,6 +295,7 @@ class VariationBarView(
         removeKeyboardToggleImmediate()
         removeLanguageToggleImmediate()
         removePunctuationToggleImmediate()
+        removeTraditionalChineseToggleImmediate()
         removeArrowsImmediate()
         hideSwipeIndicator(immediate = true)
         clipboardHistoryPopup?.dismiss()
@@ -1090,6 +1109,66 @@ class VariationBarView(
             }
         }
 
+        // Traditional Chinese toggle button (简/繁) - show in Chinese mode when enabled in settings
+        val isInChineseMode = isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive
+        val showTraditionalToggle = isInChineseMode && isTraditionalChineseToggleEnabled && !hideStatusBarIconsForJuying
+        if (showTraditionalToggle) {
+            val traditionalToggleButton = traditionalChineseToggleButtonView ?: createTraditionalChineseToggleButton(buttonWidth).also {
+                traditionalChineseToggleButtonView = it
+            }
+
+            // Position after punctuation toggle button (or after language toggle if punctuation is hidden)
+            val punctIndex = containerView.indexOfChild(punctuationToggleButtonView)
+            val langIndex = containerView.indexOfChild(languageToggleButton)
+            val tradIndex = containerView.indexOfChild(traditionalToggleButton)
+            val expectedTradIndex = if (punctIndex >= 0) punctIndex + 1 else if (langIndex >= 0) langIndex + 1 else -1
+
+            // Remove and re-add if position is wrong or not attached
+            if (traditionalToggleButton.parent != null && tradIndex != expectedTradIndex) {
+                (traditionalToggleButton.parent as? ViewGroup)?.removeView(traditionalToggleButton)
+            }
+
+            if (traditionalToggleButton.parent == null) {
+                val tradParams = if (stretchButtons) {
+                    LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
+                        marginStart = buttonMargin
+                    }
+                } else {
+                    LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
+                        marginStart = buttonMargin
+                    }
+                }
+                // Insert after punctuation toggle (or after language toggle)
+                if (expectedTradIndex >= 0) {
+                    val insertIndex = minOf(expectedTradIndex, containerView.childCount)
+                    containerView.addView(traditionalToggleButton, insertIndex, tradParams)
+                } else {
+                    containerView.addView(traditionalToggleButton, tradParams)
+                }
+            } else if (stretchButtons) {
+                (traditionalToggleButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                    width = 0
+                    weight = 1f
+                }
+            } else {
+                (traditionalToggleButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                    width = buttonWidth
+                    weight = 0f
+                }
+            }
+            traditionalToggleButton.setOnClickListener {
+                onTraditionalChineseToggleListener?.invoke()
+            }
+            traditionalToggleButton.alpha = 1f
+            traditionalToggleButton.visibility = View.VISIBLE
+        } else {
+            // Hide traditional Chinese toggle when not in Chinese mode or when disabled
+            traditionalChineseToggleButtonView?.let { btn ->
+                (btn.parent as? ViewGroup)?.removeView(btn)
+                btn.visibility = View.GONE
+            }
+        }
+
         // Skip animation for smoother updates - just set alpha directly
         variationsRow.alpha = 1f
         // Hide variationsRow when no suggestions (buttons will fill the space)
@@ -1806,6 +1885,45 @@ class VariationBarView(
         punctuationToggleButtonView?.apply {
             text = if (isChinesePunctuationMode) "。" else "."
             setTextColor(if (isChinesePunctuationMode) Color.rgb(100, 200, 255) else Color.WHITE)
+        }
+    }
+
+    private fun createTraditionalChineseToggleButton(buttonSize: Int): TextView {
+        val dp2 = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            2f,
+            context.resources.displayMetrics
+        ).toInt()
+        val drawable = GradientDrawable().apply {
+            setColor(Color.BLACK)
+            cornerRadius = 0f
+        }
+        return TextView(context).apply {
+            text = if (isTraditionalChineseMode) "繁" else "简"
+            textSize = 14f
+            setTextColor(if (isTraditionalChineseMode) Color.rgb(255, 180, 100) else Color.rgb(100, 200, 255))
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            gravity = Gravity.CENTER
+            background = drawable
+            isClickable = true
+            isFocusable = true
+            setPadding(dp2, dp2, dp2, dp2)
+            layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
+        }
+    }
+
+    private fun updateTraditionalChineseToggleButton() {
+        traditionalChineseToggleButtonView?.apply {
+            text = if (isTraditionalChineseMode) "繁" else "简"
+            setTextColor(if (isTraditionalChineseMode) Color.rgb(255, 180, 100) else Color.rgb(100, 200, 255))
+        }
+    }
+
+    private fun removeTraditionalChineseToggleImmediate() {
+        traditionalChineseToggleButtonView?.let { toggle ->
+            (toggle.parent as? ViewGroup)?.removeView(toggle)
+            toggle.visibility = View.GONE
+            toggle.alpha = 1f
         }
     }
 

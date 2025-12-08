@@ -128,6 +128,13 @@ class StatusBarController(
             variationBarView?.onPunctuationToggleListener = value
         }
 
+    // Listener for traditional Chinese toggle (简/繁)
+    var onTraditionalChineseToggleListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            variationBarView?.onTraditionalChineseToggleListener = value
+        }
+
     // Listener for virtual keyboard toggle button
     var onVirtualKeyboardToggleListener: (() -> Unit)? = null
         set(value) {
@@ -1111,6 +1118,9 @@ class StatusBarController(
         variationBarView?.setWubiModeActive(snapshot.wubiModeActive)
         variationBarView?.setZhenmaModeActive(snapshot.zhenmaModeActive)
         variationBarView?.setChinesePunctuationMode(snapshot.chinesePunctuationMode)
+        variationBarView?.setTraditionalChineseMode(SettingsManager.isTraditionalChineseMode(context))
+        variationBarView?.setTraditionalChineseToggleEnabled(SettingsManager.isTraditionalChineseToggleEnabled(context))
+        variationBarView?.onTraditionalChineseToggleListener = onTraditionalChineseToggleListener
 
         // Always call showVariations() early, before any potential early returns
         // This ensures the variation bar is updated even if the rest of update() returns early

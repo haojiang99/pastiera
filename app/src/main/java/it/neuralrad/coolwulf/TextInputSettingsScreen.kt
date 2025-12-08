@@ -242,6 +242,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.isShowLedStatus(context))
     }
 
+    var traditionalChineseToggleEnabled by remember {
+        mutableStateOf(SettingsManager.isTraditionalChineseToggleEnabled(context))
+    }
+
     // Handle system back button
     BackHandler { onBack() }
     
@@ -1803,6 +1807,49 @@ fun TextInputSettingsScreen(
                             onCheckedChange = { enabled ->
                                 shiftEnterToggleInput = enabled
                                 SettingsManager.setShiftEnterToggleInputEnabled(context, enabled)
+                            }
+                        )
+                    }
+                }
+
+                // Traditional Chinese toggle (简/繁 button)
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Language,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.traditional_chinese_toggle_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = stringResource(R.string.traditional_chinese_toggle_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                        }
+                        Switch(
+                            checked = traditionalChineseToggleEnabled,
+                            onCheckedChange = { enabled ->
+                                traditionalChineseToggleEnabled = enabled
+                                SettingsManager.setTraditionalChineseToggleEnabled(context, enabled)
                             }
                         )
                     }

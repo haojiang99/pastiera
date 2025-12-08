@@ -99,6 +99,13 @@ class CandidatesBarController(
             candidatesStatusBar.onPunctuationToggleListener = value
         }
 
+    var onTraditionalChineseToggleListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onTraditionalChineseToggleListener = value
+            candidatesStatusBar.onTraditionalChineseToggleListener = value
+        }
+
     var onVirtualKeyboardToggleListener: (() -> Unit)? = null
         set(value) {
             field = value

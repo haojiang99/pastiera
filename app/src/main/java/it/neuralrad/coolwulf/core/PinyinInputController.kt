@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import android.view.KeyEvent
 import it.neuralrad.coolwulf.data.pinyin.AutoPhraseMemory
+import it.neuralrad.coolwulf.data.pinyin.ChineseCharacterConverter
 import it.neuralrad.coolwulf.data.pinyin.PinyinDictionary
 import it.neuralrad.coolwulf.data.pinyin.UserPinyinMemory
 import it.neuralrad.coolwulf.data.NextWordPredictor
@@ -1244,10 +1245,15 @@ class PinyinInputController(
     fun getSnapshot(): Snapshot {
         val currentPageCandidates = getCurrentPageCandidates()
         val totalPages = getTotalPages()
+
+        // Convert candidates to traditional Chinese if setting is enabled
+        val useTraditional = SettingsManager.isTraditionalChineseMode(context)
+        val convertedCandidates = ChineseCharacterConverter.convertCandidates(currentPageCandidates, useTraditional)
+
         return Snapshot(
             isActive = isPinyinModeActive,
             buffer = buffer.toString(),
-            candidates = currentPageCandidates,
+            candidates = convertedCandidates,
             hasCandidates = allCandidates.isNotEmpty(),
             currentPage = currentPage,
             totalPages = totalPages,
