@@ -1143,26 +1143,25 @@ fun TextInputSettingsScreen(
                         )
                     }
                 }
-            }
 
-            // Wubi auto-commit single candidate toggle (only shown when Wubi is enabled)
-            if (wubiEnabled) {
+                // Wubi auto-commit single candidate toggle
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(72.dp)
+                        .padding(start = 40.dp)  // Indent as sub-option
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.TextFields,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(24.dp)
                         )
                         Column(modifier = Modifier.weight(1f)) {
@@ -1188,48 +1187,49 @@ fun TextInputSettingsScreen(
                         )
                     }
                 }
-            }
 
-            // Wubi auto-commit overflow (5th letter) toggle
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(72.dp)
-            ) {
-                Row(
+                // Wubi auto-commit overflow (5th letter) toggle
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        .height(72.dp)
+                        .padding(start = 40.dp)  // Indent as sub-option
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.TextFields,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.wubi_auto_commit_overflow_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.TextFields,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(24.dp)
                         )
-                        Text(
-                            text = stringResource(R.string.wubi_auto_commit_overflow_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.wubi_auto_commit_overflow_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = stringResource(R.string.wubi_auto_commit_overflow_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                        }
+                        Switch(
+                            checked = wubiAutoCommitOverflow,
+                            onCheckedChange = { enabled ->
+                                wubiAutoCommitOverflow = enabled
+                                SettingsManager.setWubiAutoCommitOverflow(context, enabled)
+                            }
                         )
                     }
-                    Switch(
-                        checked = wubiAutoCommitOverflow,
-                        onCheckedChange = { enabled ->
-                            wubiAutoCommitOverflow = enabled
-                            SettingsManager.setWubiAutoCommitOverflow(context, enabled)
-                        }
-                    )
                 }
             }
 
