@@ -43,6 +43,10 @@ class SherpaSpeechActivity : Activity() {
     private var isListening = false
     private var currentText = StringBuilder()
 
+    // Punctuation tracking
+    private var lastResultTime = 0L
+    private val PAUSE_THRESHOLD_MS = 800L  // Pause longer than this inserts comma
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -287,6 +291,7 @@ class SherpaSpeechActivity : Activity() {
         try {
             isListening = true
             currentText.clear()
+            lastResultTime = 0L
             recognizedText.text = ""
             statusText.text = getString(R.string.sherpa_listening)
             startButton.visibility = View.GONE
@@ -298,16 +303,29 @@ class SherpaSpeechActivity : Activity() {
 
             // Check if auto-insert is enabled
             val autoInsertEnabled = SettingsManager.isVoiceAutoInsert(this)
+            val addPunctuation = SettingsManager.isVoiceAddPunctuation(this)
+            val useChinesePunctuation = SettingsManager.isVoiceChinesePunctuation(this)
+            val comma = if (useChinesePunctuation) "，" else ", "
 
             sherpaRecognizer.startListening(
                 onResult = { text ->
                     runOnUiThread {
                         Log.d(TAG, "Result: $text")
                         if (text.isNotEmpty()) {
-                            if (currentText.isNotEmpty()) {
-                                currentText.append(" ")
+                            val currentTime = System.currentTimeMillis()
+
+                            // Check for pause and insert comma if needed
+                            if (addPunctuation && currentText.isNotEmpty() && lastResultTime > 0) {
+                                val pauseDuration = currentTime - lastResultTime
+                                if (pauseDuration > PAUSE_THRESHOLD_MS) {
+                                    // Insert comma for significant pause
+                                    currentText.append(comma)
+                                    Log.d(TAG, "Inserted comma due to pause of ${pauseDuration}ms")
+                                }
                             }
+
                             currentText.append(text)
+                            lastResultTime = currentTime
                             recognizedText.text = currentText.toString()
                         }
                     }
@@ -318,7 +336,7 @@ class SherpaSpeechActivity : Activity() {
                         val displayText = if (currentText.isEmpty()) {
                             partial
                         } else {
-                            "${currentText} $partial"
+                            "${currentText}$partial"
                         }
                         recognizedText.text = displayText
                     }
@@ -378,7 +396,21 @@ class SherpaSpeechActivity : Activity() {
             }
 
             // Remove all spaces from Chinese text (Chinese doesn't use spaces between words)
-            val resultText = combinedText.replace(" ", "").trim()
+            var resultText = combinedText.replace(" ", "").trim()
+
+            // Add period at the end if punctuation is enabled
+            if (resultText.isNotEmpty() && SettingsManager.isVoiceAddPunctuation(this)) {
+                val useChinesePunctuation = SettingsManager.isVoiceChinesePunctuation(this)
+                val period = if (useChinesePunctuation) "。" else ". "
+
+                // Only add period if text doesn't already end with punctuation
+                val lastChar = resultText.lastOrNull()
+                val isPunctuation = lastChar in listOf('。', '，', '！', '？', '、', '.', ',', '!', '?', '：', ':')
+                if (!isPunctuation) {
+                    resultText += period
+                }
+            }
+
             if (resultText.isNotEmpty()) {
                 // Send result via broadcast
                 val broadcastIntent = Intent(ACTION_SHERPA_SPEECH_RESULT).apply {

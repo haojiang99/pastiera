@@ -82,6 +82,8 @@ object SettingsManager {
     private const val KEY_SHERPA_MODEL_PATH = "sherpa_model_path" // Path to Sherpa-ONNX model zip file
     private const val KEY_VOICE_ENGINE = "voice_engine" // Voice recognition engine: "vosk" or "sherpa"
     private const val KEY_VOICE_AUTO_INSERT = "voice_auto_insert" // Auto-insert recognized text after silence
+    private const val KEY_VOICE_CHINESE_PUNCTUATION = "voice_chinese_punctuation" // Use Chinese punctuation (。,) for voice input
+    private const val KEY_VOICE_ADD_PUNCTUATION = "voice_add_punctuation" // Add punctuation to voice input text
     private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
     private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
     private const val KEY_TRADITIONAL_CHINESE_TOGGLE_ENABLED = "traditional_chinese_toggle_enabled" // Show 简/繁 toggle button in status bar
@@ -146,6 +148,8 @@ object SettingsManager {
     private const val DEFAULT_OFFLINE_VOICE_INPUT = false  // Online (Google) voice recognition by default
     private const val DEFAULT_VOICE_ENGINE = "sherpa"  // Default to Sherpa-ONNX for voice recognition
     private const val DEFAULT_VOICE_AUTO_INSERT = true  // Auto-insert voice recognition result
+    private const val DEFAULT_VOICE_CHINESE_PUNCTUATION = true  // Use Chinese punctuation for voice input by default
+    private const val DEFAULT_VOICE_ADD_PUNCTUATION = true  // Add punctuation to voice input by default
     private const val DEFAULT_SHOW_LED_STATUS = true  // LED status indicator shown by default
     private const val DEFAULT_TRADITIONAL_CHINESE_TOGGLE_ENABLED = false  // 简/繁 toggle disabled by default
     // Titan 2 default Juying keys
@@ -1748,6 +1752,40 @@ object SettingsManager {
     fun setVoiceAutoInsert(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_VOICE_AUTO_INSERT, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether Chinese punctuation should be used for voice input.
+     * When true, uses 。, when false, uses .
+     */
+    fun isVoiceChinesePunctuation(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_VOICE_CHINESE_PUNCTUATION, DEFAULT_VOICE_CHINESE_PUNCTUATION)
+    }
+
+    /**
+     * Sets whether to use Chinese punctuation for voice input.
+     */
+    fun setVoiceChinesePunctuation(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_VOICE_CHINESE_PUNCTUATION, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether punctuation should be added to voice input text.
+     * When enabled, periods are added at end and commas on pauses.
+     */
+    fun isVoiceAddPunctuation(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_VOICE_ADD_PUNCTUATION, DEFAULT_VOICE_ADD_PUNCTUATION)
+    }
+
+    /**
+     * Sets whether to add punctuation to voice input text.
+     */
+    fun setVoiceAddPunctuation(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_VOICE_ADD_PUNCTUATION, enabled)
             .apply()
     }
 

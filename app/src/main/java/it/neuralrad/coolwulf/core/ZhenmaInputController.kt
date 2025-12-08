@@ -224,7 +224,13 @@ class ZhenmaInputController(
         // Show next-word predictions if available
         showNextWordPredictions()
 
-        return selected
+        // Convert to traditional Chinese if setting is enabled
+        val useTraditional = SettingsManager.isTraditionalChineseMode(context)
+        return if (useTraditional) {
+            ChineseCharacterConverter.toTraditional(selected)
+        } else {
+            selected
+        }
     }
 
     /**
