@@ -554,12 +554,10 @@ class WubiInputController(
         // Get candidates for the current code (both exact and prefix matches)
         val rawCandidates = WubiDictionary.getCandidatesForPrefix(bufferStr, limit = 50)
 
-        // Sort by user frequency (most frequently selected first) if memory is enabled
-        val sortedCandidates = if (isMemoryEnabled()) userMemory.sortByFrequency(bufferStr, rawCandidates) else rawCandidates
-
         // Separate single-character and multi-character dictionary candidates
-        val singleCharDictCandidates = sortedCandidates.filter { it.length == 1 }
-        val multiCharDictCandidates = sortedCandidates.filter { it.length > 1 }
+        // Use raw dictionary order (no frequency sorting here - sorting is done later based on phrasesFirst setting)
+        val singleCharDictCandidates = rawCandidates.filter { it.length == 1 }
+        val multiCharDictCandidates = rawCandidates.filter { it.length > 1 }
 
         // Get auto-learned phrases
         val autoLearnedPhrases = if (isAutoPhraseLearningEnabled()) wubiPhraseMemory.getLearnedPhrases(bufferStr) else emptyList()
@@ -609,15 +607,17 @@ class WubiInputController(
             )
             resultCandidates.addAll(sortedAllCandidates)
         } else {
-            // Default mode: single characters first, then phrases
-            // Add single-character dictionary candidates first
-            for (candidate in singleCharDictCandidates) {
+            // Default mode: preserve exact dictionary order (no separation of single chars vs phrases)
+            // The dictionary already has the correct order (e.g., "thnn" → ["自己", "臫"])
+
+            // Add all dictionary candidates in their original order
+            for (candidate in rawCandidates) {
                 if (candidate !in resultCandidates) {
                     resultCandidates.add(candidate)
                 }
             }
 
-            // Add auto-learned phrases
+            // Add auto-learned phrases after dictionary candidates
             for (phrase in autoLearnedPhrases) {
                 if (phrase !in resultCandidates) {
                     resultCandidates.add(phrase)
@@ -631,27 +631,7 @@ class WubiInputController(
                 }
             }
 
-            // Add multi-character dictionary candidates
-            for (candidate in multiCharDictCandidates) {
-                if (candidate !in resultCandidates) {
-                    resultCandidates.add(candidate)
-                }
-            }
-
-            // Sort the non-custom portion: single chars first (by frequency), then multi-char (by frequency)
-            val priorityCount = customPhrases.size
-            if (resultCandidates.size > priorityCount) {
-                val wubiOnlyList = resultCandidates.subList(priorityCount, resultCandidates.size).toList()
-                val sortedWubiList = wubiOnlyList.sortedWith(
-                    compareBy<String> { it.length }
-                        .thenByDescending { userMemory.getFrequency(bufferStr, it) }
-                )
-                // Rebuild the list: custom phrases + sorted wubi candidates
-                val newList = resultCandidates.subList(0, priorityCount).toMutableList()
-                newList.addAll(sortedWubiList)
-                resultCandidates.clear()
-                resultCandidates.addAll(newList)
-            }
+            // No frequency sorting - keep dictionary order as-is
         }
 
         val wubiCandidateCount = resultCandidates.size
