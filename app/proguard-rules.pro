@@ -47,3 +47,7 @@
 -keepclasseswithmembernames class * {
     native <methods>;
 }
+
+# Sherpa-ONNX speech recognition - keep all classes and fields for JNI access
+-keep class com.k2fsa.sherpa.onnx.** { *; }
+-keepclassmembers class com.k2fsa.sherpa.onnx.** { *; }

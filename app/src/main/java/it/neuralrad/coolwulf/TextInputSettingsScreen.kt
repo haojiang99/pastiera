@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.activity.compose.BackHandler
 import it.neuralrad.coolwulf.R
+import it.neuralrad.coolwulf.inputmethod.SherpaSpeechRecognizer
 import it.neuralrad.coolwulf.inputmethod.VoskSpeechRecognizer
 import java.io.File
 
@@ -104,6 +105,18 @@ fun TextInputSettingsScreen(
                 VoskSpeechRecognizer.ModelStatus.NOT_CONFIGURED
             }
         )
+    }
+
+    var sherpaModelPath by remember {
+        mutableStateOf(SettingsManager.getSherpaModelPath(context))
+    }
+
+    var sherpaModelStatus by remember {
+        mutableStateOf(SherpaSpeechRecognizer.getInstance(context).getModelStatus())
+    }
+
+    var selectedVoiceEngine by remember {
+        mutableStateOf(SettingsManager.getVoiceEngine(context))
     }
 
     var clipboardHistoryEnabled by remember {
@@ -637,8 +650,59 @@ fun TextInputSettingsScreen(
                 }
             }
 
-            // Vosk Model Selector (shown when offline voice is enabled)
+            // Voice Engine Selector (shown when offline voice is enabled)
             if (offlineVoiceInput) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.voice_engine_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Vosk option
+                            FilterChip(
+                                selected = selectedVoiceEngine == "vosk",
+                                onClick = {
+                                    selectedVoiceEngine = "vosk"
+                                    SettingsManager.setVoiceEngine(context, "vosk")
+                                },
+                                label = { Text("Vosk") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            // Sherpa option
+                            FilterChip(
+                                selected = selectedVoiceEngine == "sherpa",
+                                onClick = {
+                                    selectedVoiceEngine = "sherpa"
+                                    SettingsManager.setVoiceEngine(context, "sherpa")
+                                },
+                                label = { Text("Sherpa-ONNX") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Text(
+                            text = stringResource(R.string.voice_engine_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            // Vosk Model Selector (shown when offline voice is enabled and Vosk is selected)
+            if (offlineVoiceInput && selectedVoiceEngine == "vosk") {
                 // File picker launcher for zip files
                 val zipFileLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.OpenDocument()
@@ -807,6 +871,170 @@ fun TextInputSettingsScreen(
                                         contentColor = MaterialTheme.colorScheme.error
                                     ),
                                     enabled = !isExtractingModel
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Clear,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Sherpa-ONNX Model Selector (shown when offline voice is enabled and Sherpa is selected)
+            if (offlineVoiceInput && selectedVoiceEngine == "sherpa") {
+                // File picker launcher for Sherpa zip files
+                val sherpaZipFileLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.OpenDocument()
+                ) { uri ->
+                    uri?.let {
+                        try {
+                            context.contentResolver.takePersistableUriPermission(
+                                it,
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            )
+                        } catch (e: Exception) {
+                            // Permission may already be granted
+                        }
+                        SettingsManager.setSherpaModelPath(context, it.toString())
+                        sherpaModelPath = it.toString()
+                        // Delete old extracted model when new file is selected
+                        SherpaSpeechRecognizer.getInstance(context).deleteExtractedModel()
+                        sherpaModelStatus = SherpaSpeechRecognizer.getInstance(context).getModelStatus()
+                    }
+                }
+
+                var sherpaExtractionProgress by remember { mutableStateOf(0) }
+                var sherpaExtractionMessage by remember { mutableStateOf("") }
+                var isExtractingSherpaModel by remember { mutableStateOf(false) }
+
+                val sherpaStatusText = when (sherpaModelStatus) {
+                    SherpaSpeechRecognizer.ModelStatus.NOT_CONFIGURED -> stringResource(R.string.sherpa_model_status_not_configured)
+                    SherpaSpeechRecognizer.ModelStatus.ZIP_CONFIGURED -> stringResource(R.string.sherpa_model_status_zip_configured)
+                    SherpaSpeechRecognizer.ModelStatus.EXTRACTING -> stringResource(R.string.sherpa_model_status_extracting)
+                    SherpaSpeechRecognizer.ModelStatus.AVAILABLE -> stringResource(R.string.sherpa_model_status_available)
+                    SherpaSpeechRecognizer.ModelStatus.LOADING -> stringResource(R.string.sherpa_model_status_loading)
+                    SherpaSpeechRecognizer.ModelStatus.READY -> stringResource(R.string.sherpa_model_status_ready)
+                }
+
+                val sherpaDisplayName = SherpaSpeechRecognizer.getInstance(context).getModelZipName()
+                val sherpaDisplayText = sherpaDisplayName ?: stringResource(R.string.sherpa_model_not_selected)
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Folder,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.sherpa_model_path_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = sherpaDisplayText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = if (isExtractingSherpaModel) sherpaExtractionMessage else sherpaStatusText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = when (sherpaModelStatus) {
+                                        SherpaSpeechRecognizer.ModelStatus.READY,
+                                        SherpaSpeechRecognizer.ModelStatus.AVAILABLE -> MaterialTheme.colorScheme.secondary
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
+                        if (isExtractingSherpaModel) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(
+                                progress = { sherpaExtractionProgress / 100f },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = stringResource(R.string.sherpa_model_instructions),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    sherpaZipFileLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "*/*"))
+                                },
+                                modifier = Modifier.weight(1f),
+                                enabled = !isExtractingSherpaModel
+                            ) {
+                                Text(stringResource(R.string.sherpa_model_select_zip_button))
+                            }
+
+                            if (sherpaModelStatus == SherpaSpeechRecognizer.ModelStatus.ZIP_CONFIGURED) {
+                                Button(
+                                    onClick = {
+                                        isExtractingSherpaModel = true
+                                        SherpaSpeechRecognizer.getInstance(context).extractZipModel(
+                                            onProgress = { progress, message ->
+                                                sherpaExtractionProgress = progress
+                                                sherpaExtractionMessage = message
+                                            },
+                                            onComplete = { success, error ->
+                                                isExtractingSherpaModel = false
+                                                sherpaModelStatus = SherpaSpeechRecognizer.getInstance(context).getModelStatus()
+                                                if (!success) {
+                                                    sherpaExtractionMessage = error ?: "Extraction failed"
+                                                }
+                                            }
+                                        )
+                                    },
+                                    enabled = !isExtractingSherpaModel
+                                ) {
+                                    Text(stringResource(R.string.sherpa_model_extract_button))
+                                }
+                            }
+
+                            if (sherpaModelPath != null) {
+                                OutlinedButton(
+                                    onClick = {
+                                        SherpaSpeechRecognizer.getInstance(context).clearZipConfig(true)
+                                        sherpaModelStatus = SherpaSpeechRecognizer.getInstance(context).getModelStatus()
+                                        sherpaModelPath = null
+                                    },
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.error
+                                    ),
+                                    enabled = !isExtractingSherpaModel
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.Clear,

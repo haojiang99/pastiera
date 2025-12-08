@@ -622,4 +622,38 @@
     <string name="vosk_model_instructions">从 alphacephei.com/vosk/models 下载 Vosk 模型 zip 文件，然后在下方选择。</string>
     <string name="vosk_model_select_zip_button">选择 Zip 文件</string>
     <string name="vosk_model_extract_button">解压</string>
+
+    <!-- Voice Engine Selection -->
+    <string name="voice_engine_title">语音识别引擎</string>
+    <string name="voice_engine_description">Vosk：精度良好，模型较小。Sherpa-ONNX：中文识别精度更高，模型较大。</string>
+
+    <!-- Sherpa-ONNX Model Selection -->
+    <string name="sherpa_model_path_title">Sherpa-ONNX 模型（更高精度）</string>
+    <string name="sherpa_model_not_selected">未选择 zip 文件</string>
+    <string name="sherpa_model_status_not_configured">未配置</string>
+    <string name="sherpa_model_status_zip_configured">已选择 zip 文件 - 点击解压</string>
+    <string name="sherpa_model_status_extracting">正在解压模型...</string>
+    <string name="sherpa_model_status_available">模型可用</string>
+    <string name="sherpa_model_status_loading">正在加载模型...</string>
+    <string name="sherpa_model_status_ready">模型已就绪</string>
+    <string name="sherpa_model_instructions">从 github.com/k2-fsa/sherpa-onnx/releases 下载 Sherpa-ONNX Paraformer 模型（.tar.bz2 格式，如 sherpa-onnx-paraformer-zh-small）以获得更高的中文识别精度。</string>
+    <string name="sherpa_model_select_zip_button">选择文件</string>
+    <string name="sherpa_model_extract_button">解压</string>
+
+    <!-- Sherpa-ONNX Speech Recognition Activity -->
+    <string name="sherpa_speech_title">Sherpa 语音输入（中文）</string>
+    <string name="sherpa_initializing">正在初始化 Sherpa-ONNX...</string>
+    <string name="sherpa_extracting">正在解压 Sherpa 模型...</string>
+    <string name="sherpa_extract_failed">解压失败: %1$s</string>
+    <string name="sherpa_loading_model">正在加载 Sherpa 模型...</string>
+    <string name="sherpa_model_load_failed">加载模型失败: %1$s</string>
+    <string name="sherpa_ready">准备就绪 - 点击开始</string>
+    <string name="sherpa_start_listening">开始</string>
+    <string name="sherpa_stop_send">发送</string>
+    <string name="sherpa_listening">正在聆听... 请说普通话</string>
+    <string name="sherpa_processing">正在处理语音...</string>
+    <string name="sherpa_error">错误: %1$s</string>
+    <string name="sherpa_permission_denied">麦克风权限被拒绝</string>
+    <string name="sherpa_model_not_configured">未配置模型。请在设置 → 文本输入 → 语音模型中选择 Sherpa-ONNX 模型文件。</string>
+    <string name="sherpa_library_not_available">Sherpa-ONNX 库未安装。请添加 AAR 文件以启用语音识别。</string>
 </resources>

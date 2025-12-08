@@ -621,4 +621,38 @@
     <string name="vosk_model_instructions">Download a Vosk model zip file from alphacephei.com/vosk/models and select it below.</string>
     <string name="vosk_model_select_zip_button">Select Zip File</string>
     <string name="vosk_model_extract_button">Extract</string>
+
+    <!-- Voice Engine Selection -->
+    <string name="voice_engine_title">Voice Recognition Engine</string>
+    <string name="voice_engine_description">Vosk: Good accuracy, smaller models. Sherpa-ONNX: Better accuracy for Mandarin, larger models.</string>
+
+    <!-- Sherpa-ONNX Model Selection -->
+    <string name="sherpa_model_path_title">Sherpa-ONNX Model (Better Accuracy)</string>
+    <string name="sherpa_model_not_selected">No zip file selected</string>
+    <string name="sherpa_model_status_not_configured">Not configured</string>
+    <string name="sherpa_model_status_zip_configured">Zip file selected - tap Extract</string>
+    <string name="sherpa_model_status_extracting">Extracting model...</string>
+    <string name="sherpa_model_status_available">Model ready to use</string>
+    <string name="sherpa_model_status_loading">Loading model...</string>
+    <string name="sherpa_model_status_ready">Model loaded</string>
+    <string name="sherpa_model_instructions">Download a Sherpa-ONNX Paraformer model (.tar.bz2) from github.com/k2-fsa/sherpa-onnx/releases (e.g., sherpa-onnx-paraformer-zh-small) for better Chinese accuracy.</string>
+    <string name="sherpa_model_select_zip_button">Select File</string>
+    <string name="sherpa_model_extract_button">Extract</string>
+
+    <!-- Sherpa-ONNX Speech Recognition Activity -->
+    <string name="sherpa_speech_title">Sherpa Voice Input (Chinese)</string>
+    <string name="sherpa_initializing">Initializing Sherpa-ONNX...</string>
+    <string name="sherpa_extracting">Extracting Sherpa model...</string>
+    <string name="sherpa_extract_failed">Extraction failed: %1$s</string>
+    <string name="sherpa_loading_model">Loading Sherpa model...</string>
+    <string name="sherpa_model_load_failed">Failed to load model: %1$s</string>
+    <string name="sherpa_ready">Ready - Tap Start to begin</string>
+    <string name="sherpa_start_listening">Start</string>
+    <string name="sherpa_stop_send">Send</string>
+    <string name="sherpa_listening">Listening... Speak in Mandarin Chinese</string>
+    <string name="sherpa_processing">Processing speech...</string>
+    <string name="sherpa_error">Error: %1$s</string>
+    <string name="sherpa_permission_denied">Microphone permission denied</string>
+    <string name="sherpa_model_not_configured">Model not configured. Please select a Sherpa-ONNX model file in Settings → Text Input → Voice Model.</string>
+    <string name="sherpa_library_not_available">Sherpa-ONNX library not installed. Please add the AAR file to enable recognition.</string>
 </resources>

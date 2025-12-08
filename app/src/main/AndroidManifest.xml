@@ -100,7 +100,16 @@
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
             android:label="@string/vosk_speech_title" />
-        
+
+        <!-- Sherpa-ONNX offline speech recognition activity -->
+        <activity
+            android:name=".inputmethod.SherpaSpeechActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:label="@string/sherpa_speech_title" />
+
         <!-- Attività per assegnare scorciatoie del launcher -->
         <activity
             android:name=".inputmethod.LauncherShortcutAssignmentActivity"

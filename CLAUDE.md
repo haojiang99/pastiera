@@ -8,6 +8,12 @@ Pastiera is an Android Input Method Editor (IME) for physical keyboards, optimiz
 
 ## Build Commands
 
+### Java Environment
+Before building, set the JAVA_HOME environment variable:
+```bash
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+```
+
 ### Building the app
 ```bash
 ./gradlew build

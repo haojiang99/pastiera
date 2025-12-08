@@ -79,6 +79,8 @@ object SettingsManager {
     private const val KEY_SEMI_TRANSPARENT_STATUS_BAR = "semi_transparent_status_bar" // Make status bar semi-transparent
     private const val KEY_OFFLINE_VOICE_INPUT = "offline_voice_input" // Use Vosk for offline Mandarin Chinese speech recognition
     private const val KEY_VOSK_MODEL_PATH = "vosk_model_path" // Path to Vosk model directory
+    private const val KEY_SHERPA_MODEL_PATH = "sherpa_model_path" // Path to Sherpa-ONNX model zip file
+    private const val KEY_VOICE_ENGINE = "voice_engine" // Voice recognition engine: "vosk" or "sherpa"
     private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
     private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
 
@@ -140,6 +142,7 @@ object SettingsManager {
     private const val DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON = false  // Virtual keyboard button hidden by default
     private const val DEFAULT_SEMI_TRANSPARENT_STATUS_BAR = false  // Status bar is opaque by default
     private const val DEFAULT_OFFLINE_VOICE_INPUT = false  // Online (Google) voice recognition by default
+    private const val DEFAULT_VOICE_ENGINE = "vosk"  // Default to Vosk for voice recognition
     private const val DEFAULT_SHOW_LED_STATUS = true  // LED status indicator shown by default
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
@@ -1656,6 +1659,42 @@ object SettingsManager {
     fun setVoskModelPath(context: Context, path: String?) {
         getPreferences(context).edit()
             .putString(KEY_VOSK_MODEL_PATH, path)
+            .apply()
+    }
+
+    /**
+     * Gets the path to the Sherpa-ONNX model zip file.
+     * Returns null if not set.
+     */
+    fun getSherpaModelPath(context: Context): String? {
+        return getPreferences(context).getString(KEY_SHERPA_MODEL_PATH, null)
+    }
+
+    /**
+     * Sets the path to the Sherpa-ONNX model zip file.
+     * Pass null to clear the path.
+     */
+    fun setSherpaModelPath(context: Context, path: String?) {
+        getPreferences(context).edit()
+            .putString(KEY_SHERPA_MODEL_PATH, path)
+            .apply()
+    }
+
+    /**
+     * Gets the selected voice recognition engine.
+     * @return "vosk" or "sherpa"
+     */
+    fun getVoiceEngine(context: Context): String {
+        return getPreferences(context).getString(KEY_VOICE_ENGINE, DEFAULT_VOICE_ENGINE) ?: DEFAULT_VOICE_ENGINE
+    }
+
+    /**
+     * Sets the voice recognition engine.
+     * @param engine "vosk" or "sherpa"
+     */
+    fun setVoiceEngine(context: Context, engine: String) {
+        getPreferences(context).edit()
+            .putString(KEY_VOICE_ENGINE, engine)
             .apply()
     }
 

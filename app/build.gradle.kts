@@ -126,7 +126,18 @@ android {
         compose = true
         buildConfig = true
     }
-    
+
+    // Exclude duplicate Kotlin wrapper classes from sherpa-onnx AAR
+    // We use our own updated wrapper classes that match the JNI code
+    packagingOptions {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     // Esegui incrementBuildNumber prima di preBuild
     tasks.named("preBuild").configure {
         dependsOn("incrementBuildNumber")
@@ -157,6 +168,13 @@ dependencies {
     // Vosk offline speech recognition for Mandarin Chinese
     implementation("net.java.dev.jna:jna:5.13.0@aar")
     implementation("com.alphacephei:vosk-android:0.3.47@aar")
+
+    // Apache Commons Compress for tar.bz2 extraction (Sherpa-ONNX models)
+    implementation("org.apache.commons:commons-compress:1.26.0")
+
+    // Sherpa-ONNX offline speech recognition (better accuracy for Chinese)
+    // Native libraries extracted from official AAR, Kotlin wrappers in our source
+    // The .so files should be in app/src/main/jniLibs/arm64-v8a/
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

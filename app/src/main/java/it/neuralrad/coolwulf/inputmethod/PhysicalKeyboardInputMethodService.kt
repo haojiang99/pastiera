@@ -34,6 +34,7 @@ import it.neuralrad.coolwulf.data.mappings.KeyMappingLoader
 import it.neuralrad.coolwulf.data.variation.VariationRepository
 import it.neuralrad.coolwulf.inputmethod.SpeechRecognitionActivity
 import it.neuralrad.coolwulf.inputmethod.VoskSpeechActivity
+import it.neuralrad.coolwulf.inputmethod.SherpaSpeechActivity
 
 /**
  * Input method service specialized for physical keyboards.
@@ -289,12 +290,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     
     private fun startSpeechRecognition() {
         try {
-            // Choose between offline (Vosk) and online (Google) voice recognition
+            // Choose between offline (Vosk/Sherpa) and online (Google) voice recognition
             val useOffline = SettingsManager.isOfflineVoiceInput(this)
+            val voiceEngine = SettingsManager.getVoiceEngine(this)
+
             val intent = if (useOffline) {
-                Intent(this, VoskSpeechActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                            Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                // Use selected offline voice engine
+                if (voiceEngine == "sherpa") {
+                    Intent(this, SherpaSpeechActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                                Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                    }
+                } else {
+                    // Default to Vosk
+                    Intent(this, VoskSpeechActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                                Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                    }
                 }
             } else {
                 Intent(this, SpeechRecognitionActivity::class.java).apply {
@@ -304,7 +316,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
             startActivity(intent)
-            Log.d(TAG, "Speech recognition started (offline=$useOffline)")
+            Log.d(TAG, "Speech recognition started (offline=$useOffline, engine=$voiceEngine)")
         } catch (e: Exception) {
             Log.e(TAG, "Unable to launch speech recognition", e)
         }
@@ -860,12 +872,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         speechResultReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 Log.d(TAG, "Broadcast receiver called - action: ${intent?.action}")
-                // Handle both Google (online) and Vosk (offline) speech results
+                // Handle Google (online), Vosk (offline), and Sherpa (offline) speech results
                 val isSpeechResult = intent?.action == SpeechRecognitionActivity.ACTION_SPEECH_RESULT ||
-                        intent?.action == VoskSpeechActivity.ACTION_VOSK_SPEECH_RESULT
+                        intent?.action == VoskSpeechActivity.ACTION_VOSK_SPEECH_RESULT ||
+                        intent?.action == SherpaSpeechActivity.ACTION_SHERPA_SPEECH_RESULT
                 if (isSpeechResult) {
                     val text = intent?.getStringExtra(SpeechRecognitionActivity.EXTRA_TEXT)
                         ?: intent?.getStringExtra(VoskSpeechActivity.EXTRA_TEXT)
+                        ?: intent?.getStringExtra(SherpaSpeechActivity.EXTRA_TEXT)
                     Log.d(TAG, "Broadcast received with text: $text")
                     if (text != null && text.isNotEmpty()) {
                         Log.d(TAG, "Received speech recognition result: $text")
@@ -900,10 +914,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
 
-        // Register for both online (Google) and offline (Vosk) speech results
+        // Register for online (Google) and offline (Vosk/Sherpa) speech results
         val filter = IntentFilter().apply {
             addAction(SpeechRecognitionActivity.ACTION_SPEECH_RESULT)
             addAction(VoskSpeechActivity.ACTION_VOSK_SPEECH_RESULT)
+            addAction(SherpaSpeechActivity.ACTION_SHERPA_SPEECH_RESULT)
         }
 
         // On Android 13+ (API 33+) we must specify whether the receiver is exported
