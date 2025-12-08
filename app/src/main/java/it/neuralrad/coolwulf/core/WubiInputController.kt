@@ -575,10 +575,13 @@ class WubiInputController(
         val phrasesFirst = isPhrasesFirst()
 
         if (phrasesFirst) {
-            // Phrases First mode: combine ALL candidates (single chars + phrases) and sort by frequency
-            // Higher frequency appears first, regardless of whether it's a single char or phrase
+            // Phrases First mode: use dictionary order as baseline, then boost by frequency
+            // Candidates with usage history are boosted to the front (sorted by frequency)
+            // Candidates without usage history maintain their dictionary order
             val allDictCandidates = mutableListOf<String>()
-            for (candidate in singleCharDictCandidates) {
+
+            // Collect all candidates in dictionary order first
+            for (candidate in rawCandidates) {
                 if (candidate !in resultCandidates && candidate !in allDictCandidates) {
                     allDictCandidates.add(candidate)
                 }
@@ -593,19 +596,21 @@ class WubiInputController(
                     allDictCandidates.add(phrase)
                 }
             }
-            for (candidate in multiCharDictCandidates) {
-                if (candidate !in resultCandidates && candidate !in allDictCandidates) {
-                    allDictCandidates.add(candidate)
-                }
-            }
 
-            // Sort ALL candidates by frequency (highest first)
-            // When frequencies are equal, phrases (longer) come before single characters
-            val sortedAllCandidates = allDictCandidates.sortedWith(
+            // Separate candidates with usage history from those without
+            val usedCandidates = allDictCandidates.filter { userMemory.getFrequency(bufferStr, it) > 0 }
+            val unusedCandidates = allDictCandidates.filter { userMemory.getFrequency(bufferStr, it) == 0 }
+
+            // Sort used candidates by frequency (highest first)
+            // When frequencies are equal, longer (phrases) come first
+            val sortedUsedCandidates = usedCandidates.sortedWith(
                 compareByDescending<String> { userMemory.getFrequency(bufferStr, it) }
-                    .thenByDescending { it.length }  // When same frequency, longer (phrases) first
+                    .thenByDescending { it.length }
             )
-            resultCandidates.addAll(sortedAllCandidates)
+
+            // Add used candidates first (sorted by frequency), then unused in dictionary order
+            resultCandidates.addAll(sortedUsedCandidates)
+            resultCandidates.addAll(unusedCandidates)
         } else {
             // Default mode: preserve exact dictionary order (no separation of single chars vs phrases)
             // The dictionary already has the correct order (e.g., "thnn" → ["自己", "臫"])
