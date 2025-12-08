@@ -6,6 +6,7 @@ import android.view.KeyEvent
 import it.neuralrad.coolwulf.data.pinyin.PinyinDictionary
 import it.neuralrad.coolwulf.data.pinyin.UserPinyinMemory
 import it.neuralrad.coolwulf.data.shuangpin.ShuangpinConverter
+import it.neuralrad.coolwulf.data.shuangpin.ShuangpinPhraseMemory
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
 import it.neuralrad.coolwulf.SettingsManager
@@ -99,6 +100,13 @@ class ShuangpinInputController(
     // User custom dictionary for user-defined shortcuts
     private val customDictionary: UserCustomDictionary = UserCustomDictionary.getInstance(context)
 
+    // Auto-phrase memory for learning new phrases from user input
+    private val shuangpinPhraseMemory: ShuangpinPhraseMemory = ShuangpinPhraseMemory.getInstance(context)
+
+    // Session tracking for auto-phrase learning
+    // Tracks (shuangpinCode, character) pairs selected in the current input session
+    private val sessionSelections = mutableListOf<Pair<String, String>>()
+
     init {
         // Load dictionary if not already loaded
         if (!PinyinDictionary.isLoaded()) {
@@ -113,6 +121,8 @@ class ShuangpinInputController(
         if (isShuangpinModeActive != active) {
             isShuangpinModeActive = active
             if (!active) {
+                // Finalize session before exiting Shuangpin mode
+                finalizeSession()
                 clearBuffer()
             }
             Log.d(TAG, "========== Shuangpin mode: ${if (active) "ENABLED" else "DISABLED"} ==========")
@@ -145,6 +155,12 @@ class ShuangpinInputController(
         val lowerChar = char.lowercaseChar()
         if (!lowerChar.isLetter() || lowerChar < 'a' || lowerChar > 'z') {
             return false
+        }
+
+        // Finalize any pending session when user starts new input
+        // This captures phrases like "你好吗" when user starts typing next phrase
+        if (sessionSelections.size >= 2) {
+            finalizeSession()
         }
 
         // Check buffer length limit
@@ -230,6 +246,13 @@ class ShuangpinInputController(
             recordSelectionIfEnabled(pinyinToRecord, selected)
         }
 
+        // Track selection for auto-phrase learning (only for single characters)
+        val shuangpinCodeToRecord = buffer.substring(0, charsToConsume)
+        if (isAutoPhraseLearningEnabled() && !isShowingNextWordPredictions &&
+            shuangpinCodeToRecord.isNotEmpty() && selected.length == 1) {
+            sessionSelections.add(shuangpinCodeToRecord to selected)
+        }
+
         Log.d(TAG, "Selected candidate $index: '$selected', consuming $charsToConsume chars, pinyin: '$pinyinToRecord'")
 
         // Remove consumed characters from buffer
@@ -239,6 +262,12 @@ class ShuangpinInputController(
 
         // Record for next-word prediction
         nextWordPredictor.recordCommittedWord(selected)
+
+        // Finalize the session now that the phrase input is complete
+        // This records phrases like "你好" when user finishes picking all characters
+        if (sessionSelections.size >= 2) {
+            finalizeSession()
+        }
 
         // Update candidates for remaining buffer
         if (buffer.isEmpty()) {
@@ -350,6 +379,8 @@ class ShuangpinInputController(
         matchedPinyin = ""
         phraseCandidateCount = 0
         currentPage = 0
+        // Clear session without finalizing (user cancelled input)
+        sessionSelections.clear()
         Log.d(TAG, "Buffer cleared")
     }
 
@@ -388,6 +419,28 @@ class ShuangpinInputController(
                 }
             }
             Log.d(TAG, "Abbreviation matches for '$bufferStr': $abbreviationCandidates")
+        }
+
+        // Get auto-learned phrases
+        val autoLearnedPhrases = if (isAutoPhraseLearningEnabled()) shuangpinPhraseMemory.getLearnedPhrases(bufferStr) else emptyList()
+        for (phrase in autoLearnedPhrases) {
+            if (phrase !in resultCandidates) {
+                resultCandidates.add(phrase)
+            }
+        }
+        if (autoLearnedPhrases.isNotEmpty()) {
+            Log.d(TAG, "Auto-learned Shuangpin phrases for '$bufferStr': $autoLearnedPhrases")
+        }
+
+        // Get partial/prefix matching learned phrases
+        val partialMatchPhrases = if (isAutoPhraseLearningEnabled()) shuangpinPhraseMemory.getLearnedPhrasesWithPrefix(bufferStr) else emptyList()
+        for (phrase in partialMatchPhrases) {
+            if (phrase !in resultCandidates) {
+                resultCandidates.add(phrase)
+            }
+        }
+        if (partialMatchPhrases.isNotEmpty()) {
+            Log.d(TAG, "Partial match Shuangpin phrases for '$bufferStr': $partialMatchPhrases")
         }
 
         // Convert Shuangpin to Pinyin
@@ -636,6 +689,9 @@ class ShuangpinInputController(
      * Called when user inputs punctuation.
      */
     fun onPunctuationInput() {
+        // Finalize session before punctuation (phrase boundary)
+        finalizeSession()
+
         if (isShowingNextWordPredictions) {
             isShowingNextWordPredictions = false
             allCandidates = emptyList()
@@ -787,5 +843,39 @@ class ShuangpinInputController(
         } else {
             emptyList()
         }
+    }
+
+    /**
+     * Checks if auto-phrase learning is enabled.
+     */
+    private fun isAutoPhraseLearningEnabled(): Boolean {
+        return isMemoryEnabled() && SettingsManager.isAutoPhrasMemoryEnabled(context)
+    }
+
+    /**
+     * Finalizes the current input session for auto-phrase learning.
+     * Combines all single-character selections into a phrase and records it.
+     *
+     * Uses full Shuangpin codes (similar to Pinyin approach).
+     * Example: '你好' with codes 'nh' + 'hc' → full code 'nhhc'
+     * The phrase needs to be typed twice before it becomes a learned phrase.
+     */
+    private fun finalizeSession() {
+        if (!isAutoPhraseLearningEnabled() || sessionSelections.size < 2) {
+            sessionSelections.clear()
+            return
+        }
+
+        // Combine all Shuangpin codes into a full code (like Pinyin does)
+        val combinedShuangpinCode = sessionSelections.joinToString("") { it.first }
+        val combinedPhrase = sessionSelections.joinToString("") { it.second }
+
+        // Record the new phrase for auto-learning
+        // First time: phrase is recorded as "pending"
+        // Second time: phrase is promoted to "learned"
+        shuangpinPhraseMemory.recordPhrase(combinedShuangpinCode, combinedPhrase)
+        Log.d(TAG, "Shuangpin session finalized: '$combinedShuangpinCode' → '$combinedPhrase'")
+
+        sessionSelections.clear()
     }
 }

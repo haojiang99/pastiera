@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import it.neuralrad.coolwulf.data.pinyin.AutoPhraseMemory
+import it.neuralrad.coolwulf.data.shuangpin.ShuangpinPhraseMemory
 import it.neuralrad.coolwulf.data.wubi.WubiPhraseMemory
 
 /**
@@ -34,16 +35,19 @@ fun LearnedPhrasesScreen(
     val context = LocalContext.current
     val autoPhraseMemory = remember { AutoPhraseMemory.getInstance(context) }
     val wubiPhraseMemory = remember { WubiPhraseMemory.getInstance(context) }
+    val shuangpinPhraseMemory = remember { ShuangpinPhraseMemory.getInstance(context) }
 
     // Tab state
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf(
         stringResource(R.string.learned_phrases_tab_pinyin),
+        stringResource(R.string.learned_phrases_tab_shuangpin),
         stringResource(R.string.learned_phrases_tab_wubi)
     )
 
     // Get learned phrases for each type
     var pinyinPhrases by remember { mutableStateOf(autoPhraseMemory.getAllLearnedPhrases()) }
+    var shuangpinPhrases by remember { mutableStateOf(shuangpinPhraseMemory.getAllLearnedPhrases()) }
     var wubiPhrases by remember { mutableStateOf(wubiPhraseMemory.getAllLearnedPhrases()) }
 
     // Dialog state for confirm delete all
@@ -51,6 +55,9 @@ fun LearnedPhrasesScreen(
 
     // Dialog state for confirm delete single (Pinyin)
     var pinyinPhraseToDelete by remember { mutableStateOf<AutoPhraseMemory.LearnedPhrase?>(null) }
+
+    // Dialog state for confirm delete single (Shuangpin)
+    var shuangpinPhraseToDelete by remember { mutableStateOf<ShuangpinPhraseMemory.LearnedPhrase?>(null) }
 
     // Dialog state for confirm delete single (Wubi)
     var wubiPhraseToDelete by remember { mutableStateOf<WubiPhraseMemory.LearnedPhrase?>(null) }
@@ -68,7 +75,11 @@ fun LearnedPhrasesScreen(
                 },
                 actions = {
                     // Delete all button - based on current tab
-                    val hasItems = if (selectedTabIndex == 0) pinyinPhrases.isNotEmpty() else wubiPhrases.isNotEmpty()
+                    val hasItems = when (selectedTabIndex) {
+                        0 -> pinyinPhrases.isNotEmpty()
+                        1 -> shuangpinPhrases.isNotEmpty()
+                        else -> wubiPhrases.isNotEmpty()
+                    }
                     if (hasItems) {
                         IconButton(onClick = { showDeleteAllDialog = true }) {
                             Icon(
@@ -105,7 +116,12 @@ fun LearnedPhrasesScreen(
                     phrases = pinyinPhrases,
                     onDeletePhrase = { pinyinPhraseToDelete = it }
                 )
-                1 -> WubiPhrasesTab(
+                1 -> ShuangpinPhrasesTab(
+                    shuangpinPhraseMemory = shuangpinPhraseMemory,
+                    phrases = shuangpinPhrases,
+                    onDeletePhrase = { shuangpinPhraseToDelete = it }
+                )
+                2 -> WubiPhrasesTab(
                     wubiPhraseMemory = wubiPhraseMemory,
                     phrases = wubiPhrases,
                     onDeletePhrase = { wubiPhraseToDelete = it }
@@ -150,6 +166,42 @@ fun LearnedPhrasesScreen(
         )
     }
 
+    // Delete single Shuangpin phrase confirmation dialog
+    shuangpinPhraseToDelete?.let { phrase ->
+        AlertDialog(
+            onDismissRequest = { shuangpinPhraseToDelete = null },
+            title = { Text(stringResource(R.string.learned_phrases_delete_title)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.learned_phrases_delete_message))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "${phrase.phrase} (${phrase.shuangpinCode})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        shuangpinPhraseMemory.deleteLearnedPhrase(phrase.shuangpinCode, phrase.phrase)
+                        shuangpinPhrases = shuangpinPhraseMemory.getAllLearnedPhrases()
+                        shuangpinPhraseToDelete = null
+                        Toast.makeText(context, R.string.learned_phrases_deleted, Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { shuangpinPhraseToDelete = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
     // Delete single Wubi phrase confirmation dialog
     wubiPhraseToDelete?.let { phrase ->
         AlertDialog(
@@ -188,11 +240,16 @@ fun LearnedPhrasesScreen(
 
     // Delete all confirmation dialog
     if (showDeleteAllDialog) {
-        val count = if (selectedTabIndex == 0) pinyinPhrases.size else wubiPhrases.size
-        val typeLabel = if (selectedTabIndex == 0)
-            stringResource(R.string.learned_phrases_tab_pinyin)
-        else
-            stringResource(R.string.learned_phrases_tab_wubi)
+        val count = when (selectedTabIndex) {
+            0 -> pinyinPhrases.size
+            1 -> shuangpinPhrases.size
+            else -> wubiPhrases.size
+        }
+        val typeLabel = when (selectedTabIndex) {
+            0 -> stringResource(R.string.learned_phrases_tab_pinyin)
+            1 -> stringResource(R.string.learned_phrases_tab_shuangpin)
+            else -> stringResource(R.string.learned_phrases_tab_wubi)
+        }
 
         AlertDialog(
             onDismissRequest = { showDeleteAllDialog = false },
@@ -203,12 +260,19 @@ fun LearnedPhrasesScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (selectedTabIndex == 0) {
-                            autoPhraseMemory.clearAll()
-                            pinyinPhrases = autoPhraseMemory.getAllLearnedPhrases()
-                        } else {
-                            wubiPhraseMemory.clearAll()
-                            wubiPhrases = wubiPhraseMemory.getAllLearnedPhrases()
+                        when (selectedTabIndex) {
+                            0 -> {
+                                autoPhraseMemory.clearAll()
+                                pinyinPhrases = autoPhraseMemory.getAllLearnedPhrases()
+                            }
+                            1 -> {
+                                shuangpinPhraseMemory.clearAll()
+                                shuangpinPhrases = shuangpinPhraseMemory.getAllLearnedPhrases()
+                            }
+                            else -> {
+                                wubiPhraseMemory.clearAll()
+                                wubiPhrases = wubiPhraseMemory.getAllLearnedPhrases()
+                            }
                         }
                         showDeleteAllDialog = false
                         Toast.makeText(context, R.string.learned_phrases_all_deleted, Toast.LENGTH_SHORT).show()
@@ -253,6 +317,42 @@ private fun PinyinPhrasesTab(
             ) {
                 items(phrases, key = { "${it.pinyin}_${it.phrase}" }) { phrase ->
                     PinyinPhraseItem(
+                        phrase = phrase,
+                        onDelete = { onDeletePhrase(phrase) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShuangpinPhrasesTab(
+    shuangpinPhraseMemory: ShuangpinPhraseMemory,
+    phrases: List<ShuangpinPhraseMemory.LearnedPhrase>,
+    onDeletePhrase: (ShuangpinPhraseMemory.LearnedPhrase) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Stats header
+        val stats = shuangpinPhraseMemory.getStats()
+        StatsHeader(
+            learnedCount = stats.learnedPhraseCount,
+            totalUses = stats.totalSelections,
+            pendingCount = stats.pendingPhraseCount
+        )
+
+        HorizontalDivider()
+
+        // Phrases list
+        if (phrases.isEmpty()) {
+            EmptyPhrasesMessage()
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                items(phrases, key = { "${it.shuangpinCode}_${it.phrase}" }) { phrase ->
+                    ShuangpinPhraseItem(
                         phrase = phrase,
                         onDelete = { onDeletePhrase(phrase) }
                     )
@@ -406,6 +506,64 @@ private fun PinyinPhraseItem(
                 )
                 Text(
                     text = phrase.pinyin,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Frequency badge
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Text(
+                    text = "${phrase.frequency}x",
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Delete button
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = "Delete",
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+    HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
+}
+
+@Composable
+private fun ShuangpinPhraseItem(
+    phrase: ShuangpinPhraseMemory.LearnedPhrase,
+    onDelete: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Phrase and Shuangpin code
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = phrase.phrase,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = phrase.shuangpinCode,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

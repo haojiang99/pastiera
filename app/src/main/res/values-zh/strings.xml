@@ -551,7 +551,7 @@
     <string name="wubi_with_pinyin_title">五笔加拼音</string>
     <string name="wubi_with_pinyin_description">在五笔模式下同时支持拼音输入，拼音候选词显示在五笔之后</string>
     <string name="wubi_phrases_first_title">词组优先</string>
-    <string name="wubi_phrases_first_description">高频词组显示在单字之前（需使用2次以上）</string>
+    <string name="wubi_phrases_first_description">按使用频率排序所有候选词（使用越多排越前）</string>
     <string name="wubi_auto_commit_single_title">唯一候选词自动上屏</string>
     <string name="wubi_auto_commit_single_description">当四码只有一个候选词时，自动上屏无需按空格键</string>
     <string name="wubi_auto_commit_overflow_title">五码自动上屏</string>
@@ -561,6 +561,7 @@
     <string name="learned_phrases_title">已学习词组</string>
     <string name="learned_phrases_description">查看和管理自动学习的词组</string>
     <string name="learned_phrases_tab_pinyin">拼音</string>
+    <string name="learned_phrases_tab_shuangpin">双拼</string>
     <string name="learned_phrases_tab_wubi">五笔</string>
     <string name="learned_phrases_stats_learned">已学习</string>
     <string name="learned_phrases_stats_uses">使用次数</string>
