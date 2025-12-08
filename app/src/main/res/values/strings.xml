@@ -582,6 +582,10 @@
     <string name="status_bar_height_title">Status Bar Height</string>
     <string name="status_bar_height_description">Current: %1$d DIP</string>
 
+    <!-- LED Status Indicator -->
+    <string name="show_led_status_title">Show LED Status Indicator</string>
+    <string name="show_led_status_description">Display virtual LED strip showing modifier key states</string>
+
     <!-- Partial Pinyin Matching -->
     <string name="partial_pinyin_matching_title">Partial Pinyin Matching</string>
     <string name="partial_pinyin_matching_description">Show phrase suggestions while typing partial pinyin (after first character selected)</string>

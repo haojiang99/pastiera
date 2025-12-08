@@ -79,6 +79,7 @@ object SettingsManager {
     private const val KEY_SEMI_TRANSPARENT_STATUS_BAR = "semi_transparent_status_bar" // Make status bar semi-transparent
     private const val KEY_OFFLINE_VOICE_INPUT = "offline_voice_input" // Use Vosk for offline Mandarin Chinese speech recognition
     private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
+    private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -138,6 +139,7 @@ object SettingsManager {
     private const val DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON = false  // Virtual keyboard button hidden by default
     private const val DEFAULT_SEMI_TRANSPARENT_STATUS_BAR = false  // Status bar is opaque by default
     private const val DEFAULT_OFFLINE_VOICE_INPUT = false  // Online (Google) voice recognition by default
+    private const val DEFAULT_SHOW_LED_STATUS = true  // LED status indicator shown by default
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
@@ -1635,6 +1637,22 @@ object SettingsManager {
     fun setOfflineVoiceInput(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_OFFLINE_VOICE_INPUT, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether the LED status indicator strip is shown.
+     */
+    fun isShowLedStatus(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SHOW_LED_STATUS, DEFAULT_SHOW_LED_STATUS)
+    }
+
+    /**
+     * Sets whether to show the LED status indicator strip.
+     */
+    fun setShowLedStatus(context: Context, show: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SHOW_LED_STATUS, show)
             .apply()
     }
 

@@ -296,8 +296,8 @@ class StatusBarController(
                     height = ViewGroup.LayoutParams.WRAP_CONTENT
                 }
             }
-            // Restore LED visibility
-            ledStatusView.ensureView().visibility = View.VISIBLE
+            // Restore LED visibility based on setting
+            ledStatusView.ensureView().visibility = if (SettingsManager.isShowLedStatus(context)) View.VISIBLE else View.GONE
             // Restore virtual keyboard visibility if enabled
             if (virtualKeyboardEnabled) {
                 virtualKeyboardContainer?.visibility = View.VISIBLE
@@ -386,6 +386,8 @@ class StatusBarController(
 
             variationsWrapper = variationBarView?.ensureView()
             val ledStrip = ledStatusView.ensureView()
+            // Set initial LED visibility based on setting
+            ledStrip.visibility = if (SettingsManager.isShowLedStatus(context)) View.VISIBLE else View.GONE
 
             // Create virtual keyboard container (hidden by default)
             virtualKeyboardContainer = LinearLayout(context).apply {
@@ -1158,6 +1160,8 @@ class StatusBarController(
         
         modifiersContainerView.visibility = View.GONE
         ledStatusView.update(snapshot)
+        // Respect LED visibility setting
+        ledStatusView.ensureView().visibility = if (SettingsManager.isShowLedStatus(context)) View.VISIBLE else View.GONE
         val variationsBar = if (!forceMinimalUi) variationBarView else null
 
         if (snapshot.symPage > 0 && symMappings != null) {

@@ -202,6 +202,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getStatusBarHeight(context))
     }
 
+    var showLedStatus by remember {
+        mutableStateOf(SettingsManager.isShowLedStatus(context))
+    }
+
     // Handle system back button
     BackHandler { onBack() }
     
@@ -1629,6 +1633,49 @@ fun TextInputSettingsScreen(
                         valueRange = SettingsManager.getMinStatusBarHeight().toFloat()..SettingsManager.getMaxStatusBarHeight().toFloat(),
                         steps = SettingsManager.getMaxStatusBarHeight() - SettingsManager.getMinStatusBarHeight() - 1,
                         modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+
+            // Show LED Status toggle
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.show_led_status_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.show_led_status_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                    Switch(
+                        checked = showLedStatus,
+                        onCheckedChange = { enabled ->
+                            showLedStatus = enabled
+                            SettingsManager.setShowLedStatus(context, enabled)
+                        }
                     )
                 }
             }
