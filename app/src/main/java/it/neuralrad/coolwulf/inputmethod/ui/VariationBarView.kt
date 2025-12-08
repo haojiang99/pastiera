@@ -104,9 +104,10 @@ class VariationBarView(
             8.8f,
             context.resources.displayMetrics
         ).toInt()
+        val statusBarHeightDip = SettingsManager.getStatusBarHeight(context).toFloat()
         val variationsContainerHeight = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
-            55f,
+            statusBarHeightDip,
             context.resources.displayMetrics
         ).toInt()
 
@@ -155,6 +156,28 @@ class VariationBarView(
     }
 
     fun getWrapper(): FrameLayout? = wrapper
+
+    /**
+     * Refreshes the status bar height from settings.
+     * Call this when the height setting changes.
+     */
+    fun refreshHeight() {
+        val statusBarHeightDip = SettingsManager.getStatusBarHeight(context).toFloat()
+        val newHeight = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            statusBarHeightDip,
+            context.resources.displayMetrics
+        ).toInt()
+
+        wrapper?.let { w ->
+            val lp = w.layoutParams as? LinearLayout.LayoutParams
+            if (lp != null && lp.height != newHeight) {
+                lp.height = newHeight
+                w.layoutParams = lp
+                w.requestLayout()
+            }
+        }
+    }
 
     fun setSymModeActive(active: Boolean) {
         isSymModeActive = active
@@ -347,6 +370,9 @@ class VariationBarView(
     fun showVariations(snapshot: StatusBarController.StatusSnapshot, inputConnection: android.view.inputmethod.InputConnection?) {
         val containerView = container ?: return
         val wrapperView = wrapper ?: return
+
+        // Refresh height in case setting changed
+        refreshHeight()
 
         currentInputConnection = inputConnection
         wrapperView.visibility = View.VISIBLE

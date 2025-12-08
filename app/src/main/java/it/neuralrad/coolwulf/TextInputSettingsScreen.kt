@@ -190,6 +190,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getCandidateFontSize(context))
     }
 
+    var statusBarHeight by remember {
+        mutableStateOf(SettingsManager.getStatusBarHeight(context))
+    }
+
     // Handle system back button
     BackHandler { onBack() }
     
@@ -1481,6 +1485,53 @@ fun TextInputSettingsScreen(
                         },
                         valueRange = SettingsManager.getMinCandidateFontSize().toFloat()..SettingsManager.getMaxCandidateFontSize().toFloat(),
                         steps = SettingsManager.getMaxCandidateFontSize() - SettingsManager.getMinCandidateFontSize() - 1,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+
+            // Status Bar Height
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.TextFields,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.status_bar_height_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = stringResource(R.string.status_bar_height_description, statusBarHeight),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Slider(
+                        value = statusBarHeight.toFloat(),
+                        onValueChange = { newValue ->
+                            statusBarHeight = newValue.toInt()
+                            SettingsManager.setStatusBarHeight(context, newValue.toInt())
+                        },
+                        valueRange = SettingsManager.getMinStatusBarHeight().toFloat()..SettingsManager.getMaxStatusBarHeight().toFloat(),
+                        steps = SettingsManager.getMaxStatusBarHeight() - SettingsManager.getMinStatusBarHeight() - 1,
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }

@@ -76,6 +76,7 @@ object SettingsManager {
     private const val KEY_SHOW_VIRTUAL_KEYBOARD_BUTTON = "show_virtual_keyboard_button" // Show virtual keyboard toggle button in status bar
     private const val KEY_SEMI_TRANSPARENT_STATUS_BAR = "semi_transparent_status_bar" // Make status bar semi-transparent
     private const val KEY_OFFLINE_VOICE_INPUT = "offline_voice_input" // Use Vosk for offline Mandarin Chinese speech recognition
+    private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
 
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -126,6 +127,9 @@ object SettingsManager {
     private const val DEFAULT_CANDIDATE_FONT_SIZE = 18  // Default candidate font size in SP
     private const val MIN_CANDIDATE_FONT_SIZE = 12
     private const val MAX_CANDIDATE_FONT_SIZE = 28
+    private const val DEFAULT_STATUS_BAR_HEIGHT = 55  // Default status bar height in DIP
+    private const val MIN_STATUS_BAR_HEIGHT = 35
+    private const val MAX_STATUS_BAR_HEIGHT = 80
     private const val DEFAULT_PARTIAL_PINYIN_MATCHING = false  // Partial pinyin matching disabled by default
     private const val DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON = false  // Virtual keyboard button hidden by default
     private const val DEFAULT_SEMI_TRANSPARENT_STATUS_BAR = false  // Status bar is opaque by default
@@ -1499,6 +1503,38 @@ object SettingsManager {
      * Gets the default candidate font size.
      */
     fun getDefaultCandidateFontSize(): Int = DEFAULT_CANDIDATE_FONT_SIZE
+
+    /**
+     * Gets the status bar height in DIP.
+     */
+    fun getStatusBarHeight(context: Context): Int {
+        return getPreferences(context).getInt(KEY_STATUS_BAR_HEIGHT, DEFAULT_STATUS_BAR_HEIGHT)
+    }
+
+    /**
+     * Sets the status bar height in DIP.
+     */
+    fun setStatusBarHeight(context: Context, height: Int) {
+        val clampedHeight = height.coerceIn(MIN_STATUS_BAR_HEIGHT, MAX_STATUS_BAR_HEIGHT)
+        getPreferences(context).edit()
+            .putInt(KEY_STATUS_BAR_HEIGHT, clampedHeight)
+            .apply()
+    }
+
+    /**
+     * Gets the minimum status bar height.
+     */
+    fun getMinStatusBarHeight(): Int = MIN_STATUS_BAR_HEIGHT
+
+    /**
+     * Gets the maximum status bar height.
+     */
+    fun getMaxStatusBarHeight(): Int = MAX_STATUS_BAR_HEIGHT
+
+    /**
+     * Gets the default status bar height.
+     */
+    fun getDefaultStatusBarHeight(): Int = DEFAULT_STATUS_BAR_HEIGHT
 
     /**
      * Gets whether partial pinyin matching is enabled.
