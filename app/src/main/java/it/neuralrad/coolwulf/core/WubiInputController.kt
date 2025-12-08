@@ -387,6 +387,9 @@ class WubiInputController(
     /**
      * Finalizes the current input session for auto-phrase learning.
      * Combines all single-character selections into a phrase and records it.
+     *
+     * Uses abbreviated Wubi codes: first 2 letters of each character's code.
+     * Example: '王五' with codes 'gggg' + 'gghg' → abbreviated code 'gggg' (gg + gg)
      */
     private fun finalizeSession() {
         if (!isAutoPhraseLearningEnabled() || sessionSelections.size < 2) {
@@ -394,16 +397,18 @@ class WubiInputController(
             return
         }
 
-        // Combine all selections into a phrase
-        val combinedWubiCode = sessionSelections.joinToString("") { it.first }
+        // Create abbreviated Wubi code: first 2 letters of each character's code
+        val abbreviatedWubiCode = sessionSelections.joinToString("") {
+            it.first.take(2)  // Take only first 2 letters of each character's Wubi code
+        }
         val combinedPhrase = sessionSelections.joinToString("") { it.second }
 
-        // Check if this phrase already exists in dictionary - if so, skip
-        val existingPhrases = WubiDictionary.getCandidatesForPrefix(combinedWubiCode, limit = 50)
+        // Check if this phrase already exists in dictionary with abbreviated code - if so, skip
+        val existingPhrases = WubiDictionary.getCandidatesForPrefix(abbreviatedWubiCode, limit = 50)
         if (combinedPhrase !in existingPhrases) {
-            // Record the new phrase for auto-learning
-            wubiPhraseMemory.recordPhrase(combinedWubiCode, combinedPhrase)
-            Log.d(TAG, "Wubi session finalized: '$combinedWubiCode' → '$combinedPhrase'")
+            // Record the new phrase for auto-learning with abbreviated code
+            wubiPhraseMemory.recordPhrase(abbreviatedWubiCode, combinedPhrase)
+            Log.d(TAG, "Wubi session finalized: '$abbreviatedWubiCode' → '$combinedPhrase' (abbreviated from ${sessionSelections.map { it.first }})")
         }
 
         sessionSelections.clear()
@@ -546,7 +551,24 @@ class WubiInputController(
             Log.d(TAG, "Custom dictionary phrases for '$bufferStr': $customPhrases")
         }
 
-        // Get auto-learned phrases second (second highest priority)
+        // Get candidates for the current code (both exact and prefix matches)
+        val rawCandidates = WubiDictionary.getCandidatesForPrefix(bufferStr, limit = 50)
+
+        // Sort by user frequency (most frequently selected first) if memory is enabled
+        val sortedCandidates = if (isMemoryEnabled()) userMemory.sortByFrequency(bufferStr, rawCandidates) else rawCandidates
+
+        // Separate single-character and multi-character dictionary candidates
+        val singleCharDictCandidates = sortedCandidates.filter { it.length == 1 }
+        val multiCharDictCandidates = sortedCandidates.filter { it.length > 1 }
+
+        // Add single-character dictionary candidates first (before auto-learned phrases)
+        for (candidate in singleCharDictCandidates) {
+            if (candidate !in resultCandidates) {
+                resultCandidates.add(candidate)
+            }
+        }
+
+        // Get auto-learned phrases (after single characters)
         val autoLearnedPhrases = if (isAutoPhraseLearningEnabled()) wubiPhraseMemory.getLearnedPhrases(bufferStr) else emptyList()
         for (phrase in autoLearnedPhrases) {
             if (phrase !in resultCandidates) {
@@ -568,22 +590,15 @@ class WubiInputController(
             Log.d(TAG, "Partial match Wubi phrases for '$bufferStr': $partialMatchPhrases")
         }
 
-        // Get candidates for the current code (both exact and prefix matches)
-        val rawCandidates = WubiDictionary.getCandidatesForPrefix(bufferStr, limit = 50)
-
-        // Sort by user frequency (most frequently selected first) if memory is enabled
-        val sortedCandidates = if (isMemoryEnabled()) userMemory.sortByFrequency(bufferStr, rawCandidates) else rawCandidates
-
-        // Add dictionary candidates (excluding duplicates)
-        for (candidate in sortedCandidates) {
+        // Add multi-character dictionary candidates (after auto-learned phrases)
+        for (candidate in multiCharDictCandidates) {
             if (candidate !in resultCandidates) {
                 resultCandidates.add(candidate)
             }
         }
 
-        // Sort candidates based on phrases-first setting
-        // Custom phrases and auto-learned phrases always stay at the top, then sort remaining by preference
-        val priorityCount = customPhrases.size + autoLearnedPhrases.size + partialMatchPhrases.size
+        // Priority count now includes custom + single char + auto-learned + partial match
+        val priorityCount = customPhrases.size + singleCharDictCandidates.count { it !in customPhrases } + autoLearnedPhrases.size + partialMatchPhrases.size
         if (resultCandidates.size > priorityCount) {
             val phrasesFirst = isPhrasesFirst()
             val wubiOnlyList = resultCandidates.subList(priorityCount, resultCandidates.size).toList()
