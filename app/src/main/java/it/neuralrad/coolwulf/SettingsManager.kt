@@ -78,6 +78,7 @@ object SettingsManager {
     private const val KEY_SHOW_VIRTUAL_KEYBOARD_BUTTON = "show_virtual_keyboard_button" // Show virtual keyboard toggle button in status bar
     private const val KEY_SEMI_TRANSPARENT_STATUS_BAR = "semi_transparent_status_bar" // Make status bar semi-transparent
     private const val KEY_OFFLINE_VOICE_INPUT = "offline_voice_input" // Use Vosk for offline Mandarin Chinese speech recognition
+    private const val KEY_VOSK_MODEL_PATH = "vosk_model_path" // Path to Vosk model directory
     private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
     private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
 
@@ -1637,6 +1638,24 @@ object SettingsManager {
     fun setOfflineVoiceInput(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_OFFLINE_VOICE_INPUT, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets the path to the Vosk model directory.
+     * Returns null if not set.
+     */
+    fun getVoskModelPath(context: Context): String? {
+        return getPreferences(context).getString(KEY_VOSK_MODEL_PATH, null)
+    }
+
+    /**
+     * Sets the path to the Vosk model directory.
+     * Pass null to clear the path.
+     */
+    fun setVoskModelPath(context: Context, path: String?) {
+        getPreferences(context).edit()
+            .putString(KEY_VOSK_MODEL_PATH, path)
             .apply()
     }
 

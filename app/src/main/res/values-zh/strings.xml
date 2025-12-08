@@ -607,4 +607,19 @@
     <string name="vosk_speech_title">离线语音输入（中文）</string>
     <string name="offline_voice_input_title">离线语音输入</string>
     <string name="offline_voice_input_description">使用 Vosk 进行离线中文语音识别</string>
+
+    <string name="vosk_model_not_configured">模型未配置。请在设置 → 文字输入 → 语音模型中选择 Vosk 模型 zip 文件。</string>
+
+    <!-- Vosk Model Selection -->
+    <string name="vosk_model_path_title">语音模型</string>
+    <string name="vosk_model_not_selected">未选择 zip 文件</string>
+    <string name="vosk_model_status_not_configured">未选择模型</string>
+    <string name="vosk_model_status_zip_configured">已选择 zip 文件 - 点击解压</string>
+    <string name="vosk_model_status_extracting">正在解压模型...</string>
+    <string name="vosk_model_status_available">模型可用</string>
+    <string name="vosk_model_status_loading">正在加载模型...</string>
+    <string name="vosk_model_status_ready">模型已就绪</string>
+    <string name="vosk_model_instructions">从 alphacephei.com/vosk/models 下载 Vosk 模型 zip 文件，然后在下方选择。</string>
+    <string name="vosk_model_select_zip_button">选择 Zip 文件</string>
+    <string name="vosk_model_extract_button">解压</string>
 </resources>

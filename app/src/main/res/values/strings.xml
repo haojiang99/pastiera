@@ -606,4 +606,19 @@
     <string name="vosk_speech_title">Offline Voice Input (Chinese)</string>
     <string name="offline_voice_input_title">Offline Voice Input</string>
     <string name="offline_voice_input_description">Use Vosk for offline Mandarin Chinese speech recognition</string>
+
+    <string name="vosk_model_not_configured">Model not configured. Please select a Vosk model zip file in Settings → Text Input → Voice Model.</string>
+
+    <!-- Vosk Model Selection -->
+    <string name="vosk_model_path_title">Voice Model</string>
+    <string name="vosk_model_not_selected">No zip file selected</string>
+    <string name="vosk_model_status_not_configured">No model selected</string>
+    <string name="vosk_model_status_zip_configured">Zip file selected - tap Extract</string>
+    <string name="vosk_model_status_extracting">Extracting model...</string>
+    <string name="vosk_model_status_available">Model ready to use</string>
+    <string name="vosk_model_status_loading">Loading model...</string>
+    <string name="vosk_model_status_ready">Model loaded</string>
+    <string name="vosk_model_instructions">Download a Vosk model zip file from alphacephei.com/vosk/models and select it below.</string>
+    <string name="vosk_model_select_zip_button">Select Zip File</string>
+    <string name="vosk_model_extract_button">Extract</string>
 </resources>

@@ -1,6 +1,11 @@
 package it.neuralrad.coolwulf
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.DocumentsContract
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,6 +15,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -34,6 +41,8 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.activity.compose.BackHandler
 import it.neuralrad.coolwulf.R
+import it.neuralrad.coolwulf.inputmethod.VoskSpeechRecognizer
+import java.io.File
 
 /**
  * Text Input settings screen.
@@ -81,6 +90,20 @@ fun TextInputSettingsScreen(
 
     var offlineVoiceInput by remember {
         mutableStateOf(SettingsManager.isOfflineVoiceInput(context))
+    }
+
+    var voskModelPath by remember {
+        mutableStateOf(SettingsManager.getVoskModelPath(context))
+    }
+
+    var voskModelStatus by remember {
+        mutableStateOf(
+            if (VoskSpeechRecognizer.isLibraryAvailable()) {
+                VoskSpeechRecognizer.getInstance(context).getModelStatus()
+            } else {
+                VoskSpeechRecognizer.ModelStatus.NOT_CONFIGURED
+            }
+        )
     }
 
     var clipboardHistoryEnabled by remember {
@@ -611,6 +634,189 @@ fun TextInputSettingsScreen(
                             SettingsManager.setOfflineVoiceInput(context, enabled)
                         }
                     )
+                }
+            }
+
+            // Vosk Model Selector (shown when offline voice is enabled)
+            if (offlineVoiceInput) {
+                // File picker launcher for zip files
+                val zipFileLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.OpenDocument()
+                ) { uri ->
+                    uri?.let {
+                        // Take persistent permission
+                        try {
+                            context.contentResolver.takePersistableUriPermission(
+                                it,
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            )
+                        } catch (e: Exception) {
+                            // Permission may already be granted
+                        }
+                        // Save the URI
+                        SettingsManager.setVoskModelPath(context, it.toString())
+                        voskModelPath = it.toString()
+                        if (VoskSpeechRecognizer.isLibraryAvailable()) {
+                            // Delete old extracted model when new zip is selected
+                            VoskSpeechRecognizer.getInstance(context).deleteExtractedModel()
+                            voskModelStatus = VoskSpeechRecognizer.getInstance(context).getModelStatus()
+                        }
+                    }
+                }
+
+                // Extraction progress state
+                var extractionProgress by remember { mutableStateOf(0) }
+                var extractionMessage by remember { mutableStateOf("") }
+                var isExtractingModel by remember { mutableStateOf(false) }
+
+                // Helper function to get model status text
+                val modelStatusText = when (voskModelStatus) {
+                    VoskSpeechRecognizer.ModelStatus.NOT_CONFIGURED -> stringResource(R.string.vosk_model_status_not_configured)
+                    VoskSpeechRecognizer.ModelStatus.ZIP_CONFIGURED -> stringResource(R.string.vosk_model_status_zip_configured)
+                    VoskSpeechRecognizer.ModelStatus.EXTRACTING -> stringResource(R.string.vosk_model_status_extracting)
+                    VoskSpeechRecognizer.ModelStatus.AVAILABLE -> stringResource(R.string.vosk_model_status_available)
+                    VoskSpeechRecognizer.ModelStatus.LOADING -> stringResource(R.string.vosk_model_status_loading)
+                    VoskSpeechRecognizer.ModelStatus.READY -> stringResource(R.string.vosk_model_status_ready)
+                }
+
+                val modelDisplayName = if (VoskSpeechRecognizer.isLibraryAvailable()) {
+                    VoskSpeechRecognizer.getInstance(context).getModelZipName()
+                } else null
+                val displayText = modelDisplayName ?: stringResource(R.string.vosk_model_not_selected)
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Folder,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.vosk_model_path_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = displayText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = if (isExtractingModel) extractionMessage else modelStatusText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = when (voskModelStatus) {
+                                        VoskSpeechRecognizer.ModelStatus.READY,
+                                        VoskSpeechRecognizer.ModelStatus.AVAILABLE -> MaterialTheme.colorScheme.primary
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
+                        // Show progress bar during extraction
+                        if (isExtractingModel) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(
+                                progress = { extractionProgress / 100f },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Instructions
+                        Text(
+                            text = stringResource(R.string.vosk_model_instructions),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Buttons row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Select Zip File button
+                            OutlinedButton(
+                                onClick = {
+                                    zipFileLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "*/*"))
+                                },
+                                modifier = Modifier.weight(1f),
+                                enabled = !isExtractingModel
+                            ) {
+                                Text(stringResource(R.string.vosk_model_select_zip_button))
+                            }
+
+                            // Extract button (shown when zip is configured but not extracted)
+                            if (voskModelStatus == VoskSpeechRecognizer.ModelStatus.ZIP_CONFIGURED) {
+                                Button(
+                                    onClick = {
+                                        if (VoskSpeechRecognizer.isLibraryAvailable()) {
+                                            isExtractingModel = true
+                                            VoskSpeechRecognizer.getInstance(context).extractZipModel(
+                                                onProgress = { progress, message ->
+                                                    extractionProgress = progress
+                                                    extractionMessage = message
+                                                },
+                                                onComplete = { success, error ->
+                                                    isExtractingModel = false
+                                                    voskModelStatus = VoskSpeechRecognizer.getInstance(context).getModelStatus()
+                                                    if (!success) {
+                                                        extractionMessage = error ?: "Extraction failed"
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    },
+                                    enabled = !isExtractingModel
+                                ) {
+                                    Text(stringResource(R.string.vosk_model_extract_button))
+                                }
+                            }
+
+                            // Clear button (only shown if model is set)
+                            if (voskModelPath != null) {
+                                OutlinedButton(
+                                    onClick = {
+                                        if (VoskSpeechRecognizer.isLibraryAvailable()) {
+                                            VoskSpeechRecognizer.getInstance(context).clearZipConfig(true)
+                                            voskModelStatus = VoskSpeechRecognizer.getInstance(context).getModelStatus()
+                                        }
+                                        SettingsManager.setVoskModelPath(context, null)
+                                        voskModelPath = null
+                                    },
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.error
+                                    ),
+                                    enabled = !isExtractingModel
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Clear,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 

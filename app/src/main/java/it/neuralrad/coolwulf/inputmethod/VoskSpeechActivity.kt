@@ -202,13 +202,24 @@ class VoskSpeechActivity : Activity() {
 
     private fun setupVosk() {
         when (voskRecognizer.getModelStatus()) {
-            VoskSpeechRecognizer.ModelStatus.NOT_EXTRACTED -> {
-                // Model is bundled in assets, auto-extract it
+            VoskSpeechRecognizer.ModelStatus.NOT_CONFIGURED -> {
+                // No model configured - tell user to set up in settings
+                statusText.text = getString(R.string.vosk_model_not_configured)
+                startButton.isEnabled = false
+            }
+            VoskSpeechRecognizer.ModelStatus.ZIP_CONFIGURED -> {
+                // Zip file is configured but not extracted - auto extract
                 extractModel()
             }
             VoskSpeechRecognizer.ModelStatus.EXTRACTING -> {
                 statusText.text = getString(R.string.vosk_extracting)
                 progressBar.visibility = View.VISIBLE
+                startButton.isEnabled = false
+            }
+            VoskSpeechRecognizer.ModelStatus.LOADING -> {
+                statusText.text = getString(R.string.vosk_loading_model)
+                progressBar.visibility = View.VISIBLE
+                startButton.isEnabled = false
             }
             VoskSpeechRecognizer.ModelStatus.AVAILABLE -> {
                 initializeModel()
@@ -223,8 +234,9 @@ class VoskSpeechActivity : Activity() {
         progressBar.visibility = View.VISIBLE
         progressBar.progress = 0
         statusText.text = getString(R.string.vosk_extracting)
+        startButton.isEnabled = false
 
-        voskRecognizer.extractBundledModel(
+        voskRecognizer.extractZipModel(
             onProgress = { progress, message ->
                 runOnUiThread {
                     progressBar.progress = progress
@@ -238,6 +250,7 @@ class VoskSpeechActivity : Activity() {
                         initializeModel()
                     } else {
                         statusText.text = getString(R.string.vosk_extract_failed, error ?: "Unknown error")
+                        startButton.isEnabled = false
                     }
                 }
             }

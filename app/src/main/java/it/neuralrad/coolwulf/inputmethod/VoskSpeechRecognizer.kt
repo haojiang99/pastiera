@@ -1,7 +1,9 @@
 package it.neuralrad.coolwulf.inputmethod
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
+import it.neuralrad.coolwulf.SettingsManager
 import org.vosk.Model
 import org.vosk.Recognizer
 import org.vosk.android.RecognitionListener
@@ -10,18 +12,19 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.util.zip.ZipInputStream
 import kotlinx.coroutines.*
 
 /**
- * Offline Mandarin Chinese speech recognition using Vosk.
- * The Chinese model is bundled in assets and copied to filesystem on first use.
+ * Offline speech recognition using Vosk.
+ * The model is loaded from a user-selected zip file.
+ * Users can download Vosk model zip files and select them in settings.
  */
 class VoskSpeechRecognizer(private val context: Context) {
     companion object {
         private const val TAG = "VoskSpeechRecognizer"
-        private const val MODEL_NAME = "vosk-model-small-cn-0.22"
-        private const val ASSETS_MODEL_PATH = "vosk-models/$MODEL_NAME"
         private const val SAMPLE_RATE = 16000.0f
+        private const val EXTRACTED_MODEL_DIR = "vosk-model"
 
         @Volatile
         private var instance: VoskSpeechRecognizer? = null
@@ -58,6 +61,7 @@ class VoskSpeechRecognizer(private val context: Context) {
     private var speechService: SpeechService? = null
     private var isModelLoading = false
     private var isModelReady = false
+    private var isExtracting = false
 
     // Callbacks
     private var onResultListener: ((String) -> Unit)? = null
@@ -65,24 +69,53 @@ class VoskSpeechRecognizer(private val context: Context) {
     private var onErrorListener: ((String) -> Unit)? = null
     private var onModelLoadProgressListener: ((Int, String) -> Unit)? = null
 
-    private val modelDir: File
-        get() = File(context.filesDir, "vosk-models/$MODEL_NAME")
+    /**
+     * Gets the extracted model directory in app's internal storage.
+     */
+    private val extractedModelDir: File
+        get() = File(context.filesDir, EXTRACTED_MODEL_DIR)
 
     /**
-     * Checks if the Chinese model is downloaded and ready.
-     * Checks for common model files that indicate a valid Vosk model.
+     * Gets the user-configured model zip file URI.
+     * Returns null if not set.
      */
-    fun isModelAvailable(): Boolean {
-        if (!modelDir.exists()) return false
-        // Check for common files in Vosk models (different models may have different structures)
+    fun getModelZipUri(): String? {
+        return SettingsManager.getVoskModelPath(context)
+    }
+
+    /**
+     * Gets the model zip file name for display.
+     */
+    fun getModelZipName(): String? {
+        val uriStr = getModelZipUri() ?: return null
+        return try {
+            val uri = Uri.parse(uriStr)
+            uri.lastPathSegment?.substringAfterLast('/') ?: uriStr.substringAfterLast('/')
+        } catch (e: Exception) {
+            uriStr.substringAfterLast('/')
+        }
+    }
+
+    /**
+     * Checks if the model has been extracted and is available.
+     */
+    fun isModelExtracted(): Boolean {
+        if (!extractedModelDir.exists()) return false
+        // Check for common files in Vosk models
         val possibleFiles = listOf(
-            File(modelDir, "am/final.mdl"),      // Standard Kaldi model
-            File(modelDir, "graph/Gr.fst"),       // Graph file
-            File(modelDir, "conf/model.conf"),    // Config file
-            File(modelDir, "ivector/final.ie")    // iVector extractor
+            File(extractedModelDir, "am/final.mdl"),
+            File(extractedModelDir, "graph/Gr.fst"),
+            File(extractedModelDir, "conf/model.conf"),
+            File(extractedModelDir, "ivector/final.ie")
         )
-        // Model is available if at least one key file exists
         return possibleFiles.any { it.exists() }
+    }
+
+    /**
+     * Checks if a zip file is configured.
+     */
+    fun isZipConfigured(): Boolean {
+        return getModelZipUri() != null
     }
 
     /**
@@ -91,78 +124,105 @@ class VoskSpeechRecognizer(private val context: Context) {
     fun getModelStatus(): ModelStatus {
         return when {
             isModelReady -> ModelStatus.READY
-            isModelLoading -> ModelStatus.EXTRACTING
-            isModelAvailable() -> ModelStatus.AVAILABLE
-            else -> ModelStatus.NOT_EXTRACTED
+            isModelLoading -> ModelStatus.LOADING
+            isExtracting -> ModelStatus.EXTRACTING
+            isModelExtracted() -> ModelStatus.AVAILABLE
+            isZipConfigured() -> ModelStatus.ZIP_CONFIGURED
+            else -> ModelStatus.NOT_CONFIGURED
         }
     }
 
     /**
-     * Checks if the model is bundled in assets.
+     * Extracts the zip file to internal storage.
      */
-    private fun isModelBundled(): Boolean {
-        return try {
-            val files = context.assets.list(ASSETS_MODEL_PATH)
-            files != null && files.isNotEmpty()
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    /**
-     * Extracts the bundled model from assets to filesystem.
-     * Vosk requires a filesystem path, so we need to copy from assets.
-     */
-    fun extractBundledModel(
+    fun extractZipModel(
         onProgress: ((Int, String) -> Unit)? = null,
         onComplete: ((Boolean, String?) -> Unit)? = null
     ) {
-        if (isModelAvailable()) {
-            onComplete?.invoke(true, null)
+        val uriStr = getModelZipUri()
+        if (uriStr == null) {
+            onComplete?.invoke(false, "No zip file configured")
             return
         }
 
-        if (isModelLoading) {
+        if (isExtracting) {
             onComplete?.invoke(false, "Extraction already in progress")
             return
         }
 
-        if (!isModelBundled()) {
-            onComplete?.invoke(false, "Model not bundled in app")
-            return
-        }
-
-        isModelLoading = true
-        onModelLoadProgressListener = onProgress
+        isExtracting = true
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 withContext(Dispatchers.Main) {
-                    onProgress?.invoke(0, "Extracting model...")
+                    onProgress?.invoke(0, "Preparing to extract...")
                 }
 
-                // Create model directory
-                modelDir.mkdirs()
+                // Delete existing extracted model
+                if (extractedModelDir.exists()) {
+                    extractedModelDir.deleteRecursively()
+                }
+                extractedModelDir.mkdirs()
 
-                // Copy all files from assets to filesystem
-                copyAssetsFolder(ASSETS_MODEL_PATH, modelDir) { progress ->
-                    CoroutineScope(Dispatchers.Main).launch {
-                        onProgress?.invoke(progress, "Extracting model ($progress%)...")
+                val uri = Uri.parse(uriStr)
+                val inputStream = context.contentResolver.openInputStream(uri)
+                    ?: throw IOException("Cannot open zip file")
+
+                ZipInputStream(inputStream).use { zipIn ->
+                    var entry = zipIn.nextEntry
+                    var fileCount = 0
+                    val totalEstimate = 50 // Estimate for progress
+
+                    while (entry != null) {
+                        // Handle nested folder structure (e.g., vosk-model-small-cn-0.22/...)
+                        var entryName = entry.name
+                        // Remove the first directory level if it exists
+                        if (entryName.contains('/')) {
+                            val parts = entryName.split('/', limit = 2)
+                            if (parts.size > 1 && parts[1].isNotEmpty()) {
+                                entryName = parts[1]
+                            } else {
+                                // Skip the top-level directory entry itself
+                                entry = zipIn.nextEntry
+                                continue
+                            }
+                        }
+
+                        val destFile = File(extractedModelDir, entryName)
+
+                        if (entry.isDirectory) {
+                            destFile.mkdirs()
+                        } else {
+                            destFile.parentFile?.mkdirs()
+                            FileOutputStream(destFile).use { output ->
+                                val buffer = ByteArray(8192)
+                                var len: Int
+                                while (zipIn.read(buffer).also { len = it } > 0) {
+                                    output.write(buffer, 0, len)
+                                }
+                            }
+                            fileCount++
+                            val progress = (fileCount * 100 / totalEstimate).coerceIn(0, 99)
+                            withContext(Dispatchers.Main) {
+                                onProgress?.invoke(progress, "Extracting files ($fileCount)...")
+                            }
+                        }
+                        zipIn.closeEntry()
+                        entry = zipIn.nextEntry
                     }
                 }
 
                 withContext(Dispatchers.Main) {
-                    onProgress?.invoke(100, "Model ready!")
-                    isModelLoading = false
+                    onProgress?.invoke(100, "Extraction complete!")
+                    isExtracting = false
                     onComplete?.invoke(true, null)
                 }
-
-                Log.d(TAG, "Model extracted from assets successfully")
+                Log.d(TAG, "Model extracted successfully to ${extractedModelDir.absolutePath}")
 
             } catch (e: Exception) {
-                Log.e(TAG, "Error extracting model from assets", e)
+                Log.e(TAG, "Error extracting zip model", e)
                 withContext(Dispatchers.Main) {
-                    isModelLoading = false
+                    isExtracting = false
                     onComplete?.invoke(false, e.message ?: "Extraction failed")
                 }
             }
@@ -170,63 +230,33 @@ class VoskSpeechRecognizer(private val context: Context) {
     }
 
     /**
-     * Recursively copies a folder from assets to the filesystem.
+     * Deletes the extracted model to free up space.
      */
-    private fun copyAssetsFolder(assetsPath: String, destDir: File, onProgress: (Int) -> Unit) {
-        val assetManager = context.assets
-
-        // First, count total files for progress
-        val allFiles = mutableListOf<String>()
-        collectAssetFiles(assetsPath, allFiles)
-        val totalFiles = allFiles.size
-        var copiedFiles = 0
-
-        // Copy each file
-        for (filePath in allFiles) {
-            val relativePath = filePath.removePrefix("$assetsPath/")
-            val destFile = File(destDir, relativePath)
-
-            destFile.parentFile?.mkdirs()
-
-            assetManager.open(filePath).use { input ->
-                FileOutputStream(destFile).use { output ->
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
-                    }
-                }
+    fun deleteExtractedModel(): Boolean {
+        return try {
+            release()
+            if (extractedModelDir.exists()) {
+                extractedModelDir.deleteRecursively()
             }
-
-            copiedFiles++
-            val progress = (copiedFiles * 100 / totalFiles).coerceIn(0, 99)
-            onProgress(progress)
+            Log.d(TAG, "Extracted model deleted")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting extracted model", e)
+            false
         }
     }
 
     /**
-     * Recursively collects all file paths in an assets folder.
+     * Gets the size of the extracted model in bytes.
      */
-    private fun collectAssetFiles(path: String, fileList: MutableList<String>) {
-        val assetManager = context.assets
-        val files = assetManager.list(path) ?: return
-
-        for (file in files) {
-            val fullPath = "$path/$file"
-            val subFiles = assetManager.list(fullPath)
-
-            if (subFiles.isNullOrEmpty()) {
-                // It's a file
-                fileList.add(fullPath)
-            } else {
-                // It's a directory, recurse
-                collectAssetFiles(fullPath, fileList)
-            }
-        }
+    fun getExtractedModelSize(): Long {
+        if (!extractedModelDir.exists()) return 0
+        return extractedModelDir.walkTopDown().filter { it.isFile }.map { it.length() }.sum()
     }
 
     /**
      * Initializes the Vosk model. Must be called before starting recognition.
+     * If model is not extracted yet, it will be extracted first.
      */
     fun initModel(onReady: ((Boolean, String?) -> Unit)? = null) {
         if (isModelReady && model != null) {
@@ -234,16 +264,19 @@ class VoskSpeechRecognizer(private val context: Context) {
             return
         }
 
-        if (!isModelAvailable()) {
-            onReady?.invoke(false, "Model not downloaded")
+        if (!isModelExtracted()) {
+            onReady?.invoke(false, "Model not extracted. Please extract the model first.")
             return
         }
 
+        isModelLoading = true
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                Log.d(TAG, "Loading Vosk model from: ${modelDir.absolutePath}")
-                model = Model(modelDir.absolutePath)
+                Log.d(TAG, "Loading Vosk model from: ${extractedModelDir.absolutePath}")
+                model = Model(extractedModelDir.absolutePath)
                 isModelReady = true
+                isModelLoading = false
 
                 withContext(Dispatchers.Main) {
                     onReady?.invoke(true, null)
@@ -252,6 +285,7 @@ class VoskSpeechRecognizer(private val context: Context) {
 
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading model", e)
+                isModelLoading = false
                 withContext(Dispatchers.Main) {
                     onReady?.invoke(false, e.message ?: "Failed to load model")
                 }
@@ -365,24 +399,31 @@ class VoskSpeechRecognizer(private val context: Context) {
     }
 
     /**
-     * Deletes the extracted model to free up space.
+     * Clears the configured zip file and optionally deletes extracted model.
      */
-    fun deleteModel(): Boolean {
-        return try {
-            release()
-            modelDir.deleteRecursively()
-            Log.d(TAG, "Model deleted")
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Error deleting model", e)
-            false
+    fun clearZipConfig(deleteExtracted: Boolean = true) {
+        release()
+        SettingsManager.setVoskModelPath(context, null)
+        if (deleteExtracted) {
+            deleteExtractedModel()
         }
+        Log.d(TAG, "Zip config cleared")
+    }
+
+    /**
+     * Reloads the model (useful after changing the model).
+     */
+    fun reloadModel(onReady: ((Boolean, String?) -> Unit)? = null) {
+        release()
+        initModel(onReady)
     }
 
     enum class ModelStatus {
-        NOT_EXTRACTED,
-        EXTRACTING,
-        AVAILABLE,
-        READY
+        NOT_CONFIGURED,  // No zip file configured
+        ZIP_CONFIGURED,  // Zip file set but not extracted yet
+        EXTRACTING,      // Zip is being extracted
+        AVAILABLE,       // Model extracted and ready to load
+        LOADING,         // Model is being loaded into memory
+        READY            // Model loaded and ready for use
     }
 }
