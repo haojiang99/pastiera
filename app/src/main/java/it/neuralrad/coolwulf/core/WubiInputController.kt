@@ -193,15 +193,101 @@ class WubiInputController(
         updateCandidates()
         Log.d(TAG, "Letter added: '$lowerChar' → Buffer: '$buffer', Candidates: ${allCandidates.joinToString(", ")}")
 
-        // In Wubi, if we have exactly 4 characters and only one candidate,
-        // we can auto-commit it (traditional Wubi behavior)
-        // But only when there are Wubi candidates - if no candidates, user might be typing English
-        if (buffer.length == MAX_WUBI_CODE_LENGTH && allCandidates.size == 1) {
-            Log.d(TAG, "Auto-commit single candidate at max Wubi code length")
-            // Don't auto-commit - let user decide
+        return true
+    }
+
+    /**
+     * Checks if overflow auto-commit should happen before adding a new letter.
+     * Overflow auto-commit occurs when:
+     * - The overflow setting is enabled
+     * - Buffer already has 4 characters (max Wubi code length)
+     * - There is at least 1 candidate
+     *
+     * This is called BEFORE adding a new letter to handle 5th letter scenario.
+     *
+     * @return The candidate to auto-commit, or null if overflow should not happen
+     */
+    fun checkOverflowCommit(): String? {
+        if (!SettingsManager.isWubiAutoCommitOverflow(context)) {
+            return null
         }
 
-        return true
+        if (buffer.length != MAX_WUBI_CODE_LENGTH) {
+            return null
+        }
+
+        if (allCandidates.isEmpty()) {
+            return null
+        }
+
+        val candidate = allCandidates[0]
+        Log.d(TAG, "Overflow auto-commit triggered: '$candidate' (buffer was '$buffer')")
+
+        // Record in user memory if enabled
+        if (isMemoryEnabled() && lastUsedWubiCode.isNotEmpty()) {
+            userMemory.recordSelection(lastUsedWubiCode, candidate)
+        }
+
+        // Track selection for auto-phrase learning
+        if (isAutoPhraseLearningEnabled() && lastUsedWubiCode.isNotEmpty() && candidate.length == 1) {
+            sessionSelections.add(lastUsedWubiCode to candidate)
+        }
+
+        // Record for next-word prediction
+        nextWordPredictor.recordCommittedWord(candidate)
+
+        // Clear the buffer (new letter will be added by caller)
+        buffer.clear()
+        allCandidates = emptyList()
+        currentPage = 0
+        lastUsedWubiCode = ""
+
+        return candidate
+    }
+
+    /**
+     * Checks if auto-commit should happen for the current buffer.
+     * Auto-commit occurs when:
+     * - The setting is enabled
+     * - Buffer has exactly 4 characters (max Wubi code length)
+     * - There is exactly 1 candidate
+     *
+     * @return The candidate to auto-commit, or null if auto-commit should not happen
+     */
+    fun checkAutoCommit(): String? {
+        if (!SettingsManager.isWubiAutoCommitSingle(context)) {
+            return null
+        }
+
+        if (buffer.length != MAX_WUBI_CODE_LENGTH) {
+            return null
+        }
+
+        if (allCandidates.size != 1) {
+            return null
+        }
+
+        val candidate = allCandidates[0]
+        Log.d(TAG, "Auto-commit triggered for single candidate: '$candidate'")
+
+        // Record in user memory if enabled
+        if (isMemoryEnabled() && lastUsedWubiCode.isNotEmpty()) {
+            userMemory.recordSelection(lastUsedWubiCode, candidate)
+        }
+
+        // Track selection for auto-phrase learning
+        if (isAutoPhraseLearningEnabled() && lastUsedWubiCode.isNotEmpty() && candidate.length == 1) {
+            sessionSelections.add(lastUsedWubiCode to candidate)
+        }
+
+        // Record for next-word prediction
+        nextWordPredictor.recordCommittedWord(candidate)
+
+        // Clear the buffer
+        buffer.clear()
+        lastUsedWubiCode = ""
+
+        return candidate
     }
 
     /**

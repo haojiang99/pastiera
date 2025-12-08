@@ -1437,9 +1437,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val buffer = shuangpinInputController.getBuffer()
             ic.setComposingText(buffer, 1)
         } else if (wubiInputController.isWubiMode() && char.isLetter()) {
+            // Check for overflow commit (5th letter scenario) BEFORE adding the letter
+            val overflowCommit = wubiInputController.checkOverflowCommit()
+            if (overflowCommit != null) {
+                ic.commitText(overflowCommit, 1)
+            }
             wubiInputController.handleLetterKey(char.lowercaseChar())
-            val buffer = wubiInputController.getBuffer()
-            ic.setComposingText(buffer, 1)
+            // Check for auto-commit (4-char code with single candidate)
+            val autoCommit = wubiInputController.checkAutoCommit()
+            if (autoCommit != null) {
+                ic.commitText(autoCommit, 1)
+            } else {
+                val buffer = wubiInputController.getBuffer()
+                ic.setComposingText(buffer, 1)
+            }
         } else if (zhenmaInputController.isZhenmaMode() && char.isLetter()) {
             zhenmaInputController.handleLetterKey(char.lowercaseChar())
             val buffer = zhenmaInputController.getBuffer()
@@ -4351,10 +4362,22 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         return true
                     }
 
+                    // Check for overflow commit (5th letter scenario) BEFORE adding the letter
+                    val overflowCommit = wubiInputController.checkOverflowCommit()
+                    if (overflowCommit != null) {
+                        ic.commitText(overflowCommit, 1)
+                    }
+
                     // Add letter to Wubi buffer
                     if (wubiInputController.handleLetterKey(char)) {
-                        val buffer = wubiInputController.getBuffer()
-                        ic.setComposingText(buffer, 1)
+                        // Check for auto-commit (4-char code with single candidate)
+                        val autoCommit = wubiInputController.checkAutoCommit()
+                        if (autoCommit != null) {
+                            ic.commitText(autoCommit, 1)
+                        } else {
+                            val buffer = wubiInputController.getBuffer()
+                            ic.setComposingText(buffer, 1)
+                        }
                         updateStatusBarText()
                         return true
                     }

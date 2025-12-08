@@ -123,6 +123,14 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.isWubiPhrasesFirst(context))
     }
 
+    var wubiAutoCommitSingle by remember {
+        mutableStateOf(SettingsManager.isWubiAutoCommitSingle(context))
+    }
+
+    var wubiAutoCommitOverflow by remember {
+        mutableStateOf(SettingsManager.isWubiAutoCommitOverflow(context))
+    }
+
     var shuangpinEnabled by remember {
         mutableStateOf(SettingsManager.getShuangpinEnabled(context))
     }
@@ -1130,6 +1138,94 @@ fun TextInputSettingsScreen(
                             }
                         )
                     }
+                }
+            }
+
+            // Wubi auto-commit single candidate toggle (only shown when Wubi is enabled)
+            if (wubiEnabled) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.TextFields,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.wubi_auto_commit_single_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = stringResource(R.string.wubi_auto_commit_single_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                        }
+                        Switch(
+                            checked = wubiAutoCommitSingle,
+                            onCheckedChange = { enabled ->
+                                wubiAutoCommitSingle = enabled
+                                SettingsManager.setWubiAutoCommitSingle(context, enabled)
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Wubi auto-commit overflow (5th letter) toggle
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.wubi_auto_commit_overflow_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.wubi_auto_commit_overflow_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                    Switch(
+                        checked = wubiAutoCommitOverflow,
+                        onCheckedChange = { enabled ->
+                            wubiAutoCommitOverflow = enabled
+                            SettingsManager.setWubiAutoCommitOverflow(context, enabled)
+                        }
+                    )
                 }
             }
 

@@ -71,6 +71,8 @@ object SettingsManager {
     private const val KEY_AUTO_PHRASE_MEMORY_ENABLED = "auto_phrase_memory_enabled" // Enable auto-learning of new phrases
     private const val KEY_WUBI_WITH_PINYIN_ENABLED = "wubi_with_pinyin_enabled" // Enable Pinyin fallback in Wubi mode
     private const val KEY_WUBI_PHRASES_FIRST = "wubi_phrases_first" // Wubi: show phrases before single characters
+    private const val KEY_WUBI_AUTO_COMMIT_SINGLE = "wubi_auto_commit_single" // Wubi: auto-commit when 4-char code has only 1 candidate
+    private const val KEY_WUBI_AUTO_COMMIT_OVERFLOW = "wubi_auto_commit_overflow" // Wubi: auto-commit on 5th letter and start new word
     private const val KEY_CANDIDATE_FONT_SIZE = "candidate_font_size" // Font size for candidates/suggestions
     private const val KEY_PARTIAL_PINYIN_MATCHING = "partial_pinyin_matching" // Enable partial pinyin matching for phrases
     private const val KEY_SHOW_VIRTUAL_KEYBOARD_BUTTON = "show_virtual_keyboard_button" // Show virtual keyboard toggle button in status bar
@@ -124,6 +126,8 @@ object SettingsManager {
     private const val DEFAULT_AUTO_PHRASE_MEMORY_ENABLED = true  // Auto-phrase memory enabled by default
     private const val DEFAULT_WUBI_WITH_PINYIN_ENABLED = false  // Wubi with Pinyin disabled by default
     private const val DEFAULT_WUBI_PHRASES_FIRST = false  // Single characters first by default (traditional Wubi behavior)
+    private const val DEFAULT_WUBI_AUTO_COMMIT_SINGLE = false  // Don't auto-commit by default
+    private const val DEFAULT_WUBI_AUTO_COMMIT_OVERFLOW = false  // Don't auto-commit on 5th letter by default
     private const val DEFAULT_CANDIDATE_FONT_SIZE = 18  // Default candidate font size in SP
     private const val MIN_CANDIDATE_FONT_SIZE = 12
     private const val MAX_CANDIDATE_FONT_SIZE = 28
@@ -1469,6 +1473,38 @@ object SettingsManager {
     fun setWubiPhrasesFirst(context: Context, phrasesFirst: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_WUBI_PHRASES_FIRST, phrasesFirst)
+            .apply()
+    }
+
+    /**
+     * Gets whether Wubi auto-commits when a 4-char code has only one candidate.
+     */
+    fun isWubiAutoCommitSingle(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_WUBI_AUTO_COMMIT_SINGLE, DEFAULT_WUBI_AUTO_COMMIT_SINGLE)
+    }
+
+    /**
+     * Sets whether Wubi auto-commits when a 4-char code has only one candidate.
+     */
+    fun setWubiAutoCommitSingle(context: Context, autoCommit: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_WUBI_AUTO_COMMIT_SINGLE, autoCommit)
+            .apply()
+    }
+
+    /**
+     * Gets whether Wubi auto-commits on 5th letter (overflow) and starts a new word.
+     */
+    fun isWubiAutoCommitOverflow(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_WUBI_AUTO_COMMIT_OVERFLOW, DEFAULT_WUBI_AUTO_COMMIT_OVERFLOW)
+    }
+
+    /**
+     * Sets whether Wubi auto-commits on 5th letter (overflow) and starts a new word.
+     */
+    fun setWubiAutoCommitOverflow(context: Context, autoCommit: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_WUBI_AUTO_COMMIT_OVERFLOW, autoCommit)
             .apply()
     }
 

@@ -551,6 +551,10 @@
     <string name="wubi_with_pinyin_description">Enable Pinyin input in Wubi mode, Pinyin candidates appear after Wubi candidates</string>
     <string name="wubi_phrases_first_title">Phrases First</string>
     <string name="wubi_phrases_first_description">High frequency phrases appear before single characters (requires 2+ uses)</string>
+    <string name="wubi_auto_commit_single_title">Auto-commit Single Candidate</string>
+    <string name="wubi_auto_commit_single_description">When a 4-character code has only one candidate, automatically insert it without pressing space</string>
+    <string name="wubi_auto_commit_overflow_title">Auto-commit on 5th Letter</string>
+    <string name="wubi_auto_commit_overflow_description">When typing 5th letter, auto-insert the first candidate of current 4 letters and start new word</string>
 
     <!-- Learned Phrases -->
     <string name="learned_phrases_title">Learned Phrases</string>
