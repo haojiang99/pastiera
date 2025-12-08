@@ -461,7 +461,39 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             else -> false
         }
     }
-    
+
+    /**
+     * Handles Enter key based on EditorInfo.imeOptions.
+     * Returns true if an action was performed (Send, Search, Go, Done, Next),
+     * false if Enter should insert a newline (default behavior).
+     */
+    private fun handleEnterAction(ic: InputConnection): Boolean {
+        val info = currentInputEditorInfo ?: return false
+
+        // Check if IME_FLAG_NO_ENTER_ACTION is set - if so, always insert newline
+        if ((info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0) {
+            return false
+        }
+
+        // Get the action from imeOptions
+        val action = info.imeOptions and EditorInfo.IME_MASK_ACTION
+
+        // Perform the action if it's a specific action type
+        return when (action) {
+            EditorInfo.IME_ACTION_SEND,
+            EditorInfo.IME_ACTION_SEARCH,
+            EditorInfo.IME_ACTION_GO,
+            EditorInfo.IME_ACTION_DONE,
+            EditorInfo.IME_ACTION_NEXT,
+            EditorInfo.IME_ACTION_PREVIOUS -> {
+                ic.performEditorAction(action)
+                true
+            }
+            // IME_ACTION_NONE, IME_ACTION_UNSPECIFIED, or unknown - insert newline
+            else -> false
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         prefs = getSharedPreferences("pastiera_prefs", Context.MODE_PRIVATE)
@@ -2786,6 +2818,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         updateStatusBarText()
                         return true
                     }
+                }
+            }
+
+            // After handling Chinese input buffers, check if Enter should perform an action
+            // (Send, Search, Go, Done, Next) instead of inserting a newline
+            if (!shiftPressed && !ctrlPressed && !altPressed && ic != null) {
+                if (handleEnterAction(ic)) {
+                    return true
                 }
             }
         }
