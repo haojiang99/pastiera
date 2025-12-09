@@ -197,28 +197,28 @@ object WubiDictionary {
         val results = mutableListOf<Pair<String, String>>()
         val seen = mutableSetOf<String>()
 
-        // Convert pattern to regex: replace 'z' with [a-y] (any letter except z)
-        val regexPattern = buildWildcardRegex(normalized)
+        // Use fast character-by-character matching instead of regex
+        val patternLen = normalized.length
 
-        // Search all dictionary codes that match the pattern
-        val matchingCodes = dictionary.keys
-            .filter { code ->
-                // Code must be same length as pattern for exact match
-                // OR code starts with pattern (for prefix matching when z is not at end)
-                if (code.length == normalized.length) {
-                    regexPattern.matches(code)
-                } else if (code.length > normalized.length && !normalized.endsWith('z')) {
-                    // For prefix matching (when pattern doesn't end with z)
-                    val prefixRegex = buildWildcardRegex(normalized, isPrefix = true)
-                    prefixRegex.containsMatchIn(code)
-                } else {
-                    false
+        // Collect matching codes efficiently
+        val matchingCodes = mutableListOf<String>()
+
+        for (code in dictionary.keys) {
+            if (code.length == patternLen) {
+                // Exact length match - check character by character
+                if (matchesWildcardPattern(code, normalized)) {
+                    matchingCodes.add(code)
+                }
+            } else if (code.length > patternLen && !normalized.endsWith('z')) {
+                // Prefix match - check if code starts with pattern (with wildcards)
+                if (matchesWildcardPatternPrefix(code, normalized)) {
+                    matchingCodes.add(code)
                 }
             }
-            .sortedWith(compareBy(
-                { it.length },  // Shorter codes first
-                { it }          // Then alphabetically
-            ))
+        }
+
+        // Sort: shorter codes first, then alphabetically
+        matchingCodes.sortWith(compareBy({ it.length }, { it }))
 
         // Collect candidates from matching codes
         for (code in matchingCodes) {
@@ -238,24 +238,40 @@ object WubiDictionary {
     }
 
     /**
-     * Builds a regex pattern from Wubi code with 'z' as wildcard.
-     * @param pattern The pattern (e.g., "rwyz")
-     * @param isPrefix If true, creates a prefix-matching regex
-     * @return Regex that matches codes where 'z' can be any letter a-y
+     * Fast wildcard pattern matching without regex.
+     * Checks if code matches pattern where 'z' is wildcard for any letter a-y.
      */
-    private fun buildWildcardRegex(pattern: String, isPrefix: Boolean = false): Regex {
-        val regexStr = buildString {
-            if (isPrefix) append("^")
-            for (char in pattern) {
-                when (char) {
-                    'z' -> append("[a-y]")  // z matches any letter except z itself
-                    in 'a'..'y' -> append(char)
-                    else -> append(Regex.escape(char.toString()))
-                }
+    private fun matchesWildcardPattern(code: String, pattern: String): Boolean {
+        if (code.length != pattern.length) return false
+        for (i in pattern.indices) {
+            val p = pattern[i]
+            val c = code[i]
+            if (p == 'z') {
+                // z matches any letter a-y (not z itself)
+                if (c !in 'a'..'y') return false
+            } else {
+                if (c != p) return false
             }
-            if (!isPrefix) append("$")
         }
-        return Regex(regexStr)
+        return true
+    }
+
+    /**
+     * Fast wildcard prefix matching without regex.
+     * Checks if code starts with pattern where 'z' is wildcard.
+     */
+    private fun matchesWildcardPatternPrefix(code: String, pattern: String): Boolean {
+        if (code.length < pattern.length) return false
+        for (i in pattern.indices) {
+            val p = pattern[i]
+            val c = code[i]
+            if (p == 'z') {
+                if (c !in 'a'..'y') return false
+            } else {
+                if (c != p) return false
+            }
+        }
+        return true
     }
 
     /**

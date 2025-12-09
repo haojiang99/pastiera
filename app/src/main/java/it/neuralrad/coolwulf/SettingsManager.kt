@@ -55,6 +55,7 @@ object SettingsManager {
     private const val KEY_STATIC_VARIATION_BAR_MODE = "static_variation_bar_mode" // Static variation bar mode
     private const val KEY_TUTORIAL_COMPLETED = "tutorial_completed" // Tutorial completion status
     private const val KEY_DEVICE_TYPE = "device_type" // Device type: "titan2" or "blackberry"
+    private const val KEY_APP_LANGUAGE = "app_language" // App interface language: "system", "en", "zh"
     private const val KEY_SHOW_VOICE_INPUT_BUTTON = "show_voice_input_button" // Show voice input button in status bar
     private const val KEY_CLIPBOARD_HISTORY_ENABLED = "clipboard_history_enabled" // Enable clipboard history
     private const val KEY_SHOW_CLIPBOARD_BUTTON = "show_clipboard_button" // Show clipboard button in status bar
@@ -75,6 +76,7 @@ object SettingsManager {
     private const val KEY_WUBI_PHRASES_FIRST = "wubi_phrases_first" // Wubi: show phrases before single characters
     private const val KEY_WUBI_AUTO_COMMIT_SINGLE = "wubi_auto_commit_single" // Wubi: auto-commit when 4-char code has only 1 candidate
     private const val KEY_WUBI_AUTO_COMMIT_OVERFLOW = "wubi_auto_commit_overflow" // Wubi: auto-commit on 5th letter and start new word
+    private const val KEY_WUBI_Z_KEY_MODE = "wubi_z_key_mode" // Wubi: Z key function mode: "disabled", "wildcard", "symbol"
     private const val KEY_CANDIDATE_FONT_SIZE = "candidate_font_size" // Font size for candidates/suggestions
     private const val KEY_PARTIAL_PINYIN_MATCHING = "partial_pinyin_matching" // Enable partial pinyin matching for phrases
     private const val KEY_SHOW_VIRTUAL_KEYBOARD_BUTTON = "show_virtual_keyboard_button" // Show virtual keyboard toggle button in status bar
@@ -139,6 +141,7 @@ object SettingsManager {
     private const val DEFAULT_WUBI_PHRASES_FIRST = false  // Single characters first by default (traditional Wubi behavior)
     private const val DEFAULT_WUBI_AUTO_COMMIT_SINGLE = false  // Don't auto-commit by default
     private const val DEFAULT_WUBI_AUTO_COMMIT_OVERFLOW = false  // Don't auto-commit on 5th letter by default
+    private const val DEFAULT_WUBI_Z_KEY_MODE = "wildcard"  // Z key mode: "disabled", "wildcard", "symbol"
     private const val DEFAULT_CANDIDATE_FONT_SIZE = 18  // Default candidate font size in SP
     private const val MIN_CANDIDATE_FONT_SIZE = 12
     private const val MAX_CANDIDATE_FONT_SIZE = 28
@@ -1508,6 +1511,24 @@ object SettingsManager {
     }
 
     /**
+     * Gets the app interface language setting.
+     * @return "system" (follow system), "en" (English), or "zh" (Chinese)
+     */
+    fun getAppLanguage(context: Context): String {
+        return getPreferences(context).getString(KEY_APP_LANGUAGE, "system") ?: "system"
+    }
+
+    /**
+     * Sets the app interface language.
+     * @param language "system", "en", or "zh"
+     */
+    fun setAppLanguage(context: Context, language: String) {
+        getPreferences(context).edit()
+            .putString(KEY_APP_LANGUAGE, language)
+            .apply()
+    }
+
+    /**
      * Gets whether the memory function is enabled.
      * When enabled, candidate words are reordered based on user selection frequency.
      */
@@ -1675,6 +1696,38 @@ object SettingsManager {
         getPreferences(context).edit()
             .putBoolean(KEY_WUBI_AUTO_COMMIT_OVERFLOW, autoCommit)
             .apply()
+    }
+
+    /**
+     * Gets the Wubi Z key mode.
+     * @return "disabled", "wildcard", or "symbol"
+     */
+    fun getWubiZKeyMode(context: Context): String {
+        return getPreferences(context).getString(KEY_WUBI_Z_KEY_MODE, DEFAULT_WUBI_Z_KEY_MODE) ?: DEFAULT_WUBI_Z_KEY_MODE
+    }
+
+    /**
+     * Sets the Wubi Z key mode.
+     * @param mode "disabled", "wildcard", or "symbol"
+     */
+    fun setWubiZKeyMode(context: Context, mode: String) {
+        getPreferences(context).edit()
+            .putString(KEY_WUBI_Z_KEY_MODE, mode)
+            .apply()
+    }
+
+    /**
+     * Returns whether Wubi Z key wildcard mode is enabled.
+     */
+    fun isWubiZKeyWildcardEnabled(context: Context): Boolean {
+        return getWubiZKeyMode(context) == "wildcard"
+    }
+
+    /**
+     * Returns whether Wubi Z key symbol mode is enabled.
+     */
+    fun isWubiZKeySymbolEnabled(context: Context): Boolean {
+        return getWubiZKeyMode(context) == "symbol"
     }
 
     /**

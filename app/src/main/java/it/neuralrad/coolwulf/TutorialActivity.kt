@@ -39,6 +39,7 @@ import it.neuralrad.coolwulf.BuildConfig
 
 class TutorialActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        LocaleHelper.applyLocale(this)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {

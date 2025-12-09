@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Folder
@@ -159,6 +160,11 @@ fun TextInputSettingsScreen(
     var wubiAutoCommitOverflow by remember {
         mutableStateOf(SettingsManager.isWubiAutoCommitOverflow(context))
     }
+
+    var wubiZKeyMode by remember {
+        mutableStateOf(SettingsManager.getWubiZKeyMode(context))
+    }
+    var wubiZKeyModeExpanded by remember { mutableStateOf(false) }
 
     var shuangpinEnabled by remember {
         mutableStateOf(SettingsManager.getShuangpinEnabled(context))
@@ -1612,6 +1618,123 @@ fun TextInputSettingsScreen(
                                 SettingsManager.setWubiAutoCommitOverflow(context, enabled)
                             }
                         )
+                    }
+                }
+
+                // Wubi Z Key Mode dropdown
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .padding(start = 40.dp)  // Indent as sub-option
+                        .clickable { wubiZKeyModeExpanded = true }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.TextFields,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.wubi_z_key_mode_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            val currentModeLabel = when (wubiZKeyMode) {
+                                "disabled" -> stringResource(R.string.wubi_z_key_mode_disabled)
+                                "wildcard" -> stringResource(R.string.wubi_z_key_mode_wildcard)
+                                "symbol" -> stringResource(R.string.wubi_z_key_mode_symbol)
+                                else -> stringResource(R.string.wubi_z_key_mode_wildcard)
+                            }
+                            Text(
+                                text = currentModeLabel,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                        Box {
+                            DropdownMenu(
+                                expanded = wubiZKeyModeExpanded,
+                                onDismissRequest = { wubiZKeyModeExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(stringResource(R.string.wubi_z_key_mode_disabled))
+                                            Text(
+                                                stringResource(R.string.wubi_z_key_mode_disabled_desc),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        wubiZKeyMode = "disabled"
+                                        SettingsManager.setWubiZKeyMode(context, "disabled")
+                                        wubiZKeyModeExpanded = false
+                                    },
+                                    leadingIcon = {
+                                        if (wubiZKeyMode == "disabled") {
+                                            Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(stringResource(R.string.wubi_z_key_mode_wildcard))
+                                            Text(
+                                                stringResource(R.string.wubi_z_key_mode_wildcard_desc),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        wubiZKeyMode = "wildcard"
+                                        SettingsManager.setWubiZKeyMode(context, "wildcard")
+                                        wubiZKeyModeExpanded = false
+                                    },
+                                    leadingIcon = {
+                                        if (wubiZKeyMode == "wildcard") {
+                                            Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(stringResource(R.string.wubi_z_key_mode_symbol))
+                                            Text(
+                                                stringResource(R.string.wubi_z_key_mode_symbol_desc),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        wubiZKeyMode = "symbol"
+                                        SettingsManager.setWubiZKeyMode(context, "symbol")
+                                        wubiZKeyModeExpanded = false
+                                    },
+                                    leadingIcon = {
+                                        if (wubiZKeyMode == "symbol") {
+                                            Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }

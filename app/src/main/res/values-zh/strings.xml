@@ -14,6 +14,13 @@
     <string name="back">返回</string>
     <string name="settings_back_content_description">返回</string>
 
+    <!-- App Language Section -->
+    <string name="app_language_title">界面语言</string>
+    <string name="app_language_description">选择设置界面的显示语言</string>
+    <string name="app_language_system">跟随系统</string>
+    <string name="app_language_english">English</string>
+    <string name="app_language_chinese">中文</string>
+
     <!-- Long Press Section -->
     <string name="long_press_title">长按</string>
     <string name="long_press_duration">长按时长：%1$d毫秒</string>
@@ -582,6 +589,14 @@
     <string name="wubi_auto_commit_single_description">当四码只有一个候选词时，自动上屏无需按空格键</string>
     <string name="wubi_auto_commit_overflow_title">五码自动上屏</string>
     <string name="wubi_auto_commit_overflow_description">输入第5个字母时，自动上屏当前四码的首选词并开始新词输入</string>
+    <string name="wubi_z_key_mode_title">Z键功能</string>
+    <string name="wubi_z_key_mode_description">配置五笔模式下Z键的特殊功能</string>
+    <string name="wubi_z_key_mode_disabled">禁用</string>
+    <string name="wubi_z_key_mode_disabled_desc">Z是普通字母</string>
+    <string name="wubi_z_key_mode_wildcard">万能键</string>
+    <string name="wubi_z_key_mode_wildcard_desc">Z匹配任意字符（万能学习键）</string>
+    <string name="wubi_z_key_mode_symbol">符号键</string>
+    <string name="wubi_z_key_mode_symbol_desc">Z+字母输入数字/符号</string>
 
     <!-- Learned Phrases -->
     <string name="learned_phrases_title">已学习词组</string>

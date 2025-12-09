@@ -105,6 +105,29 @@ class WubiInputController(
     // Whether to use Chinese punctuation (true) or English punctuation (false)
     private var useChinesePunctuation: Boolean = true
 
+    // Z key symbol mode state: true when Z was pressed and waiting for next key
+    private var zKeySymbolActive: Boolean = false
+
+    // Z key symbol mappings for English punctuation
+    private val zKeySymbolMapEnglish = mapOf(
+        'q' to "0", 'w' to "1", 'e' to "2", 'r' to "3", 't' to "(",
+        'y' to ")", 'u' to "-", 'i' to "_", 'o' to "/", 'p' to ":",
+        'a' to "@", 's' to "4", 'd' to "5", 'f' to "6", 'g' to "*",
+        'h' to "#", 'j' to "+", 'k' to "\"", 'l' to "'",
+        'z' to "!", 'x' to "7", 'c' to "8", 'v' to "9", 'b' to ".",
+        'n' to ",", 'm' to "?"
+    )
+
+    // Z key symbol mappings for Chinese punctuation (only punctuation changes, numbers stay the same)
+    private val zKeySymbolMapChinese = mapOf(
+        'q' to "0", 'w' to "1", 'e' to "2", 'r' to "3", 't' to "（",  // Chinese parenthesis
+        'y' to "）", 'u' to "—", 'i' to "——", 'o' to "、", 'p' to "：",  // Chinese dash, dun hao, colon
+        'a' to "@", 's' to "4", 'd' to "5", 'f' to "6", 'g' to "*",
+        'h' to "#", 'j' to "+", 'k' to "\u201C", 'l' to "\u2018",  // Chinese double and single quotes (using unicode)
+        'z' to "！", 'x' to "7", 'c' to "8", 'v' to "9", 'b' to "。",  // Chinese period
+        'n' to "，", 'm' to "？"  // Chinese comma and question mark
+    )
+
     data class Snapshot(
         val isActive: Boolean,
         val buffer: String,
@@ -154,22 +177,54 @@ class WubiInputController(
     fun isWubiMode(): Boolean = isWubiModeActive
 
     /**
+     * Result of handling a letter key in Wubi mode.
+     */
+    sealed class LetterKeyResult {
+        object NotHandled : LetterKeyResult()
+        object Handled : LetterKeyResult()
+        data class SymbolOutput(val symbol: String) : LetterKeyResult()
+    }
+
+    /**
      * Processes a letter key press in Wubi mode.
      * Adds the letter to the buffer and updates candidates.
      * @param char The character to add (a-z)
-     * @return true if the key was handled, false otherwise
+     * @return LetterKeyResult indicating how the key was handled
      */
-    fun handleLetterKey(char: Char): Boolean {
+    fun handleLetterKeyWithResult(char: Char): LetterKeyResult {
         if (!isWubiModeActive) {
             Log.d(TAG, "handleLetterKey: Wubi mode not active")
-            return false
+            return LetterKeyResult.NotHandled
         }
 
         // Only accept lowercase letters
         val lowerChar = char.lowercaseChar()
         if (!lowerChar.isLetter() || lowerChar < 'a' || lowerChar > 'z') {
             Log.d(TAG, "handleLetterKey: Invalid character '$char'")
-            return false
+            return LetterKeyResult.NotHandled
+        }
+
+        // Check Z key symbol mode
+        val zKeyMode = SettingsManager.getWubiZKeyMode(context)
+        if (zKeyMode == "symbol") {
+            // If Z key symbol mode is active, check if this is a symbol input
+            if (zKeySymbolActive) {
+                // Z was pressed before, now output the symbol for this key
+                // Use Chinese or English symbol map based on punctuation mode
+                val symbolMap = if (useChinesePunctuation) zKeySymbolMapChinese else zKeySymbolMapEnglish
+                val symbol = symbolMap[lowerChar]
+                zKeySymbolActive = false
+                if (symbol != null) {
+                    Log.d(TAG, "Z key symbol: '$lowerChar' → '$symbol' (Chinese punctuation: $useChinesePunctuation)")
+                    return LetterKeyResult.SymbolOutput(symbol)
+                }
+                // If no mapping, treat as regular input (fall through)
+            } else if (lowerChar == 'z' && buffer.isEmpty()) {
+                // Z pressed with empty buffer - activate symbol mode
+                zKeySymbolActive = true
+                Log.d(TAG, "Z key symbol mode activated")
+                return LetterKeyResult.Handled
+            }
         }
 
         // Finalize any pending session when user starts new input
@@ -187,14 +242,39 @@ class WubiInputController(
         // Check buffer length limit for typing English words
         if (buffer.length >= MAX_BUFFER_LENGTH) {
             Log.w(TAG, "Buffer full, ignoring input")
-            return true
+            return LetterKeyResult.Handled
         }
 
         buffer.append(lowerChar)
         updateCandidates()
         Log.d(TAG, "Letter added: '$lowerChar' → Buffer: '$buffer', Candidates: ${allCandidates.joinToString(", ")}")
 
-        return true
+        return LetterKeyResult.Handled
+    }
+
+    /**
+     * Processes a letter key press in Wubi mode.
+     * Adds the letter to the buffer and updates candidates.
+     * @param char The character to add (a-z)
+     * @return true if the key was handled, false otherwise
+     */
+    fun handleLetterKey(char: Char): Boolean {
+        return when (handleLetterKeyWithResult(char)) {
+            is LetterKeyResult.NotHandled -> false
+            else -> true
+        }
+    }
+
+    /**
+     * Returns whether Z key symbol mode is currently active (waiting for next key).
+     */
+    fun isZKeySymbolActive(): Boolean = zKeySymbolActive
+
+    /**
+     * Clears Z key symbol mode state.
+     */
+    fun clearZKeySymbolState() {
+        zKeySymbolActive = false
     }
 
     /**
@@ -507,6 +587,8 @@ class WubiInputController(
         currentPage = 0
         // Clear session without finalizing (user cancelled input)
         sessionSelections.clear()
+        // Clear Z key symbol state
+        zKeySymbolActive = false
         Log.d(TAG, "Buffer cleared")
     }
 
@@ -524,6 +606,51 @@ class WubiInputController(
         return SettingsManager.isWubiPhrasesFirst(context)
     }
 
+    /**
+     * Checks if the input could be a valid Pinyin prefix.
+     * Used to avoid treating 'z' as wildcard when user is typing Pinyin like "za", "ze", "zi".
+     * @param input The input to check
+     * @return true if the input starts with a valid Pinyin initial that contains 'z'
+     */
+    private fun isPinyinPrefix(input: String): Boolean {
+        if (input.isEmpty()) return false
+        val lower = input.lowercase()
+
+        // Check if input starts with 'z' - these are valid Pinyin initials
+        // Valid Pinyin syllables starting with 'z': za, zai, zan, zang, zao, ze, zei, zen, zeng,
+        // zha, zhai, zhan, zhang, zhao, zhe, zhei, zhen, zheng, zhi, zhong, zhou, zhu, zhua,
+        // zhuai, zhuan, zhuang, zhui, zhun, zhuo, zi, zong, zou, zu, zuan, zui, zun, zuo
+        if (lower.startsWith("z")) {
+            // If it's just 'z', check if it could be start of pinyin or wubi
+            // Since 'z' alone could be either, we check for pinyin patterns
+            if (lower.length == 1) {
+                // Single 'z' - could be pinyin, check if pinyin candidates exist
+                return PinyinDictionary.getCandidatesForPrefix("z").isNotEmpty()
+            }
+
+            // Check common Pinyin patterns starting with 'z'
+            val pinyinPrefixes = listOf(
+                "za", "zai", "zan", "zang", "zao",
+                "ze", "zei", "zen", "zeng",
+                "zh", "zha", "zhai", "zhan", "zhang", "zhao",
+                "zhe", "zhei", "zhen", "zheng", "zhi", "zhong", "zhou",
+                "zhu", "zhua", "zhuai", "zhuan", "zhuang", "zhui", "zhun", "zhuo",
+                "zi", "zong", "zou",
+                "zu", "zuan", "zui", "zun", "zuo"
+            )
+
+            // Check if input matches or is a prefix of any valid pinyin
+            return pinyinPrefixes.any { pinyin ->
+                lower.startsWith(pinyin) || pinyin.startsWith(lower)
+            }
+        }
+
+        // For inputs not starting with 'z', check if 'z' appears in a valid position
+        // e.g., "nz" is not valid pinyin, but we don't need wildcard search for it either
+        // Just use normal prefix matching which is fast
+        return false
+    }
+
     // Store mapping of candidate -> actual Wubi code (for Z key learning display)
     private var candidateCodeMap = mutableMapOf<String, String>()
 
@@ -538,9 +665,16 @@ class WubiInputController(
 
     /**
      * Checks if the current input uses wildcard (Z key).
+     * Returns false if Z key wildcard is disabled in settings.
+     * Returns false if Wubi+Pinyin is enabled and input is a valid Pinyin prefix.
      */
     fun isUsingWildcard(): Boolean {
-        return WubiDictionary.containsWildcard(buffer.toString())
+        if (!SettingsManager.isWubiZKeyWildcardEnabled(context)) {
+            return false
+        }
+        val bufferStr = buffer.toString()
+        val containsZ = WubiDictionary.containsWildcard(bufferStr)
+        return containsZ && (!isWubiWithPinyinEnabled() || !isPinyinPrefix(bufferStr))
     }
 
     /**
@@ -579,11 +713,18 @@ class WubiInputController(
             Log.d(TAG, "Custom dictionary phrases for '$bufferStr': $customPhrases")
         }
 
-        // Check if buffer contains 'z' (wildcard key)
-        val useWildcard = WubiDictionary.containsWildcard(bufferStr)
+        // Check if buffer contains 'z' (wildcard key in Wubi)
+        // Only use wildcard matching if:
+        // 1. Z key wildcard is enabled in settings
+        // 2. Buffer contains 'z'
+        // 3. Wubi+Pinyin is disabled OR the input is not a valid Pinyin prefix
+        // This prevents performance issues when typing Pinyin syllables like "za", "ze", "zi"
+        val containsZ = WubiDictionary.containsWildcard(bufferStr)
+        val zKeyWildcardEnabled = SettingsManager.isWubiZKeyWildcardEnabled(context)
+        val useWildcard = zKeyWildcardEnabled && containsZ && (!isWubiWithPinyinEnabled() || !isPinyinPrefix(bufferStr))
 
         // Get candidates for the current code (both exact and prefix matches)
-        // If 'z' is present, use wildcard matching
+        // If 'z' is present and should be treated as wildcard, use wildcard matching
         val rawCandidates: List<String>
         if (useWildcard) {
             val wildcardResults = WubiDictionary.getCandidatesWithWildcard(bufferStr, limit = 50)

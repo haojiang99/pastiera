@@ -229,6 +229,88 @@ private fun SettingsMainScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
+            // App Language Selector
+            var expanded by remember { mutableStateOf(false) }
+            var currentLanguage by remember { mutableStateOf(SettingsManager.getAppLanguage(context)) }
+
+            val languageOptions = listOf(
+                "system" to stringResource(R.string.app_language_system),
+                "en" to stringResource(R.string.app_language_english),
+                "zh" to stringResource(R.string.app_language_chinese)
+            )
+
+            val currentLanguageDisplay = languageOptions.find { it.first == currentLanguage }?.second
+                ?: stringResource(R.string.app_language_system)
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp)
+                    .clickable { expanded = true }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Language,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.app_language_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = currentLanguageDisplay,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+
+                    Box {
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            languageOptions.forEach { (code, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        expanded = false
+                                        if (currentLanguage != code) {
+                                            currentLanguage = code
+                                            // Save and apply locale, then recreate activity
+                                            LocaleHelper.setLocale(context, code)
+                                            (context as? android.app.Activity)?.recreate()
+                                        }
+                                    },
+                                    leadingIcon = {
+                                        if (currentLanguage == code) {
+                                            Icon(
+                                                imageVector = Icons.Filled.ArrowForward,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
             // Keyboard & Timing
             Surface(
                 modifier = Modifier

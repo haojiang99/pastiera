@@ -10,6 +10,8 @@ import it.neuralrad.coolwulf.ui.theme.PastieraTheme
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Apply locale before super.onCreate
+        LocaleHelper.applyLocale(this)
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {
             overridePendingTransition(R.anim.slide_in_from_right, 0)

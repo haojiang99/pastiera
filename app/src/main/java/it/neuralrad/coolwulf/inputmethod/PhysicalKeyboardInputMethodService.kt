@@ -160,6 +160,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private var altLastPressTime = 0L
     private var shiftLastPressTime = 0L
 
+    // Touchpad page swipe debounce - prevent multiple pages from single swipe
+    private var lastTouchpadPageTime = 0L
+    private val TOUCHPAD_PAGE_DEBOUNCE_MS = 300L  // Ignore swipes within 300ms of last page change
+
     // Constants
     private val DOUBLE_TAP_THRESHOLD = 500L
     private val CURSOR_UPDATE_DELAY = 50L
@@ -1516,14 +1520,26 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (overflowCommit != null) {
                 ic.commitText(overflowCommit, 1)
             }
-            wubiInputController.handleLetterKey(char.lowercaseChar())
-            // Check for auto-commit (4-char code with single candidate)
-            val autoCommit = wubiInputController.checkAutoCommit()
-            if (autoCommit != null) {
-                ic.commitText(autoCommit, 1)
-            } else {
-                val buffer = wubiInputController.getBuffer()
-                ic.setComposingText(buffer, 1)
+            // Handle letter with Z key symbol mode support
+            when (val result = wubiInputController.handleLetterKeyWithResult(char.lowercaseChar())) {
+                is WubiInputController.LetterKeyResult.SymbolOutput -> {
+                    // Z key symbol mode - output the symbol directly
+                    ic.commitText(result.symbol, 1)
+                }
+                is WubiInputController.LetterKeyResult.Handled -> {
+                    // Check for auto-commit (4-char code with single candidate)
+                    val autoCommit = wubiInputController.checkAutoCommit()
+                    if (autoCommit != null) {
+                        ic.commitText(autoCommit, 1)
+                    } else {
+                        val buffer = wubiInputController.getBuffer()
+                        ic.setComposingText(buffer, 1)
+                    }
+                }
+                is WubiInputController.LetterKeyResult.NotHandled -> {
+                    // Treat as regular character
+                    ic.commitText(char.toString(), 1)
+                }
             }
         } else if (zhenmaInputController.isZhenmaMode() && char.isLetter()) {
             zhenmaInputController.handleLetterKey(char.lowercaseChar())
@@ -2028,8 +2044,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Handle touchpad DPAD_DOWN/DPAD_UP for Chinese input candidate pagination
         // Only intercept when we have candidates to paginate and touchpad page is enabled
+        // Use debounce to ensure one swipe = one page change (regardless of swipe distance)
         val touchpadPageEnabled = SettingsManager.getTouchpadPageEnabled(this)
-        if (hasCandidatesToPaginate && touchpadPageEnabled && event?.repeatCount == 0) {
+        val currentTime = System.currentTimeMillis()
+        val timeSinceLastTouchpadPage = currentTime - lastTouchpadPageTime
+        if (hasCandidatesToPaginate && touchpadPageEnabled && timeSinceLastTouchpadPage > TOUCHPAD_PAGE_DEBOUNCE_MS) {
             when (translatedKeyCode) {
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
                     // Touchpad down = next page
@@ -2044,6 +2063,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     } else if (hasWordPredictions) {
                         englishWordPredictionController.nextPage()
                     }
+                    lastTouchpadPageTime = currentTime
                     updateStatusBarText()
                     return true
                 }
@@ -2060,10 +2080,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     } else if (hasWordPredictions) {
                         englishWordPredictionController.prevPage()
                     }
+                    lastTouchpadPageTime = currentTime
                     updateStatusBarText()
                     return true
                 }
             }
+        } else if (hasCandidatesToPaginate && touchpadPageEnabled &&
+                   (translatedKeyCode == KeyEvent.KEYCODE_DPAD_DOWN || translatedKeyCode == KeyEvent.KEYCODE_DPAD_UP)) {
+            // Within debounce period - consume the event but don't change page
+            return true
         }
 
         // Check Juying mode settings upfront
@@ -4569,18 +4594,29 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.commitText(overflowCommit, 1)
                     }
 
-                    // Add letter to Wubi buffer
-                    if (wubiInputController.handleLetterKey(char)) {
-                        // Check for auto-commit (4-char code with single candidate)
-                        val autoCommit = wubiInputController.checkAutoCommit()
-                        if (autoCommit != null) {
-                            ic.commitText(autoCommit, 1)
-                        } else {
-                            val buffer = wubiInputController.getBuffer()
-                            ic.setComposingText(buffer, 1)
+                    // Add letter to Wubi buffer (with Z key symbol mode support)
+                    when (val result = wubiInputController.handleLetterKeyWithResult(char)) {
+                        is WubiInputController.LetterKeyResult.SymbolOutput -> {
+                            // Z key symbol mode - output the symbol directly
+                            ic.commitText(result.symbol, 1)
+                            updateStatusBarText()
+                            return true
                         }
-                        updateStatusBarText()
-                        return true
+                        is WubiInputController.LetterKeyResult.Handled -> {
+                            // Check for auto-commit (4-char code with single candidate)
+                            val autoCommit = wubiInputController.checkAutoCommit()
+                            if (autoCommit != null) {
+                                ic.commitText(autoCommit, 1)
+                            } else {
+                                val buffer = wubiInputController.getBuffer()
+                                ic.setComposingText(buffer, 1)
+                            }
+                            updateStatusBarText()
+                            return true
+                        }
+                        is WubiInputController.LetterKeyResult.NotHandled -> {
+                            // Fall through to next handler
+                        }
                     }
                 }
             }

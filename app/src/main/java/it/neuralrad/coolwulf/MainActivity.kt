@@ -146,8 +146,10 @@ class MainActivity : ComponentActivity() {
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Apply locale before super.onCreate
+        LocaleHelper.applyLocale(this)
         super.onCreate(savedInstanceState)
-        
+
         // Check if tutorial has been completed
         if (!SettingsManager.isTutorialCompleted(this)) {
             val intent = Intent(this, TutorialActivity::class.java)

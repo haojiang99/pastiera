@@ -12,7 +12,14 @@
     <string name="settings_title">Settings</string>
     <string name="back">Back</string>
     <string name="settings_back_content_description">Back</string>
-    
+
+    <!-- App Language Section -->
+    <string name="app_language_title">Interface Language</string>
+    <string name="app_language_description">Choose the language for the settings interface</string>
+    <string name="app_language_system">Follow System</string>
+    <string name="app_language_english">English</string>
+    <string name="app_language_chinese">中文</string>
+
     <!-- Long Press Section -->
     <string name="long_press_title">Long Press</string>
     <string name="long_press_duration">Long Press Duration: %1$dms</string>
@@ -581,6 +588,14 @@
     <string name="wubi_auto_commit_single_description">When a 4-character code has only one candidate, automatically insert it without pressing space</string>
     <string name="wubi_auto_commit_overflow_title">Auto-commit on 5th Letter</string>
     <string name="wubi_auto_commit_overflow_description">When typing 5th letter, auto-insert the first candidate of current 4 letters and start new word</string>
+    <string name="wubi_z_key_mode_title">Z Key Function</string>
+    <string name="wubi_z_key_mode_description">Configure the Z key special function in Wubi mode</string>
+    <string name="wubi_z_key_mode_disabled">Disabled</string>
+    <string name="wubi_z_key_mode_disabled_desc">Z is a regular letter</string>
+    <string name="wubi_z_key_mode_wildcard">Wildcard</string>
+    <string name="wubi_z_key_mode_wildcard_desc">Z matches any character (万能学习键)</string>
+    <string name="wubi_z_key_mode_symbol">Symbol Key</string>
+    <string name="wubi_z_key_mode_symbol_desc">Z + letter inputs numbers/symbols</string>
 
     <!-- Learned Phrases -->
     <string name="learned_phrases_title">Learned Phrases</string>
