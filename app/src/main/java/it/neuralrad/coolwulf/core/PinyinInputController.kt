@@ -884,6 +884,7 @@ class PinyinInputController(
         val allHaveCandidates = segments.all { it.candidates.isNotEmpty() }
 
         val resultCandidates = mutableListOf<String>()
+        val customPhraseSet = customPhrases.toSet()  // For quick lookup
 
         // Add abbreviation matches first (highest priority - learned from user input)
         if (abbreviationCandidates.isNotEmpty()) {
@@ -891,14 +892,9 @@ class PinyinInputController(
             Log.d(TAG, "Abbreviation matches for '$bufferWithoutSep': $abbreviationCandidates")
         }
 
-        // Add custom dictionary phrases second (second highest priority)
-        for (phrase in customPhrases) {
-            if (phrase !in resultCandidates) {
-                resultCandidates.add(phrase)
-            }
-        }
+        // Custom dictionary phrases will be included in frequency sorting with +2 boost (not added here)
         if (customPhrases.isNotEmpty()) {
-            Log.d(TAG, "Custom dictionary phrases for '$bufferWithoutSep': $customPhrases")
+            Log.d(TAG, "Custom dictionary phrases for '$bufferWithoutSep': $customPhrases (will be sorted by frequency)")
         }
 
         // Add auto-learned phrases third (third highest priority)
@@ -998,7 +994,8 @@ class PinyinInputController(
         // Now combine phrases and single characters by merging frequency-sorted lists
         // Both lists are already sorted by user frequency (with +2 boost for unselected phrases in UserPinyinMemory)
         // We need to merge them while preserving the frequency-based order from BOTH lists
-        val seenInCombined = resultCandidates.toMutableSet()  // Already have abbreviations/custom
+        // Custom dictionary phrases are also included with +2 frequency boost
+        val seenInCombined = resultCandidates.toMutableSet()  // Already have abbreviations
 
         // Sort phrases by frequency first (user memory + dictionary)
         val sortedPhrases = sortByFrequencyIfEnabled(bufferWithoutSep, phraseCandidatesRaw)
@@ -1006,13 +1003,27 @@ class PinyinInputController(
         // Get user frequency for accurate merging
         val userFreqMap = if (isMemoryEnabled()) userMemory.getFrequencyMap(bufferWithoutSep) else emptyMap()
 
-        // Merge phrases and single chars, sorted by effective user frequency
+        // Custom dictionary phrases get +2 frequency boost (need 3 uses of normal phrase to surpass)
+        val CUSTOM_PHRASE_FREQUENCY_BOOST = 2
+
+        // Merge phrases, custom phrases, and single chars, sorted by effective user frequency
         // Phrases get +2 boost when frequency is 0
+        // Custom phrases get +2 boost always (on top of any user frequency)
         val allCandidatesWithFreq = mutableListOf<Pair<String, Int>>()
-        for (phrase in sortedPhrases) {
+
+        // Add custom phrases first (they'll be sorted by frequency)
+        for (phrase in customPhrases) {
             val freq = userFreqMap[phrase] ?: 0
-            val boost = if (freq == 0) 2 else 0
-            allCandidatesWithFreq.add(phrase to (freq + boost))
+            // Custom phrases get +2 boost always
+            allCandidatesWithFreq.add(phrase to (freq + CUSTOM_PHRASE_FREQUENCY_BOOST))
+        }
+
+        for (phrase in sortedPhrases) {
+            if (phrase !in customPhraseSet) {  // Skip if already added as custom
+                val freq = userFreqMap[phrase] ?: 0
+                val boost = if (freq == 0) 2 else 0
+                allCandidatesWithFreq.add(phrase to (freq + boost))
+            }
         }
         for (char in firstSyllableCharCandidates) {
             val freq = userFreqMap[char] ?: 0
@@ -1121,15 +1132,11 @@ class PinyinInputController(
             Log.d(TAG, "Abbreviation matches for unparsable '$cleanBuffer': $abbreviationCandidates")
         }
 
-        // Check custom dictionary second (second highest priority)
+        // Custom dictionary phrases will be included in frequency sorting with +2 boost (not added here)
         val customPhrases = customDictionary.getPinyinPhrases(cleanBuffer)
-        for (phrase in customPhrases) {
-            if (phrase !in resultCandidates) {
-                resultCandidates.add(phrase)
-            }
-        }
+        val customPhraseSet = customPhrases.toSet()  // For quick lookup
         if (customPhrases.isNotEmpty()) {
-            Log.d(TAG, "Custom dictionary phrases for unparsable '$cleanBuffer': $customPhrases")
+            Log.d(TAG, "Custom dictionary phrases for unparsable '$cleanBuffer': $customPhrases (will be sorted by frequency)")
         }
 
         // Check auto-learned phrases third (third highest priority)
@@ -1187,13 +1194,45 @@ class PinyinInputController(
 
         val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(cleanBuffer)
 
-        if (prefixCandidates.isNotEmpty()) {
-            val sortedPrefixCandidates = sortByFrequencyIfEnabled(cleanBuffer, prefixCandidates)
-            for (candidate in sortedPrefixCandidates) {
-                if (candidate !in resultCandidates) {
-                    resultCandidates.add(candidate)
+        if (prefixCandidates.isNotEmpty() || customPhrases.isNotEmpty()) {
+            // Get user frequency for accurate merging
+            val userFreqMap = if (isMemoryEnabled()) userMemory.getFrequencyMap(cleanBuffer) else emptyMap()
+
+            // Custom dictionary phrases get +2 frequency boost (need 3 uses of normal phrase to surpass)
+            val CUSTOM_PHRASE_FREQUENCY_BOOST = 2
+
+            // Merge prefix candidates and custom phrases, sorted by effective user frequency
+            val allCandidatesWithFreq = mutableListOf<Pair<String, Int>>()
+            val seenInMerge = resultCandidates.toMutableSet()  // Already have abbreviations/auto-learned
+
+            // Add custom phrases (they'll be sorted by frequency with +2 boost)
+            for (phrase in customPhrases) {
+                if (phrase !in seenInMerge) {
+                    val freq = userFreqMap[phrase] ?: 0
+                    // Custom phrases get +2 boost always
+                    allCandidatesWithFreq.add(phrase to (freq + CUSTOM_PHRASE_FREQUENCY_BOOST))
                 }
             }
+
+            // Add prefix candidates
+            for (candidate in prefixCandidates) {
+                if (candidate !in seenInMerge && candidate !in customPhraseSet) {
+                    val freq = userFreqMap[candidate] ?: 0
+                    allCandidatesWithFreq.add(candidate to freq)
+                }
+            }
+
+            // Sort by effective frequency (descending)
+            val mergedSorted = allCandidatesWithFreq.sortedByDescending { it.second }.map { it.first }
+
+            // Add to result
+            for (candidate in mergedSorted) {
+                if (candidate !in seenInMerge) {
+                    resultCandidates.add(candidate)
+                    seenInMerge.add(candidate)
+                }
+            }
+
             allCandidates = resultCandidates
             matchedPinyin = PinyinDictionary.getFirstSyllableForPrefix(cleanBuffer) ?: cleanBuffer
             firstSyllable = matchedPinyin
@@ -1207,13 +1246,13 @@ class PinyinInputController(
             phraseCandidateSet = phraseSet
             phraseCandidateCount = phraseSet.size
         } else if (resultCandidates.isNotEmpty()) {
-            // Only abbreviation/custom/auto-learned/partial-match phrases available
+            // Only abbreviation/auto-learned/partial-match phrases available (no custom or prefix)
             allCandidates = resultCandidates
             matchedPinyin = cleanBuffer
             firstSyllable = cleanBuffer
             phraseCandidateSet = resultCandidates.toSet()
             phraseCandidateCount = resultCandidates.size
-            Log.d(TAG, "Only abbreviation/custom/auto-learned/partial phrases for '$cleanBuffer': $resultCandidates")
+            Log.d(TAG, "Only abbreviation/auto-learned/partial phrases for '$cleanBuffer': $resultCandidates")
         } else {
             allCandidates = emptyList()
             matchedPinyin = ""

@@ -702,14 +702,10 @@ class WubiInputController(
         // Note: Abbreviation learning is disabled for Wubi mode
         // (multi-first-letter word memory is not used in Wubi)
 
-        // Get custom dictionary phrases first (highest priority)
+        // Get custom dictionary phrases (will be sorted with frequency boost, not highest priority)
         val customPhrases = customDictionary.getWubiPhrases(bufferStr)
+        val customPhraseSet = customPhrases.toSet()  // For quick lookup
         if (customPhrases.isNotEmpty()) {
-            for (phrase in customPhrases) {
-                if (phrase !in resultCandidates) {
-                    resultCandidates.add(phrase)
-                }
-            }
             Log.d(TAG, "Custom dictionary phrases for '$bufferStr': $customPhrases")
         }
 
@@ -760,37 +756,55 @@ class WubiInputController(
         // Check if "Phrases First" mode is enabled
         val phrasesFirst = isPhrasesFirst()
 
+        // Custom dictionary phrases get +2 frequency boost (need 3 uses of normal phrase to surpass)
+        val CUSTOM_PHRASE_FREQUENCY_BOOST = 2
+
         if (phrasesFirst) {
             // Phrases First mode: use dictionary order as baseline, then boost by frequency
             // Candidates with usage history are boosted to the front (sorted by frequency)
+            // Custom dictionary phrases get +2 frequency boost
             // Candidates without usage history maintain their dictionary order
             val allDictCandidates = mutableListOf<String>()
 
-            // Collect all candidates in dictionary order first
+            // Add custom phrases first (they'll be sorted by effective frequency)
+            for (phrase in customPhrases) {
+                if (phrase !in allDictCandidates) {
+                    allDictCandidates.add(phrase)
+                }
+            }
+
+            // Collect all candidates in dictionary order
             for (candidate in rawCandidates) {
-                if (candidate !in resultCandidates && candidate !in allDictCandidates) {
+                if (candidate !in allDictCandidates) {
                     allDictCandidates.add(candidate)
                 }
             }
             for (phrase in autoLearnedPhrases) {
-                if (phrase !in resultCandidates && phrase !in allDictCandidates) {
+                if (phrase !in allDictCandidates) {
                     allDictCandidates.add(phrase)
                 }
             }
             for (phrase in partialMatchPhrases) {
-                if (phrase !in resultCandidates && phrase !in allDictCandidates) {
+                if (phrase !in allDictCandidates) {
                     allDictCandidates.add(phrase)
                 }
             }
 
-            // Separate candidates with usage history from those without
-            val usedCandidates = allDictCandidates.filter { userMemory.getFrequency(bufferStr, it) > 0 }
-            val unusedCandidates = allDictCandidates.filter { userMemory.getFrequency(bufferStr, it) == 0 }
+            // Calculate effective frequency: base frequency + boost for custom phrases
+            fun getEffectiveFrequency(candidate: String): Int {
+                val baseFreq = userMemory.getFrequency(bufferStr, candidate)
+                val customBoost = if (candidate in customPhraseSet) CUSTOM_PHRASE_FREQUENCY_BOOST else 0
+                return baseFreq + customBoost
+            }
 
-            // Sort used candidates by frequency (highest first)
+            // Separate candidates with effective frequency > 0 from those without
+            val usedCandidates = allDictCandidates.filter { getEffectiveFrequency(it) > 0 }
+            val unusedCandidates = allDictCandidates.filter { getEffectiveFrequency(it) == 0 }
+
+            // Sort used candidates by effective frequency (highest first)
             // When frequencies are equal, longer (phrases) come first
             val sortedUsedCandidates = usedCandidates.sortedWith(
-                compareByDescending<String> { userMemory.getFrequency(bufferStr, it) }
+                compareByDescending<String> { getEffectiveFrequency(it) }
                     .thenByDescending { it.length }
             )
 
@@ -800,29 +814,58 @@ class WubiInputController(
         } else {
             // Default mode: preserve exact dictionary order (no separation of single chars vs phrases)
             // The dictionary already has the correct order (e.g., "thnn" → ["自己", "臫"])
+            // Custom phrases participate in frequency sorting with +2 boost
+
+            val allDictCandidates = mutableListOf<String>()
+
+            // Add custom phrases (they'll be sorted by effective frequency)
+            for (phrase in customPhrases) {
+                if (phrase !in allDictCandidates) {
+                    allDictCandidates.add(phrase)
+                }
+            }
 
             // Add all dictionary candidates in their original order
             for (candidate in rawCandidates) {
-                if (candidate !in resultCandidates) {
-                    resultCandidates.add(candidate)
+                if (candidate !in allDictCandidates) {
+                    allDictCandidates.add(candidate)
                 }
             }
 
             // Add auto-learned phrases after dictionary candidates
             for (phrase in autoLearnedPhrases) {
-                if (phrase !in resultCandidates) {
-                    resultCandidates.add(phrase)
+                if (phrase !in allDictCandidates) {
+                    allDictCandidates.add(phrase)
                 }
             }
 
             // Add partial match phrases
             for (phrase in partialMatchPhrases) {
-                if (phrase !in resultCandidates) {
-                    resultCandidates.add(phrase)
+                if (phrase !in allDictCandidates) {
+                    allDictCandidates.add(phrase)
                 }
             }
 
-            // No frequency sorting - keep dictionary order as-is
+            // Calculate effective frequency: base frequency + boost for custom phrases
+            fun getEffectiveFrequency(candidate: String): Int {
+                val baseFreq = userMemory.getFrequency(bufferStr, candidate)
+                val customBoost = if (candidate in customPhraseSet) CUSTOM_PHRASE_FREQUENCY_BOOST else 0
+                return baseFreq + customBoost
+            }
+
+            // Separate candidates with effective frequency > 0 from those without
+            val usedCandidates = allDictCandidates.filter { getEffectiveFrequency(it) > 0 }
+            val unusedCandidates = allDictCandidates.filter { getEffectiveFrequency(it) == 0 }
+
+            // Sort used candidates by effective frequency (highest first)
+            val sortedUsedCandidates = usedCandidates.sortedWith(
+                compareByDescending<String> { getEffectiveFrequency(it) }
+                    .thenBy { allDictCandidates.indexOf(it) }  // Preserve dictionary order for same frequency
+            )
+
+            // Add used candidates first (sorted by frequency), then unused in dictionary order
+            resultCandidates.addAll(sortedUsedCandidates)
+            resultCandidates.addAll(unusedCandidates)
         }
 
         val wubiCandidateCount = resultCandidates.size
