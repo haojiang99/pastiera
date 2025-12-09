@@ -35,7 +35,18 @@ class UserPinyinMemory(context: Context) {
     fun recordSelection(pinyin: String, candidate: String) {
         val normalizedPinyin = pinyin.lowercase().trim()
 
-        // Update in-memory cache
+        // Check if the input is an abbreviation that already exists in abbreviationCache
+        // If so, increment the abbreviation cache instead of creating a duplicate in memoryCache
+        val existingAbbrevMap = abbreviationCache[normalizedPinyin]
+        if (existingAbbrevMap != null && existingAbbrevMap.containsKey(candidate)) {
+            // This is an abbreviation input (e.g., "wm" for "我们"), increment abbreviation cache
+            existingAbbrevMap[candidate] = (existingAbbrevMap[candidate] ?: 0) + 1
+            Log.d(TAG, "Recorded abbreviation (direct): '$normalizedPinyin' -> '$candidate' (count: ${existingAbbrevMap[candidate]})")
+            saveToPreferences()
+            return
+        }
+
+        // Update in-memory cache for full pinyin
         val candidateMap = memoryCache.getOrPut(normalizedPinyin) { mutableMapOf() }
         candidateMap[candidate] = (candidateMap[candidate] ?: 0) + 1
 
