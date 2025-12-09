@@ -6,5 +6,6 @@ package it.neuralrad.coolwulf
 data class SymPagesConfig(
     val emojiEnabled: Boolean = true,
     val symbolsEnabled: Boolean = true,
+    val symbols2Enabled: Boolean = false,
     val emojiFirst: Boolean = true
 )

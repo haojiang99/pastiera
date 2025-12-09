@@ -105,7 +105,12 @@ fun SymCustomizationScreen(
     val defaultMappingsPage2 = remember {
         loadMappingsFromJson("common/sym/sym_key_mappings_page2.json")
     }
-    
+
+    // Load default mappings for page 3 (characters2)
+    val defaultMappingsPage3 = remember {
+        loadMappingsFromJson("common/sym/sym_key_mappings_page3.json")
+    }
+
     // Load custom mappings or fallback to defaults for page 1
     var symMappingsPage1 by remember {
         mutableStateOf(
@@ -113,12 +118,20 @@ fun SymCustomizationScreen(
                 ?: defaultMappingsPage1
         )
     }
-    
+
     // Load custom mappings or fallback to defaults for page 2
     var symMappingsPage2 by remember {
         mutableStateOf(
             SettingsManager.getSymMappingsPage2(context).takeIf { it.isNotEmpty() }
                 ?: defaultMappingsPage2
+        )
+    }
+
+    // Load custom mappings or fallback to defaults for page 3
+    var symMappingsPage3 by remember {
+        mutableStateOf(
+            SettingsManager.getSymMappingsPage3(context).takeIf { it.isNotEmpty() }
+                ?: defaultMappingsPage3
         )
     }
     
@@ -262,11 +275,16 @@ fun SymCustomizationScreen(
                 onClick = { selectedTab = 1 },
                 text = { Text(stringResource(R.string.sym_tab_characters)) }
             )
+            Tab(
+                selected = selectedTab == 2,
+                onClick = { selectedTab = 2 },
+                text = { Text(stringResource(R.string.sym_tab_characters2)) }
+            )
         }
-        
+
         // Customizable keyboard grid - uses the same layout as the real keyboard
         val statusBarController = remember { StatusBarController(context) }
-        
+
         // Show the grid based on the selected tab
         when (selectedTab) {
             0 -> {
@@ -292,6 +310,20 @@ fun SymCustomizationScreen(
                                 selectedKeyCode = keyCode
                                 showCharacterPicker = true
                             }, page = 2)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+            2 -> {
+                // Characters2 tab
+                key(symMappingsPage3) {
+                    AndroidView(
+                        factory = { ctx ->
+                            statusBarController.createCustomizableEmojiKeyboard(symMappingsPage3, { keyCode, character ->
+                                selectedKeyCode = keyCode
+                                showCharacterPicker = true
+                            }, page = 3)
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -406,7 +438,49 @@ fun SymCustomizationScreen(
                 )
             }
         }
-        
+
+        // Symbols2 page toggle
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Keyboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.sym_enable_symbols2_page_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = stringResource(R.string.sym_enable_symbols2_page_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
+                }
+                Switch(
+                    checked = symPagesConfig.symbols2Enabled,
+                    onCheckedChange = { enabled ->
+                        persistSymPagesConfig(symPagesConfig.copy(symbols2Enabled = enabled))
+                    }
+                )
+            }
+        }
+
         // Swap order control
         Surface(
             modifier = Modifier
@@ -470,16 +544,24 @@ fun SymCustomizationScreen(
             )
         }
         
-        // Unicode character picker dialog
+        // Unicode character picker dialog (for both Characters and Characters2 tabs)
         if (showCharacterPicker && selectedKeyCode != null) {
             val selectedLetter = getLetterFromKeyCode(selectedKeyCode!!)
             UnicodeCharacterPickerDialog(
                 selectedLetter = selectedLetter,
                 onCharacterSelected = { character ->
-                    symMappingsPage2 = symMappingsPage2.toMutableMap().apply {
-                        put(selectedKeyCode!!, character)
+                    // Save to the correct page based on selected tab
+                    if (selectedTab == 1) {
+                        symMappingsPage2 = symMappingsPage2.toMutableMap().apply {
+                            put(selectedKeyCode!!, character)
+                        }
+                        SettingsManager.saveSymMappingsPage2(context, symMappingsPage2)
+                    } else if (selectedTab == 2) {
+                        symMappingsPage3 = symMappingsPage3.toMutableMap().apply {
+                            put(selectedKeyCode!!, character)
+                        }
+                        SettingsManager.saveSymMappingsPage3(context, symMappingsPage3)
                     }
-                    SettingsManager.saveSymMappingsPage2(context, symMappingsPage2)
                     showCharacterPicker = false
                     selectedKeyCode = null
                 },
@@ -514,6 +596,10 @@ fun SymCustomizationScreen(
                                 2 -> {
                                     symMappingsPage2 = defaultMappingsPage2.toMutableMap()
                                     SettingsManager.resetSymMappingsPage2(context)
+                                }
+                                3 -> {
+                                    symMappingsPage3 = defaultMappingsPage3.toMutableMap()
+                                    SettingsManager.resetSymMappingsPage3(context)
                                 }
                             }
                             showResetConfirmDialog = false

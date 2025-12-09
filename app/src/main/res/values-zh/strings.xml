@@ -238,6 +238,8 @@
     <string name="sym_enable_emoji_page_description">循环时显示表情SYM布局。</string>
     <string name="sym_enable_symbols_page_title">启用符号页面</string>
     <string name="sym_enable_symbols_page_description">循环时显示符号SYM布局。</string>
+    <string name="sym_enable_symbols2_page_title">启用符号2页面</string>
+    <string name="sym_enable_symbols2_page_description">循环时显示第二个符号SYM布局(字符2)。</string>
     <string name="sym_swap_pages_title">交换SYM页面顺序</string>
     <string name="sym_swap_pages_description">选择切换时先显示哪个SYM页面。</string>
     <string name="sym_order_emoji_first">表情优先</string>
@@ -383,6 +385,7 @@
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">表情</string>
     <string name="sym_tab_characters">字符</string>
+    <string name="sym_tab_characters2">字符2</string>
 
     <!-- App Picker Dialog -->
     <string name="app_picker_title">选择应用</string>

@@ -27,6 +27,7 @@ object SettingsManager {
     private const val KEY_ALT_CTRL_SPEECH_SHORTCUT = "alt_ctrl_speech_shortcut"
     private const val KEY_SYM_MAPPINGS_CUSTOM = "sym_mappings_custom"
     private const val KEY_SYM_MAPPINGS_PAGE2_CUSTOM = "sym_mappings_page2_custom"
+    private const val KEY_SYM_MAPPINGS_PAGE3_CUSTOM = "sym_mappings_page3_custom"
     private const val KEY_AUTO_CORRECT_ENABLED = "auto_correct_enabled"
     private const val KEY_AUTO_CORRECT_ENABLED_LANGUAGES = "auto_correct_enabled_languages"
     private const val KEY_AUTO_CAPITALIZE_AFTER_PERIOD = "auto_capitalize_after_period"
@@ -521,7 +522,107 @@ object SettingsManager {
         val prefs = getPreferences(context)
         return prefs.contains(KEY_SYM_MAPPINGS_PAGE2_CUSTOM)
     }
-    
+
+    /**
+     * Returns custom SYM mappings for page 3 (Characters2).
+     * Returns an empty map if there are no custom mappings.
+     */
+    fun getSymMappingsPage3(context: Context): Map<Int, String> {
+        val prefs = getPreferences(context)
+        val jsonString = prefs.getString(KEY_SYM_MAPPINGS_PAGE3_CUSTOM, null) ?: return emptyMap()
+
+        return try {
+            val jsonObject = JSONObject(jsonString)
+            val mappingsObject = jsonObject.getJSONObject("mappings")
+            val keyCodeMap = mapOf(
+                "KEYCODE_Q" to KeyEvent.KEYCODE_Q, "KEYCODE_W" to KeyEvent.KEYCODE_W,
+                "KEYCODE_E" to KeyEvent.KEYCODE_E, "KEYCODE_R" to KeyEvent.KEYCODE_R,
+                "KEYCODE_T" to KeyEvent.KEYCODE_T, "KEYCODE_Y" to KeyEvent.KEYCODE_Y,
+                "KEYCODE_U" to KeyEvent.KEYCODE_U, "KEYCODE_I" to KeyEvent.KEYCODE_I,
+                "KEYCODE_O" to KeyEvent.KEYCODE_O, "KEYCODE_P" to KeyEvent.KEYCODE_P,
+                "KEYCODE_A" to KeyEvent.KEYCODE_A, "KEYCODE_S" to KeyEvent.KEYCODE_S,
+                "KEYCODE_D" to KeyEvent.KEYCODE_D, "KEYCODE_F" to KeyEvent.KEYCODE_F,
+                "KEYCODE_G" to KeyEvent.KEYCODE_G, "KEYCODE_H" to KeyEvent.KEYCODE_H,
+                "KEYCODE_J" to KeyEvent.KEYCODE_J, "KEYCODE_K" to KeyEvent.KEYCODE_K,
+                "KEYCODE_L" to KeyEvent.KEYCODE_L, "KEYCODE_Z" to KeyEvent.KEYCODE_Z,
+                "KEYCODE_X" to KeyEvent.KEYCODE_X, "KEYCODE_C" to KeyEvent.KEYCODE_C,
+                "KEYCODE_V" to KeyEvent.KEYCODE_V, "KEYCODE_B" to KeyEvent.KEYCODE_B,
+                "KEYCODE_N" to KeyEvent.KEYCODE_N, "KEYCODE_M" to KeyEvent.KEYCODE_M
+            )
+            val result = mutableMapOf<Int, String>()
+            val keys = mappingsObject.keys()
+            while (keys.hasNext()) {
+                val keyName = keys.next()
+                val keyCode = keyCodeMap[keyName]
+                val character = mappingsObject.getString(keyName)
+                if (keyCode != null) {
+                    result[keyCode] = character
+                }
+            }
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading custom SYM page 3 mappings", e)
+            emptyMap()
+        }
+    }
+
+    /**
+     * Saves custom SYM mappings for page 3 (Characters2).
+     */
+    fun saveSymMappingsPage3(context: Context, mappings: Map<Int, String>) {
+        try {
+            val keyCodeToName = mapOf(
+                KeyEvent.KEYCODE_Q to "KEYCODE_Q", KeyEvent.KEYCODE_W to "KEYCODE_W",
+                KeyEvent.KEYCODE_E to "KEYCODE_E", KeyEvent.KEYCODE_R to "KEYCODE_R",
+                KeyEvent.KEYCODE_T to "KEYCODE_T", KeyEvent.KEYCODE_Y to "KEYCODE_Y",
+                KeyEvent.KEYCODE_U to "KEYCODE_U", KeyEvent.KEYCODE_I to "KEYCODE_I",
+                KeyEvent.KEYCODE_O to "KEYCODE_O", KeyEvent.KEYCODE_P to "KEYCODE_P",
+                KeyEvent.KEYCODE_A to "KEYCODE_A", KeyEvent.KEYCODE_S to "KEYCODE_S",
+                KeyEvent.KEYCODE_D to "KEYCODE_D", KeyEvent.KEYCODE_F to "KEYCODE_F",
+                KeyEvent.KEYCODE_G to "KEYCODE_G", KeyEvent.KEYCODE_H to "KEYCODE_H",
+                KeyEvent.KEYCODE_J to "KEYCODE_J", KeyEvent.KEYCODE_K to "KEYCODE_K",
+                KeyEvent.KEYCODE_L to "KEYCODE_L", KeyEvent.KEYCODE_Z to "KEYCODE_Z",
+                KeyEvent.KEYCODE_X to "KEYCODE_X", KeyEvent.KEYCODE_C to "KEYCODE_C",
+                KeyEvent.KEYCODE_V to "KEYCODE_V", KeyEvent.KEYCODE_B to "KEYCODE_B",
+                KeyEvent.KEYCODE_N to "KEYCODE_N", KeyEvent.KEYCODE_M to "KEYCODE_M"
+            )
+
+            val mappingsObject = JSONObject()
+            for ((keyCode, character) in mappings) {
+                val keyName = keyCodeToName[keyCode]
+                if (keyName != null) {
+                    mappingsObject.put(keyName, character)
+                }
+            }
+
+            val jsonObject = JSONObject()
+            jsonObject.put("mappings", mappingsObject)
+
+            getPreferences(context).edit()
+                .putString(KEY_SYM_MAPPINGS_PAGE3_CUSTOM, jsonObject.toString())
+                .apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving custom SYM page 3 mappings", e)
+        }
+    }
+
+    /**
+     * Resets custom SYM mappings for page 3 back to defaults.
+     */
+    fun resetSymMappingsPage3(context: Context) {
+        getPreferences(context).edit()
+            .remove(KEY_SYM_MAPPINGS_PAGE3_CUSTOM)
+            .apply()
+    }
+
+    /**
+     * Returns true if custom SYM page 3 mappings exist.
+     */
+    fun hasCustomSymMappingsPage3(context: Context): Boolean {
+        val prefs = getPreferences(context)
+        return prefs.contains(KEY_SYM_MAPPINGS_PAGE3_CUSTOM)
+    }
+
     /**
      * Returns whether auto-correction is enabled.
      */
@@ -1980,6 +2081,7 @@ object SettingsManager {
             SymPagesConfig(
                 emojiEnabled = jsonObject.optBoolean("emojiEnabled", true),
                 symbolsEnabled = jsonObject.optBoolean("symbolsEnabled", true),
+                symbols2Enabled = jsonObject.optBoolean("symbols2Enabled", false),
                 emojiFirst = jsonObject.optBoolean("emojiFirst", true)
             )
         } catch (e: Exception) {
@@ -1996,6 +2098,7 @@ object SettingsManager {
             val jsonObject = JSONObject().apply {
                 put("emojiEnabled", config.emojiEnabled)
                 put("symbolsEnabled", config.symbolsEnabled)
+                put("symbols2Enabled", config.symbols2Enabled)
                 put("emojiFirst", config.emojiFirst)
             }
 

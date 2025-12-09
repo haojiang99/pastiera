@@ -33,6 +33,7 @@ class AltSymManager(
     private val altKeyMap = mutableMapOf<Int, String>()
     private val symKeyMap = mutableMapOf<Int, String>()
     private val symKeyMap2 = mutableMapOf<Int, String>()
+    private val symKeyMap3 = mutableMapOf<Int, String>()
 
     private val pressedKeys = ConcurrentHashMap<Int, Long>()
     private val longPressRunnables = ConcurrentHashMap<Int, Runnable>()
@@ -45,6 +46,7 @@ class AltSymManager(
         altKeyMap.putAll(KeyMappingLoader.loadAltKeyMappings(assets, context))
         symKeyMap.putAll(KeyMappingLoader.loadSymKeyMappings(assets))
         symKeyMap2.putAll(KeyMappingLoader.loadSymKeyMappingsPage2(assets))
+        symKeyMap3.putAll(KeyMappingLoader.loadSymKeyMappingsPage3(assets))
         reloadLongPressThreshold()
     }
 
@@ -55,8 +57,10 @@ class AltSymManager(
     fun getAltMappings(): Map<Int, String> = altKeyMap
 
     fun getSymMappings(): Map<Int, String> = symKeyMap
-    
+
     fun getSymMappings2(): Map<Int, String> = symKeyMap2
+
+    fun getSymMappings3(): Map<Int, String> = symKeyMap3
     
     /**
      * Ricarica le mappature SYM, controllando prima le personalizzazioni.
@@ -92,6 +96,25 @@ class AltSymManager(
                 symKeyMap2.clear()
                 symKeyMap2.putAll(KeyMappingLoader.loadSymKeyMappingsPage2(assets))
                 Log.d(TAG, "Loaded default SYM page 2 mappings")
+            }
+        }
+    }
+
+    /**
+     * Reloads SYM mappings for page 3 (Characters2), checking for custom mappings first.
+     */
+    fun reloadSymMappings3() {
+        if (context != null) {
+            val customMappings = it.neuralrad.coolwulf.SettingsManager.getSymMappingsPage3(context)
+            if (customMappings.isNotEmpty()) {
+                symKeyMap3.clear()
+                symKeyMap3.putAll(customMappings)
+                Log.d(TAG, "Loaded custom SYM page 3 mappings: ${customMappings.size} entries")
+            } else {
+                // Use default mappings from JSON
+                symKeyMap3.clear()
+                symKeyMap3.putAll(KeyMappingLoader.loadSymKeyMappingsPage3(assets))
+                Log.d(TAG, "Loaded default SYM page 3 mappings")
             }
         }
     }

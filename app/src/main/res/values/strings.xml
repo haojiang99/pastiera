@@ -237,6 +237,8 @@
     <string name="sym_enable_emoji_page_description">Show the emoji SYM layout when cycling.</string>
     <string name="sym_enable_symbols_page_title">Enable Symbols Page</string>
     <string name="sym_enable_symbols_page_description">Show the symbols SYM layout when cycling.</string>
+    <string name="sym_enable_symbols2_page_title">Enable Symbols2 Page</string>
+    <string name="sym_enable_symbols2_page_description">Show the second symbols SYM layout (Characters2) when cycling.</string>
     <string name="sym_swap_pages_title">Swap SYM pages order</string>
     <string name="sym_swap_pages_description">Choose which SYM page appears first when toggling.</string>
     <string name="sym_order_emoji_first">Emoji first</string>
@@ -382,7 +384,8 @@
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
     <string name="sym_tab_characters">Characters</string>
-    
+    <string name="sym_tab_characters2">Characters2</string>
+
     <!-- App Picker Dialog -->
     <string name="app_picker_title">Select an app</string>
     <string name="app_picker_cancel">Cancel</string>

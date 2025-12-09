@@ -22,7 +22,8 @@ class SymLayoutController(
 
     private enum class SymPage {
         EMOJI,
-        SYMBOLS
+        SYMBOLS,
+        SYMBOLS2
     }
 
     enum class SymKeyResult {
@@ -102,6 +103,7 @@ class SymLayoutController(
         return when (currentPageType()) {
             SymPage.EMOJI -> altSymManager.getSymMappings()
             SymPage.SYMBOLS -> altSymManager.getSymMappings2()
+            SymPage.SYMBOLS2 -> altSymManager.getSymMappings3()
             else -> null
         }
     }
@@ -137,6 +139,7 @@ class SymLayoutController(
         val symChar = when (page) {
             SymPage.EMOJI -> altSymManager.getSymMappings()[keyCode]
             SymPage.SYMBOLS -> altSymManager.getSymMappings2()[keyCode]
+            SymPage.SYMBOLS2 -> altSymManager.getSymMappings3()[keyCode]
             else -> null
         }
 
@@ -171,6 +174,9 @@ class SymLayoutController(
         if (config.symbolsEnabled) {
             pages.add(SymPage.SYMBOLS)
         }
+        if (config.symbols2Enabled) {
+            pages.add(SymPage.SYMBOLS2)
+        }
         if (!config.emojiFirst) {
             pages.reverse()
         }
@@ -182,6 +188,7 @@ class SymLayoutController(
         return when (symPage) {
             1 -> SymPage.EMOJI
             2 -> SymPage.SYMBOLS
+            3 -> SymPage.SYMBOLS2
             else -> null
         }
     }
@@ -189,6 +196,7 @@ class SymLayoutController(
     private fun SymPage.toPrefValue(): Int = when (this) {
         SymPage.EMOJI -> 1
         SymPage.SYMBOLS -> 2
+        SymPage.SYMBOLS2 -> 3
     }
 
     private fun alignSymPageToConfig(config: SymPagesConfig = SettingsManager.getSymPagesConfig(context)) {

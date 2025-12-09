@@ -150,6 +150,32 @@ object KeyMappingLoader {
         return symKeyMap
     }
 
+    fun loadSymKeyMappingsPage3(assets: AssetManager): Map<Int, String> {
+        val symKeyMap = mutableMapOf<Int, String>()
+        try {
+            val filePath = "common/sym/sym_key_mappings_page3.json"
+            val inputStream: InputStream = assets.open(filePath)
+            val jsonString = inputStream.bufferedReader().use { it.readText() }
+            val jsonObject = JSONObject(jsonString)
+            val mappingsObject = jsonObject.getJSONObject("mappings")
+
+            val keys = mappingsObject.keys()
+            while (keys.hasNext()) {
+                val keyName = keys.next()
+                val keyCode = keyCodeMap[keyName]
+                val character = mappingsObject.getString(keyName)
+                if (keyCode != null) {
+                    symKeyMap[keyCode] = character
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading SYM page 3 mappings", e)
+            symKeyMap[KeyEvent.KEYCODE_Q] = "¢"
+            symKeyMap[KeyEvent.KEYCODE_W] = "£"
+        }
+        return symKeyMap
+    }
+
     data class CtrlMapping(val type: String, val value: String)
 
     fun loadCtrlKeyMappings(assets: AssetManager, context: Context? = null): Map<Int, CtrlMapping> {
