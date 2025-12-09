@@ -169,4 +169,99 @@ object WubiDictionary {
         val normalized = prefix.lowercase()
         return dictionary.keys.any { it.startsWith(normalized) }
     }
+
+    /**
+     * Gets candidates for codes matching a pattern with 'z' as wildcard.
+     * In Wubi, 'z' is the "learning key" (万能学习键) that matches any character.
+     *
+     * Examples:
+     * - "rwyz" matches "rwyg", "rwya", etc. (z replaces any single letter)
+     * - "qvzp" matches "qvfp", "qvap", etc.
+     *
+     * @param pattern The pattern with 'z' as wildcard (e.g., "rwyz")
+     * @param limit Maximum number of candidates to return
+     * @return List of candidates with their actual codes (for learning display)
+     */
+    fun getCandidatesWithWildcard(pattern: String, limit: Int = 50): List<Pair<String, String>> {
+        if (!isLoaded || pattern.isEmpty()) {
+            return emptyList()
+        }
+
+        val normalized = pattern.lowercase()
+
+        // If no 'z' in pattern, just return normal candidates (but with empty codes)
+        if (!normalized.contains('z')) {
+            return getCandidatesForPrefix(normalized, limit).map { it to "" }
+        }
+
+        val results = mutableListOf<Pair<String, String>>()
+        val seen = mutableSetOf<String>()
+
+        // Convert pattern to regex: replace 'z' with [a-y] (any letter except z)
+        val regexPattern = buildWildcardRegex(normalized)
+
+        // Search all dictionary codes that match the pattern
+        val matchingCodes = dictionary.keys
+            .filter { code ->
+                // Code must be same length as pattern for exact match
+                // OR code starts with pattern (for prefix matching when z is not at end)
+                if (code.length == normalized.length) {
+                    regexPattern.matches(code)
+                } else if (code.length > normalized.length && !normalized.endsWith('z')) {
+                    // For prefix matching (when pattern doesn't end with z)
+                    val prefixRegex = buildWildcardRegex(normalized, isPrefix = true)
+                    prefixRegex.containsMatchIn(code)
+                } else {
+                    false
+                }
+            }
+            .sortedWith(compareBy(
+                { it.length },  // Shorter codes first
+                { it }          // Then alphabetically
+            ))
+
+        // Collect candidates from matching codes
+        for (code in matchingCodes) {
+            val candidates = dictionary[code] ?: continue
+            for (candidate in candidates) {
+                if (candidate !in seen) {
+                    seen.add(candidate)
+                    results.add(candidate to code)  // Include the actual code for learning
+                    if (results.size >= limit) {
+                        return results
+                    }
+                }
+            }
+        }
+
+        return results
+    }
+
+    /**
+     * Builds a regex pattern from Wubi code with 'z' as wildcard.
+     * @param pattern The pattern (e.g., "rwyz")
+     * @param isPrefix If true, creates a prefix-matching regex
+     * @return Regex that matches codes where 'z' can be any letter a-y
+     */
+    private fun buildWildcardRegex(pattern: String, isPrefix: Boolean = false): Regex {
+        val regexStr = buildString {
+            if (isPrefix) append("^")
+            for (char in pattern) {
+                when (char) {
+                    'z' -> append("[a-y]")  // z matches any letter except z itself
+                    in 'a'..'y' -> append(char)
+                    else -> append(Regex.escape(char.toString()))
+                }
+            }
+            if (!isPrefix) append("$")
+        }
+        return Regex(regexStr)
+    }
+
+    /**
+     * Checks if a pattern contains the wildcard character 'z'.
+     */
+    fun containsWildcard(code: String): Boolean {
+        return code.lowercase().contains('z')
+    }
 }

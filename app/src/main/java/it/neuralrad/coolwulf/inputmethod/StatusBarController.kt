@@ -178,6 +178,8 @@ class StatusBarController(
         val ziranmaBuffer: String = "",
         val wubiModeActive: Boolean = false,
         val wubiBuffer: String = "",
+        val wubiWildcardMode: Boolean = false,  // True when 'Z' key is used as wildcard
+        val wubiCandidateCodes: Map<String, String> = emptyMap(),  // Candidate -> actual Wubi code (for Z key learning)
         val zhenmaModeActive: Boolean = false,
         val zhenmaBuffer: String = "",
         val wordPredictionActive: Boolean = false,

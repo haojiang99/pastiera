@@ -1338,6 +1338,24 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
 
     /**
+     * Builds a map of candidate -> actual Wubi code for Z key wildcard learning.
+     * Only returns non-empty map when using wildcard mode.
+     */
+    private fun buildWubiCandidateCodesMap(): Map<String, String> {
+        if (!wubiInputController.isWubiMode() || !wubiInputController.isUsingWildcard()) {
+            return emptyMap()
+        }
+        val result = mutableMapOf<String, String>()
+        for (candidate in wubiInputController.getCandidates()) {
+            val code = wubiInputController.getActualCodeForCandidate(candidate)
+            if (code.isNotEmpty()) {
+                result[candidate] = code
+            }
+        }
+        return result
+    }
+
+    /**
      * Toggles the virtual keyboard on/off.
      */
     private fun toggleVirtualKeyboard() {
@@ -1695,6 +1713,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             ziranmaBuffer = ziranmaSnapshot.buffer,
             wubiModeActive = wubiSnapshot.isActive,
             wubiBuffer = wubiSnapshot.buffer,
+            wubiWildcardMode = wubiInputController.isUsingWildcard(),
+            wubiCandidateCodes = buildWubiCandidateCodesMap(),
             zhenmaModeActive = zhenmaSnapshot.isActive,
             zhenmaBuffer = zhenmaSnapshot.buffer,
             wordPredictionActive = wordPredictionActive,
@@ -2007,8 +2027,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val hasCandidatesToPaginate = hasPinyinCandidates || hasShuangpinCandidates || hasWubiCandidates || hasZhenmaCandidates || hasWordPredictions
 
         // Handle touchpad DPAD_DOWN/DPAD_UP for Chinese input candidate pagination
-        // Only intercept when we have candidates to paginate
-        if (hasCandidatesToPaginate && event?.repeatCount == 0) {
+        // Only intercept when we have candidates to paginate and touchpad page is enabled
+        val touchpadPageEnabled = SettingsManager.getTouchpadPageEnabled(this)
+        if (hasCandidatesToPaginate && touchpadPageEnabled && event?.repeatCount == 0) {
             when (translatedKeyCode) {
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
                     // Touchpad down = next page

@@ -59,6 +59,7 @@ object SettingsManager {
     private const val KEY_CLIPBOARD_HISTORY_ENABLED = "clipboard_history_enabled" // Enable clipboard history
     private const val KEY_SHOW_CLIPBOARD_BUTTON = "show_clipboard_button" // Show clipboard button in status bar
     private const val KEY_JUYING_MODE_ENABLED = "juying_mode_enabled" // Enable Juying (巨硬) mode - 5 keys for candidate selection
+    private const val KEY_TOUCHPAD_PAGE_ENABLED = "touchpad_page_enabled" // Enable touchpad swipe up/down for candidate page navigation
     private const val KEY_JUYING_KEY_1 = "juying_key_1" // First Juying key (default: Shift)
     private const val KEY_JUYING_KEY_2 = "juying_key_2" // Second Juying key (default: Sym)
     private const val KEY_JUYING_KEY_3 = "juying_key_3" // Third Juying key (default: Space)
@@ -127,6 +128,7 @@ object SettingsManager {
     private const val DEFAULT_CLIPBOARD_HISTORY_ENABLED = true
     private const val DEFAULT_SHOW_CLIPBOARD_BUTTON = true
     private const val DEFAULT_JUYING_MODE_ENABLED = false
+    private const val DEFAULT_TOUCHPAD_PAGE_ENABLED = true  // Touchpad page navigation enabled by default
     private const val DEFAULT_MEMORY_FUNCTION_ENABLED = true  // Memory function enabled by default
     private const val DEFAULT_SHIFT_ALT_SWAPPED = false  // Shift and Alt buttons are not swapped by default
     private const val DEFAULT_MAX_CANDIDATES_NON_JUYING = 9  // Default 9 candidates in non-Juying mode
@@ -1485,6 +1487,23 @@ object SettingsManager {
     fun setJuyingModeEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_JUYING_MODE_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets whether touchpad page navigation is enabled.
+     * When enabled, swiping up/down on the touchpad navigates candidate pages.
+     */
+    fun getTouchpadPageEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_TOUCHPAD_PAGE_ENABLED, DEFAULT_TOUCHPAD_PAGE_ENABLED)
+    }
+
+    /**
+     * Sets whether touchpad page navigation is enabled.
+     */
+    fun setTouchpadPageEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_TOUCHPAD_PAGE_ENABLED, enabled)
             .apply()
     }
 

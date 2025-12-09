@@ -123,6 +123,10 @@
     <!-- Juying Mode -->
     <string name="juying_mode_title">巨硬模式</string>
     <string name="juying_mode_description">使用5个物理键选择候选词。中文：Shift/Sym/Space/Ctrl/Alt（空格选第1个，双击Alt翻页）。英文：Shift/Sym/Ctrl选择3个建议。</string>
+
+    <!-- Touchpad Page Navigation -->
+    <string name="touchpad_page_title">触摸板翻页</string>
+    <string name="touchpad_page_description">有候选词时，在触摸板上滑动可翻页浏览候选词</string>
     <string name="juying_key_config_title">配置巨硬模式按键</string>
     <string name="juying_key_config_description">按任意键将其分配到此位置</string>
     <string name="juying_key_1">按键1（候选词2）</string>

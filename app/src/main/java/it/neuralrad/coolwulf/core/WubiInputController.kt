@@ -524,14 +524,35 @@ class WubiInputController(
         return SettingsManager.isWubiPhrasesFirst(context)
     }
 
+    // Store mapping of candidate -> actual Wubi code (for Z key learning display)
+    private var candidateCodeMap = mutableMapOf<String, String>()
+
+    /**
+     * Gets the actual Wubi code for a candidate (used for Z key learning).
+     * @param candidate The Chinese character/phrase
+     * @return The actual Wubi code, or empty string if not available
+     */
+    fun getActualCodeForCandidate(candidate: String): String {
+        return candidateCodeMap[candidate] ?: ""
+    }
+
+    /**
+     * Checks if the current input uses wildcard (Z key).
+     */
+    fun isUsingWildcard(): Boolean {
+        return WubiDictionary.containsWildcard(buffer.toString())
+    }
+
     /**
      * Updates candidate list based on current buffer.
      * Uses prefix matching to show all possible completions.
      * Abbreviation matches appear first, then custom dictionary phrases, then sorted by user frequency.
      * If Wubi with Pinyin is enabled, Pinyin candidates are added after Wubi candidates.
+     * If buffer contains 'z', uses wildcard matching (Z is the learning key in Wubi).
      */
     private fun updateCandidates() {
         currentPage = 0  // Reset to first page when candidates change
+        candidateCodeMap.clear()  // Clear code mapping
 
         if (buffer.isEmpty()) {
             allCandidates = emptyList()
@@ -558,8 +579,25 @@ class WubiInputController(
             Log.d(TAG, "Custom dictionary phrases for '$bufferStr': $customPhrases")
         }
 
+        // Check if buffer contains 'z' (wildcard key)
+        val useWildcard = WubiDictionary.containsWildcard(bufferStr)
+
         // Get candidates for the current code (both exact and prefix matches)
-        val rawCandidates = WubiDictionary.getCandidatesForPrefix(bufferStr, limit = 50)
+        // If 'z' is present, use wildcard matching
+        val rawCandidates: List<String>
+        if (useWildcard) {
+            val wildcardResults = WubiDictionary.getCandidatesWithWildcard(bufferStr, limit = 50)
+            rawCandidates = wildcardResults.map { it.first }
+            // Store actual codes for learning display
+            for ((candidate, code) in wildcardResults) {
+                if (code.isNotEmpty()) {
+                    candidateCodeMap[candidate] = code
+                }
+            }
+            Log.d(TAG, "Wildcard search for '$bufferStr': found ${rawCandidates.size} candidates")
+        } else {
+            rawCandidates = WubiDictionary.getCandidatesForPrefix(bufferStr, limit = 50)
+        }
 
         // Separate single-character and multi-character dictionary candidates
         // Use raw dictionary order (no frequency sorting here - sorting is done later based on phrasesFirst setting)
