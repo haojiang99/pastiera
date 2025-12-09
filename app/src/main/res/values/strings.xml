@@ -628,6 +628,10 @@
     <string name="show_led_status_title">Show LED Status Indicator</string>
     <string name="show_led_status_description">Display virtual LED strip showing modifier key states</string>
 
+    <!-- SYM Button -->
+    <string name="show_sym_button_title">Show SYM Button</string>
+    <string name="show_sym_button_description">Display SYM button in the status bar for symbol/emoji input</string>
+
     <!-- Partial Pinyin Matching -->
     <string name="partial_pinyin_matching_title">Partial Pinyin Matching</string>
     <string name="partial_pinyin_matching_description">Show phrase suggestions while typing partial pinyin (after first character selected)</string>

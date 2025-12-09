@@ -964,8 +964,9 @@ class VariationBarView(
         val symButton = symButtonView ?: createSymButton(buttonWidth).also {
             symButtonView = it
         }
-        if (hideStatusBarIconsForJuying) {
-            // Hide SYM button in Juying mode with suggestions
+        val showSymButtonSetting = SettingsManager.isShowSymButton(context)
+        if (hideStatusBarIconsForJuying || !showSymButtonSetting) {
+            // Hide SYM button in Juying mode with suggestions or when disabled in settings
             if (symButton.parent != null) {
                 (symButton.parent as? ViewGroup)?.removeView(symButton)
             }
