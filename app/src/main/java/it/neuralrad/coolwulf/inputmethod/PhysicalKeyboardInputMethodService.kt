@@ -1937,14 +1937,21 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             modifierStateController.registerNonModifierKey()
         }
 
-        // Handle hold space for voice input
-        if (translatedKeyCode == KeyEvent.KEYCODE_SPACE && SettingsManager.isHoldSpaceForVoice(this)) {
+        // Handle hold space for voice input - only when we have an active, real text input field
+        val canTriggerVoiceInput = isInputViewActive &&
+                                   inputContextState.isReallyEditable &&
+                                   currentInputConnection != null
+        if (translatedKeyCode == KeyEvent.KEYCODE_SPACE && SettingsManager.isHoldSpaceForVoice(this) && canTriggerVoiceInput) {
             if (event?.repeatCount == 0) {
                 // First press - start hold timer for voice input
                 spaceHoldTriggeredVoice = false
                 spaceHoldHandler = Handler(Looper.getMainLooper())
                 spaceHoldRunnable = Runnable {
-                    if (!spaceHoldTriggeredVoice) {
+                    // Double-check we still have an active, real text input field before triggering
+                    val stillCanTrigger = isInputViewActive &&
+                                          inputContextState.isReallyEditable &&
+                                          currentInputConnection != null
+                    if (!spaceHoldTriggeredVoice && stillCanTrigger) {
                         spaceHoldTriggeredVoice = true
                         voiceTriggeredByHoldSpace = true  // Track that voice was triggered by holding space
                         startSpeechRecognition()
