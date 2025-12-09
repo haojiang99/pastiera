@@ -53,6 +53,14 @@
     <string name="show_voice_input_button_title">Voice Input Button</string>
     <string name="show_voice_input_button_description">Show microphone button in the status bar</string>
 
+    <!-- Hold Space for Voice -->
+    <string name="hold_space_for_voice_title">Hold Space for Voice</string>
+    <string name="hold_space_for_voice_description">Hold space key to start voice input</string>
+
+    <!-- Voice Auto-Add Punctuation -->
+    <string name="voice_add_punctuation_title">Voice Auto-Add Punctuation</string>
+    <string name="voice_add_punctuation_description">Add period at end and comma on pauses during voice input</string>
+
     <!-- Clipboard History -->
     <string name="clipboard_history_enabled_title">Clipboard History</string>
     <string name="clipboard_history_enabled_description">Store copied text and allow quick paste from history</string>

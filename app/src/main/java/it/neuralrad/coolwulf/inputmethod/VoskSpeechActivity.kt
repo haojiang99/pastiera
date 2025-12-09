@@ -5,6 +5,8 @@ import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.Gravity
 import android.view.View
@@ -43,9 +45,12 @@ class VoskSpeechActivity : Activity() {
     private var isListening = false
     private var currentText = StringBuilder()
 
-    // Punctuation tracking
-    private var lastResultTime = 0L
-    private val PAUSE_THRESHOLD_MS = 800L  // Pause longer than this inserts comma
+    // Punctuation tracking - detect pauses using partial result timing
+    private val handler = Handler(Looper.getMainLooper())
+    private var pauseDetected = false
+    private var hasReceivedPartial = false
+    private val PAUSE_THRESHOLD_MS = 500L  // 0.5 second pause threshold
+    private var pauseRunnable: Runnable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -289,7 +294,9 @@ class VoskSpeechActivity : Activity() {
         try {
             isListening = true
             currentText.clear()
-            lastResultTime = 0L
+            pauseDetected = false
+            hasReceivedPartial = false
+            pauseRunnable?.let { handler.removeCallbacks(it) }
             recognizedText.text = ""
             statusText.text = getString(R.string.vosk_listening)
             startButton.visibility = View.GONE
@@ -301,40 +308,70 @@ class VoskSpeechActivity : Activity() {
 
             val addPunctuation = SettingsManager.isVoiceAddPunctuation(this)
             val useChinesePunctuation = SettingsManager.isVoiceChinesePunctuation(this)
-            val comma = if (useChinesePunctuation) "，" else ", "
+            val comma = if (useChinesePunctuation) "，" else ","
 
             voskRecognizer.startListening(
             onResult = { text ->
                 runOnUiThread {
-                    Log.d(TAG, "Result: $text")
                     if (text.isNotEmpty()) {
-                        val currentTime = System.currentTimeMillis()
+                        // Cancel any pending pause detection
+                        pauseRunnable?.let { handler.removeCallbacks(it) }
 
-                        // Check for pause and insert comma if needed
-                        if (addPunctuation && currentText.isNotEmpty() && lastResultTime > 0) {
-                            val pauseDuration = currentTime - lastResultTime
-                            if (pauseDuration > PAUSE_THRESHOLD_MS) {
-                                // Insert comma for significant pause
-                                currentText.append(comma)
-                                Log.d(TAG, "Inserted comma due to pause of ${pauseDuration}ms")
-                            }
+                        // If we detected a pause and have existing text, insert comma
+                        if (addPunctuation && pauseDetected && currentText.isNotEmpty()) {
+                            currentText.append(comma)
                         }
 
                         currentText.append(text)
-                        lastResultTime = currentTime
                         recognizedText.text = currentText.toString()
+
+                        // Reset pause state and start watching for next pause
+                        pauseDetected = false
+                        hasReceivedPartial = false
+
+                        // Start timer to detect pause after this result
+                        if (addPunctuation) {
+                            pauseRunnable = Runnable {
+                                if (isListening && currentText.isNotEmpty()) {
+                                    pauseDetected = true
+                                }
+                            }
+                            handler.postDelayed(pauseRunnable!!, PAUSE_THRESHOLD_MS)
+                        }
                     }
                 }
             },
             onPartialResult = { partial ->
                 runOnUiThread {
-                    Log.d(TAG, "Partial: $partial")
-                    val displayText = if (currentText.isEmpty()) {
-                        partial
+                    // Cancel pending pause detection when we get partial results
+                    pauseRunnable?.let { handler.removeCallbacks(it) }
+
+                    // If pause was detected before this partial, mark for comma insertion
+                    if (addPunctuation && pauseDetected && currentText.isNotEmpty() && partial.isNotEmpty()) {
+                        // Pause was detected, new speech started - insert comma now
+                        currentText.append(comma)
+                        pauseDetected = false
+                        recognizedText.text = "${currentText}$partial"
                     } else {
-                        "${currentText}$partial"
+                        val displayText = if (currentText.isEmpty()) {
+                            partial
+                        } else {
+                            "${currentText}$partial"
+                        }
+                        recognizedText.text = displayText
                     }
-                    recognizedText.text = displayText
+
+                    hasReceivedPartial = partial.isNotEmpty()
+
+                    // Restart pause detection timer
+                    if (addPunctuation && partial.isNotEmpty()) {
+                        pauseRunnable = Runnable {
+                            if (isListening && (currentText.isNotEmpty() || hasReceivedPartial)) {
+                                pauseDetected = true
+                            }
+                        }
+                        handler.postDelayed(pauseRunnable!!, PAUSE_THRESHOLD_MS)
+                    }
                 }
             },
             onError = { error ->
@@ -404,6 +441,8 @@ class VoskSpeechActivity : Activity() {
 
     private fun stopListeningUI() {
         isListening = false
+        pauseRunnable?.let { handler.removeCallbacks(it) }
+        pauseRunnable = null
         startButton.visibility = View.VISIBLE
         stopButton.visibility = View.GONE
         listeningIndicator.visibility = View.GONE

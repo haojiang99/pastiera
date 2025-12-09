@@ -89,6 +89,14 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getShowVoiceInputButton(context))
     }
 
+    var holdSpaceForVoice by remember {
+        mutableStateOf(SettingsManager.isHoldSpaceForVoice(context))
+    }
+
+    var voiceAddPunctuation by remember {
+        mutableStateOf(SettingsManager.isVoiceAddPunctuation(context))
+    }
+
     var offlineVoiceInput by remember {
         mutableStateOf(SettingsManager.isOfflineVoiceInput(context))
     }
@@ -606,6 +614,92 @@ fun TextInputSettingsScreen(
                         onCheckedChange = { enabled ->
                             showVoiceInputButton = enabled
                             SettingsManager.setShowVoiceInputButton(context, enabled)
+                        }
+                    )
+                }
+            }
+
+            // Hold Space for Voice Input
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.hold_space_for_voice_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.hold_space_for_voice_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                    Switch(
+                        checked = holdSpaceForVoice,
+                        onCheckedChange = { enabled ->
+                            holdSpaceForVoice = enabled
+                            SettingsManager.setHoldSpaceForVoice(context, enabled)
+                        }
+                    )
+                }
+            }
+
+            // Voice Auto-Add Punctuation
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.voice_add_punctuation_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.voice_add_punctuation_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                    Switch(
+                        checked = voiceAddPunctuation,
+                        onCheckedChange = { enabled ->
+                            voiceAddPunctuation = enabled
+                            SettingsManager.setVoiceAddPunctuation(context, enabled)
                         }
                     )
                 }

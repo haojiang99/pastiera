@@ -84,6 +84,7 @@ object SettingsManager {
     private const val KEY_VOICE_AUTO_INSERT = "voice_auto_insert" // Auto-insert recognized text after silence
     private const val KEY_VOICE_CHINESE_PUNCTUATION = "voice_chinese_punctuation" // Use Chinese punctuation (。,) for voice input
     private const val KEY_VOICE_ADD_PUNCTUATION = "voice_add_punctuation" // Add punctuation to voice input text
+    private const val KEY_HOLD_SPACE_FOR_VOICE = "hold_space_for_voice" // Hold space key to trigger voice input
     private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
     private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
     private const val KEY_TRADITIONAL_CHINESE_TOGGLE_ENABLED = "traditional_chinese_toggle_enabled" // Show 简/繁 toggle button in status bar
@@ -150,6 +151,7 @@ object SettingsManager {
     private const val DEFAULT_VOICE_AUTO_INSERT = true  // Auto-insert voice recognition result
     private const val DEFAULT_VOICE_CHINESE_PUNCTUATION = true  // Use Chinese punctuation for voice input by default
     private const val DEFAULT_VOICE_ADD_PUNCTUATION = true  // Add punctuation to voice input by default
+    private const val DEFAULT_HOLD_SPACE_FOR_VOICE = false  // Hold space for voice input disabled by default
     private const val DEFAULT_SHOW_LED_STATUS = true  // LED status indicator shown by default
     private const val DEFAULT_TRADITIONAL_CHINESE_TOGGLE_ENABLED = false  // 简/繁 toggle disabled by default
     // Titan 2 default Juying keys
@@ -1786,6 +1788,22 @@ object SettingsManager {
     fun setVoiceAddPunctuation(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_VOICE_ADD_PUNCTUATION, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether holding space key triggers voice input.
+     */
+    fun isHoldSpaceForVoice(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_HOLD_SPACE_FOR_VOICE, DEFAULT_HOLD_SPACE_FOR_VOICE)
+    }
+
+    /**
+     * Sets whether holding space key triggers voice input.
+     */
+    fun setHoldSpaceForVoice(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_HOLD_SPACE_FOR_VOICE, enabled)
             .apply()
     }
 

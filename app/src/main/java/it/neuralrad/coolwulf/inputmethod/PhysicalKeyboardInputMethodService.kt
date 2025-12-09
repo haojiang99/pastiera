@@ -211,6 +211,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private val symPage: Int
         get() = if (::symLayoutController.isInitialized) symLayoutController.currentSymPage() else 0
 
+    // Hold space for voice input tracking
+    private var spaceHoldHandler: Handler? = null
+    private var spaceHoldRunnable: Runnable? = null
+    private var spaceHoldTriggeredVoice: Boolean = false
+    private var voiceTriggeredByHoldSpace: Boolean = false  // Persists until voice result is received
+    private val SPACE_HOLD_THRESHOLD_MS = 500L  // Hold for 0.5 second to trigger voice
+
     // BlackBerry-specific keycodes
     private val BLACKBERRY_KEYCODE_ALT = 57
     private val BLACKBERRY_KEYCODE_SYM = 58
@@ -889,6 +896,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     if (text != null && text.isNotEmpty()) {
                         Log.d(TAG, "Received speech recognition result: $text")
 
+                        // Convert to traditional Chinese if setting is enabled
+                        val finalText = if (SettingsManager.isTraditionalChineseMode(this@PhysicalKeyboardInputMethodService)) {
+                            it.neuralrad.coolwulf.data.pinyin.ChineseCharacterConverter.toTraditional(text)
+                        } else {
+                            text
+                        }
+
                         // Delay text insertion to give the system time to restore InputConnection
                         // after the speech recognition activity has closed.
                         Handler(Looper.getMainLooper()).postDelayed({
@@ -899,8 +913,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             fun tryInsertText() {
                                 val inputConnection = currentInputConnection
                                 if (inputConnection != null) {
-                                    inputConnection.commitText(text, 1)
-                                    Log.d(TAG, "Speech text inserted successfully: $text")
+                                    // Delete trailing space if voice was triggered by holding space
+                                    if (voiceTriggeredByHoldSpace) {
+                                        inputConnection.deleteSurroundingText(1, 0)
+                                        voiceTriggeredByHoldSpace = false
+                                    }
+                                    inputConnection.commitText(finalText, 1)
+                                    Log.d(TAG, "Speech text inserted successfully: $finalText")
                                 } else {
                                     attempts++
                                     if (attempts < maxAttempts) {
@@ -1930,6 +1949,26 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val isModifierKey = isDeviceModifierKey(keyCode)
         if (!isModifierKey) {
             modifierStateController.registerNonModifierKey()
+        }
+
+        // Handle hold space for voice input
+        if (translatedKeyCode == KeyEvent.KEYCODE_SPACE && SettingsManager.isHoldSpaceForVoice(this)) {
+            if (event?.repeatCount == 0) {
+                // First press - start hold timer for voice input
+                spaceHoldTriggeredVoice = false
+                spaceHoldHandler = Handler(Looper.getMainLooper())
+                spaceHoldRunnable = Runnable {
+                    if (!spaceHoldTriggeredVoice) {
+                        spaceHoldTriggeredVoice = true
+                        voiceTriggeredByHoldSpace = true  // Track that voice was triggered by holding space
+                        startSpeechRecognition()
+                    }
+                }
+                spaceHoldHandler?.postDelayed(spaceHoldRunnable!!, SPACE_HOLD_THRESHOLD_MS)
+            } else {
+                // Key repeat - consume to prevent multiple spaces while holding
+                return true
+            }
         }
 
         // Track Alt/Shift double press for pagination
@@ -5043,12 +5082,26 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         // Continue with normal IME logic for text fields
         val inputConnection = currentInputConnection ?: return super.onKeyUp(keyCode, event)
-        
+
         // Always notify the tracker (even when the event is consumed)
         KeyboardEventTracker.notifyKeyEvent(keyCode, event, "KEY_UP")
-        
+
         // Translate device-specific keycodes to standard Android keycodes for modifier handling
         val translatedKeyCode = translateKeyCode(keyCode)
+
+        // Handle hold space for voice input - on key up
+        if (translatedKeyCode == KeyEvent.KEYCODE_SPACE && SettingsManager.isHoldSpaceForVoice(this)) {
+            // Cancel the pending voice trigger
+            spaceHoldRunnable?.let { spaceHoldHandler?.removeCallbacks(it) }
+            spaceHoldRunnable = null
+            spaceHoldHandler = null
+
+            // If voice was triggered, consume the key up event
+            if (spaceHoldTriggeredVoice) {
+                spaceHoldTriggeredVoice = false
+                return true
+            }
+        }
 
         // Check if Juying mode should intercept modifier key releases
         // When Juying mode is active with Chinese input and candidates, prevent normal modifier behavior
