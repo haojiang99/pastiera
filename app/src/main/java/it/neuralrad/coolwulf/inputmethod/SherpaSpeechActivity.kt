@@ -432,8 +432,8 @@ class SherpaSpeechActivity : Activity() {
                 finalText
             }
 
-            // Remove all spaces from Chinese text (Chinese doesn't use spaces between words)
-            var resultText = combinedText.replace(" ", "").trim()
+            // Keep the text as-is since user may speak English which needs spaces
+            var resultText = combinedText.trim()
 
             // Add period at the end if punctuation is enabled
             if (resultText.isNotEmpty() && SettingsManager.isVoiceAddPunctuation(this)) {
