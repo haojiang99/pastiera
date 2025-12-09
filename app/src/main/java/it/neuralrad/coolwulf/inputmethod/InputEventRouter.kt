@@ -573,7 +573,9 @@ class InputEventRouter(
         }
 
         val isAlphabeticKey = callbacks.isAlphabeticKey(keyCode)
-        if (isAlphabeticKey && LayoutMappingRepository.isMapped(keyCode)) {
+        // In Chinese input mode, let alphabetic keys fall through to the Chinese input handler
+        // instead of committing them directly here
+        if (isAlphabeticKey && LayoutMappingRepository.isMapped(keyCode) && !params.isChineseInputActive) {
             val char = LayoutMappingRepository.getCharacterStringWithModifiers(
                 keyCode,
                 event?.isShiftPressed == true,
@@ -587,6 +589,11 @@ class InputEventRouter(
                 }, params.cursorUpdateDelayMs)
                 return EditableFieldRoutingResult.Consume
             }
+        }
+
+        // In Chinese input mode, return Continue to let the Chinese input handler process the key
+        if (params.isChineseInputActive && isAlphabeticKey) {
+            return EditableFieldRoutingResult.Continue
         }
 
         return EditableFieldRoutingResult.CallSuper

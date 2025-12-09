@@ -195,18 +195,21 @@ class UserPinyinMemory(context: Context) {
                 val pinyinKeys = jsonObject.keys()
 
                 while (pinyinKeys.hasNext()) {
-                    val pinyin = pinyinKeys.next()
-                    val candidatesJson = jsonObject.getJSONObject(pinyin)
+                    val rawPinyin = pinyinKeys.next()
+                    // Normalize pinyin to lowercase to match recordSelection behavior
+                    val pinyin = rawPinyin.lowercase().trim()
+                    val candidatesJson = jsonObject.getJSONObject(rawPinyin)
                     val candidateKeys = candidatesJson.keys()
 
-                    val candidateMap = mutableMapOf<String, Int>()
+                    // Get or create candidate map (handles case normalization merging)
+                    val candidateMap = memoryCache.getOrPut(pinyin) { mutableMapOf() }
                     while (candidateKeys.hasNext()) {
                         val candidate = candidateKeys.next()
                         val frequency = candidatesJson.getInt(candidate)
-                        candidateMap[candidate] = frequency
+                        // Keep higher frequency if key already exists (from case normalization)
+                        val existingFreq = candidateMap[candidate] ?: 0
+                        candidateMap[candidate] = maxOf(existingFreq, frequency)
                     }
-
-                    memoryCache[pinyin] = candidateMap
                 }
 
                 Log.d(TAG, "Loaded user memory: ${memoryCache.size} pinyin entries")
@@ -219,18 +222,21 @@ class UserPinyinMemory(context: Context) {
                 val abbrevKeys = jsonObject.keys()
 
                 while (abbrevKeys.hasNext()) {
-                    val abbrev = abbrevKeys.next()
-                    val candidatesJson = jsonObject.getJSONObject(abbrev)
+                    val rawAbbrev = abbrevKeys.next()
+                    // Normalize abbreviation to lowercase to match recordSelection behavior
+                    val abbrev = rawAbbrev.lowercase().trim()
+                    val candidatesJson = jsonObject.getJSONObject(rawAbbrev)
                     val candidateKeys = candidatesJson.keys()
 
-                    val candidateMap = mutableMapOf<String, Int>()
+                    // Get or create candidate map (handles case normalization merging)
+                    val candidateMap = abbreviationCache.getOrPut(abbrev) { mutableMapOf() }
                     while (candidateKeys.hasNext()) {
                         val candidate = candidateKeys.next()
                         val frequency = candidatesJson.getInt(candidate)
-                        candidateMap[candidate] = frequency
+                        // Keep higher frequency if key already exists (from case normalization)
+                        val existingFreq = candidateMap[candidate] ?: 0
+                        candidateMap[candidate] = maxOf(existingFreq, frequency)
                     }
-
-                    abbreviationCache[abbrev] = candidateMap
                 }
 
                 Log.d(TAG, "Loaded abbreviation memory: ${abbreviationCache.size} abbreviation entries")
@@ -357,8 +363,10 @@ class UserPinyinMemory(context: Context) {
                 val memoryJson = importJson.getJSONObject("memory")
                 val keys = memoryJson.keys()
                 while (keys.hasNext()) {
-                    val pinyin = keys.next()
-                    val candidatesJson = memoryJson.getJSONObject(pinyin)
+                    val rawPinyin = keys.next()
+                    // Normalize pinyin to lowercase to match recordSelection behavior
+                    val pinyin = rawPinyin.lowercase().trim()
+                    val candidatesJson = memoryJson.getJSONObject(rawPinyin)
                     val candidateMap = memoryCache.getOrPut(pinyin) { mutableMapOf() }
                     val candidateKeys = candidatesJson.keys()
                     while (candidateKeys.hasNext()) {
@@ -381,8 +389,10 @@ class UserPinyinMemory(context: Context) {
                 val abbreviationJson = importJson.getJSONObject("abbreviations")
                 val keys = abbreviationJson.keys()
                 while (keys.hasNext()) {
-                    val abbrev = keys.next()
-                    val candidatesJson = abbreviationJson.getJSONObject(abbrev)
+                    val rawAbbrev = keys.next()
+                    // Normalize abbreviation to lowercase to match recordSelection behavior
+                    val abbrev = rawAbbrev.lowercase().trim()
+                    val candidatesJson = abbreviationJson.getJSONObject(rawAbbrev)
                     val candidateMap = abbreviationCache.getOrPut(abbrev) { mutableMapOf() }
                     val candidateKeys = candidatesJson.keys()
                     while (candidateKeys.hasNext()) {

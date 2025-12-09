@@ -1378,6 +1378,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             ic.setComposingText(remainingBuffer, 1)
                         }
                     }
+                } else if (ziranmaInputController.hasCandidates()) {
+                    val selected = ziranmaInputController.selectFirstCandidate()
+                    if (selected != null) {
+                        ic.setComposingText("", 1)
+                        ic.commitText(selected, 1)
+                        val remainingBuffer = ziranmaInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+                    }
                 } else if (wubiInputController.hasCandidates()) {
                     val selected = wubiInputController.selectFirstCandidate()
                     if (selected != null) {
@@ -1415,6 +1425,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 } else if (shuangpinInputController.getBuffer().isNotEmpty()) {
                     shuangpinInputController.handleBackspace()
                     val buffer = shuangpinInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        ic.setComposingText(buffer, 1)
+                    } else {
+                        ic.setComposingText("", 1)
+                    }
+                } else if (ziranmaInputController.getBuffer().isNotEmpty()) {
+                    ziranmaInputController.handleBackspace()
+                    val buffer = ziranmaInputController.getBuffer()
                     if (buffer.isNotEmpty()) {
                         ic.setComposingText(buffer, 1)
                     } else {
@@ -1469,6 +1487,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         } else if (shuangpinInputController.isShuangpinMode() && char.isLetter()) {
             shuangpinInputController.handleLetterKey(char.lowercaseChar())
             val buffer = shuangpinInputController.getBuffer()
+            ic.setComposingText(buffer, 1)
+        } else if (ziranmaInputController.isZiranmaMode() && char.isLetter()) {
+            ziranmaInputController.handleLetterKey(char.lowercaseChar())
+            val buffer = ziranmaInputController.getBuffer()
             ic.setComposingText(buffer, 1)
         } else if (wubiInputController.isWubiMode() && char.isLetter()) {
             // Check for overflow commit (5th letter scenario) BEFORE adding the letter
@@ -1927,8 +1949,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val initialInputConnection = currentInputConnection
         val inputType = info?.inputType ?: EditorInfo.TYPE_NULL
         val hasEditableField = initialInputConnection != null && inputType != EditorInfo.TYPE_NULL
+        val wasInputViewActive = isInputViewActive
         if (hasEditableField && !isInputViewActive) {
             isInputViewActive = true
+            // Update input context state immediately so Chinese input handlers can work
+            updateInputContextState(info)
         }
 
         // Check if this is a modifier key (using device-specific checks)
@@ -3345,6 +3370,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
 
                     // Otherwise, add to pinyin buffer (lowercase)
+                    // If buffer is empty, check for a stray letter before cursor that should be included
+                    // This handles the case where the first letter was committed directly to the text field
+                    // before the IME was fully active (e.g., typing 'wo' when entering chat window)
+                    // Only do this if the letter is truly standalone (not part of an existing word)
+                    val bufferBefore = pinyinInputController.getBuffer()
+                    if (bufferBefore.isEmpty()) {
+                        val textBefore = ic.getTextBeforeCursor(2, 0)?.toString() ?: ""
+                        if (textBefore.length == 1 && textBefore[0].isLetter() && textBefore[0].lowercaseChar() in 'a'..'z') {
+                            // Single letter at the start of input - grab it
+                            ic.deleteSurroundingText(1, 0)
+                            pinyinInputController.handleLetterKey(textBefore[0])
+                        } else if (textBefore.length == 2 && textBefore[1].isLetter() && textBefore[1].lowercaseChar() in 'a'..'z' && !textBefore[0].isLetter()) {
+                            // Letter preceded by non-letter (space, punctuation, etc.) - it's standalone, grab it
+                            ic.deleteSurroundingText(1, 0)
+                            pinyinInputController.handleLetterKey(textBefore[1])
+                        }
+                        // If preceded by another letter, it's part of an existing word - don't grab it
+                    }
+
                     if (pinyinInputController.handleLetterKey(char)) {
                         val buffer = pinyinInputController.getBuffer()
                         ic.setComposingText(buffer, 1)
@@ -3787,6 +3831,22 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
 
                     // Add to Shuangpin buffer (lowercase)
+                    // If buffer is empty, check for a stray letter before cursor that should be included
+                    // Only do this if the letter is truly standalone (not part of an existing word)
+                    val bufferBeforeShuangpin = shuangpinInputController.getBuffer()
+                    if (bufferBeforeShuangpin.isEmpty()) {
+                        val textBefore = ic.getTextBeforeCursor(2, 0)?.toString() ?: ""
+                        if (textBefore.length == 1 && textBefore[0].isLetter() && textBefore[0].lowercaseChar() in 'a'..'z') {
+                            // Single letter at the start of input - grab it
+                            ic.deleteSurroundingText(1, 0)
+                            shuangpinInputController.handleLetterKey(textBefore[0])
+                        } else if (textBefore.length == 2 && textBefore[1].isLetter() && textBefore[1].lowercaseChar() in 'a'..'z' && !textBefore[0].isLetter()) {
+                            // Letter preceded by non-letter - it's standalone, grab it
+                            ic.deleteSurroundingText(1, 0)
+                            shuangpinInputController.handleLetterKey(textBefore[1])
+                        }
+                    }
+
                     if (shuangpinInputController.handleLetterKey(char)) {
                         val buffer = shuangpinInputController.getBuffer()
                         ic.setComposingText(buffer, 1)
@@ -4009,6 +4069,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
 
                     // Add to Ziranma buffer (lowercase)
+                    // If buffer is empty, check for a stray letter before cursor that should be included
+                    // Only do this if the letter is truly standalone (not part of an existing word)
+                    val bufferBeforeZiranma = ziranmaInputController.getBuffer()
+                    if (bufferBeforeZiranma.isEmpty()) {
+                        val textBefore = ic.getTextBeforeCursor(2, 0)?.toString() ?: ""
+                        if (textBefore.length == 1 && textBefore[0].isLetter() && textBefore[0].lowercaseChar() in 'a'..'z') {
+                            ic.deleteSurroundingText(1, 0)
+                            ziranmaInputController.handleLetterKey(textBefore[0])
+                        } else if (textBefore.length == 2 && textBefore[1].isLetter() && textBefore[1].lowercaseChar() in 'a'..'z' && !textBefore[0].isLetter()) {
+                            ic.deleteSurroundingText(1, 0)
+                            ziranmaInputController.handleLetterKey(textBefore[1])
+                        }
+                    }
+
                     if (ziranmaInputController.handleLetterKey(char)) {
                         val buffer = ziranmaInputController.getBuffer()
                         ic.setComposingText(buffer, 1)
@@ -4421,6 +4495,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.commitText(char.toString(), 1)
                         updateStatusBarText()
                         return true
+                    }
+
+                    // If buffer is empty, check for a stray letter before cursor that should be included
+                    // Only do this if the letter is truly standalone (not part of an existing word)
+                    val bufferBeforeWubi = wubiInputController.getBuffer()
+                    if (bufferBeforeWubi.isEmpty()) {
+                        val textBefore = ic.getTextBeforeCursor(2, 0)?.toString() ?: ""
+                        if (textBefore.length == 1 && textBefore[0].isLetter() && textBefore[0].lowercaseChar() in 'a'..'z') {
+                            ic.deleteSurroundingText(1, 0)
+                            wubiInputController.handleLetterKey(textBefore[0])
+                        } else if (textBefore.length == 2 && textBefore[1].isLetter() && textBefore[1].lowercaseChar() in 'a'..'z' && !textBefore[0].isLetter()) {
+                            ic.deleteSurroundingText(1, 0)
+                            wubiInputController.handleLetterKey(textBefore[1])
+                        }
                     }
 
                     // Check for overflow commit (5th letter scenario) BEFORE adding the letter
@@ -4853,6 +4941,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.commitText(char.toString(), 1)
                         updateStatusBarText()
                         return true
+                    }
+
+                    // If buffer is empty, check for a stray letter before cursor that should be included
+                    // Only do this if the letter is truly standalone (not part of an existing word)
+                    val bufferBeforeZhenma = zhenmaInputController.getBuffer()
+                    if (bufferBeforeZhenma.isEmpty()) {
+                        val textBefore = ic.getTextBeforeCursor(2, 0)?.toString() ?: ""
+                        if (textBefore.length == 1 && textBefore[0].isLetter() && textBefore[0].lowercaseChar() in 'a'..'z') {
+                            ic.deleteSurroundingText(1, 0)
+                            zhenmaInputController.handleLetterKey(textBefore[0])
+                        } else if (textBefore.length == 2 && textBefore[1].isLetter() && textBefore[1].lowercaseChar() in 'a'..'z' && !textBefore[0].isLetter()) {
+                            ic.deleteSurroundingText(1, 0)
+                            zhenmaInputController.handleLetterKey(textBefore[1])
+                        }
                     }
 
                     // Add letter to Zhenma buffer
