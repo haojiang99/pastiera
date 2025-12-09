@@ -77,14 +77,13 @@ object SettingsManager {
     private const val KEY_PARTIAL_PINYIN_MATCHING = "partial_pinyin_matching" // Enable partial pinyin matching for phrases
     private const val KEY_SHOW_VIRTUAL_KEYBOARD_BUTTON = "show_virtual_keyboard_button" // Show virtual keyboard toggle button in status bar
     private const val KEY_SEMI_TRANSPARENT_STATUS_BAR = "semi_transparent_status_bar" // Make status bar semi-transparent
-    private const val KEY_OFFLINE_VOICE_INPUT = "offline_voice_input" // Use Vosk for offline Mandarin Chinese speech recognition
-    private const val KEY_VOSK_MODEL_PATH = "vosk_model_path" // Path to Vosk model directory
+    private const val KEY_OFFLINE_VOICE_INPUT = "offline_voice_input" // Use Sherpa-ONNX for offline Mandarin Chinese speech recognition
     private const val KEY_SHERPA_MODEL_PATH = "sherpa_model_path" // Path to Sherpa-ONNX model zip file
-    private const val KEY_VOICE_ENGINE = "voice_engine" // Voice recognition engine: "vosk" or "sherpa"
     private const val KEY_VOICE_AUTO_INSERT = "voice_auto_insert" // Auto-insert recognized text after silence
     private const val KEY_VOICE_CHINESE_PUNCTUATION = "voice_chinese_punctuation" // Use Chinese punctuation (。,) for voice input
     private const val KEY_VOICE_ADD_PUNCTUATION = "voice_add_punctuation" // Add punctuation to voice input text
     private const val KEY_HOLD_SPACE_FOR_VOICE = "hold_space_for_voice" // Hold space key to trigger voice input
+    private const val KEY_HOLD_SPACE_DURATION = "hold_space_duration" // Duration to hold space key for voice input (ms)
     private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
     private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
     private const val KEY_TRADITIONAL_CHINESE_TOGGLE_ENABLED = "traditional_chinese_toggle_enabled" // Show 简/繁 toggle button in status bar
@@ -147,11 +146,13 @@ object SettingsManager {
     private const val DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON = false  // Virtual keyboard button hidden by default
     private const val DEFAULT_SEMI_TRANSPARENT_STATUS_BAR = false  // Status bar is opaque by default
     private const val DEFAULT_OFFLINE_VOICE_INPUT = false  // Online (Google) voice recognition by default
-    private const val DEFAULT_VOICE_ENGINE = "sherpa"  // Default to Sherpa-ONNX for voice recognition
     private const val DEFAULT_VOICE_AUTO_INSERT = true  // Auto-insert voice recognition result
     private const val DEFAULT_VOICE_CHINESE_PUNCTUATION = true  // Use Chinese punctuation for voice input by default
     private const val DEFAULT_VOICE_ADD_PUNCTUATION = true  // Add punctuation to voice input by default
     private const val DEFAULT_HOLD_SPACE_FOR_VOICE = false  // Hold space for voice input disabled by default
+    private const val DEFAULT_HOLD_SPACE_DURATION = 500L  // Default hold duration in ms
+    private const val MIN_HOLD_SPACE_DURATION = 200L  // Minimum hold duration
+    private const val MAX_HOLD_SPACE_DURATION = 1500L  // Maximum hold duration
     private const val DEFAULT_SHOW_LED_STATUS = true  // LED status indicator shown by default
     private const val DEFAULT_TRADITIONAL_CHINESE_TOGGLE_ENABLED = false  // 简/繁 toggle disabled by default
     // Titan 2 default Juying keys
@@ -1669,8 +1670,8 @@ object SettingsManager {
     }
 
     /**
-     * Returns whether offline voice input (Vosk) is enabled.
-     * When enabled, uses Vosk for offline Mandarin Chinese speech recognition.
+     * Returns whether offline voice input (Sherpa-ONNX) is enabled.
+     * When enabled, uses Sherpa-ONNX for offline Mandarin Chinese speech recognition.
      * When disabled, uses online Google voice recognition.
      */
     fun isOfflineVoiceInput(context: Context): Boolean {
@@ -1678,29 +1679,11 @@ object SettingsManager {
     }
 
     /**
-     * Sets whether to use offline voice input (Vosk).
+     * Sets whether to use offline voice input (Sherpa-ONNX).
      */
     fun setOfflineVoiceInput(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_OFFLINE_VOICE_INPUT, enabled)
-            .apply()
-    }
-
-    /**
-     * Gets the path to the Vosk model directory.
-     * Returns null if not set.
-     */
-    fun getVoskModelPath(context: Context): String? {
-        return getPreferences(context).getString(KEY_VOSK_MODEL_PATH, null)
-    }
-
-    /**
-     * Sets the path to the Vosk model directory.
-     * Pass null to clear the path.
-     */
-    fun setVoskModelPath(context: Context, path: String?) {
-        getPreferences(context).edit()
-            .putString(KEY_VOSK_MODEL_PATH, path)
             .apply()
     }
 
@@ -1719,24 +1702,6 @@ object SettingsManager {
     fun setSherpaModelPath(context: Context, path: String?) {
         getPreferences(context).edit()
             .putString(KEY_SHERPA_MODEL_PATH, path)
-            .apply()
-    }
-
-    /**
-     * Gets the selected voice recognition engine.
-     * @return "vosk" or "sherpa"
-     */
-    fun getVoiceEngine(context: Context): String {
-        return getPreferences(context).getString(KEY_VOICE_ENGINE, DEFAULT_VOICE_ENGINE) ?: DEFAULT_VOICE_ENGINE
-    }
-
-    /**
-     * Sets the voice recognition engine.
-     * @param engine "vosk" or "sherpa"
-     */
-    fun setVoiceEngine(context: Context, engine: String) {
-        getPreferences(context).edit()
-            .putString(KEY_VOICE_ENGINE, engine)
             .apply()
     }
 
@@ -1806,6 +1771,33 @@ object SettingsManager {
             .putBoolean(KEY_HOLD_SPACE_FOR_VOICE, enabled)
             .apply()
     }
+
+    /**
+     * Returns the duration to hold space key for voice input in milliseconds.
+     */
+    fun getHoldSpaceDuration(context: Context): Long {
+        return getPreferences(context).getLong(KEY_HOLD_SPACE_DURATION, DEFAULT_HOLD_SPACE_DURATION)
+    }
+
+    /**
+     * Sets the duration to hold space key for voice input in milliseconds.
+     */
+    fun setHoldSpaceDuration(context: Context, duration: Long) {
+        val clampedValue = duration.coerceIn(MIN_HOLD_SPACE_DURATION, MAX_HOLD_SPACE_DURATION)
+        getPreferences(context).edit()
+            .putLong(KEY_HOLD_SPACE_DURATION, clampedValue)
+            .apply()
+    }
+
+    /**
+     * Returns the minimum allowed value for hold space duration.
+     */
+    fun getMinHoldSpaceDuration(): Long = MIN_HOLD_SPACE_DURATION
+
+    /**
+     * Returns the maximum allowed value for hold space duration.
+     */
+    fun getMaxHoldSpaceDuration(): Long = MAX_HOLD_SPACE_DURATION
 
     /**
      * Returns whether the LED status indicator strip is shown.

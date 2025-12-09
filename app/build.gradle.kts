@@ -46,7 +46,7 @@ android {
         minSdk = 23
         targetSdk = 36
         versionCode = 18
-        versionName = "0.77"
+        versionName = "0.78"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -165,9 +165,6 @@ dependencies {
     implementation("androidx.emoji2:emoji2-views:1.4.0")
     implementation("androidx.emoji2:emoji2-views-helper:1.4.0")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
-    // Vosk offline speech recognition for Mandarin Chinese
-    implementation("net.java.dev.jna:jna:5.13.0@aar")
-    implementation("com.alphacephei:vosk-android:0.3.47@aar")
 
     // Apache Commons Compress for tar.bz2 extraction (Sherpa-ONNX models)
     implementation("org.apache.commons:commons-compress:1.26.0")

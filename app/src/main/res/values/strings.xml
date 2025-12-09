@@ -53,9 +53,16 @@
     <string name="show_voice_input_button_title">Voice Input Button</string>
     <string name="show_voice_input_button_description">Show microphone button in the status bar</string>
 
+    <!-- Voice Input Section -->
+    <string name="voice_input_section_title">Voice Input</string>
+
     <!-- Hold Space for Voice -->
     <string name="hold_space_for_voice_title">Hold Space for Voice</string>
     <string name="hold_space_for_voice_description">Hold space key to start voice input</string>
+
+    <!-- Hold Space Duration -->
+    <string name="hold_space_duration_title">Hold Duration</string>
+    <string name="hold_space_duration_description">Duration to hold space for voice input: %1$d ms</string>
 
     <!-- Voice Auto-Add Punctuation -->
     <string name="voice_add_punctuation_title">Voice Auto-Add Punctuation</string>

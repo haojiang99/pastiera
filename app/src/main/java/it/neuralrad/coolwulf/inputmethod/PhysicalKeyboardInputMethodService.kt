@@ -33,7 +33,6 @@ import it.neuralrad.coolwulf.data.layout.LayoutMappingRepository
 import it.neuralrad.coolwulf.data.mappings.KeyMappingLoader
 import it.neuralrad.coolwulf.data.variation.VariationRepository
 import it.neuralrad.coolwulf.inputmethod.SpeechRecognitionActivity
-import it.neuralrad.coolwulf.inputmethod.VoskSpeechActivity
 import it.neuralrad.coolwulf.inputmethod.SherpaSpeechActivity
 
 /**
@@ -216,7 +215,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private var spaceHoldRunnable: Runnable? = null
     private var spaceHoldTriggeredVoice: Boolean = false
     private var voiceTriggeredByHoldSpace: Boolean = false  // Persists until voice result is received
-    private val SPACE_HOLD_THRESHOLD_MS = 500L  // Hold for 0.5 second to trigger voice
 
     // BlackBerry-specific keycodes
     private val BLACKBERRY_KEYCODE_ALT = 57
@@ -297,23 +295,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     
     private fun startSpeechRecognition() {
         try {
-            // Choose between offline (Vosk/Sherpa) and online (Google) voice recognition
+            // Choose between offline (Sherpa-ONNX) and online (Google) voice recognition
             val useOffline = SettingsManager.isOfflineVoiceInput(this)
-            val voiceEngine = SettingsManager.getVoiceEngine(this)
 
             val intent = if (useOffline) {
-                // Use selected offline voice engine
-                if (voiceEngine == "sherpa") {
-                    Intent(this, SherpaSpeechActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                                Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
-                    }
-                } else {
-                    // Default to Vosk
-                    Intent(this, VoskSpeechActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                                Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
-                    }
+                // Use Sherpa-ONNX for offline voice recognition
+                Intent(this, SherpaSpeechActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
                 }
             } else {
                 Intent(this, SpeechRecognitionActivity::class.java).apply {
@@ -323,7 +312,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
             startActivity(intent)
-            Log.d(TAG, "Speech recognition started (offline=$useOffline, engine=$voiceEngine)")
+            Log.d(TAG, "Speech recognition started (offline=$useOffline)")
         } catch (e: Exception) {
             Log.e(TAG, "Unable to launch speech recognition", e)
         }
@@ -884,13 +873,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         speechResultReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 Log.d(TAG, "Broadcast receiver called - action: ${intent?.action}")
-                // Handle Google (online), Vosk (offline), and Sherpa (offline) speech results
+                // Handle Google (online) and Sherpa (offline) speech results
                 val isSpeechResult = intent?.action == SpeechRecognitionActivity.ACTION_SPEECH_RESULT ||
-                        intent?.action == VoskSpeechActivity.ACTION_VOSK_SPEECH_RESULT ||
                         intent?.action == SherpaSpeechActivity.ACTION_SHERPA_SPEECH_RESULT
                 if (isSpeechResult) {
                     val text = intent?.getStringExtra(SpeechRecognitionActivity.EXTRA_TEXT)
-                        ?: intent?.getStringExtra(VoskSpeechActivity.EXTRA_TEXT)
                         ?: intent?.getStringExtra(SherpaSpeechActivity.EXTRA_TEXT)
                     Log.d(TAG, "Broadcast received with text: $text")
                     if (text != null && text.isNotEmpty()) {
@@ -938,10 +925,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
 
-        // Register for online (Google) and offline (Vosk/Sherpa) speech results
+        // Register for online (Google) and offline (Sherpa) speech results
         val filter = IntentFilter().apply {
             addAction(SpeechRecognitionActivity.ACTION_SPEECH_RESULT)
-            addAction(VoskSpeechActivity.ACTION_VOSK_SPEECH_RESULT)
             addAction(SherpaSpeechActivity.ACTION_SHERPA_SPEECH_RESULT)
         }
 
@@ -1964,7 +1950,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         startSpeechRecognition()
                     }
                 }
-                spaceHoldHandler?.postDelayed(spaceHoldRunnable!!, SPACE_HOLD_THRESHOLD_MS)
+                spaceHoldHandler?.postDelayed(spaceHoldRunnable!!, SettingsManager.getHoldSpaceDuration(this))
             } else {
                 // Key repeat - consume to prevent multiple spaces while holding
                 return true

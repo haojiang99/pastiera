@@ -29,7 +29,6 @@ import it.neuralrad.coolwulf.inputmethod.StatusBarController
 import it.neuralrad.coolwulf.inputmethod.TextSelectionHelper
 import it.neuralrad.coolwulf.inputmethod.VariationButtonHandler
 import it.neuralrad.coolwulf.inputmethod.SpeechRecognitionActivity
-import it.neuralrad.coolwulf.inputmethod.VoskSpeechActivity
 import it.neuralrad.coolwulf.inputmethod.SherpaSpeechActivity
 import kotlin.math.abs
 import kotlin.math.max
@@ -1370,23 +1369,14 @@ class VariationBarView(
 
     private fun startSpeechRecognition(inputConnection: android.view.inputmethod.InputConnection?) {
         try {
-            // Choose between offline (Vosk/Sherpa) and online (Google) voice recognition
+            // Choose between offline (Sherpa-ONNX) and online (Google) voice recognition
             val useOffline = SettingsManager.isOfflineVoiceInput(context)
-            val voiceEngine = SettingsManager.getVoiceEngine(context)
 
             val intent = if (useOffline) {
-                // Use selected offline voice engine
-                if (voiceEngine == "sherpa") {
-                    Intent(context, SherpaSpeechActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                                Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
-                    }
-                } else {
-                    // Default to Vosk
-                    Intent(context, VoskSpeechActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                                Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
-                    }
+                // Use Sherpa-ONNX for offline voice recognition
+                Intent(context, SherpaSpeechActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
                 }
             } else {
                 Intent(context, SpeechRecognitionActivity::class.java).apply {
@@ -1396,7 +1386,7 @@ class VariationBarView(
                 }
             }
             context.startActivity(intent)
-            Log.d(TAG, "Speech recognition started (offline=$useOffline, engine=$voiceEngine)")
+            Log.d(TAG, "Speech recognition started (offline=$useOffline)")
         } catch (e: Exception) {
             Log.e(TAG, "Unable to launch speech recognition", e)
         }

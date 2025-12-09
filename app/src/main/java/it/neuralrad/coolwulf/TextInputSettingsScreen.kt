@@ -42,7 +42,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.activity.compose.BackHandler
 import it.neuralrad.coolwulf.R
 import it.neuralrad.coolwulf.inputmethod.SherpaSpeechRecognizer
-import it.neuralrad.coolwulf.inputmethod.VoskSpeechRecognizer
 import java.io.File
 
 /**
@@ -101,20 +100,6 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.isOfflineVoiceInput(context))
     }
 
-    var voskModelPath by remember {
-        mutableStateOf(SettingsManager.getVoskModelPath(context))
-    }
-
-    var voskModelStatus by remember {
-        mutableStateOf(
-            if (VoskSpeechRecognizer.isLibraryAvailable()) {
-                VoskSpeechRecognizer.getInstance(context).getModelStatus()
-            } else {
-                VoskSpeechRecognizer.ModelStatus.NOT_CONFIGURED
-            }
-        )
-    }
-
     var sherpaModelPath by remember {
         mutableStateOf(SettingsManager.getSherpaModelPath(context))
     }
@@ -123,8 +108,8 @@ fun TextInputSettingsScreen(
         mutableStateOf(SherpaSpeechRecognizer.getInstance(context).getModelStatus())
     }
 
-    var selectedVoiceEngine by remember {
-        mutableStateOf(SettingsManager.getVoiceEngine(context))
+    var holdSpaceDuration by remember {
+        mutableStateOf(SettingsManager.getHoldSpaceDuration(context))
     }
 
     var clipboardHistoryEnabled by remember {
@@ -533,6 +518,17 @@ fun TextInputSettingsScreen(
                 }
             }
 
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Voice Input Section Header
+            Text(
+                text = stringResource(R.string.voice_input_section_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
             // Alt+Ctrl Speech Recognition Shortcut
             Surface(
                 modifier = Modifier
@@ -662,6 +658,46 @@ fun TextInputSettingsScreen(
                 }
             }
 
+            // Hold Space Duration (shown when Hold Space for Voice is enabled)
+            if (holdSpaceForVoice) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.hold_space_duration_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = stringResource(R.string.hold_space_duration_description, holdSpaceDuration.toInt()),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                        Slider(
+                            value = holdSpaceDuration.toFloat(),
+                            onValueChange = { newValue ->
+                                holdSpaceDuration = newValue.toLong()
+                            },
+                            onValueChangeFinished = {
+                                SettingsManager.setHoldSpaceDuration(context, holdSpaceDuration)
+                            },
+                            valueRange = SettingsManager.getMinHoldSpaceDuration().toFloat()..SettingsManager.getMaxHoldSpaceDuration().toFloat(),
+                            steps = 12,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
+            }
+
             // Voice Auto-Add Punctuation
             Surface(
                 modifier = Modifier
@@ -705,7 +741,7 @@ fun TextInputSettingsScreen(
                 }
             }
 
-            // Offline Voice Input (Vosk)
+            // Offline Voice Input (Sherpa-ONNX)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -745,57 +781,6 @@ fun TextInputSettingsScreen(
                             SettingsManager.setOfflineVoiceInput(context, enabled)
                         }
                     )
-                }
-            }
-
-            // Voice Engine Selector (shown when offline voice is enabled)
-            if (offlineVoiceInput) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.voice_engine_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // Vosk option
-                            FilterChip(
-                                selected = selectedVoiceEngine == "vosk",
-                                onClick = {
-                                    selectedVoiceEngine = "vosk"
-                                    SettingsManager.setVoiceEngine(context, "vosk")
-                                },
-                                label = { Text("Vosk") },
-                                modifier = Modifier.weight(1f)
-                            )
-                            // Sherpa option
-                            FilterChip(
-                                selected = selectedVoiceEngine == "sherpa",
-                                onClick = {
-                                    selectedVoiceEngine = "sherpa"
-                                    SettingsManager.setVoiceEngine(context, "sherpa")
-                                },
-                                label = { Text("Sherpa-ONNX") },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        Text(
-                            text = stringResource(R.string.voice_engine_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
                 }
             }
 
@@ -842,191 +827,8 @@ fun TextInputSettingsScreen(
                 }
             }
 
-            // Vosk Model Selector (shown when offline voice is enabled and Vosk is selected)
-            if (offlineVoiceInput && selectedVoiceEngine == "vosk") {
-                // File picker launcher for zip files
-                val zipFileLauncher = rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.OpenDocument()
-                ) { uri ->
-                    uri?.let {
-                        // Take persistent permission
-                        try {
-                            context.contentResolver.takePersistableUriPermission(
-                                it,
-                                Intent.FLAG_GRANT_READ_URI_PERMISSION
-                            )
-                        } catch (e: Exception) {
-                            // Permission may already be granted
-                        }
-                        // Save the URI
-                        SettingsManager.setVoskModelPath(context, it.toString())
-                        voskModelPath = it.toString()
-                        if (VoskSpeechRecognizer.isLibraryAvailable()) {
-                            // Delete old extracted model when new zip is selected
-                            VoskSpeechRecognizer.getInstance(context).deleteExtractedModel()
-                            voskModelStatus = VoskSpeechRecognizer.getInstance(context).getModelStatus()
-                        }
-                    }
-                }
-
-                // Extraction progress state
-                var extractionProgress by remember { mutableStateOf(0) }
-                var extractionMessage by remember { mutableStateOf("") }
-                var isExtractingModel by remember { mutableStateOf(false) }
-
-                // Helper function to get model status text
-                val modelStatusText = when (voskModelStatus) {
-                    VoskSpeechRecognizer.ModelStatus.NOT_CONFIGURED -> stringResource(R.string.vosk_model_status_not_configured)
-                    VoskSpeechRecognizer.ModelStatus.ZIP_CONFIGURED -> stringResource(R.string.vosk_model_status_zip_configured)
-                    VoskSpeechRecognizer.ModelStatus.EXTRACTING -> stringResource(R.string.vosk_model_status_extracting)
-                    VoskSpeechRecognizer.ModelStatus.AVAILABLE -> stringResource(R.string.vosk_model_status_available)
-                    VoskSpeechRecognizer.ModelStatus.LOADING -> stringResource(R.string.vosk_model_status_loading)
-                    VoskSpeechRecognizer.ModelStatus.READY -> stringResource(R.string.vosk_model_status_ready)
-                }
-
-                val modelDisplayName = if (VoskSpeechRecognizer.isLibraryAvailable()) {
-                    VoskSpeechRecognizer.getInstance(context).getModelZipName()
-                } else null
-                val displayText = modelDisplayName ?: stringResource(R.string.vosk_model_not_selected)
-
-                Surface(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Folder,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(R.string.vosk_model_path_title),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    text = displayText,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    text = if (isExtractingModel) extractionMessage else modelStatusText,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = when (voskModelStatus) {
-                                        VoskSpeechRecognizer.ModelStatus.READY,
-                                        VoskSpeechRecognizer.ModelStatus.AVAILABLE -> MaterialTheme.colorScheme.primary
-                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                    maxLines = 1
-                                )
-                            }
-                        }
-
-                        // Show progress bar during extraction
-                        if (isExtractingModel) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            LinearProgressIndicator(
-                                progress = { extractionProgress / 100f },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Instructions
-                        Text(
-                            text = stringResource(R.string.vosk_model_instructions),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Buttons row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // Select Zip File button
-                            OutlinedButton(
-                                onClick = {
-                                    zipFileLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "*/*"))
-                                },
-                                modifier = Modifier.weight(1f),
-                                enabled = !isExtractingModel
-                            ) {
-                                Text(stringResource(R.string.vosk_model_select_zip_button))
-                            }
-
-                            // Extract button (shown when zip is configured but not extracted)
-                            if (voskModelStatus == VoskSpeechRecognizer.ModelStatus.ZIP_CONFIGURED) {
-                                Button(
-                                    onClick = {
-                                        if (VoskSpeechRecognizer.isLibraryAvailable()) {
-                                            isExtractingModel = true
-                                            VoskSpeechRecognizer.getInstance(context).extractZipModel(
-                                                onProgress = { progress, message ->
-                                                    extractionProgress = progress
-                                                    extractionMessage = message
-                                                },
-                                                onComplete = { success, error ->
-                                                    isExtractingModel = false
-                                                    voskModelStatus = VoskSpeechRecognizer.getInstance(context).getModelStatus()
-                                                    if (!success) {
-                                                        extractionMessage = error ?: "Extraction failed"
-                                                    }
-                                                }
-                                            )
-                                        }
-                                    },
-                                    enabled = !isExtractingModel
-                                ) {
-                                    Text(stringResource(R.string.vosk_model_extract_button))
-                                }
-                            }
-
-                            // Clear button (only shown if model is set)
-                            if (voskModelPath != null) {
-                                OutlinedButton(
-                                    onClick = {
-                                        if (VoskSpeechRecognizer.isLibraryAvailable()) {
-                                            VoskSpeechRecognizer.getInstance(context).clearZipConfig(true)
-                                            voskModelStatus = VoskSpeechRecognizer.getInstance(context).getModelStatus()
-                                        }
-                                        SettingsManager.setVoskModelPath(context, null)
-                                        voskModelPath = null
-                                    },
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        contentColor = MaterialTheme.colorScheme.error
-                                    ),
-                                    enabled = !isExtractingModel
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Clear,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Sherpa-ONNX Model Selector (shown when offline voice is enabled and Sherpa is selected)
-            if (offlineVoiceInput && selectedVoiceEngine == "sherpa") {
+            // Sherpa-ONNX Model Selector (shown when offline voice is enabled)
+            if (offlineVoiceInput) {
                 // File picker launcher for Sherpa zip files
                 val sherpaZipFileLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.OpenDocument()
@@ -1188,6 +990,8 @@ fun TextInputSettingsScreen(
                     }
                 }
             }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // Clipboard History Enabled
             Surface(
