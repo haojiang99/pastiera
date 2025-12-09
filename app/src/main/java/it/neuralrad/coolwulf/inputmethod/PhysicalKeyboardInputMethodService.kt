@@ -2314,10 +2314,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // English uses only Shift/Sym/Ctrl for 3 suggestions, remapped to indices 0-2
             val isEnglishOnlyMode = hasWordPredictions && !isChineseInputActive
             val isEnglishNextWordMode = isEnglishOnlyMode && englishWordPredictionController.getSnapshot().isNextWordPrediction
-            // For Chinese mode with NO candidates (buffer empty after selection), skip ALL keys - let them work normally
-            val isChineseNoCandidate = isChineseInputActive && !hasChineseCandidates
+            // For Chinese mode with NO candidates AND NO word predictions, skip ALL keys - let them work normally
+            // But if there ARE word predictions (next-word suggestions), Juying keys should still work
+            val isChineseNoCandidate = isChineseInputActive && !hasChineseCandidates && !hasWordPredictions
             if (isChineseNoCandidate) {
-                // No Chinese candidates - don't use any keys for Juying selection, let them work normally
+                // No Chinese candidates and no word predictions - don't use any keys for Juying selection, let them work normally
                 juyingCandidateIndex = -1
             } else if (isEnglishOnlyMode && (juyingCandidateIndex == 0 || juyingCandidateIndex == 4)) {
                 // English mode: Skip Shift(0), Alt(4) for Juying selection
@@ -2606,23 +2607,58 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Non-Alt keys or non-Chinese mode - select candidate immediately
                     val ic = currentInputConnection
                     if (ic != null) {
-                        // Get current candidate count
-                        val candidateCount = when {
-                            isPinyinMode -> pinyinInputController.getCurrentPageCandidates().size
-                            isShuangpinMode -> shuangpinInputController.getCurrentPageCandidates().size
-                            isWubiMode -> wubiInputController.getCurrentPageCandidates().size
-                            isZhenmaMode -> zhenmaInputController.getCurrentPageCandidates().size
-                            else -> 5
+                        // Check if we're in Chinese mode with word predictions (next-word suggestions)
+                        // In this case, use word prediction display logic instead of Chinese candidate logic
+                        val chineseModeWithWordPredictions = isChineseInputActive && !hasChineseCandidates && hasWordPredictions
+
+                        // Get current candidate count - use word prediction count if in Chinese mode with word predictions
+                        val candidateCount = if (chineseModeWithWordPredictions) {
+                            englishWordPredictionController.getSnapshot().suggestions.size
+                        } else {
+                            when {
+                                isPinyinMode -> pinyinInputController.getCurrentPageCandidates().size
+                                isShuangpinMode -> shuangpinInputController.getCurrentPageCandidates().size
+                                isWubiMode -> wubiInputController.getCurrentPageCandidates().size
+                                isZhenmaMode -> zhenmaInputController.getCurrentPageCandidates().size
+                                else -> 5
+                            }
                         }
 
-                        // For Chinese input in Juying mode, map key index to original candidate index
+                        // For Chinese input in Juying mode (with actual Chinese candidates), map key index to original candidate index
                         // Mapping depends on number of candidates:
                         // 1 candidate: Space(key 2) -> original 0
                         // 2 candidates: [2nd, 1st] - Sym(key 1)->orig 1, Space(key 2)->orig 0
                         // 3 candidates: [2nd, 1st, 3rd] - Sym(key 1)->orig 1, Space(key 2)->orig 0, Ctrl(key 3)->orig 2
                         // 4+ candidates: [2nd, 3rd, 1st, 4th, 5th] - original mapping
-                        val originalCandidateIndex = if (isChineseInputActive) {
+                        // For Chinese mode with word predictions (no Chinese candidates), use direct index mapping like English mode
+                        val originalCandidateIndex = if (isChineseInputActive && hasChineseCandidates) {
                             when (candidateCount) {
+                                1 -> if (juyingCandidateIndex == 2) 0 else -1  // Only Space selects
+                                2 -> when (juyingCandidateIndex) {
+                                    1 -> 1  // Sym selects 2nd (left)
+                                    2 -> 0  // Space selects 1st (right, best)
+                                    else -> -1
+                                }
+                                3 -> when (juyingCandidateIndex) {
+                                    1 -> 1  // Sym selects 2nd (left)
+                                    2 -> 0  // Space selects 1st (middle, best)
+                                    3 -> 2  // Ctrl selects 3rd (right)
+                                    else -> -1
+                                }
+                                else -> when (juyingCandidateIndex) {
+                                    0 -> 1  // Shift selects 2nd
+                                    1 -> 2  // Sym selects 3rd
+                                    2 -> 0  // Space selects 1st (best)
+                                    3 -> 3  // Ctrl selects 4th
+                                    4 -> 4  // Alt selects 5th
+                                    else -> juyingCandidateIndex
+                                }
+                            }
+                        } else if (chineseModeWithWordPredictions) {
+                            // Chinese mode with word predictions: use 5-key mapping similar to Chinese candidates
+                            // Display reordering: [2nd, 3rd, 1st, 4th, 5th]
+                            when (candidateCount) {
+                                0 -> -1  // No candidates
                                 1 -> if (juyingCandidateIndex == 2) 0 else -1  // Only Space selects
                                 2 -> when (juyingCandidateIndex) {
                                     1 -> 1  // Sym selects 2nd (left)
@@ -2733,12 +2769,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 }
                             }
                             hasWordPredictions -> {
-                                // English mode: Direct index mapping regardless of prediction type or count
-                                // Sym = left (index 0), Space = middle (index 1), Ctrl = right (index 2)
-                                val englishOriginalIndex = juyingCandidateIndex
+                                // Word predictions mode (English or Chinese with next-word predictions)
+                                // For Chinese mode with word predictions, use originalCandidateIndex (5-key mapping)
+                                // For pure English mode, use juyingCandidateIndex directly (3-key mapping)
+                                val wordPredictionIndex = if (chineseModeWithWordPredictions) {
+                                    originalCandidateIndex
+                                } else {
+                                    juyingCandidateIndex
+                                }
                                 // Check prefix BEFORE calling selectSuggestion (which may clear it)
                                 val prefixWasEmpty = englishWordPredictionController.getCurrentPrefix().isEmpty()
-                                val result = englishWordPredictionController.selectSuggestion(englishOriginalIndex)
+                                val result = englishWordPredictionController.selectSuggestion(wordPredictionIndex)
                                 if (result != null) {
                                     ic.deleteSurroundingText(result.prefixLength, 0)
                                     ic.commitText(result.word + " ", 1)
@@ -2747,15 +2788,21 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     // Consumed - always return after successful selection
                                     if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
                                     return true
-                                } else if (juyingCandidateIndex == 1 && prefixWasEmpty) {
-                                    // Space pressed but no prefix to commit - let it type a space normally
+                                } else if (juyingCandidateIndex == 2 && prefixWasEmpty) {
+                                    // Space pressed (key index 2) but no prefix to commit - let it type a space normally
                                     // Don't consume the key event, fall through to normal handling
+                                } else {
+                                    // Selection failed but key should still be consumed to prevent SYM toggle
+                                    if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
+                                    return true
                                 }
                             }
                         }
                         // If we reach here, either no word predictions or Space with no prefix
                         // For non-Space Juying keys, still consume the key
-                        if (!(hasWordPredictions && juyingCandidateIndex == 1)) {
+                        // Space is index 2 in 5-key mode (Chinese/word predictions) and index 1 in 3-key English mode
+                        val spaceIndex = if (chineseModeWithWordPredictions || isChineseInputActive) 2 else 1
+                        if (!(hasWordPredictions && juyingCandidateIndex == spaceIndex)) {
                             if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
                             return true
                         }
