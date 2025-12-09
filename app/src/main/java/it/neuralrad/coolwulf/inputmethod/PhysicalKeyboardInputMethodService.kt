@@ -2006,6 +2006,45 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val hasWordPredictions = isWordPredictionActive && englishWordPredictionController.hasSuggestions()
         val hasCandidatesToPaginate = hasPinyinCandidates || hasShuangpinCandidates || hasWubiCandidates || hasZhenmaCandidates || hasWordPredictions
 
+        // Handle touchpad DPAD_DOWN/DPAD_UP for Chinese input candidate pagination
+        // Only intercept when we have candidates to paginate
+        if (hasCandidatesToPaginate && event?.repeatCount == 0) {
+            when (translatedKeyCode) {
+                KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    // Touchpad down = next page
+                    if (hasPinyinCandidates) {
+                        pinyinInputController.nextPage()
+                    } else if (hasShuangpinCandidates) {
+                        shuangpinInputController.nextPage()
+                    } else if (hasWubiCandidates) {
+                        wubiInputController.nextPage()
+                    } else if (hasZhenmaCandidates) {
+                        zhenmaInputController.nextPage()
+                    } else if (hasWordPredictions) {
+                        englishWordPredictionController.nextPage()
+                    }
+                    updateStatusBarText()
+                    return true
+                }
+                KeyEvent.KEYCODE_DPAD_UP -> {
+                    // Touchpad up = previous page
+                    if (hasPinyinCandidates) {
+                        pinyinInputController.prevPage()
+                    } else if (hasShuangpinCandidates) {
+                        shuangpinInputController.prevPage()
+                    } else if (hasWubiCandidates) {
+                        wubiInputController.prevPage()
+                    } else if (hasZhenmaCandidates) {
+                        zhenmaInputController.prevPage()
+                    } else if (hasWordPredictions) {
+                        englishWordPredictionController.prevPage()
+                    }
+                    updateStatusBarText()
+                    return true
+                }
+            }
+        }
+
         // Check Juying mode settings upfront
         val juyingModeEnabled = SettingsManager.getJuyingModeEnabled(this)
         val isChineseInputActive = isPinyinMode || isShuangpinMode || isWubiMode || isZhenmaMode
