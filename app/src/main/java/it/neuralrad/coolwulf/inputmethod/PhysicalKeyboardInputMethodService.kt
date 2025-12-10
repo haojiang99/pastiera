@@ -3786,16 +3786,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Handle Alt state clearing based on mode
                     // In Juying mode with long-press, OR in non-Juying mode with suggestions visible,
                     // clear all Alt state (including latch) - this prevents Alt getting stuck
-                    // EXCEPTION: For digits, don't clear Alt state - allow continuous digit input
-                    val shouldClearAllAltStateShuangpin = (isAltLongPressShuangpin && juyingModeEnabled && !char.isDigit()) ||
+                    // EXCEPTION: For digits and period, don't clear Alt state - allow continuous number input (e.g., "10.5")
+                    val isDigitOrPeriodShuangpin = char.isDigit() || char == '.'
+                    val shouldClearAllAltStateShuangpin = (isAltLongPressShuangpin && juyingModeEnabled && !isDigitOrPeriodShuangpin) ||
                         (!juyingModeEnabled && hasCandidatesToPaginate && altLatchActive)
                     if (shouldClearAllAltStateShuangpin) {
                         modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
                         altLastPressTime = 0L  // Reset timing state
                         altLatchJustDisabled = true
-                    } else if (char.isDigit()) {
-                        // For continuous Alt input: ALWAYS update altLastPressTime for digits
-                        // This ensures altFromJuyingTracking remains true for subsequent digit keys
+                    } else if (isDigitOrPeriodShuangpin) {
+                        // For continuous Alt input: ALWAYS update altLastPressTime for digits and period
+                        // This ensures altFromJuyingTracking remains true for subsequent digit/period keys
                         altLastPressTime = currentTimeShuangpin
                         if (altOneShot && !altLatchActive) {
                             modifierStateController.clearAltState(resetPressedState = false)
@@ -4434,16 +4435,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Handle Alt state clearing based on mode
                     // In Juying mode with long-press, OR in non-Juying mode with suggestions visible,
                     // clear all Alt state (including latch) - this prevents Alt getting stuck
-                    // EXCEPTION: For digits, don't clear Alt state - allow continuous digit input
-                    val shouldClearAllAltStateWubi = (isAltLongPressWubi && juyingModeEnabled && !char.isDigit()) ||
+                    // EXCEPTION: For digits and period, don't clear Alt state - allow continuous number input (e.g., "10.5")
+                    val isDigitOrPeriodWubi = char.isDigit() || char == '.'
+                    val shouldClearAllAltStateWubi = (isAltLongPressWubi && juyingModeEnabled && !isDigitOrPeriodWubi) ||
                         (!juyingModeEnabled && hasCandidatesToPaginate && altLatchActive)
                     if (shouldClearAllAltStateWubi) {
                         modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
                         altLastPressTime = 0L  // Reset timing state
                         altLatchJustDisabled = true
-                    } else if (char.isDigit()) {
-                        // For continuous Alt input: ALWAYS update altLastPressTime for digits
-                        // This ensures altFromJuyingTracking remains true for subsequent digit keys
+                    } else if (isDigitOrPeriodWubi) {
+                        // For continuous Alt input: ALWAYS update altLastPressTime for digits and period
+                        // This ensures altFromJuyingTracking remains true for subsequent digit/period keys
                         altLastPressTime = currentTimeWubi
                         if (altOneShot && !altLatchActive) {
                             modifierStateController.clearAltState(resetPressedState = false)
@@ -4880,16 +4882,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Handle Alt state clearing based on mode
                     // In Juying mode with long-press, OR in non-Juying mode with suggestions visible,
                     // clear all Alt state (including latch) - this prevents Alt getting stuck
-                    // EXCEPTION: For digits, don't clear Alt state - allow continuous digit input
-                    val shouldClearAllAltStateZhenma = (isAltLongPressZhenma && juyingModeEnabled && !char.isDigit()) ||
+                    // EXCEPTION: For digits and period, don't clear Alt state - allow continuous number input (e.g., "10.5")
+                    val isDigitOrPeriodZhenma = char.isDigit() || char == '.'
+                    val shouldClearAllAltStateZhenma = (isAltLongPressZhenma && juyingModeEnabled && !isDigitOrPeriodZhenma) ||
                         (!juyingModeEnabled && hasCandidatesToPaginate && altLatchActive)
                     if (shouldClearAllAltStateZhenma) {
                         modifierStateController.clearAltState(resetPressedState = true)  // Clear all Alt state
                         altLastPressTime = 0L  // Reset timing state
                         altLatchJustDisabled = true
-                    } else if (char.isDigit()) {
-                        // For continuous Alt input: ALWAYS update altLastPressTime for digits
-                        // This ensures altFromJuyingTracking remains true for subsequent digit keys
+                    } else if (isDigitOrPeriodZhenma) {
+                        // For continuous Alt input: ALWAYS update altLastPressTime for digits and period
+                        // This ensures altFromJuyingTracking remains true for subsequent digit/period keys
                         altLastPressTime = currentTimeZhenma
                         if (altOneShot && !altLatchActive) {
                             modifierStateController.clearAltState(resetPressedState = false)
