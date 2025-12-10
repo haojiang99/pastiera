@@ -273,13 +273,14 @@ class ShuangpinInputController(
         // Record for next-word prediction
         nextWordPredictor.recordCommittedWord(selected)
 
+        // Finalize the session now that the phrase input is complete
+        // This records phrases like "你好" when user finishes picking all characters
+        if (sessionSelections.size >= 2) {
+            finalizeSession()
+        }
+
         // Update candidates for remaining buffer
         if (buffer.isEmpty()) {
-            // Finalize the session now that the phrase input is complete
-            // This records phrases like "你好吗好" when user finishes picking all characters
-            if (sessionSelections.size >= 2) {
-                finalizeSession()
-            }
             showNextWordPredictions()
         } else {
             isShowingNextWordPredictions = false
