@@ -252,14 +252,13 @@ class ShuangpinInputController(
         // Track selection for auto-phrase learning
         val shuangpinCodeToRecord = buffer.substring(0, charsToConsume)
         if (isAutoPhraseLearningEnabled() && !isShowingNextWordPredictions && shuangpinCodeToRecord.isNotEmpty()) {
-            if (selected.length == 1) {
-                // Single character - add to session for phrase building
-                sessionSelections.add(shuangpinCodeToRecord to selected)
-            } else if (selected.length >= 2) {
-                // Combined phrase selected - record it directly to phrase memory
+            // Add to session for building longer phrases (4, 5, 6+ characters)
+            sessionSelections.add(shuangpinCodeToRecord to selected)
+
+            if (selected.length >= 2) {
+                // Combined phrase selected - also record it directly to phrase memory
                 // This allows the phrase to be learned and ranked higher next time
                 shuangpinPhraseMemory.recordPhrase(shuangpinCodeToRecord, selected)
-                Log.d(TAG, "Recorded combined phrase: '$shuangpinCodeToRecord' → '$selected'")
             }
         }
 
