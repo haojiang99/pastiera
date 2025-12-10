@@ -2,6 +2,7 @@ package it.neuralrad.coolwulf
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,6 +22,9 @@ import androidx.compose.ui.unit.dp
 import it.neuralrad.coolwulf.data.pinyin.AutoPhraseMemory
 import it.neuralrad.coolwulf.data.shuangpin.ShuangpinPhraseMemory
 import it.neuralrad.coolwulf.data.wubi.WubiPhraseMemory
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Settings screen for viewing and managing learned phrases from AutoPhraseMemory and WubiPhraseMemory.
@@ -296,13 +300,16 @@ private fun PinyinPhrasesTab(
     phrases: List<AutoPhraseMemory.LearnedPhrase>,
     onDeletePhrase: (AutoPhraseMemory.LearnedPhrase) -> Unit
 ) {
+    var showPendingDialog by remember { mutableStateOf(false) }
+
     Column(modifier = Modifier.fillMaxSize()) {
         // Stats header
         val stats = autoPhraseMemory.getStats()
         StatsHeader(
             learnedCount = stats.learnedPhraseCount,
             totalUses = stats.totalSelections,
-            pendingCount = stats.pendingPhraseCount
+            pendingCount = stats.pendingPhraseCount,
+            onPendingClick = { showPendingDialog = true }
         )
 
         HorizontalDivider()
@@ -324,6 +331,16 @@ private fun PinyinPhrasesTab(
             }
         }
     }
+
+    // Pending phrases dialog
+    if (showPendingDialog) {
+        val pendingPhrases = remember { autoPhraseMemory.getAllPendingPhrases() }
+        PendingPhrasesDialog(
+            title = stringResource(R.string.learned_phrases_pending_title),
+            pendingPhrases = pendingPhrases.map { Triple(it.pinyin, it.phrase, it.timestamp) },
+            onDismiss = { showPendingDialog = false }
+        )
+    }
 }
 
 @Composable
@@ -332,13 +349,16 @@ private fun ShuangpinPhrasesTab(
     phrases: List<ShuangpinPhraseMemory.LearnedPhrase>,
     onDeletePhrase: (ShuangpinPhraseMemory.LearnedPhrase) -> Unit
 ) {
+    var showPendingDialog by remember { mutableStateOf(false) }
+
     Column(modifier = Modifier.fillMaxSize()) {
         // Stats header
         val stats = shuangpinPhraseMemory.getStats()
         StatsHeader(
             learnedCount = stats.learnedPhraseCount,
             totalUses = stats.totalSelections,
-            pendingCount = stats.pendingPhraseCount
+            pendingCount = stats.pendingPhraseCount,
+            onPendingClick = { showPendingDialog = true }
         )
 
         HorizontalDivider()
@@ -360,6 +380,16 @@ private fun ShuangpinPhrasesTab(
             }
         }
     }
+
+    // Pending phrases dialog
+    if (showPendingDialog) {
+        val pendingPhrases = remember { shuangpinPhraseMemory.getAllPendingPhrases() }
+        PendingPhrasesDialog(
+            title = stringResource(R.string.learned_phrases_pending_title),
+            pendingPhrases = pendingPhrases.map { Triple(it.shuangpinCode, it.phrase, it.timestamp) },
+            onDismiss = { showPendingDialog = false }
+        )
+    }
 }
 
 @Composable
@@ -368,13 +398,16 @@ private fun WubiPhrasesTab(
     phrases: List<WubiPhraseMemory.LearnedPhrase>,
     onDeletePhrase: (WubiPhraseMemory.LearnedPhrase) -> Unit
 ) {
+    var showPendingDialog by remember { mutableStateOf(false) }
+
     Column(modifier = Modifier.fillMaxSize()) {
         // Stats header
         val stats = wubiPhraseMemory.getStats()
         StatsHeader(
             learnedCount = stats.learnedPhraseCount,
             totalUses = stats.totalSelections,
-            pendingCount = stats.pendingPhraseCount
+            pendingCount = stats.pendingPhraseCount,
+            onPendingClick = { showPendingDialog = true }
         )
 
         HorizontalDivider()
@@ -396,13 +429,24 @@ private fun WubiPhrasesTab(
             }
         }
     }
+
+    // Pending phrases dialog
+    if (showPendingDialog) {
+        val pendingPhrases = remember { wubiPhraseMemory.getAllPendingPhrases() }
+        PendingPhrasesDialog(
+            title = stringResource(R.string.learned_phrases_pending_title),
+            pendingPhrases = pendingPhrases.map { Triple(it.wubiCode, it.phrase, it.timestamp) },
+            onDismiss = { showPendingDialog = false }
+        )
+    }
 }
 
 @Composable
 private fun StatsHeader(
     learnedCount: Int,
     totalUses: Int,
-    pendingCount: Int
+    pendingCount: Int,
+    onPendingClick: () -> Unit = {}
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -440,7 +484,10 @@ private fun StatsHeader(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clickable(enabled = pendingCount > 0) { onPendingClick() }
+            ) {
                 Text(
                     text = "$pendingCount",
                     style = MaterialTheme.typography.headlineMedium,
@@ -653,4 +700,63 @@ private fun WubiPhraseItem(
         }
     }
     HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
+}
+
+@Composable
+private fun PendingPhrasesDialog(
+    title: String,
+    pendingPhrases: List<Triple<String, String, Long>>,  // code, phrase, timestamp
+    onDismiss: () -> Unit
+) {
+    val dateFormat = remember { SimpleDateFormat("MM/dd HH:mm", Locale.getDefault()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            if (pendingPhrases.isEmpty()) {
+                Text(stringResource(R.string.learned_phrases_no_pending))
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                ) {
+                    items(pendingPhrases) { (code, phrase, timestamp) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = phrase,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = code,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                text = dateFormat.format(Date(timestamp)),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        HorizontalDivider()
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.close))
+            }
+        }
+    )
 }

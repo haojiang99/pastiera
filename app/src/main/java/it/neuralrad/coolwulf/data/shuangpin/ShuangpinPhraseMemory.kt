@@ -232,6 +232,27 @@ class ShuangpinPhraseMemory(context: Context) {
         val frequency: Int
     )
 
+    data class PendingPhrase(
+        val shuangpinCode: String,
+        val phrase: String,
+        val timestamp: Long
+    )
+
+    /**
+     * Gets all pending phrases as a list of PendingPhrase objects.
+     * Returns latest 100 pending phrases in reverse time order (newest first).
+     */
+    fun getAllPendingPhrases(): List<PendingPhrase> {
+        val result = mutableListOf<PendingPhrase>()
+        for ((code, phraseMap) in pendingPhrases) {
+            for ((phrase, timestamp) in phraseMap) {
+                result.add(PendingPhrase(code, phrase, timestamp))
+            }
+        }
+        // Sort by timestamp descending (newest first) and limit to 100
+        return result.sortedByDescending { it.timestamp }.take(100)
+    }
+
     /**
      * Gets statistics about the memory data.
      */

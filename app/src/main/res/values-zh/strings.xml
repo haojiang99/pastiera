@@ -620,6 +620,8 @@
     <string name="learned_phrases_delete_all_title">删除所有已学习词组？</string>
     <string name="learned_phrases_delete_all_message">这将删除全部 %1$d 个%2$s已学习词组。此操作无法撤销。</string>
     <string name="learned_phrases_all_deleted">所有词组已删除</string>
+    <string name="learned_phrases_pending_title">待确认词组</string>
+    <string name="learned_phrases_no_pending">暂无待确认词组</string>
     <string name="delete_all">全部删除</string>
 
     <!-- Candidate Font Size -->

@@ -798,6 +798,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         candidatesBarController.onVirtualVoiceInputRequestListener = {
             startSpeechRecognition()
         }
+        candidatesBarController.onVirtualShiftStateChangedListener = { isShifted, isCapsLock ->
+            // Sync virtual keyboard shift state to physical keyboard modifier state
+            modifierStateController.capsLockEnabled = isCapsLock
+            if (isShifted && !isCapsLock) {
+                modifierStateController.requestShiftOneShotFromAutoCap()
+            } else if (!isShifted && !isCapsLock) {
+                modifierStateController.clearShiftState(resetPressedState = false)
+            }
+            updateStatusBarText()
+        }
 
         // Initialize virtual keyboard based on settings
         isVirtualKeyboardEnabled = SettingsManager.isVirtualKeyboardEnabled(this)

@@ -229,6 +229,9 @@ class StatusBarController(
     // Listener for virtual keyboard voice input request (long-hold space bar)
     var onVirtualVoiceInputRequestListener: (() -> Unit)? = null
 
+    // Listener for virtual keyboard shift state changes
+    var onVirtualShiftStateChangedListener: ((isShifted: Boolean, isCapsLock: Boolean) -> Unit)? = null
+
     /**
      * Enables or disables the virtual keyboard.
      */
@@ -433,6 +436,9 @@ class StatusBarController(
                 },
                 onVoiceInputRequest = {
                     onVirtualVoiceInputRequestListener?.invoke()
+                },
+                onShiftStateChanged = { isShifted, isCapsLock ->
+                    onVirtualShiftStateChangedListener?.invoke(isShifted, isCapsLock)
                 }
             )
             virtualKeyboardContainer?.addView(virtualKeyboardView?.ensureView())

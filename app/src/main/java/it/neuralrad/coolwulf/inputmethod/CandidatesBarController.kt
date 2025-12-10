@@ -135,6 +135,13 @@ class CandidatesBarController(
             candidatesStatusBar.onVirtualVoiceInputRequestListener = value
         }
 
+    var onVirtualShiftStateChangedListener: ((isShifted: Boolean, isCapsLock: Boolean) -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onVirtualShiftStateChangedListener = value
+            candidatesStatusBar.onVirtualShiftStateChangedListener = value
+        }
+
     fun getInputView(emojiMapText: String = ""): LinearLayout {
         return inputStatusBar.getOrCreateLayout(emojiMapText)
     }

@@ -619,6 +619,8 @@
     <string name="learned_phrases_delete_all_title">Delete All Learned Phrases?</string>
     <string name="learned_phrases_delete_all_message">This will delete all %1$d %2$s learned phrases. This action cannot be undone.</string>
     <string name="learned_phrases_all_deleted">All phrases deleted</string>
+    <string name="learned_phrases_pending_title">Pending Phrases</string>
+    <string name="learned_phrases_no_pending">No pending phrases</string>
     <string name="delete_all">Delete All</string>
 
     <!-- Candidate Font Size -->

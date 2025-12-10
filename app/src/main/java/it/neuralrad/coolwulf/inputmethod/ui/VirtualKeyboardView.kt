@@ -24,7 +24,8 @@ class VirtualKeyboardView(
     private val context: Context,
     private val onKeyPress: (keyCode: Int, isShifted: Boolean) -> Unit,
     private val onCharacterInput: (char: Char) -> Unit,
-    private val onVoiceInputRequest: (() -> Unit)? = null
+    private val onVoiceInputRequest: (() -> Unit)? = null,
+    private val onShiftStateChanged: ((isShifted: Boolean, isCapsLock: Boolean) -> Unit)? = null
 ) {
     companion object {
         private val KEY_BG_COLOR = Color.argb(255, 60, 60, 65)
@@ -188,6 +189,8 @@ class VirtualKeyboardView(
                     isShifted = true
                 }
                 updateShiftKeyAppearance()
+                updateAllKeyLabels()
+                onShiftStateChanged?.invoke(isShifted, isCapsLock)
             }
             addView(shiftKey)
 
@@ -346,6 +349,7 @@ class VirtualKeyboardView(
                             isShifted = false
                             updateShiftKeyAppearance()
                             updateAllKeyLabels()
+                            onShiftStateChanged?.invoke(isShifted, isCapsLock)
                         }
 
                         // Clear alt mode after typing (unless alt locked)
@@ -414,6 +418,9 @@ class VirtualKeyboardView(
         if (row3Index >= 0 && row3Index < ALT_ROW_3.size) {
             return ALT_ROW_3[row3Index]
         }
+
+        // Bottom row punctuation in alt mode
+        if (char == ",") return "!"
 
         return null
     }
