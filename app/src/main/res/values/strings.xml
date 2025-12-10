@@ -133,6 +133,11 @@
     <!-- Touchpad Page Navigation -->
     <string name="touchpad_page_title">Touchpad Page Navigation</string>
     <string name="touchpad_page_description">Swipe up/down on touchpad to navigate candidate pages when suggestions are visible</string>
+
+    <!-- Alt Double-Click Delay -->
+    <string name="alt_double_click_delay_title">Alt Double-Click Delay</string>
+    <string name="alt_double_click_delay_description">%1$dms - Time window to detect double-click for next page</string>
+
     <string name="juying_key_config_title">Configure Juying Keys</string>
     <string name="juying_key_config_description">Press any key to assign it to this slot</string>
     <string name="juying_key_1">Key 1 (Candidate 2)</string>

@@ -134,6 +134,11 @@
     <!-- Touchpad Page Navigation -->
     <string name="touchpad_page_title">触摸板翻页</string>
     <string name="touchpad_page_description">有候选词时，在触摸板上滑动可翻页浏览候选词</string>
+
+    <!-- Alt Double-Click Delay -->
+    <string name="alt_double_click_delay_title">Alt双击延迟</string>
+    <string name="alt_double_click_delay_description">%1$dms - 检测双击翻页的时间窗口</string>
+
     <string name="juying_key_config_title">配置巨硬模式按键</string>
     <string name="juying_key_config_description">按任意键将其分配到此位置</string>
     <string name="juying_key_1">按键1（候选词2）</string>

@@ -233,6 +233,10 @@ fun TextInputSettingsScreen(
 
     var showMaxCandidatesDialog by remember { mutableStateOf(false) }
 
+    var altDoubleClickDelay by remember {
+        mutableStateOf(SettingsManager.getAltDoubleClickDelay(context).toFloat())
+    }
+
     var candidateFontSize by remember {
         mutableStateOf(SettingsManager.getCandidateFontSize(context))
     }
@@ -1983,6 +1987,55 @@ fun TextInputSettingsScreen(
                     }
                 }
 
+                // Alt Double-Click Delay setting with slider
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.SwapHoriz,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.alt_double_click_delay_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = stringResource(R.string.alt_double_click_delay_description, altDoubleClickDelay.toInt()),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2
+                                )
+                            }
+                        }
+                        Slider(
+                            value = altDoubleClickDelay,
+                            onValueChange = { altDoubleClickDelay = it },
+                            onValueChangeFinished = {
+                                SettingsManager.setAltDoubleClickDelay(context, altDoubleClickDelay.toInt())
+                            },
+                            valueRange = 250f..1000f,
+                            steps = 14, // 250, 300, 350, ..., 1000 (50ms increments = 15 values, 14 steps)
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
+
                 // Juying key configuration (only show when Juying mode is enabled)
                 if (juyingModeEnabled) {
                     // Shift/Alt swap toggle (Titan 2 specific)
@@ -2925,6 +2978,7 @@ fun TextInputSettingsScreen(
             }
         )
     }
+
 }
 
 /**

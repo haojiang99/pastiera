@@ -168,8 +168,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private val DOUBLE_TAP_THRESHOLD = 500L
     private val CURSOR_UPDATE_DELAY = 50L
     private val MULTI_TAP_TIMEOUT_MS = 800L
-    private val PAGINATION_DOUBLE_PRESS_THRESHOLD = 250L
-    private val ALT_SINGLE_CLICK_DELAY = 250L  // Delay to distinguish single from double click
+    // Alt double-click delay is now configurable via settings
+    private val altDoubleClickDelay: Long
+        get() = SettingsManager.getAltDoubleClickDelay(this).toLong()
 
     // Pending Alt selection for delayed single-click handling
     private var pendingAltSelectionRunnable: Runnable? = null
@@ -2105,7 +2106,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val timeSinceLastPress = currentTime - altLastPressTime
 
             // Double-click detected - cancel pending selection and go to next page
-            if (timeSinceLastPress <= PAGINATION_DOUBLE_PRESS_THRESHOLD && savedAltCandidatesForNextPage.isNotEmpty()) {
+            if (timeSinceLastPress <= altDoubleClickDelay && savedAltCandidatesForNextPage.isNotEmpty()) {
                 // Cancel the pending runnable
                 pendingAltSelectionRunnable?.let { mainHandler.removeCallbacks(it) }
                 pendingAltSelectionRunnable = null
@@ -2367,11 +2368,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
                 // Check for double-click on Shift for prev page (Chinese input only)
                 val isDoubleClickShift = isDeviceShiftKey(keyCode) &&
-                    (currentTime - shiftLastPressTime) <= PAGINATION_DOUBLE_PRESS_THRESHOLD
+                    (currentTime - shiftLastPressTime) <= altDoubleClickDelay
 
                 // Check for double-click on Alt for next page (Chinese input only)
                 val isDoubleClickAlt = isDeviceAltKey(keyCode) &&
-                    (currentTime - altLastPressTime) <= PAGINATION_DOUBLE_PRESS_THRESHOLD
+                    (currentTime - altLastPressTime) <= altDoubleClickDelay
 
                 // Check if there's a pending Alt selection (first click waiting)
                 val hasPendingAltSelection = pendingAltSelectionRunnable != null
@@ -2855,7 +2856,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             when {
                 isDeviceAltKey(keyCode) -> {
                     val timeSinceLastPress = currentTime - altLastPressTime
-                    if (timeSinceLastPress <= PAGINATION_DOUBLE_PRESS_THRESHOLD) {
+                    if (timeSinceLastPress <= altDoubleClickDelay) {
                         // Double press detected - go to next page
                         when {
                             isPinyinMode && pinyinInputController.hasNextPage() -> {
@@ -2890,7 +2891,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
                 isDeviceShiftKey(keyCode) -> {
                     val timeSinceLastPress = currentTime - shiftLastPressTime
-                    if (timeSinceLastPress <= PAGINATION_DOUBLE_PRESS_THRESHOLD) {
+                    if (timeSinceLastPress <= altDoubleClickDelay) {
                         // Double press detected - go to previous page
                         when {
                             isPinyinMode && pinyinInputController.hasPrevPage() -> {
@@ -5321,7 +5322,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     modifierStateController.clearAltState(resetPressedState = true)
                     updateStatusBarText()
                 }
-                mainHandler.postDelayed(pendingAltSelectionRunnable!!, PAGINATION_DOUBLE_PRESS_THRESHOLD)
+                mainHandler.postDelayed(pendingAltSelectionRunnable!!, altDoubleClickDelay)
             } else {
                 // Alt was used for symbol input or no 5th suggestion - clear state immediately
                 savedAltSuggestion = null
