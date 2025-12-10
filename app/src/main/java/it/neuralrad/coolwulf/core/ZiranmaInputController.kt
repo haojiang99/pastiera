@@ -174,14 +174,12 @@ class ZiranmaInputController(
         }
 
         // If showing next-word predictions and buffer is empty, clear predictions
-        // Return false so backspace also deletes the previous character
         if (buffer.isEmpty() && isShowingNextWordPredictions) {
             isShowingNextWordPredictions = false
             allCandidates = emptyList()
             currentPage = 0
             nextWordPredictor.clearState()
-            Log.d(TAG, "Backspace cleared next-word predictions, allowing character deletion")
-            return false  // Don't consume - let backspace delete the character too
+            return true  // Consume the key - only clear predictions, don't delete character
         }
 
         if (buffer.isEmpty()) {
