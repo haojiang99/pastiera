@@ -7,6 +7,7 @@ import it.neuralrad.coolwulf.data.pinyin.ChineseCharacterConverter
 import it.neuralrad.coolwulf.data.pinyin.PinyinDictionary
 import it.neuralrad.coolwulf.data.pinyin.UserPinyinMemory
 import it.neuralrad.coolwulf.data.ziranma.ZiranmaConverter
+import it.neuralrad.coolwulf.data.ziranma.ZiranmaPhraseMemory
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
 import it.neuralrad.coolwulf.SettingsManager
@@ -99,6 +100,9 @@ class ZiranmaInputController(
 
     // User custom dictionary for user-defined shortcuts
     private val customDictionary: UserCustomDictionary = UserCustomDictionary.getInstance(context)
+
+    // Phrase memory for learning combined phrases
+    private val ziranmaPhraseMemory: ZiranmaPhraseMemory = ZiranmaPhraseMemory.getInstance(context)
 
     init {
         // Load dictionary if not already loaded
@@ -220,6 +224,14 @@ class ZiranmaInputController(
 
         if (pinyinToRecord.isNotEmpty()) {
             recordSelectionIfEnabled(pinyinToRecord, selected)
+        }
+
+        // Record combined phrases for learning
+        val ziranmaCodeToRecord = buffer.substring(0, charsToConsume)
+        if (isMemoryEnabled() && ziranmaCodeToRecord.isNotEmpty() && selected.length >= 2) {
+            // Combined phrase selected - record it directly to phrase memory
+            ziranmaPhraseMemory.recordPhrase(ziranmaCodeToRecord, selected)
+            Log.d(TAG, "Recorded combined phrase: '$ziranmaCodeToRecord' → '$selected'")
         }
 
         Log.d(TAG, "Selected candidate $index: '$selected', consuming $charsToConsume chars, pinyin: '$pinyinToRecord'")
@@ -480,6 +492,7 @@ class ZiranmaInputController(
     /**
      * Generates combined phrase candidates from multiple pinyin syllables.
      * Takes the top candidates from each syllable and combines them.
+     * Sorts results by learned phrase frequency for better suggestions.
      */
     private fun generateCombinedCandidates(
         syllables: List<String>,
@@ -501,10 +514,38 @@ class ZiranmaInputController(
             return emptyList()
         }
 
+        // Generate more combined phrases than needed so we can sort by frequency
         val combined = mutableListOf<String>()
-        generateCartesianProduct(candidateLists, 0, "", combined, maxTotal)
+        generateCartesianProduct(candidateLists, 0, "", combined, maxTotal * 3)
 
-        return combined
+        // Sort combined phrases by learned frequency
+        val sortedCombined = sortCombinedByFrequency(combined)
+
+        return sortedCombined.take(maxTotal)
+    }
+
+    /**
+     * Sorts combined phrases by their learned frequency from ZiranmaPhraseMemory.
+     * Phrases with higher frequency appear first.
+     */
+    private fun sortCombinedByFrequency(phrases: List<String>): List<String> {
+        if (!isMemoryEnabled()) {
+            return phrases
+        }
+
+        val bufferStr = buffer.toString()
+
+        // Get frequency for each phrase and sort
+        val phrasesWithFreq = phrases.mapIndexed { index, phrase ->
+            val freq = ziranmaPhraseMemory.getFrequency(bufferStr, phrase)
+            // Give unlearned phrases a small base score based on original position
+            val effectiveFreq = if (freq > 0) freq * 100 else (phrases.size - index)
+            phrase to effectiveFreq
+        }
+
+        return phrasesWithFreq
+            .sortedByDescending { it.second }
+            .map { it.first }
     }
 
     /**

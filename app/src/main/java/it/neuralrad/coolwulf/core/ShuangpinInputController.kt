@@ -251,11 +251,18 @@ class ShuangpinInputController(
             recordSelectionIfEnabled(pinyinToRecord, selected)
         }
 
-        // Track selection for auto-phrase learning (only for single characters)
+        // Track selection for auto-phrase learning
         val shuangpinCodeToRecord = buffer.substring(0, charsToConsume)
-        if (isAutoPhraseLearningEnabled() && !isShowingNextWordPredictions &&
-            shuangpinCodeToRecord.isNotEmpty() && selected.length == 1) {
-            sessionSelections.add(shuangpinCodeToRecord to selected)
+        if (isAutoPhraseLearningEnabled() && !isShowingNextWordPredictions && shuangpinCodeToRecord.isNotEmpty()) {
+            if (selected.length == 1) {
+                // Single character - add to session for phrase building
+                sessionSelections.add(shuangpinCodeToRecord to selected)
+            } else if (selected.length >= 2) {
+                // Combined phrase selected - record it directly to phrase memory
+                // This allows the phrase to be learned and ranked higher next time
+                shuangpinPhraseMemory.recordPhrase(shuangpinCodeToRecord, selected)
+                Log.d(TAG, "Recorded combined phrase: '$shuangpinCodeToRecord' → '$selected'")
+            }
         }
 
         Log.d(TAG, "Selected candidate $index: '$selected', consuming $charsToConsume chars, pinyin: '$pinyinToRecord'")
@@ -584,6 +591,7 @@ class ShuangpinInputController(
     /**
      * Generates combined phrase candidates from multiple pinyin syllables.
      * Takes the top candidates from each syllable and combines them.
+     * Sorts results by learned phrase frequency for better suggestions.
      *
      * For example, with syllables ["wo", "xiang", "chi", "fan"], this generates
      * combined phrases like "我想吃饭" by taking the first candidate from each.
@@ -591,7 +599,7 @@ class ShuangpinInputController(
      * @param syllables List of pinyin syllables
      * @param maxPerSyllable Maximum candidates to consider per syllable (default 3)
      * @param maxTotal Maximum total combined phrases to generate (default 9)
-     * @return List of combined phrase strings
+     * @return List of combined phrase strings sorted by frequency
      */
     private fun generateCombinedCandidates(
         syllables: List<String>,
@@ -616,11 +624,40 @@ class ShuangpinInputController(
             return emptyList()
         }
 
-        // Generate cartesian product (combined phrases)
+        // Generate more combined phrases than needed so we can sort by frequency
         val combined = mutableListOf<String>()
-        generateCartesianProduct(candidateLists, 0, "", combined, maxTotal)
+        generateCartesianProduct(candidateLists, 0, "", combined, maxTotal * 3)
 
-        return combined
+        // Sort combined phrases by learned frequency
+        val sortedCombined = sortCombinedByFrequency(combined)
+
+        return sortedCombined.take(maxTotal)
+    }
+
+    /**
+     * Sorts combined phrases by their learned frequency from ShuangpinPhraseMemory.
+     * Phrases with higher frequency appear first.
+     * Unlearned phrases get a base score based on their position in the original list.
+     */
+    private fun sortCombinedByFrequency(phrases: List<String>): List<String> {
+        if (!isMemoryEnabled()) {
+            return phrases
+        }
+
+        val bufferStr = buffer.toString()
+
+        // Get frequency for each phrase and sort
+        val phrasesWithFreq = phrases.mapIndexed { index, phrase ->
+            val freq = shuangpinPhraseMemory.getFrequency(bufferStr, phrase)
+            // Give unlearned phrases a small base score based on original position
+            // This preserves the character frequency ordering for new phrases
+            val effectiveFreq = if (freq > 0) freq * 100 else (phrases.size - index)
+            phrase to effectiveFreq
+        }
+
+        return phrasesWithFreq
+            .sortedByDescending { it.second }
+            .map { it.first }
     }
 
     /**
