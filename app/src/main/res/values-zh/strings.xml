@@ -272,6 +272,8 @@
     <string name="emoji_picker_title">选择表情</string>
     <string name="emoji_picker_title_for_letter">为字母%1$s选择表情</string>
     <string name="emoji_picker_close">关闭</string>
+    <string name="custom_emoji_placeholder">在此粘贴自定义表情</string>
+    <string name="custom_emoji_use">使用</string>
     <string name="emoji_category_smileys">表情与人物</string>
     <string name="emoji_category_animals">动物与自然</string>
     <string name="emoji_category_food">食物与饮品</string>
@@ -389,6 +391,8 @@
     <string name="unicode_picker_title_for_letter">为%1$s选择字符</string>
     <string name="unicode_picker_title">选择Unicode字符</string>
     <string name="unicode_picker_close">关闭</string>
+    <string name="custom_symbol_placeholder">在此粘贴自定义符号</string>
+    <string name="custom_symbol_use">使用</string>
     <string name="unicode_category_punctuation">标点符号</string>
     <string name="unicode_category_chinese_punctuation">中文标点</string>
     <string name="unicode_category_math">数学符号</string>

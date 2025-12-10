@@ -3,6 +3,8 @@ package it.neuralrad.coolwulf
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.key
@@ -10,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -66,7 +69,49 @@ fun EmojiPickerDialog(
                 }
                 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                
+
+                // Custom emoji input section
+                var customInput by remember { mutableStateOf("") }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = customInput,
+                        onValueChange = { customInput = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text(stringResource(R.string.custom_emoji_placeholder), style = MaterialTheme.typography.bodySmall) },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                if (customInput.isNotBlank()) {
+                                    onEmojiSelected(customInput.trim())
+                                    onDismiss()
+                                }
+                            }
+                        )
+                    )
+                    Button(
+                        onClick = {
+                            if (customInput.isNotBlank()) {
+                                onEmojiSelected(customInput.trim())
+                                onDismiss()
+                            }
+                        },
+                        enabled = customInput.isNotBlank()
+                    ) {
+                        Text(stringResource(R.string.custom_emoji_use), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
                 // Standard emoji categories (future-proof - updates with system)
                 // Uses hardcoded keys and translates only for display
                 val emojiCategories = remember {

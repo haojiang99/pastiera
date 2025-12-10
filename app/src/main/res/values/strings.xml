@@ -271,6 +271,8 @@
     <string name="emoji_picker_title">Select Emoji</string>
     <string name="emoji_picker_title_for_letter">Select emoji for letter %1$s</string>
     <string name="emoji_picker_close">Close</string>
+    <string name="custom_emoji_placeholder">Paste custom emoji here</string>
+    <string name="custom_emoji_use">Use</string>
     <string name="emoji_category_smileys">Smileys &amp; People</string>
     <string name="emoji_category_animals">Animals &amp; Nature</string>
     <string name="emoji_category_food">Food &amp; Drink</string>
@@ -388,6 +390,8 @@
     <string name="unicode_picker_title_for_letter">Select character for %1$s</string>
     <string name="unicode_picker_title">Select unicode character</string>
     <string name="unicode_picker_close">Close</string>
+    <string name="custom_symbol_placeholder">Paste custom symbol here</string>
+    <string name="custom_symbol_use">Use</string>
     <string name="unicode_category_punctuation">Punctuation</string>
     <string name="unicode_category_chinese_punctuation">中文标点</string>
     <string name="unicode_category_math">Mathematical Symbols</string>
