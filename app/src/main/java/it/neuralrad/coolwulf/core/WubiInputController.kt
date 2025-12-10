@@ -227,11 +227,8 @@ class WubiInputController(
             }
         }
 
-        // Finalize any pending session when user starts new input
-        // This captures phrases like "王五李四" when user starts typing next phrase
-        if (sessionSelections.size >= 2) {
-            finalizeSession()
-        }
+        // Don't finalize session here - user may still be building the phrase
+        // Session is finalized when space is pressed (via finalizeSessionOnSpace)
 
         // Clear next-word prediction state when user starts typing
         if (isShowingNextWordPredictions) {
@@ -446,11 +443,8 @@ class WubiInputController(
         val savedWubiCode = lastUsedWubiCode
         lastUsedWubiCode = ""
 
-        // Finalize the session now that the phrase input is complete
-        // This records phrases like "王五" when user finishes picking all characters
-        if (sessionSelections.size >= 2) {
-            finalizeSession()
-        }
+        // Don't finalize session here - user may still be building a longer phrase
+        // Session is finalized when space is pressed (via finalizeSessionOnSpace)
 
         // Show next-word predictions if available
         showNextWordPredictions()
@@ -483,11 +477,24 @@ class WubiInputController(
     }
 
     /**
+     * Called when space is pressed to finalize phrase learning session.
+     * This indicates the user has finished typing the current phrase.
+     */
+    fun finalizeSessionOnSpace() {
+        if (sessionSelections.size >= 2) {
+            finalizeSession()
+        }
+    }
+
+    /**
      * Finalizes the current input session for auto-phrase learning.
      * Combines all single-character selections into a phrase and records it.
      *
-     * Uses abbreviated Wubi codes: first 2 letters of each character's code.
-     * Example: '王五' with codes 'gggg' + 'gghg' → abbreviated code 'gggg' (gg + gg)
+     * Uses standard Wubi phrase encoding rules (always 4 codes):
+     * - 2 characters: first 2 codes of char1 + first 2 codes of char2
+     * - 3 characters: first code of char1 + first code of char2 + first 2 codes of char3
+     * - 4 characters: first code of each character
+     * - 5+ characters: first code of char1 + char2 + char3 + last char
      */
     private fun finalizeSession() {
         if (!isAutoPhraseLearningEnabled() || sessionSelections.size < 2) {
@@ -495,10 +502,8 @@ class WubiInputController(
             return
         }
 
-        // Create abbreviated Wubi code: first 2 letters of each character's code
-        val abbreviatedWubiCode = sessionSelections.joinToString("") {
-            it.first.take(2)  // Take only first 2 letters of each character's Wubi code
-        }
+        // Create abbreviated Wubi code following standard phrase encoding rules
+        val abbreviatedWubiCode = generateWubiPhraseCode(sessionSelections.map { it.first })
         val combinedPhrase = sessionSelections.joinToString("") { it.second }
 
         // Check if this phrase already exists in dictionary with abbreviated code - if so, skip
@@ -510,6 +515,39 @@ class WubiInputController(
         }
 
         sessionSelections.clear()
+    }
+
+    /**
+     * Generates the standard Wubi phrase code from a list of character codes.
+     *
+     * Wubi phrase encoding rules (always produces 4-code result):
+     * - 2 characters: first 2 codes of char1 + first 2 codes of char2
+     * - 3 characters: first code of char1 + first code of char2 + first 2 codes of char3
+     * - 4 characters: first code of each character
+     * - 5+ characters: first code of char1 + first code of char2 + first code of char3 + first code of last char
+     *
+     * @param charCodes List of Wubi codes for each character in the phrase
+     * @return The 4-character phrase code
+     */
+    private fun generateWubiPhraseCode(charCodes: List<String>): String {
+        return when (charCodes.size) {
+            2 -> {
+                // 2 characters: first 2 codes of char1 + first 2 codes of char2
+                charCodes[0].take(2) + charCodes[1].take(2)
+            }
+            3 -> {
+                // 3 characters: first code of char1 + first code of char2 + first 2 codes of char3
+                charCodes[0].take(1) + charCodes[1].take(1) + charCodes[2].take(2)
+            }
+            4 -> {
+                // 4 characters: first code of each character
+                charCodes[0].take(1) + charCodes[1].take(1) + charCodes[2].take(1) + charCodes[3].take(1)
+            }
+            else -> {
+                // 5+ characters: first code of char1 + char2 + char3 + last char
+                charCodes[0].take(1) + charCodes[1].take(1) + charCodes[2].take(1) + charCodes.last().take(1)
+            }
+        }
     }
 
     /**

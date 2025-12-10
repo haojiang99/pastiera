@@ -4581,6 +4581,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
             // Handle space key when no candidates and empty buffer
             if (keyCode == KeyEvent.KEYCODE_SPACE && !wubiInputController.hasCandidates() && wubiInputController.getBuffer().isEmpty()) {
+                // Finalize phrase learning session - space indicates end of phrase
+                wubiInputController.finalizeSessionOnSpace()
+
                 // Try double-space-to-period first (supports Chinese punctuation mode)
                 val useChinesePunctuation = wubiInputController.isChinesePunctuationMode()
                 if (textInputController.handleDoubleSpaceToPeriod(
