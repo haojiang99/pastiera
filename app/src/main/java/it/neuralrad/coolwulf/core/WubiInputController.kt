@@ -382,13 +382,14 @@ class WubiInputController(
         }
 
         // If showing next-word predictions and buffer is empty, clear predictions
+        // Return false so backspace also deletes the previous character
         if (buffer.isEmpty() && isShowingNextWordPredictions) {
             isShowingNextWordPredictions = false
             allCandidates = emptyList()
             currentPage = 0
             nextWordPredictor.clearState()
-            Log.d(TAG, "Backspace cleared next-word predictions")
-            return true
+            Log.d(TAG, "Backspace cleared next-word predictions, allowing character deletion")
+            return false  // Don't consume - let backspace delete the character too
         }
 
         if (buffer.isEmpty()) {
