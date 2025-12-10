@@ -234,13 +234,12 @@ private fun SettingsMainScreen(
             var currentLanguage by remember { mutableStateOf(SettingsManager.getAppLanguage(context)) }
 
             val languageOptions = listOf(
-                "system" to stringResource(R.string.app_language_system),
                 "en" to stringResource(R.string.app_language_english),
                 "zh" to stringResource(R.string.app_language_chinese)
             )
 
             val currentLanguageDisplay = languageOptions.find { it.first == currentLanguage }?.second
-                ?: stringResource(R.string.app_language_system)
+                ?: stringResource(R.string.app_language_english)
 
             Surface(
                 modifier = Modifier

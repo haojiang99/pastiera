@@ -1514,15 +1514,17 @@ object SettingsManager {
 
     /**
      * Gets the app interface language setting.
-     * @return "system" (follow system), "en" (English), or "zh" (Chinese)
+     * @return "en" (English) or "zh" (Chinese)
      */
     fun getAppLanguage(context: Context): String {
-        return getPreferences(context).getString(KEY_APP_LANGUAGE, "system") ?: "system"
+        val lang = getPreferences(context).getString(KEY_APP_LANGUAGE, "en") ?: "en"
+        // Migrate old "system" setting to "en"
+        return if (lang == "system") "en" else lang
     }
 
     /**
      * Sets the app interface language.
-     * @param language "system", "en", or "zh"
+     * @param language "en" or "zh"
      */
     fun setAppLanguage(context: Context, language: String) {
         getPreferences(context).edit()

@@ -364,9 +364,21 @@ class WubiInputController(
         // Record for next-word prediction
         nextWordPredictor.recordCommittedWord(candidate)
 
-        // Clear the buffer
+        // Clear the buffer and candidates (so the committed word doesn't show in suggestions)
         buffer.clear()
         lastUsedWubiCode = ""
+        allCandidates = emptyList()
+        currentPage = 0
+
+        // Show next-word predictions if available
+        if (nextWordPredictionEnabled && nextWordPredictor.isShowingPredictions()) {
+            val nextWordSuggestions = nextWordPredictor.getSuggestions()
+            if (nextWordSuggestions.isNotEmpty()) {
+                isShowingNextWordPredictions = true
+                allCandidates = nextWordSuggestions
+                Log.d(TAG, "Auto-commit showing next-word predictions: $nextWordSuggestions")
+            }
+        }
 
         return candidate
     }
