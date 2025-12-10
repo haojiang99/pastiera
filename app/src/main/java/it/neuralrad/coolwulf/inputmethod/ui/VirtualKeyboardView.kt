@@ -49,6 +49,7 @@ class VirtualKeyboardView(
     private var isAltLocked = false
     private var shiftKey: TextView? = null
     private var altKey: TextView? = null
+    private var useChinesePunctuation = false
 
     private val keyHeight: Int by lazy {
         TypedValue.applyDimension(
@@ -358,6 +359,13 @@ class VirtualKeyboardView(
             val altChar = getAltSymbol(char)
             if (altChar != null) return altChar
         }
+        // Show Chinese punctuation when in Chinese punctuation mode
+        if (useChinesePunctuation) {
+            when (char) {
+                "." -> return "。"
+                "," -> return "，"
+            }
+        }
         return if (isShifted || isCapsLock) char.uppercase() else char
     }
 
@@ -365,6 +373,13 @@ class VirtualKeyboardView(
         if (isAltMode || isAltLocked) {
             val altChar = getAltSymbol(char)
             if (altChar != null) return altChar
+        }
+        // Convert punctuation to Chinese if Chinese punctuation mode is enabled
+        if (useChinesePunctuation) {
+            when (char) {
+                "." -> return "。"
+                "," -> return "，"
+            }
         }
         return if (isShifted || isCapsLock) char.uppercase() else char
     }
@@ -525,5 +540,16 @@ class VirtualKeyboardView(
         isCapsLock = capsLock
         updateShiftKeyAppearance()
         updateAllKeyLabels()
+    }
+
+    /**
+     * Sets whether Chinese punctuation mode is enabled.
+     * When enabled, period (.) outputs 。 and comma (,) outputs ，
+     */
+    fun setChinesePunctuationMode(enabled: Boolean) {
+        if (useChinesePunctuation != enabled) {
+            useChinesePunctuation = enabled
+            updateAllKeyLabels()  // Update key labels to show Chinese/English punctuation
+        }
     }
 }

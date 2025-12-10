@@ -1124,6 +1124,9 @@ class StatusBarController(
         variationBarView?.setTraditionalChineseToggleEnabled(SettingsManager.isTraditionalChineseToggleEnabled(context))
         variationBarView?.onTraditionalChineseToggleListener = onTraditionalChineseToggleListener
 
+        // Update virtual keyboard Chinese punctuation mode
+        virtualKeyboardView?.setChinesePunctuationMode(snapshot.chinesePunctuationMode)
+
         // Always call showVariations() early, before any potential early returns
         // This ensures the variation bar is updated even if the rest of update() returns early
         if (snapshot.symPage == 0) { // Only if not in SYM mode
