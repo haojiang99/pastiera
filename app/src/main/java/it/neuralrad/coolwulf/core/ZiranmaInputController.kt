@@ -201,7 +201,10 @@ class ZiranmaInputController(
 
         val selected = currentPageCandidates[index]
         val actualIndex = currentPage * pageSize + index
-        val isPhrase = actualIndex < phraseCandidateCount
+
+        // Determine if this is a phrase (multi-character) or single character
+        // Use selected.length > 1 as the primary check since frequency sorting can mix candidates
+        val isPhrase = selected.length > 1
 
         val charsToConsume: Int
         val pinyinToRecord: String
@@ -321,6 +324,14 @@ class ZiranmaInputController(
         Log.d(TAG, "Buffer cleared")
     }
 
+    /**
+     * Updates candidate list based on current buffer.
+     * Converts Ziranma to Pinyin and looks up candidates.
+     * Also supports abbreviation matching and combined phrase generation.
+     *
+     * For multi-syllable input (e.g., "woxlvifj"), generates combined phrase
+     * candidates (e.g., "我想吃饭") similar to Pinyin input.
+     */
     private fun updateCandidates() {
         currentPage = 0
 
@@ -352,12 +363,14 @@ class ZiranmaInputController(
             Log.d(TAG, "Abbreviation matches for '$bufferStr': $abbreviationCandidates")
         }
 
-        // Convert Ziranma to Pinyin
+        // Convert Ziranma to Pinyin syllables
+        val syllables = ZiranmaConverter.toPinyinSyllables(bufferStr)
         val pinyinString = ZiranmaConverter.toPinyinString(bufferStr)
 
-        if (pinyinString != null) {
+        if (pinyinString != null && syllables.isNotEmpty()) {
             matchedPinyin = pinyinString
 
+            // Try to get phrase candidates for the full pinyin from dictionary
             val phraseCandidates = PinyinDictionary.getPhraseCandidates(pinyinString)
             if (phraseCandidates.isNotEmpty()) {
                 val sortedPhrases = sortByFrequencyIfEnabled(pinyinString, phraseCandidates)
@@ -368,9 +381,21 @@ class ZiranmaInputController(
                 }
             }
 
+            // Generate combined candidates from multiple syllables
+            // This allows typing full Ziranma code to get combined phrase suggestions
+            if (syllables.size >= 2) {
+                val combinedPhrases = generateCombinedCandidates(syllables)
+                for (phrase in combinedPhrases) {
+                    if (phrase !in resultCandidates) {
+                        resultCandidates.add(phrase)
+                    }
+                }
+                Log.d(TAG, "Combined candidates for ${syllables.size} syllables: ${combinedPhrases.take(3)}")
+            }
+
             phraseCandidateCount = resultCandidates.size
 
-            val syllables = ZiranmaConverter.toPinyinSyllables(bufferStr)
+            // Also get single character candidates for the first syllable
             if (syllables.isNotEmpty()) {
                 val firstSyllable = syllables[0]
                 val charCandidates = PinyinDictionary.getCandidates(firstSyllable)
@@ -382,7 +407,7 @@ class ZiranmaInputController(
                 }
             }
 
-            Log.d(TAG, "Ziranma '$bufferStr' -> Pinyin '$pinyinString', candidates: ${resultCandidates.size}")
+            Log.d(TAG, "Ziranma '$bufferStr' -> Pinyin '$pinyinString', syllables: $syllables, candidates: ${resultCandidates.size}")
         } else {
             if (bufferStr.length >= 2) {
                 val directAbbrevCandidates = getAbbreviationCandidatesIfEnabled(bufferStr)
@@ -413,6 +438,23 @@ class ZiranmaInputController(
 
                 Log.d(TAG, "Single key '$bufferStr' -> prefixes: $prefixes, candidates: ${resultCandidates.size}")
             } else {
+                // Multiple characters with odd length - parse complete pairs and show prefix candidates for the last char
+                // Also generate combined candidates for complete syllables
+                val completePairs = bufferStr.length / 2
+                if (completePairs >= 2) {
+                    val completeShuangpin = bufferStr.substring(0, completePairs * 2)
+                    val completeSyllables = ZiranmaConverter.toPinyinSyllables(completeShuangpin)
+                    if (completeSyllables.size >= 2) {
+                        val combinedPhrases = generateCombinedCandidates(completeSyllables)
+                        for (phrase in combinedPhrases) {
+                            if (phrase !in resultCandidates) {
+                                resultCandidates.add(phrase)
+                            }
+                        }
+                        Log.d(TAG, "Combined candidates for partial input ($completePairs complete pairs): ${combinedPhrases.take(3)}")
+                    }
+                }
+
                 val partialPinyin = getPartialPinyin(bufferStr)
                 if (partialPinyin.isNotEmpty()) {
                     matchedPinyin = partialPinyin
@@ -433,6 +475,66 @@ class ZiranmaInputController(
         }
 
         allCandidates = resultCandidates
+    }
+
+    /**
+     * Generates combined phrase candidates from multiple pinyin syllables.
+     * Takes the top candidates from each syllable and combines them.
+     */
+    private fun generateCombinedCandidates(
+        syllables: List<String>,
+        maxPerSyllable: Int = 3,
+        maxTotal: Int = 9
+    ): List<String> {
+        if (syllables.isEmpty()) return emptyList()
+        if (syllables.size == 1) {
+            return sortByFrequencyIfEnabled(syllables[0], PinyinDictionary.getCandidates(syllables[0])).take(maxTotal)
+        }
+
+        val candidateLists = syllables.map { syllable ->
+            val candidates = PinyinDictionary.getCandidates(syllable)
+            sortByFrequencyIfEnabled(syllable, candidates).take(maxPerSyllable)
+        }
+
+        if (candidateLists.any { it.isEmpty() }) {
+            Log.d(TAG, "Some syllables have no candidates: ${syllables.zip(candidateLists).filter { it.second.isEmpty() }.map { it.first }}")
+            return emptyList()
+        }
+
+        val combined = mutableListOf<String>()
+        generateCartesianProduct(candidateLists, 0, "", combined, maxTotal)
+
+        return combined
+    }
+
+    /**
+     * Recursively generates cartesian product of candidate lists.
+     */
+    private fun generateCartesianProduct(
+        lists: List<List<String>>,
+        index: Int,
+        current: String,
+        result: MutableList<String>,
+        maxResults: Int
+    ) {
+        if (result.size >= maxResults) return
+
+        if (index == lists.size) {
+            if (current.isNotEmpty()) {
+                result.add(current)
+            }
+            return
+        }
+
+        val currentList = lists[index]
+        if (currentList.isEmpty()) {
+            generateCartesianProduct(lists, index + 1, current, result, maxResults)
+        } else {
+            for (candidate in currentList) {
+                if (result.size >= maxResults) break
+                generateCartesianProduct(lists, index + 1, current + candidate, result, maxResults)
+            }
+        }
     }
 
     private fun getAbbreviationCandidates(input: String): List<String> {

@@ -225,7 +225,10 @@ class ShuangpinInputController(
 
         val selected = currentPageCandidates[index]
         val actualIndex = currentPage * pageSize + index
-        val isPhrase = actualIndex < phraseCandidateCount
+
+        // Determine if this is a phrase (multi-character) or single character
+        // Use selected.length > 1 as the primary check since frequency sorting can mix candidates
+        val isPhrase = selected.length > 1
 
         // Determine how much of the buffer to consume
         val charsToConsume: Int
@@ -396,6 +399,9 @@ class ShuangpinInputController(
      * Updates candidate list based on current buffer.
      * Converts Shuangpin to Pinyin and looks up candidates.
      * Also supports abbreviation matching (first letter of each syllable).
+     *
+     * For multi-syllable input (e.g., "woxlvifj" = wo+xiang+chi+fan), generates
+     * combined phrase candidates (e.g., "我想吃饭") similar to Pinyin input.
      */
     private fun updateCandidates() {
         currentPage = 0
@@ -451,13 +457,14 @@ class ShuangpinInputController(
             Log.d(TAG, "Partial match Shuangpin phrases for '$bufferStr': $partialMatchPhrases")
         }
 
-        // Convert Shuangpin to Pinyin
+        // Convert Shuangpin to Pinyin syllables
+        val syllables = ShuangpinConverter.toPinyinSyllables(bufferStr)
         val pinyinString = ShuangpinConverter.toPinyinString(bufferStr)
 
-        if (pinyinString != null) {
+        if (pinyinString != null && syllables.isNotEmpty()) {
             matchedPinyin = pinyinString
 
-            // Try to get phrase candidates for the full pinyin
+            // Try to get phrase candidates for the full pinyin from dictionary
             val phraseCandidates = PinyinDictionary.getPhraseCandidates(pinyinString)
             if (phraseCandidates.isNotEmpty()) {
                 val sortedPhrases = sortByFrequencyIfEnabled(pinyinString, phraseCandidates)
@@ -468,10 +475,21 @@ class ShuangpinInputController(
                 }
             }
 
+            // Generate combined candidates from multiple syllables
+            // This allows "woxlvifj" to produce "我想吃饭" by combining individual characters
+            if (syllables.size >= 2) {
+                val combinedPhrases = generateCombinedCandidates(syllables)
+                for (phrase in combinedPhrases) {
+                    if (phrase !in resultCandidates) {
+                        resultCandidates.add(phrase)
+                    }
+                }
+                Log.d(TAG, "Combined candidates for ${syllables.size} syllables: ${combinedPhrases.take(3)}")
+            }
+
             phraseCandidateCount = resultCandidates.size
 
             // Also get single character candidates for the first syllable
-            val syllables = ShuangpinConverter.toPinyinSyllables(bufferStr)
             if (syllables.isNotEmpty()) {
                 val firstSyllable = syllables[0]
                 val charCandidates = PinyinDictionary.getCandidates(firstSyllable)
@@ -483,7 +501,7 @@ class ShuangpinInputController(
                 }
             }
 
-            Log.d(TAG, "Shuangpin '$bufferStr' -> Pinyin '$pinyinString', candidates: ${resultCandidates.size}")
+            Log.d(TAG, "Shuangpin '$bufferStr' -> Pinyin '$pinyinString', syllables: $syllables, candidates: ${resultCandidates.size}")
         } else {
             // Partial input (odd number of characters)
             // Show candidates based on possible pinyin initials
@@ -523,6 +541,23 @@ class ShuangpinInputController(
                 Log.d(TAG, "Single key '$bufferStr' -> prefixes: $prefixes, candidates: ${resultCandidates.size}")
             } else {
                 // Multiple characters with odd length - parse complete pairs and show prefix candidates for the last char
+                // Also generate combined candidates for complete syllables
+                val completePairs = bufferStr.length / 2
+                if (completePairs >= 2) {
+                    // Get syllables for complete pairs only
+                    val completeShuangpin = bufferStr.substring(0, completePairs * 2)
+                    val completeSyllables = ShuangpinConverter.toPinyinSyllables(completeShuangpin)
+                    if (completeSyllables.size >= 2) {
+                        val combinedPhrases = generateCombinedCandidates(completeSyllables)
+                        for (phrase in combinedPhrases) {
+                            if (phrase !in resultCandidates) {
+                                resultCandidates.add(phrase)
+                            }
+                        }
+                        Log.d(TAG, "Combined candidates for partial input ($completePairs complete pairs): ${combinedPhrases.take(3)}")
+                    }
+                }
+
                 val partialPinyin = getPartialPinyin(bufferStr)
                 if (partialPinyin.isNotEmpty()) {
                     matchedPinyin = partialPinyin
@@ -544,6 +579,80 @@ class ShuangpinInputController(
         }
 
         allCandidates = resultCandidates
+    }
+
+    /**
+     * Generates combined phrase candidates from multiple pinyin syllables.
+     * Takes the top candidates from each syllable and combines them.
+     *
+     * For example, with syllables ["wo", "xiang", "chi", "fan"], this generates
+     * combined phrases like "我想吃饭" by taking the first candidate from each.
+     *
+     * @param syllables List of pinyin syllables
+     * @param maxPerSyllable Maximum candidates to consider per syllable (default 3)
+     * @param maxTotal Maximum total combined phrases to generate (default 9)
+     * @return List of combined phrase strings
+     */
+    private fun generateCombinedCandidates(
+        syllables: List<String>,
+        maxPerSyllable: Int = 3,
+        maxTotal: Int = 9
+    ): List<String> {
+        if (syllables.isEmpty()) return emptyList()
+        if (syllables.size == 1) {
+            // Single syllable - just return its candidates
+            return sortByFrequencyIfEnabled(syllables[0], PinyinDictionary.getCandidates(syllables[0])).take(maxTotal)
+        }
+
+        // Get top candidates for each syllable
+        val candidateLists = syllables.map { syllable ->
+            val candidates = PinyinDictionary.getCandidates(syllable)
+            sortByFrequencyIfEnabled(syllable, candidates).take(maxPerSyllable)
+        }
+
+        // Check if all syllables have candidates
+        if (candidateLists.any { it.isEmpty() }) {
+            Log.d(TAG, "Some syllables have no candidates: ${syllables.zip(candidateLists).filter { it.second.isEmpty() }.map { it.first }}")
+            return emptyList()
+        }
+
+        // Generate cartesian product (combined phrases)
+        val combined = mutableListOf<String>()
+        generateCartesianProduct(candidateLists, 0, "", combined, maxTotal)
+
+        return combined
+    }
+
+    /**
+     * Recursively generates cartesian product of candidate lists.
+     * This creates all combinations of characters from each syllable.
+     */
+    private fun generateCartesianProduct(
+        lists: List<List<String>>,
+        index: Int,
+        current: String,
+        result: MutableList<String>,
+        maxResults: Int
+    ) {
+        if (result.size >= maxResults) return
+
+        if (index == lists.size) {
+            if (current.isNotEmpty()) {
+                result.add(current)
+            }
+            return
+        }
+
+        val currentList = lists[index]
+        if (currentList.isEmpty()) {
+            // Skip empty segment
+            generateCartesianProduct(lists, index + 1, current, result, maxResults)
+        } else {
+            for (candidate in currentList) {
+                if (result.size >= maxResults) break
+                generateCartesianProduct(lists, index + 1, current + candidate, result, maxResults)
+            }
+        }
     }
 
     /**
