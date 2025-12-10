@@ -226,6 +226,9 @@ class StatusBarController(
     // Listener for virtual keyboard character input
     var onVirtualCharacterInputListener: ((char: Char) -> Unit)? = null
 
+    // Listener for virtual keyboard voice input request (long-hold space bar)
+    var onVirtualVoiceInputRequestListener: (() -> Unit)? = null
+
     /**
      * Enables or disables the virtual keyboard.
      */
@@ -251,6 +254,17 @@ class StatusBarController(
      */
     fun updateVirtualKeyboardShiftState(shifted: Boolean, capsLock: Boolean) {
         virtualKeyboardView?.setShiftState(shifted, capsLock)
+    }
+
+    /**
+     * Recreates the virtual keyboard view to apply new settings (e.g., key height).
+     */
+    fun recreateVirtualKeyboard() {
+        virtualKeyboardView?.let { vkView ->
+            virtualKeyboardContainer?.removeAllViews()
+            vkView.invalidateView()
+            virtualKeyboardContainer?.addView(vkView.ensureView())
+        }
     }
 
     fun setForceMinimalUi(force: Boolean) {
@@ -416,6 +430,9 @@ class StatusBarController(
                 },
                 onCharacterInput = { char ->
                     onVirtualCharacterInputListener?.invoke(char)
+                },
+                onVoiceInputRequest = {
+                    onVirtualVoiceInputRequestListener?.invoke()
                 }
             )
             virtualKeyboardContainer?.addView(virtualKeyboardView?.ensureView())

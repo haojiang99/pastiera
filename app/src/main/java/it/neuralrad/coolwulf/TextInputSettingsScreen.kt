@@ -245,6 +245,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getStatusBarHeight(context))
     }
 
+    var virtualKeyboardHeight by remember {
+        mutableStateOf(SettingsManager.getVirtualKeyboardHeight(context))
+    }
+
     var showLedStatus by remember {
         mutableStateOf(SettingsManager.isShowLedStatus(context))
     }
@@ -2281,6 +2285,53 @@ fun TextInputSettingsScreen(
                         },
                         valueRange = SettingsManager.getMinStatusBarHeight().toFloat()..SettingsManager.getMaxStatusBarHeight().toFloat(),
                         steps = SettingsManager.getMaxStatusBarHeight() - SettingsManager.getMinStatusBarHeight() - 1,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+
+            // Virtual Keyboard Height slider
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.TextFields,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.virtual_keyboard_height_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = stringResource(R.string.virtual_keyboard_height_description, virtualKeyboardHeight),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Slider(
+                        value = virtualKeyboardHeight.toFloat(),
+                        onValueChange = { newValue ->
+                            virtualKeyboardHeight = newValue.toInt()
+                            SettingsManager.setVirtualKeyboardHeight(context, newValue.toInt())
+                        },
+                        valueRange = SettingsManager.getMinVirtualKeyboardHeight().toFloat()..SettingsManager.getMaxVirtualKeyboardHeight().toFloat(),
+                        steps = SettingsManager.getMaxVirtualKeyboardHeight() - SettingsManager.getMinVirtualKeyboardHeight() - 1,
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }

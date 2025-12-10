@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.os.Handler
+import android.os.Looper
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
@@ -21,7 +23,8 @@ import it.neuralrad.coolwulf.SettingsManager
 class VirtualKeyboardView(
     private val context: Context,
     private val onKeyPress: (keyCode: Int, isShifted: Boolean) -> Unit,
-    private val onCharacterInput: (char: Char) -> Unit
+    private val onCharacterInput: (char: Char) -> Unit,
+    private val onVoiceInputRequest: (() -> Unit)? = null
 ) {
     companion object {
         private val KEY_BG_COLOR = Color.argb(255, 60, 60, 65)
@@ -51,13 +54,12 @@ class VirtualKeyboardView(
     private var altKey: TextView? = null
     private var useChinesePunctuation = false
 
-    private val keyHeight: Int by lazy {
-        TypedValue.applyDimension(
+    private val keyHeight: Int
+        get() = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
-            42f,
+            SettingsManager.getVirtualKeyboardHeight(context).toFloat(),
             context.resources.displayMetrics
         ).toInt()
-    }
 
     private val keyMargin: Int by lazy {
         TypedValue.applyDimension(
@@ -127,6 +129,16 @@ class VirtualKeyboardView(
     }
 
     fun getView(): LinearLayout? = container
+
+    /**
+     * Invalidates the cached view so it will be recreated on next ensureView() call.
+     * Call this when settings that affect the keyboard layout change (e.g., key height).
+     */
+    fun invalidateView() {
+        container = null
+        shiftKey = null
+        altKey = null
+    }
 
     private fun createKeyRow(keys: List<String>, sidePadding: Boolean = false): LinearLayout {
         return LinearLayout(context).apply {
@@ -446,6 +458,10 @@ class VirtualKeyboardView(
     }
 
     private fun createSpaceBar(): TextView {
+        var spaceHoldHandler: Handler? = null
+        var spaceHoldRunnable: Runnable? = null
+        var spaceHoldTriggeredVoice = false
+
         return TextView(context).apply {
             text = "space"
             setTextColor(Color.argb(150, 255, 255, 255))
@@ -467,14 +483,44 @@ class VirtualKeyboardView(
                     MotionEvent.ACTION_DOWN -> {
                         v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         background = createKeyBackground(KEY_BG_PRESSED)
+
+                        // Start hold timer for voice input if enabled
+                        if (SettingsManager.isHoldSpaceForVoice(context) && onVoiceInputRequest != null) {
+                            spaceHoldTriggeredVoice = false
+                            spaceHoldHandler = Handler(Looper.getMainLooper())
+                            spaceHoldRunnable = Runnable {
+                                if (!spaceHoldTriggeredVoice) {
+                                    spaceHoldTriggeredVoice = true
+                                    v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                    onVoiceInputRequest.invoke()
+                                }
+                            }
+                            spaceHoldHandler?.postDelayed(spaceHoldRunnable!!, SettingsManager.getHoldSpaceDuration(context))
+                        }
                         true
                     }
                     MotionEvent.ACTION_UP -> {
+                        // Cancel hold timer
+                        spaceHoldHandler?.removeCallbacks(spaceHoldRunnable ?: return@setOnTouchListener true)
+                        spaceHoldHandler = null
+                        spaceHoldRunnable = null
+
                         background = createKeyBackground(KEY_BG_COLOR)
-                        onKeyPress(KeyEvent.KEYCODE_SPACE, false)
+
+                        // Only send space if voice input was not triggered
+                        if (!spaceHoldTriggeredVoice) {
+                            onKeyPress(KeyEvent.KEYCODE_SPACE, false)
+                        }
+                        spaceHoldTriggeredVoice = false
                         true
                     }
                     MotionEvent.ACTION_CANCEL -> {
+                        // Cancel hold timer
+                        spaceHoldHandler?.removeCallbacks(spaceHoldRunnable ?: return@setOnTouchListener true)
+                        spaceHoldHandler = null
+                        spaceHoldRunnable = null
+                        spaceHoldTriggeredVoice = false
+
                         background = createKeyBackground(KEY_BG_COLOR)
                         true
                     }

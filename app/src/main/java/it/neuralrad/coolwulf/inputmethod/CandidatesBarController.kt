@@ -128,6 +128,13 @@ class CandidatesBarController(
             candidatesStatusBar.onVirtualCharacterInputListener = value
         }
 
+    var onVirtualVoiceInputRequestListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onVirtualVoiceInputRequestListener = value
+            candidatesStatusBar.onVirtualVoiceInputRequestListener = value
+        }
+
     fun getInputView(emojiMapText: String = ""): LinearLayout {
         return inputStatusBar.getOrCreateLayout(emojiMapText)
     }
@@ -168,6 +175,14 @@ class CandidatesBarController(
     fun updateVirtualKeyboardShiftState(shifted: Boolean, capsLock: Boolean) {
         inputStatusBar.updateVirtualKeyboardShiftState(shifted, capsLock)
         candidatesStatusBar.updateVirtualKeyboardShiftState(shifted, capsLock)
+    }
+
+    /**
+     * Recreates the virtual keyboard view to apply new settings (e.g., key height).
+     */
+    fun recreateVirtualKeyboard() {
+        inputStatusBar.recreateVirtualKeyboard()
+        candidatesStatusBar.recreateVirtualKeyboard()
     }
 }
 

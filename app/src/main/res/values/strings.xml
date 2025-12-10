@@ -629,6 +629,10 @@
     <string name="status_bar_height_title">Status Bar Height</string>
     <string name="status_bar_height_description">Current: %1$d DIP</string>
 
+    <!-- Virtual Keyboard Height -->
+    <string name="virtual_keyboard_height_title">Virtual Keyboard Height</string>
+    <string name="virtual_keyboard_height_description">Current: %1$d DIP</string>
+
     <!-- LED Status Indicator -->
     <string name="show_led_status_title">Show LED Status Indicator</string>
     <string name="show_led_status_description">Display virtual LED strip showing modifier key states</string>

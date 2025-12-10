@@ -122,6 +122,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     // Track virtual keyboard state
     private var isVirtualKeyboardEnabled = false
+    private var lastVirtualKeyboardHeight = -1
 
     // Snapshot of the current input context (numeric/password/restricted fields, etc.)
     private var inputContextState: InputContextState = InputContextState.EMPTY
@@ -794,6 +795,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         candidatesBarController.onVirtualCharacterInputListener = { char ->
             handleVirtualCharacterInput(char)
         }
+        candidatesBarController.onVirtualVoiceInputRequestListener = {
+            startSpeechRecognition()
+        }
 
         // Initialize virtual keyboard based on settings
         isVirtualKeyboardEnabled = SettingsManager.isVirtualKeyboardEnabled(this)
@@ -1338,7 +1342,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         } else if (zhenmaInputController.isZhenmaMode()) {
             zhenmaInputController.isChinesePunctuationMode()
         } else {
-            true // Default to Chinese punctuation
+            false // English mode - use English punctuation
         }
     }
 
@@ -1768,8 +1772,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
 
         candidatesBarController.updateStatusBars(snapshot, emojiMapText, inputConnection, symMappings)
+
+        // Update virtual keyboard shift state to show uppercase/lowercase letters
+        val isShifted = modifierSnapshot.shiftOneShot || modifierSnapshot.shiftPhysicallyPressed
+        val isCapsLock = modifierSnapshot.capsLockEnabled
+        candidatesBarController.updateVirtualKeyboardShiftState(isShifted, isCapsLock)
     }
-    
+
     /**
      * Disattiva le variazioni.
      */
@@ -1859,6 +1868,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             isVirtualKeyboardEnabled = newVirtualKeyboardEnabled
             candidatesBarController.setVirtualKeyboardEnabled(isVirtualKeyboardEnabled)
         }
+
+        // Check if virtual keyboard height changed and recreate if needed
+        val newVirtualKeyboardHeight = SettingsManager.getVirtualKeyboardHeight(this)
+        if (lastVirtualKeyboardHeight != -1 && newVirtualKeyboardHeight != lastVirtualKeyboardHeight) {
+            candidatesBarController.recreateVirtualKeyboard()
+        }
+        lastVirtualKeyboardHeight = newVirtualKeyboardHeight
 
         val isEditable = inputContextState.isEditable
 
