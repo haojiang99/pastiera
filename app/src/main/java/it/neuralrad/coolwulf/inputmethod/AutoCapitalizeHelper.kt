@@ -64,6 +64,9 @@ object AutoCapitalizeHelper {
             val lastNonWhitespaceIndex = textBeforeCursor.indexOfLast { !it.isWhitespace() }
             if (lastNonWhitespaceIndex >= 0) {
                 val lastNonWhitespaceChar = textBeforeCursor[lastNonWhitespaceIndex]
+                // Check if there's at least one space between punctuation and cursor
+                // This prevents capitalizing in URLs like "www.google.com"
+                val hasSpaceAfterPunctuation = lastNonWhitespaceIndex < textBeforeCursor.length - 1
                 val isSentencePunctuation = when (lastNonWhitespaceChar) {
                     '.' -> {
                         // Avoid treating "..." as end of sentence.
@@ -73,7 +76,7 @@ object AutoCapitalizeHelper {
                     '!', '?' -> true
                     else -> false
                 }
-                if (isSentencePunctuation) {
+                if (isSentencePunctuation && hasSpaceAfterPunctuation) {
                     return true
                 }
             }
