@@ -1511,7 +1511,59 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
             KeyEvent.KEYCODE_ENTER -> {
-                // Send enter key event
+                // Handle Enter like physical keyboard - commit buffer as English in Chinese mode
+                if (pinyinInputController.isPinyinMode()) {
+                    val buffer = pinyinInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        val committed = pinyinInputController.commitBufferAsIs()
+                        if (committed != null) {
+                            ic.commitText(committed, 1)
+                            updateStatusBarText()
+                            return
+                        }
+                    }
+                } else if (shuangpinInputController.isShuangpinMode()) {
+                    val buffer = shuangpinInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        val committed = shuangpinInputController.commitBufferAsIs()
+                        if (committed != null) {
+                            ic.commitText(committed, 1)
+                            updateStatusBarText()
+                            return
+                        }
+                    }
+                } else if (ziranmaInputController.isZiranmaMode()) {
+                    val buffer = ziranmaInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        val committed = ziranmaInputController.commitBufferAsIs()
+                        if (committed != null) {
+                            ic.commitText(committed, 1)
+                            updateStatusBarText()
+                            return
+                        }
+                    }
+                } else if (wubiInputController.isWubiMode()) {
+                    val buffer = wubiInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        val committed = wubiInputController.commitBufferAsIs()
+                        if (committed != null) {
+                            ic.commitText(committed, 1)
+                            updateStatusBarText()
+                            return
+                        }
+                    }
+                } else if (zhenmaInputController.isZhenmaMode()) {
+                    val buffer = zhenmaInputController.getBuffer()
+                    if (buffer.isNotEmpty()) {
+                        val committed = zhenmaInputController.commitBufferAsIs()
+                        if (committed != null) {
+                            ic.commitText(committed, 1)
+                            updateStatusBarText()
+                            return
+                        }
+                    }
+                }
+                // No buffer to commit or not in Chinese mode - send enter key event
                 sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
             }
         }
