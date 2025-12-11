@@ -816,6 +816,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         altSymManager = AltSymManager(assets, prefs, this)
         altSymManager.reloadSymMappings() // Load custom mappings for page 1 if present
         altSymManager.reloadSymMappings2() // Load custom mappings for page 2 if present
+        altSymManager.reloadSymMappings3() // Load custom mappings for page 3 (Characters2) if present
         // Register callback to be notified when an Alt character is inserted after long press.
         // Variations are updated automatically by updateStatusBarText().
         altSymManager.onAltCharInserted = { char ->
@@ -861,6 +862,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 Log.d(TAG, "SYM mappings page 2 changed, reloading...")
                 // Reload SYM mappings for page 2
                 altSymManager.reloadSymMappings2()
+                // Update status bar to reflect new mappings
+                Handler(Looper.getMainLooper()).post {
+                    updateStatusBarText()
+                }
+            } else if (key == "sym_mappings_page3_custom") {
+                Log.d(TAG, "SYM mappings page 3 (Characters2) changed, reloading...")
+                // Reload SYM mappings for page 3
+                altSymManager.reloadSymMappings3()
                 // Update status bar to reflect new mappings
                 Handler(Looper.getMainLooper()).post {
                     updateStatusBarText()
@@ -2255,13 +2264,21 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
 
-        // Handle SYM key to toggle SYM page - MUST be before Juying mode candidate selection
-        // because SYM is a default Juying key (key 2) and would be consumed for candidate selection
-        // when next-word predictions are showing after inserting a custom symbol
+        // Handle SYM key to toggle SYM page - but only when NOT in Juying mode with candidates
+        // In Juying mode with candidates, SYM is used for candidate selection (key 2)
+        // When no candidates, SYM should toggle the SYM page (e.g., after inserting a custom symbol)
         if (translatedKeyCode == KeyEvent.KEYCODE_SYM) {
-            symLayoutController.toggleSymPage()
-            updateStatusBarText()
-            return true
+            // Check if SYM is configured as a Juying key and we have candidates
+            val symIsJuyingKey = SettingsManager.getJuyingCandidateIndex(this, KeyEvent.KEYCODE_SYM) >= 0
+            val shouldUseForCandidateSelection = juyingModeEnabled && hasAnyCandidates && symIsJuyingKey
+
+            if (!shouldUseForCandidateSelection) {
+                // No candidates or SYM not a Juying key - toggle SYM page
+                symLayoutController.toggleSymPage()
+                updateStatusBarText()
+                return true
+            }
+            // Otherwise, fall through to Juying candidate selection below
         }
 
         // Handle Juying mode candidate selection for all configured keys
@@ -3175,13 +3192,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Handle Pinyin input mode
         if (pinyinInputController.isPinyinMode() && ic != null) {
-            // Handle SYM key to toggle SYM page (must be checked before isSymActive check)
-            if (translatedKeyCode == KeyEvent.KEYCODE_SYM) {
-                symLayoutController.toggleSymPage()
-                updateStatusBarText()
-                return true
-            }
-
             // Handle SYM mode - when SYM is active, allow symbol input just like in English mode
             if (symLayoutController.isSymActive()) {
                 val symResult = symLayoutController.handleKeyWhenActive(
@@ -3190,7 +3200,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     ic,
                     ctrlLatchActive = ctrlLatchActive,
                     altLatchActive = altLatchActive,
-                    updateStatusBar = { updateStatusBarText() }
+                    updateStatusBar = { updateStatusBarText() },
+                    onSymbolInserted = {
+                        // Clear next word predictions after inserting symbol
+                        pinyinInputController.clearNextWordPredictions()
+                    }
                 )
                 when (symResult) {
                     SymLayoutController.SymKeyResult.CONSUME -> return true
@@ -3651,13 +3665,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Handle Shuangpin input mode
         if (shuangpinInputController.isShuangpinMode() && ic != null) {
-            // Handle SYM key to toggle SYM page (must be checked before isSymActive check)
-            if (translatedKeyCode == KeyEvent.KEYCODE_SYM) {
-                symLayoutController.toggleSymPage()
-                updateStatusBarText()
-                return true
-            }
-
             // Handle SYM mode - when SYM is active, allow symbol input just like in English mode
             if (symLayoutController.isSymActive()) {
                 val symResult = symLayoutController.handleKeyWhenActive(
@@ -3666,7 +3673,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     ic,
                     ctrlLatchActive = ctrlLatchActive,
                     altLatchActive = altLatchActive,
-                    updateStatusBar = { updateStatusBarText() }
+                    updateStatusBar = { updateStatusBarText() },
+                    onSymbolInserted = {
+                        // Clear next word predictions after inserting symbol
+                        shuangpinInputController.clearNextWordPredictions()
+                    }
                 )
                 when (symResult) {
                     SymLayoutController.SymKeyResult.CONSUME -> return true
@@ -4092,7 +4103,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     ic,
                     ctrlLatchActive = ctrlLatchActive,
                     altLatchActive = altLatchActive,
-                    updateStatusBar = { updateStatusBarText() }
+                    updateStatusBar = { updateStatusBarText() },
+                    onSymbolInserted = {
+                        // Clear next word predictions after inserting symbol
+                        ziranmaInputController.clearNextWordPredictions()
+                    }
                 )
                 when (symResult) {
                     SymLayoutController.SymKeyResult.CONSUME -> return true
@@ -4306,13 +4321,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Handle Wubi input mode
         if (wubiInputController.isWubiMode() && ic != null) {
-            // Handle SYM key to toggle SYM page (must be checked before isSymActive check)
-            if (translatedKeyCode == KeyEvent.KEYCODE_SYM) {
-                symLayoutController.toggleSymPage()
-                updateStatusBarText()
-                return true
-            }
-
             // Handle SYM mode - when SYM is active, allow symbol input just like in English mode
             if (symLayoutController.isSymActive()) {
                 val symResult = symLayoutController.handleKeyWhenActive(
@@ -4321,7 +4329,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     ic,
                     ctrlLatchActive = ctrlLatchActive,
                     altLatchActive = altLatchActive,
-                    updateStatusBar = { updateStatusBarText() }
+                    updateStatusBar = { updateStatusBarText() },
+                    onSymbolInserted = {
+                        // Clear next word predictions after inserting symbol
+                        wubiInputController.clearNextWordPredictions()
+                    }
                 )
                 when (symResult) {
                     SymLayoutController.SymKeyResult.CONSUME -> return true
@@ -4760,13 +4772,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Handle Zhenma input mode
         if (zhenmaInputController.isZhenmaMode() && ic != null) {
-            // Handle SYM key to toggle SYM page (must be checked before isSymActive check)
-            if (translatedKeyCode == KeyEvent.KEYCODE_SYM) {
-                symLayoutController.toggleSymPage()
-                updateStatusBarText()
-                return true
-            }
-
             // Handle SYM mode - when SYM is active, allow symbol input just like in English mode
             if (symLayoutController.isSymActive()) {
                 val symResult = symLayoutController.handleKeyWhenActive(
@@ -4775,7 +4780,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     ic,
                     ctrlLatchActive = ctrlLatchActive,
                     altLatchActive = altLatchActive,
-                    updateStatusBar = { updateStatusBarText() }
+                    updateStatusBar = { updateStatusBarText() },
+                    onSymbolInserted = {
+                        // Clear next word predictions after inserting symbol
+                        zhenmaInputController.clearNextWordPredictions()
+                    }
                 )
                 when (symResult) {
                     SymLayoutController.SymKeyResult.CONSUME -> return true
@@ -5279,7 +5288,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 },
                 isLongPressSuppressed = { code -> multiTapController.isLongPressSuppressed(code) },
                 onAltLatchDisabled = { altLatchJustDisabled = true },
-                clearAltLatchJustDisabled = { altLatchJustDisabled = false }
+                clearAltLatchJustDisabled = { altLatchJustDisabled = false },
+                onSymbolInserted = {
+                    // Clear English word predictions after inserting symbol from SYM keyboard
+                    englishWordPredictionController.clearNextWordPredictions()
+                    englishWordPredictionController.clearSuggestions()
+                }
             )
         )
 

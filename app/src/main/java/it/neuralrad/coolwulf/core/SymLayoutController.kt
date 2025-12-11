@@ -114,7 +114,8 @@ class SymLayoutController(
         inputConnection: InputConnection?,
         ctrlLatchActive: Boolean,
         altLatchActive: Boolean,
-        updateStatusBar: () -> Unit
+        updateStatusBar: () -> Unit,
+        onSymbolInserted: (() -> Unit)? = null
     ): SymKeyResult {
         val autoCloseEnabled = SettingsManager.getSymAutoClose(context)
         val page = currentPageType()
@@ -145,6 +146,8 @@ class SymLayoutController(
 
         if (symChar != null && inputConnection != null) {
             inputConnection.commitText(symChar, 1)
+            // Clear next word predictions after inserting symbol
+            onSymbolInserted?.invoke()
             if (autoCloseEnabled) {
                 closeSymAndUpdate(updateStatusBar)
             }

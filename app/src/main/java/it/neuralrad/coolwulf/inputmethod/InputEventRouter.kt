@@ -206,7 +206,8 @@ class InputEventRouter(
         val handleMultiTapCommit: (Int, LayoutMapping, Boolean, InputConnection?, Boolean) -> Boolean,
         val isLongPressSuppressed: (Int) -> Boolean,
         val onAltLatchDisabled: () -> Unit,
-        val clearAltLatchJustDisabled: () -> Unit
+        val clearAltLatchJustDisabled: () -> Unit,
+        val onSymbolInserted: (() -> Unit)? = null
     )
 
     fun routeEditableFieldKeyDown(
@@ -365,7 +366,8 @@ class InputEventRouter(
                 altLatchActive = altLatchActive,
                 cursorUpdateDelayMs = params.cursorUpdateDelayMs,
                 updateStatusBar = callbacks.updateStatusBar,
-                callSuper = callbacks.callSuper
+                callSuper = callbacks.callSuper,
+                onSymbolInserted = callbacks.onSymbolInserted
             )
         ) {
             return EditableFieldRoutingResult.Consume
@@ -683,7 +685,8 @@ class InputEventRouter(
         altLatchActive: Boolean,
         cursorUpdateDelayMs: Long,
         updateStatusBar: () -> Unit,
-        callSuper: () -> Boolean
+        callSuper: () -> Boolean,
+        onSymbolInserted: (() -> Unit)? = null
     ): Boolean {
         val ic = inputConnection ?: return false
 
@@ -714,7 +717,8 @@ class InputEventRouter(
                     ic,
                     ctrlLatchActive = ctrlLatchActive,
                     altLatchActive = altLatchActive,
-                    updateStatusBar = updateStatusBar
+                    updateStatusBar = updateStatusBar,
+                    onSymbolInserted = onSymbolInserted
                 )
             ) {
                 SymKeyResult.CONSUME -> true
