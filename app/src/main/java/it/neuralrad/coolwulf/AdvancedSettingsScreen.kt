@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -84,6 +86,18 @@ fun AdvancedSettingsScreen(
     }
     var virtualKeyboardEnabled by remember {
         mutableStateOf(SettingsManager.isVirtualKeyboardEnabled(context))
+    }
+    var showVirtualKeyboardButton by remember {
+        mutableStateOf(SettingsManager.getShowVirtualKeyboardButton(context))
+    }
+    var virtualKeyboardSound by remember {
+        mutableStateOf(SettingsManager.isVirtualKeyboardSoundEnabled(context))
+    }
+    var virtualKeyboardVibration by remember {
+        mutableStateOf(SettingsManager.isVirtualKeyboardVibrationEnabled(context))
+    }
+    var virtualKeyboardHeight by remember {
+        mutableStateOf(SettingsManager.getVirtualKeyboardHeight(context))
     }
     // Store the actual value (3 to 25), but display it inverted in the slider (25 to 3)
     var swipeIncrementalThreshold by remember {
@@ -410,6 +424,188 @@ fun AdvancedSettingsScreen(
                                         SettingsManager.setVirtualKeyboardEnabled(context, enabled)
                                     }
                                 )
+                            }
+                        }
+
+                        // Virtual Keyboard Settings Section (only visible when virtual keyboard is enabled)
+                        if (virtualKeyboardEnabled) {
+                            // Show Virtual Keyboard Button
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(64.dp)
+                                    .padding(start = 32.dp) // Indent to show it's a sub-setting
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.TouchApp,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.show_virtual_keyboard_button_title),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.show_virtual_keyboard_button_description),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 2
+                                        )
+                                    }
+                                    Switch(
+                                        checked = showVirtualKeyboardButton,
+                                        onCheckedChange = { enabled ->
+                                            showVirtualKeyboardButton = enabled
+                                            SettingsManager.setShowVirtualKeyboardButton(context, enabled)
+                                        }
+                                    )
+                                }
+                            }
+
+                            // Virtual Keyboard Sound
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(64.dp)
+                                    .padding(start = 32.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.VolumeUp,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.virtual_keyboard_sound_title),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.virtual_keyboard_sound_description),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 2
+                                        )
+                                    }
+                                    Switch(
+                                        checked = virtualKeyboardSound,
+                                        onCheckedChange = { enabled ->
+                                            virtualKeyboardSound = enabled
+                                            SettingsManager.setVirtualKeyboardSoundEnabled(context, enabled)
+                                        }
+                                    )
+                                }
+                            }
+
+                            // Virtual Keyboard Vibration
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(64.dp)
+                                    .padding(start = 32.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Vibration,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.virtual_keyboard_vibration_title),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.virtual_keyboard_vibration_description),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 2
+                                        )
+                                    }
+                                    Switch(
+                                        checked = virtualKeyboardVibration,
+                                        onCheckedChange = { enabled ->
+                                            virtualKeyboardVibration = enabled
+                                            SettingsManager.setVirtualKeyboardVibrationEnabled(context, enabled)
+                                        }
+                                    )
+                                }
+                            }
+
+                            // Virtual Keyboard Height slider
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 32.dp, top = 8.dp, bottom = 8.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.TouchApp,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = stringResource(R.string.virtual_keyboard_height_title),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.virtual_keyboard_height_description, virtualKeyboardHeight),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                    Slider(
+                                        value = virtualKeyboardHeight.toFloat(),
+                                        onValueChange = { newValue ->
+                                            virtualKeyboardHeight = newValue.toInt()
+                                            SettingsManager.setVirtualKeyboardHeight(context, newValue.toInt())
+                                        },
+                                        valueRange = SettingsManager.getMinVirtualKeyboardHeight().toFloat()..SettingsManager.getMaxVirtualKeyboardHeight().toFloat(),
+                                        steps = SettingsManager.getMaxVirtualKeyboardHeight() - SettingsManager.getMinVirtualKeyboardHeight() - 1,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                }
                             }
                         }
 

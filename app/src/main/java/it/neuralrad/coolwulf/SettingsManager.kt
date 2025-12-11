@@ -91,6 +91,8 @@ object SettingsManager {
     private const val KEY_HOLD_SPACE_DURATION = "hold_space_duration" // Duration to hold space key for voice input (ms)
     private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
     private const val KEY_VIRTUAL_KEYBOARD_HEIGHT = "virtual_keyboard_height" // Height of virtual keyboard keys in DIP
+    private const val KEY_VIRTUAL_KEYBOARD_SOUND = "virtual_keyboard_sound" // Enable sound effect for virtual keyboard typing
+    private const val KEY_VIRTUAL_KEYBOARD_VIBRATION = "virtual_keyboard_vibration" // Enable vibration for virtual keyboard typing
     private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
     private const val KEY_TRADITIONAL_CHINESE_TOGGLE_ENABLED = "traditional_chinese_toggle_enabled" // Show 简/繁 toggle button in status bar
     private const val KEY_SHOW_SYM_BUTTON = "show_sym_button" // Show SYM button in status bar
@@ -155,6 +157,8 @@ object SettingsManager {
     private const val DEFAULT_VIRTUAL_KEYBOARD_HEIGHT = 42  // Default virtual keyboard key height in DIP
     private const val MIN_VIRTUAL_KEYBOARD_HEIGHT = 32
     private const val MAX_VIRTUAL_KEYBOARD_HEIGHT = 60
+    private const val DEFAULT_VIRTUAL_KEYBOARD_SOUND = false  // Virtual keyboard sound disabled by default
+    private const val DEFAULT_VIRTUAL_KEYBOARD_VIBRATION = true  // Virtual keyboard vibration enabled by default
     private const val DEFAULT_PARTIAL_PINYIN_MATCHING = false  // Partial pinyin matching disabled by default
     private const val DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON = false  // Virtual keyboard button hidden by default
     private const val DEFAULT_SEMI_TRANSPARENT_STATUS_BAR = false  // Status bar is opaque by default
@@ -1852,6 +1856,38 @@ object SettingsManager {
      * Gets the default virtual keyboard height.
      */
     fun getDefaultVirtualKeyboardHeight(): Int = DEFAULT_VIRTUAL_KEYBOARD_HEIGHT
+
+    /**
+     * Gets whether virtual keyboard sound effect is enabled.
+     */
+    fun isVirtualKeyboardSoundEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_VIRTUAL_KEYBOARD_SOUND, DEFAULT_VIRTUAL_KEYBOARD_SOUND)
+    }
+
+    /**
+     * Sets whether virtual keyboard sound effect is enabled.
+     */
+    fun setVirtualKeyboardSoundEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_VIRTUAL_KEYBOARD_SOUND, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets whether virtual keyboard vibration is enabled.
+     */
+    fun isVirtualKeyboardVibrationEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_VIRTUAL_KEYBOARD_VIBRATION, DEFAULT_VIRTUAL_KEYBOARD_VIBRATION)
+    }
+
+    /**
+     * Sets whether virtual keyboard vibration is enabled.
+     */
+    fun setVirtualKeyboardVibrationEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_VIRTUAL_KEYBOARD_VIBRATION, enabled)
+            .apply()
+    }
 
     /**
      * Gets whether partial pinyin matching is enabled.

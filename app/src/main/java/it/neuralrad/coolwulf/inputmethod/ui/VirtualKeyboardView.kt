@@ -4,6 +4,9 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.SoundPool
 import android.os.Handler
 import android.os.Looper
 import android.util.TypedValue
@@ -15,6 +18,7 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import it.neuralrad.coolwulf.SettingsManager
+import it.neuralrad.coolwulf.R
 
 /**
  * Virtual (on-screen) keyboard for devices without physical keyboards.
@@ -92,6 +96,88 @@ class VirtualKeyboardView(
             12f,
             context.resources.displayMetrics
         )
+    }
+
+    private val audioManager: AudioManager by lazy {
+        context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    }
+
+    private val soundPool: SoundPool by lazy {
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        SoundPool.Builder()
+            .setMaxStreams(3)
+            .setAudioAttributes(audioAttributes)
+            .build()
+    }
+
+    private var keyClickSoundId: Int = 0
+    private var soundLoaded = false
+
+    private fun ensureSoundLoaded() {
+        if (!soundLoaded && keyClickSoundId == 0) {
+            keyClickSoundId = soundPool.load(context, R.raw.key_click, 1)  // Uses key_click.wav
+            soundPool.setOnLoadCompleteListener { _, _, status ->
+                if (status == 0) {
+                    soundLoaded = true
+                }
+            }
+        }
+    }
+
+    /**
+     * Plays key press feedback (sound and/or vibration) based on settings.
+     */
+    @Suppress("DEPRECATION")
+    private fun playKeyPressFeedback(view: View) {
+        // Play vibration if enabled - use same approach as VariationBarView for suggestion selection
+        if (SettingsManager.isVirtualKeyboardVibrationEnabled(context)) {
+            view.isHapticFeedbackEnabled = true
+            view.performHapticFeedback(
+                HapticFeedbackConstants.VIRTUAL_KEY,
+                HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
+                HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+            )
+        }
+        // Play sound if enabled
+        if (SettingsManager.isVirtualKeyboardSoundEnabled(context)) {
+            ensureSoundLoaded()
+            if (soundLoaded && keyClickSoundId != 0) {
+                // Get current media volume as a fraction (0.0 to 1.0)
+                val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
+                val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
+                val volume = if (maxVolume > 0) currentVolume / maxVolume else 0.5f
+                soundPool.play(keyClickSoundId, volume, volume, 1, 0, 1.0f)
+            }
+        }
+    }
+
+    /**
+     * Plays long press feedback (sound and/or vibration) based on settings.
+     */
+    @Suppress("DEPRECATION")
+    private fun playLongPressFeedback(view: View) {
+        // Play vibration if enabled - use same approach as VariationBarView for suggestion selection
+        if (SettingsManager.isVirtualKeyboardVibrationEnabled(context)) {
+            view.isHapticFeedbackEnabled = true
+            view.performHapticFeedback(
+                HapticFeedbackConstants.LONG_PRESS,
+                HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
+                HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+            )
+        }
+        // Play sound if enabled
+        if (SettingsManager.isVirtualKeyboardSoundEnabled(context)) {
+            ensureSoundLoaded()
+            if (soundLoaded && keyClickSoundId != 0) {
+                val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
+                val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
+                val volume = if (maxVolume > 0) currentVolume / maxVolume else 0.5f
+                soundPool.play(keyClickSoundId, volume, volume, 1, 0, 1.0f)
+            }
+        }
     }
 
     fun ensureView(): LinearLayout {
@@ -255,7 +341,7 @@ class VirtualKeyboardView(
             setOnTouchListener { v, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        playKeyPressFeedback(v)
                         background = createKeyBackground(KEY_BG_PRESSED)
                         true
                     }
@@ -330,7 +416,7 @@ class VirtualKeyboardView(
             setOnTouchListener { v, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        playKeyPressFeedback(v)
                         background = createKeyBackground(KEY_BG_PRESSED)
                         true
                     }
@@ -445,7 +531,7 @@ class VirtualKeyboardView(
             setOnTouchListener { v, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        playKeyPressFeedback(v)
                         background = createKeyBackground(KEY_BG_PRESSED)
                         true
                     }
@@ -488,7 +574,7 @@ class VirtualKeyboardView(
             setOnTouchListener { v, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        playKeyPressFeedback(v)
                         background = createKeyBackground(KEY_BG_PRESSED)
 
                         // Start hold timer for voice input if enabled
@@ -498,7 +584,7 @@ class VirtualKeyboardView(
                             spaceHoldRunnable = Runnable {
                                 if (!spaceHoldTriggeredVoice) {
                                     spaceHoldTriggeredVoice = true
-                                    v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                    playLongPressFeedback(v)
                                     onVoiceInputRequest.invoke()
                                 }
                             }
