@@ -43,6 +43,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     companion object {
         private const val TAG = "PastieraInputMethod"
+        const val ACTION_THEME_CHANGED = "it.neuralrad.coolwulf.THEME_CHANGED"
     }
 
     // SharedPreferences for settings
@@ -53,6 +54,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     
     // Broadcast receiver for speech recognition
     private var speechResultReceiver: BroadcastReceiver? = null
+    // Broadcast receiver for theme changes
+    private var themeChangeReceiver: BroadcastReceiver? = null
     private lateinit var candidatesBarController: CandidatesBarController
 
     // Keycode for the SYM key (device-specific, initialized in onCreate)
@@ -967,6 +970,26 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
 
         Log.d(TAG, "Broadcast receiver registered for speech results")
+
+        // Register theme change receiver
+        themeChangeReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == ACTION_THEME_CHANGED) {
+                    Log.d(TAG, "Theme change broadcast received, refreshing UI")
+                    // Refresh the status bar UI with the new theme
+                    keyboardVisibilityController.refreshTheme()
+                    candidatesBarController.refreshTheme()
+                }
+            }
+        }
+
+        val themeFilter = IntentFilter(ACTION_THEME_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(themeChangeReceiver, themeFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(themeChangeReceiver, themeFilter)
+        }
+        Log.d(TAG, "Broadcast receiver registered for theme changes")
     }
     
     override fun onDestroy() {
@@ -985,6 +1008,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
         speechResultReceiver = null
+
+        // Unregister theme change receiver
+        themeChangeReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error while unregistering theme change receiver", e)
+            }
+        }
+        themeChangeReceiver = null
 
         // Stop clipboard history listener
         it.neuralrad.coolwulf.core.ClipboardHistoryManager.stopListening(this)

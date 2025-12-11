@@ -2062,5 +2062,64 @@ class VariationBarView(
 
         return if (parent.isClickable) parent else null
     }
+
+    /**
+     * Refreshes theme colors on all child views.
+     */
+    fun refreshTheme() {
+        val theme = getCurrentTheme()
+
+        // Refresh wrapper background (transparent)
+        wrapper?.setBackgroundColor(Color.TRANSPARENT)
+
+        // Refresh container background (transparent)
+        container?.setBackgroundColor(Color.TRANSPARENT)
+
+        // Refresh all variation buttons
+        variationButtons.forEach { button ->
+            button.setTextColor(theme.candidateTextColor)
+            (button.background as? GradientDrawable)?.setColor(theme.candidateBackgroundColor)
+        }
+
+        // Refresh SYM button
+        symButtonView?.let { btn ->
+            btn.setTextColor(if (isSymModeActive) theme.accentColor else theme.textColor)
+            (btn.background as? GradientDrawable)?.setColor(theme.backgroundColor)
+        }
+
+        // Refresh language toggle button
+        languageToggleButtonView?.let { btn ->
+            val isChineseMode = isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive
+            btn.setTextColor(if (isChineseMode) theme.accentColor else theme.textColor)
+            (btn.background as? GradientDrawable)?.setColor(theme.backgroundColor)
+        }
+
+        // Refresh punctuation toggle button
+        punctuationToggleButtonView?.let { btn ->
+            btn.setTextColor(if (isChinesePunctuationMode) theme.accentColor else theme.textColor)
+            (btn.background as? GradientDrawable)?.setColor(theme.backgroundColor)
+        }
+
+        // Refresh traditional Chinese toggle button
+        traditionalChineseToggleButtonView?.let { btn ->
+            btn.setTextColor(if (isTraditionalChineseMode) theme.ledLockedColor else theme.accentColor)
+            (btn.background as? GradientDrawable)?.setColor(theme.backgroundColor)
+        }
+
+        // Refresh arrow buttons
+        prevArrowButton?.setColorFilter(theme.iconColor)
+        nextArrowButton?.setColorFilter(theme.iconColor)
+        (prevArrowButton?.background as? GradientDrawable)?.setColor(theme.candidateBackgroundColor)
+        (nextArrowButton?.background as? GradientDrawable)?.setColor(theme.candidateBackgroundColor)
+
+        // Refresh microphone button
+        microphoneButtonView?.setColorFilter(theme.iconColor)
+
+        // Refresh settings button
+        settingsButtonView?.setColorFilter(theme.iconColor)
+
+        // Refresh clipboard button
+        clipboardButtonView?.setColorFilter(theme.iconColor)
+    }
 }
 

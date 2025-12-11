@@ -269,6 +269,33 @@ class StatusBarController(
         }
     }
 
+    /**
+     * Refreshes the theme colors on the status bar and all child views.
+     */
+    fun refreshTheme() {
+        val theme = getCurrentTheme()
+
+        // Update main layout background
+        statusBarLayout?.setBackgroundColor(theme.backgroundColor)
+
+        // Update emoji keyboard container
+        emojiKeyboardContainer?.setBackgroundColor(theme.backgroundColor)
+
+        // Update emoji map text
+        emojiMapTextView?.setTextColor(theme.textColor)
+
+        // Update LED status view
+        ledStatusView?.refreshTheme()
+
+        // Update variation bar
+        variationBarView?.refreshTheme()
+
+        // Update virtual keyboard
+        virtualKeyboardView?.refreshTheme()
+
+        Log.d(TAG, "Theme refreshed: ${theme.id}")
+    }
+
     fun setForceMinimalUi(force: Boolean) {
         if (mode != Mode.FULL) {
             return

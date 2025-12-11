@@ -691,4 +691,11 @@ class VirtualKeyboardView(
             updateAllKeyLabels()  // Update key labels to show Chinese/English punctuation
         }
     }
+
+    /**
+     * Refreshes theme colors. Virtual keyboard uses fixed colors, so this is a no-op.
+     */
+    fun refreshTheme() {
+        // Virtual keyboard colors are independent of the status bar theme - nothing to update
+    }
 }

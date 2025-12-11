@@ -184,5 +184,12 @@ class LedStatusView(
             }
         }.start()
     }
+
+    /**
+     * Refreshes theme colors. LED colors are currently fixed, so this is a no-op.
+     */
+    fun refreshTheme() {
+        // LED colors are independent of theme - nothing to update
+    }
 }
 

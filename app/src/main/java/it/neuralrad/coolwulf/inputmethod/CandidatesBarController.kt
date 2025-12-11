@@ -191,5 +191,13 @@ class CandidatesBarController(
         inputStatusBar.recreateVirtualKeyboard()
         candidatesStatusBar.recreateVirtualKeyboard()
     }
+
+    /**
+     * Refreshes the theme colors on both status bars.
+     */
+    fun refreshTheme() {
+        inputStatusBar.refreshTheme()
+        candidatesStatusBar.refreshTheme()
+    }
 }
 

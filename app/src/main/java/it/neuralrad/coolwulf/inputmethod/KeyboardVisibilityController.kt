@@ -72,6 +72,13 @@ class KeyboardVisibilityController(
     private fun detachFromParent(view: View) {
         (view.parent as? ViewGroup)?.removeView(view)
     }
+
+    /**
+     * Refreshes the theme colors on the status bar.
+     */
+    fun refreshTheme() {
+        candidatesBarController.refreshTheme()
+    }
 }
 
 
