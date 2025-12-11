@@ -277,21 +277,53 @@ class StatusBarController(
 
         // Update main layout background
         statusBarLayout?.setBackgroundColor(theme.backgroundColor)
+        statusBarLayout?.invalidate()
 
         // Update emoji keyboard container
         emojiKeyboardContainer?.setBackgroundColor(theme.backgroundColor)
+        emojiKeyboardContainer?.invalidate()
 
         // Update emoji map text
         emojiMapTextView?.setTextColor(theme.textColor)
+        emojiMapTextView?.invalidate()
+
+        // Update emoji key buttons
+        val cornerRadius = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            6f,
+            context.resources.displayMetrics
+        )
+        emojiKeyButtons.forEach { keyView ->
+            // Create new drawable to ensure update
+            val newDrawable = GradientDrawable().apply {
+                setColor(theme.buttonBackgroundColor)
+                setCornerRadius(cornerRadius)
+            }
+            keyView.background = newDrawable
+            // Update text colors in the key
+            if (keyView is FrameLayout) {
+                for (i in 0 until keyView.childCount) {
+                    val child = keyView.getChildAt(i)
+                    if (child is TextView) {
+                        child.setTextColor(theme.textColor)
+                    }
+                }
+            }
+            keyView.invalidate()
+        }
 
         // Update LED status view
-        ledStatusView?.refreshTheme()
+        ledStatusView.refreshTheme()
 
         // Update variation bar
         variationBarView?.refreshTheme()
 
         // Update virtual keyboard
         virtualKeyboardView?.refreshTheme()
+
+        // Update virtual keyboard container background
+        virtualKeyboardContainer?.setBackgroundColor(theme.backgroundColor)
+        virtualKeyboardContainer?.invalidate()
 
         Log.d(TAG, "Theme refreshed: ${theme.id}")
     }

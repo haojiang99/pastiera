@@ -2079,12 +2079,14 @@ class VariationBarView(
         variationButtons.forEach { button ->
             button.setTextColor(theme.candidateTextColor)
             (button.background as? GradientDrawable)?.setColor(theme.candidateBackgroundColor)
+            button.invalidate()
         }
 
         // Refresh SYM button
         symButtonView?.let { btn ->
             btn.setTextColor(if (isSymModeActive) theme.accentColor else theme.textColor)
             (btn.background as? GradientDrawable)?.setColor(theme.backgroundColor)
+            btn.invalidate()
         }
 
         // Refresh language toggle button
@@ -2092,34 +2094,83 @@ class VariationBarView(
             val isChineseMode = isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive
             btn.setTextColor(if (isChineseMode) theme.accentColor else theme.textColor)
             (btn.background as? GradientDrawable)?.setColor(theme.backgroundColor)
+            btn.invalidate()
         }
 
         // Refresh punctuation toggle button
         punctuationToggleButtonView?.let { btn ->
             btn.setTextColor(if (isChinesePunctuationMode) theme.accentColor else theme.textColor)
             (btn.background as? GradientDrawable)?.setColor(theme.backgroundColor)
+            btn.invalidate()
         }
 
         // Refresh traditional Chinese toggle button
         traditionalChineseToggleButtonView?.let { btn ->
             btn.setTextColor(if (isTraditionalChineseMode) theme.ledLockedColor else theme.accentColor)
             (btn.background as? GradientDrawable)?.setColor(theme.backgroundColor)
+            btn.invalidate()
         }
 
         // Refresh arrow buttons
-        prevArrowButton?.setColorFilter(theme.iconColor)
-        nextArrowButton?.setColorFilter(theme.iconColor)
-        (prevArrowButton?.background as? GradientDrawable)?.setColor(theme.candidateBackgroundColor)
-        (nextArrowButton?.background as? GradientDrawable)?.setColor(theme.candidateBackgroundColor)
+        prevArrowButton?.let { btn ->
+            btn.setColorFilter(theme.iconColor)
+            (btn.background as? GradientDrawable)?.setColor(theme.candidateBackgroundColor)
+            btn.invalidate()
+        }
+        nextArrowButton?.let { btn ->
+            btn.setColorFilter(theme.iconColor)
+            (btn.background as? GradientDrawable)?.setColor(theme.candidateBackgroundColor)
+            btn.invalidate()
+        }
 
-        // Refresh microphone button
-        microphoneButtonView?.setColorFilter(theme.iconColor)
+        // Refresh microphone button - create new drawable to ensure update
+        microphoneButtonView?.let { btn ->
+            btn.setColorFilter(theme.iconColor)
+            val newDrawable = GradientDrawable().apply {
+                setColor(theme.backgroundColor)
+                cornerRadius = 0f
+            }
+            btn.background = newDrawable
+            btn.invalidate()
+        }
 
-        // Refresh settings button
-        settingsButtonView?.setColorFilter(theme.iconColor)
+        // Refresh settings button - create new drawable to ensure update
+        settingsButtonView?.let { btn ->
+            btn.setColorFilter(theme.iconInactiveColor)
+            val newDrawable = GradientDrawable().apply {
+                setColor(theme.backgroundColor)
+                cornerRadius = 0f
+            }
+            btn.background = newDrawable
+            btn.invalidate()
+        }
 
-        // Refresh clipboard button
-        clipboardButtonView?.setColorFilter(theme.iconColor)
+        // Refresh clipboard button - create new drawable to ensure update
+        clipboardButtonView?.let { btn ->
+            btn.setColorFilter(theme.iconInactiveColor)
+            val newDrawable = GradientDrawable().apply {
+                setColor(theme.backgroundColor)
+                cornerRadius = 0f
+            }
+            btn.background = newDrawable
+            btn.invalidate()
+        }
+
+        // Refresh keyboard toggle button
+        keyboardToggleButtonView?.let { btn ->
+            val isEnabled = SettingsManager.isVirtualKeyboardEnabled(context)
+            btn.setColorFilter(if (isEnabled) Color.rgb(100, 200, 255) else Color.rgb(100, 100, 100))
+            val newDrawable = GradientDrawable().apply {
+                setColor(Color.BLACK)
+                cornerRadius = 0f
+            }
+            btn.background = newDrawable
+            btn.invalidate()
+        }
+
+        // Force the entire view hierarchy to redraw
+        wrapper?.invalidate()
+        container?.invalidate()
     }
 }
 

@@ -341,7 +341,9 @@ fun CustomizationSettingsScreen(
                                                         SettingsManager.setStatusBarTheme(context, theme.id)
                                                         // Broadcast theme change to refresh IME UI
                                                         context.sendBroadcast(
-                                                            android.content.Intent(it.neuralrad.coolwulf.inputmethod.PhysicalKeyboardInputMethodService.ACTION_THEME_CHANGED)
+                                                            android.content.Intent(it.neuralrad.coolwulf.inputmethod.PhysicalKeyboardInputMethodService.ACTION_THEME_CHANGED).apply {
+                                                                setPackage(context.packageName)
+                                                            }
                                                         )
                                                         showThemeDialog = false
                                                     }
