@@ -1959,20 +1959,21 @@ class VariationBarView(
     }
 
     private fun createKeyboardToggleButton(buttonSize: Int): ImageView {
+        val theme = getCurrentTheme()
         val dp3 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             3f,
             context.resources.displayMetrics
         ).toInt()
         val drawable = GradientDrawable().apply {
-            setColor(Color.BLACK)
+            setColor(theme.backgroundColor)
             cornerRadius = 0f
         }
         return ImageView(context).apply {
             setImageResource(R.drawable.ic_keyboard_24)
             // Color depends on virtual keyboard state
             val isEnabled = SettingsManager.isVirtualKeyboardEnabled(context)
-            setColorFilter(if (isEnabled) Color.rgb(100, 200, 255) else Color.rgb(100, 100, 100))
+            setColorFilter(if (isEnabled) theme.iconColor else theme.iconInactiveColor)
             background = drawable
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             isClickable = true
@@ -1988,8 +1989,9 @@ class VariationBarView(
 
     fun updateKeyboardToggleButtonState() {
         keyboardToggleButtonView?.let { btn ->
+            val theme = getCurrentTheme()
             val isEnabled = SettingsManager.isVirtualKeyboardEnabled(context)
-            btn.setColorFilter(if (isEnabled) Color.rgb(100, 200, 255) else Color.rgb(100, 100, 100))
+            btn.setColorFilter(if (isEnabled) theme.iconColor else theme.iconInactiveColor)
         }
     }
 
@@ -2159,9 +2161,9 @@ class VariationBarView(
         // Refresh keyboard toggle button
         keyboardToggleButtonView?.let { btn ->
             val isEnabled = SettingsManager.isVirtualKeyboardEnabled(context)
-            btn.setColorFilter(if (isEnabled) Color.rgb(100, 200, 255) else Color.rgb(100, 100, 100))
+            btn.setColorFilter(if (isEnabled) theme.iconColor else theme.iconInactiveColor)
             val newDrawable = GradientDrawable().apply {
-                setColor(Color.BLACK)
+                setColor(theme.backgroundColor)
                 cornerRadius = 0f
             }
             btn.background = newDrawable
