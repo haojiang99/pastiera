@@ -2352,18 +2352,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Handle SYM key to toggle SYM page - but only when NOT in Juying mode with candidates
         // In Juying mode with candidates, SYM is used for candidate selection (key 2)
         // When no candidates, SYM should toggle the SYM page (e.g., after inserting a custom symbol)
+        // IMPORTANT: Skip this when no editable field and power shortcuts are enabled (SYM triggers power shortcut mode)
         if (translatedKeyCode == KeyEvent.KEYCODE_SYM) {
-            // Check if SYM is configured as a Juying key and we have candidates
-            val symIsJuyingKey = SettingsManager.getJuyingCandidateIndex(this, KeyEvent.KEYCODE_SYM) >= 0
-            val shouldUseForCandidateSelection = juyingModeEnabled && hasAnyCandidates && symIsJuyingKey
+            // If no editable field and power shortcuts enabled, let the power shortcuts handler deal with SYM
+            val powerShortcutsEnabled = SettingsManager.getPowerShortcutsEnabled(this)
+            if (!hasEditableField && powerShortcutsEnabled) {
+                // Fall through to handleKeyDownWithNoEditableField which handles power shortcuts
+            } else {
+                // Check if SYM is configured as a Juying key and we have candidates
+                val symIsJuyingKey = SettingsManager.getJuyingCandidateIndex(this, KeyEvent.KEYCODE_SYM) >= 0
+                val shouldUseForCandidateSelection = juyingModeEnabled && hasAnyCandidates && symIsJuyingKey
 
-            if (!shouldUseForCandidateSelection) {
-                // No candidates or SYM not a Juying key - toggle SYM page
-                symLayoutController.toggleSymPage()
-                updateStatusBarText()
-                return true
+                if (!shouldUseForCandidateSelection) {
+                    // No candidates or SYM not a Juying key - toggle SYM page
+                    symLayoutController.toggleSymPage()
+                    updateStatusBarText()
+                    return true
+                }
+                // Otherwise, fall through to Juying candidate selection below
             }
-            // Otherwise, fall through to Juying candidate selection below
         }
 
         // Handle Juying mode candidate selection for all configured keys
