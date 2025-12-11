@@ -2255,6 +2255,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
 
+        // Handle SYM key to toggle SYM page - MUST be before Juying mode candidate selection
+        // because SYM is a default Juying key (key 2) and would be consumed for candidate selection
+        // when next-word predictions are showing after inserting a custom symbol
+        if (translatedKeyCode == KeyEvent.KEYCODE_SYM) {
+            symLayoutController.toggleSymPage()
+            updateStatusBarText()
+            return true
+        }
+
         // Handle Juying mode candidate selection for all configured keys
         // Juying: single-click selects candidate (Chinese: 5, English: 3)
         // Double-click Shift for prev page, double-click Alt for next page (Chinese only)
@@ -3166,6 +3175,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Handle Pinyin input mode
         if (pinyinInputController.isPinyinMode() && ic != null) {
+            // Handle SYM key to toggle SYM page (must be checked before isSymActive check)
+            if (translatedKeyCode == KeyEvent.KEYCODE_SYM) {
+                symLayoutController.toggleSymPage()
+                updateStatusBarText()
+                return true
+            }
+
             // Handle SYM mode - when SYM is active, allow symbol input just like in English mode
             if (symLayoutController.isSymActive()) {
                 val symResult = symLayoutController.handleKeyWhenActive(
@@ -3635,6 +3651,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Handle Shuangpin input mode
         if (shuangpinInputController.isShuangpinMode() && ic != null) {
+            // Handle SYM key to toggle SYM page (must be checked before isSymActive check)
+            if (translatedKeyCode == KeyEvent.KEYCODE_SYM) {
+                symLayoutController.toggleSymPage()
+                updateStatusBarText()
+                return true
+            }
+
             // Handle SYM mode - when SYM is active, allow symbol input just like in English mode
             if (symLayoutController.isSymActive()) {
                 val symResult = symLayoutController.handleKeyWhenActive(
@@ -4283,6 +4306,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Handle Wubi input mode
         if (wubiInputController.isWubiMode() && ic != null) {
+            // Handle SYM key to toggle SYM page (must be checked before isSymActive check)
+            if (translatedKeyCode == KeyEvent.KEYCODE_SYM) {
+                symLayoutController.toggleSymPage()
+                updateStatusBarText()
+                return true
+            }
+
             // Handle SYM mode - when SYM is active, allow symbol input just like in English mode
             if (symLayoutController.isSymActive()) {
                 val symResult = symLayoutController.handleKeyWhenActive(
@@ -4730,6 +4760,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Handle Zhenma input mode
         if (zhenmaInputController.isZhenmaMode() && ic != null) {
+            // Handle SYM key to toggle SYM page (must be checked before isSymActive check)
+            if (translatedKeyCode == KeyEvent.KEYCODE_SYM) {
+                symLayoutController.toggleSymPage()
+                updateStatusBarText()
+                return true
+            }
+
             // Handle SYM mode - when SYM is active, allow symbol input just like in English mode
             if (symLayoutController.isSymActive()) {
                 val symResult = symLayoutController.handleKeyWhenActive(
