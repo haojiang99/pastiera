@@ -96,8 +96,10 @@ object SettingsManager {
     private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
     private const val KEY_TRADITIONAL_CHINESE_TOGGLE_ENABLED = "traditional_chinese_toggle_enabled" // Show 简/繁 toggle button in status bar
     private const val KEY_SHOW_SYM_BUTTON = "show_sym_button" // Show SYM button in status bar
+    private const val KEY_STATUS_BAR_THEME = "status_bar_theme" // Status bar theme ID
 
     // Default values
+    private const val DEFAULT_STATUS_BAR_THEME = "classic_dark"
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
     private const val MIN_LONG_PRESS_THRESHOLD = 50L
     private const val MAX_LONG_PRESS_THRESHOLD = 1000L
@@ -2096,6 +2098,22 @@ object SettingsManager {
     fun setShowSymButton(context: Context, show: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_SHOW_SYM_BUTTON, show)
+            .apply()
+    }
+
+    /**
+     * Gets the status bar theme ID.
+     */
+    fun getStatusBarTheme(context: Context): String {
+        return getPreferences(context).getString(KEY_STATUS_BAR_THEME, DEFAULT_STATUS_BAR_THEME) ?: DEFAULT_STATUS_BAR_THEME
+    }
+
+    /**
+     * Sets the status bar theme ID.
+     */
+    fun setStatusBarTheme(context: Context, themeId: String) {
+        getPreferences(context).edit()
+            .putString(KEY_STATUS_BAR_THEME, themeId)
             .apply()
     }
 

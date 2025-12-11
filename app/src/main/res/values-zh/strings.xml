@@ -648,6 +648,18 @@
     <string name="virtual_keyboard_vibration_title">按键振动</string>
     <string name="virtual_keyboard_vibration_description">按键时振动以提供触觉反馈</string>
 
+    <!-- Status Bar Theme -->
+    <string name="status_bar_theme_title">状态栏主题</string>
+    <string name="status_bar_theme_description">自定义状态栏配色方案</string>
+    <string name="theme_classic_dark">经典黑</string>
+    <string name="theme_ocean_blue">海洋蓝</string>
+    <string name="theme_midnight_purple">午夜紫</string>
+    <string name="theme_forest_green">森林绿</string>
+    <string name="theme_sunset_orange">日落橙</string>
+    <string name="theme_rose_gold">玫瑰金</string>
+    <string name="theme_charcoal_gray">炭灰色</string>
+    <string name="theme_cyber_neon">赛博霓虹</string>
+
     <!-- LED Status Indicator -->
     <string name="show_led_status_title">显示LED状态指示灯</string>
     <string name="show_led_status_description">显示虚拟LED状态灯条，指示修饰键状态</string>

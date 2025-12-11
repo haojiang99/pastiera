@@ -145,14 +145,13 @@ class StatusBarController(
     companion object {
         private const val TAG = "StatusBarController"
         private const val NAV_MODE_LABEL = "NAV MODE"
-        private val DEFAULT_BACKGROUND = Color.parseColor("#000000")
-        private val NAV_MODE_BACKGROUND = Color.argb(100, 0, 0, 0)
         private const val SEMI_TRANSPARENT_ALPHA = 0.4f  // 40% opacity for entire UI
-        
-        // LED colors
-        private val LED_COLOR_GRAY_OFF = Color.argb(26, 255, 255, 255) // Gray when LED is off
-        private val LED_COLOR_RED_LOCKED = Color.rgb(247, 99, 0) // Orange/red when locked
-        private val LED_COLOR_BLUE_ACTIVE = Color.rgb(100, 150, 255) // Blue when active
+    }
+
+    // Get current theme
+    private fun getCurrentTheme(): it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme {
+        val themeId = SettingsManager.getStatusBarTheme(context)
+        return it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme.getThemeById(themeId)
     }
 
     data class StatusSnapshot(
@@ -342,7 +341,7 @@ class StatusBarController(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
-                setBackgroundColor(DEFAULT_BACKGROUND)
+                setBackgroundColor(getCurrentTheme().backgroundColor)
             }
 
             // Container for modifier indicators (horizontal, left-aligned).
@@ -400,7 +399,7 @@ class StatusBarController(
             // TextView for Pinyin buffer display
             emojiMapTextView = TextView(context).apply {
                 textSize = 18f
-                setTextColor(Color.WHITE)
+                setTextColor(getCurrentTheme().textColor)
                 gravity = Gravity.CENTER
                 setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
                 layoutParams = LinearLayout.LayoutParams(
@@ -541,7 +540,8 @@ class StatusBarController(
         return TextView(context).apply {
             this.text = text
             textSize = 12f
-            setTextColor(if (isActive) Color.WHITE else Color.argb(180, 255, 255, 255))
+            val theme = getCurrentTheme()
+            setTextColor(if (isActive) theme.textColor else theme.textColorSecondary)
             gravity = Gravity.CENTER
             setPadding(dp6, dp8, dp6, dp8)
             layoutParams = LinearLayout.LayoutParams(
@@ -662,13 +662,13 @@ class StatusBarController(
                     
                     // Aggiungi feedback visivo quando il pulsante viene premuto
                     val originalBackground = keyButton.background
+                    val theme = getCurrentTheme()
                     keyButton.setOnTouchListener { view, motionEvent ->
                         when (motionEvent.action) {
                             android.view.MotionEvent.ACTION_DOWN -> {
                                 // Dimmer lo sfondo quando premuto
                                 if (originalBackground is GradientDrawable) {
-                                    val pressedColor = Color.argb(80, 255, 255, 255) // Più opaco
-                                    originalBackground.setColor(pressedColor)
+                                    originalBackground.setColor(theme.buttonPressedColor)
                                 }
                                 view.invalidate()
                             }
@@ -676,8 +676,7 @@ class StatusBarController(
                             android.view.MotionEvent.ACTION_CANCEL -> {
                                 // Ripristina lo sfondo originale
                                 if (originalBackground is GradientDrawable) {
-                                    val normalColor = Color.argb(40, 255, 255, 255) // Sfondo normale
-                                    originalBackground.setColor(normalColor)
+                                    originalBackground.setColor(theme.buttonBackgroundColor)
                                 }
                                 view.invalidate()
                             }
@@ -751,7 +750,7 @@ class StatusBarController(
         val button = ImageView(context).apply {
             background = null
             setImageResource(R.drawable.ic_edit_24)
-            setColorFilter(Color.WHITE) // Bianco
+            setColorFilter(getCurrentTheme().iconColor)
             scaleType = ImageView.ScaleType.FIT_CENTER
             adjustViewBounds = true
             maxWidth = iconSize
@@ -812,13 +811,14 @@ class StatusBarController(
             6f, // Angoli leggermente arrotondati
             context.resources.displayMetrics
         )
+        val theme = getCurrentTheme()
         val drawable = GradientDrawable().apply {
-            setColor(Color.argb(40, 255, 255, 255)) // Bianco semi-trasparente
+            setColor(theme.buttonBackgroundColor)
             setCornerRadius(cornerRadius)
             // Nessun bordo
         }
         keyLayout.background = drawable
-        
+
         // Emoji/carattere deve occupare tutto il tasto, centrata
         // Calcola textSize in base all'altezza disponibile (convertendo da pixel a sp)
         val heightInDp = height / context.resources.displayMetrics.density
@@ -829,14 +829,14 @@ class StatusBarController(
             // Per emoji, usa la dimensione normale
             (heightInDp * 0.75f)
         }
-        
+
         val contentText = TextView(context).apply {
             text = content
             textSize = contentTextSize // textSize è in sp
             gravity = Gravity.CENTER
             // Per pagina 2 (caratteri), rendi bianco e in grassetto
             if (page == 2) {
-                setTextColor(Color.WHITE)
+                setTextColor(theme.textColor)
                 setTypeface(null, android.graphics.Typeface.BOLD)
             }
             // Larghezza e altezza per occupare tutto lo spazio disponibile
@@ -847,18 +847,18 @@ class StatusBarController(
                 gravity = Gravity.CENTER
             }
         }
-        
+
         // Label (lettera) - posizionato in basso a destra, davanti all'emoji
         val labelPadding = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             2f, // Pochissimo margine
             context.resources.displayMetrics
         ).toInt()
-        
+
         val labelText = TextView(context).apply {
             text = label
             textSize = 12f
-            setTextColor(Color.WHITE) // Bianco 100% opaco
+            setTextColor(theme.textColor)
             gravity = Gravity.END or Gravity.BOTTOM
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -899,7 +899,7 @@ class StatusBarController(
             ).toInt()
             setPadding(0, 0, 0, bottomPadding) // Nessun padding orizzontale, solo in basso
             // Aggiungi sfondo nero per migliorare la visibilità dei caratteri con tema chiaro
-            setBackgroundColor(DEFAULT_BACKGROUND)
+            setBackgroundColor(getCurrentTheme().backgroundColor)
             // Apply transparency to entire UI when setting is enabled, otherwise full opacity
             alpha = if (isSemiTransparent) SEMI_TRANSPARENT_ALPHA else 1.0f
             layoutParams = LinearLayout.LayoutParams(
@@ -1065,7 +1065,7 @@ class StatusBarController(
         // Set background to opaque immediately without animation
         backgroundView?.let { bgView ->
             if (bgView.background !is ColorDrawable) {
-                bgView.background = ColorDrawable(DEFAULT_BACKGROUND)
+                bgView.background = ColorDrawable(getCurrentTheme().backgroundColor)
             }
             (bgView.background as? ColorDrawable)?.alpha = 255
         }
@@ -1191,7 +1191,7 @@ class StatusBarController(
         layout.visibility = View.VISIBLE
         
         if (layout.background !is ColorDrawable) {
-            layout.background = ColorDrawable(DEFAULT_BACKGROUND)
+            layout.background = ColorDrawable(getCurrentTheme().backgroundColor)
         } else if (snapshot.symPage == 0) {
             (layout.background as ColorDrawable).alpha = 255
         }
@@ -1211,7 +1211,7 @@ class StatusBarController(
 
             // Pin background to opaque IME color and hide variations so SYM animates on a solid canvas.
             if (layout.background !is ColorDrawable) {
-                layout.background = ColorDrawable(DEFAULT_BACKGROUND)
+                layout.background = ColorDrawable(getCurrentTheme().backgroundColor)
             }
             (layout.background as? ColorDrawable)?.alpha = 255
 
@@ -1231,7 +1231,7 @@ class StatusBarController(
 
             // Set up emoji keyboard visibility BEFORE setting height
             val isSemiTransparent = SettingsManager.isSemiTransparentStatusBar(context)
-            emojiKeyboardView.setBackgroundColor(DEFAULT_BACKGROUND)
+            emojiKeyboardView.setBackgroundColor(getCurrentTheme().backgroundColor)
             emojiKeyboardView.translationY = 0f
             // Apply transparency to entire UI when setting is enabled
             emojiKeyboardView.alpha = if (isSemiTransparent) SEMI_TRANSPARENT_ALPHA else 1f

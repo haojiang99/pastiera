@@ -647,6 +647,18 @@
     <string name="virtual_keyboard_vibration_title">Keyboard Vibration</string>
     <string name="virtual_keyboard_vibration_description">Vibrate on key press for tactile feedback</string>
 
+    <!-- Status Bar Theme -->
+    <string name="status_bar_theme_title">Status Bar Theme</string>
+    <string name="status_bar_theme_description">Customize the color scheme of the status bar</string>
+    <string name="theme_classic_dark">Classic Dark</string>
+    <string name="theme_ocean_blue">Ocean Blue</string>
+    <string name="theme_midnight_purple">Midnight Purple</string>
+    <string name="theme_forest_green">Forest Green</string>
+    <string name="theme_sunset_orange">Sunset Orange</string>
+    <string name="theme_rose_gold">Rose Gold</string>
+    <string name="theme_charcoal_gray">Charcoal Gray</string>
+    <string name="theme_cyber_neon">Cyber Neon</string>
+
     <!-- LED Status Indicator -->
     <string name="show_led_status_title">Show LED Status Indicator</string>
     <string name="show_led_status_description">Display virtual LED strip showing modifier key states</string>

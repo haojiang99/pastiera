@@ -43,6 +43,12 @@ class VariationBarView(
         private const val TAG = "VariationBarView"
     }
 
+    // Get current theme
+    private fun getCurrentTheme(): StatusBarTheme {
+        val themeId = SettingsManager.getStatusBarTheme(context)
+        return StatusBarTheme.getThemeById(themeId)
+    }
+
     var onVariationSelectedListener: VariationButtonHandler.OnVariationSelectedListener? = null
     var onPinyinCandidateSelectedListener: VariationButtonHandler.OnPinyinCandidateSelectedListener? = null
     var onWubiCandidateSelectedListener: VariationButtonHandler.OnWubiCandidateSelectedListener? = null
@@ -1481,27 +1487,28 @@ class VariationBarView(
 
         // Check if semi-transparent mode is enabled
         val isSemiTransparent = SettingsManager.isSemiTransparentStatusBar(context)
+        val theme = getCurrentTheme()
 
         // Use highlighted background for best candidate in Juying mode (golden/yellow tint)
         val normalColor = if (isSemiTransparent) {
             // Transparent background when semi-transparent mode is on
             if (isBestCandidate) {
-                Color.argb(100, 50, 45, 10)  // Semi-transparent golden/yellow
+                Color.argb(100, Color.red(theme.candidateBestBackgroundColor), Color.green(theme.candidateBestBackgroundColor), Color.blue(theme.candidateBestBackgroundColor))
             } else {
-                Color.argb(100, 17, 17, 17)  // Semi-transparent dark gray
+                Color.argb(100, Color.red(theme.candidateBackgroundColor), Color.green(theme.candidateBackgroundColor), Color.blue(theme.candidateBackgroundColor))
             }
         } else {
             if (isBestCandidate) {
-                Color.rgb(50, 45, 10)  // Dark golden/yellow tint for best candidate
+                theme.candidateBestBackgroundColor
             } else {
-                Color.rgb(17, 17, 17)  // Default dark gray
+                theme.candidateBackgroundColor
             }
         }
         val drawable = GradientDrawable().apply {
             setColor(normalColor)
             cornerRadius = 0f
         }
-        val pressedColor = if (isSemiTransparent) Color.argb(100, 38, 0, 255) else Color.rgb(38, 0, 255)
+        val pressedColor = if (isSemiTransparent) Color.argb(100, Color.red(theme.buttonPressedColor), Color.green(theme.buttonPressedColor), Color.blue(theme.buttonPressedColor)) else theme.buttonPressedColor
         val pressedDrawable = GradientDrawable().apply {
             setColor(pressedColor)
             cornerRadius = 0f
@@ -1614,15 +1621,15 @@ class VariationBarView(
         // Apply transparency when semi-transparent mode is enabled
         val textColor = if (isSemiTransparent) {
             if (isBestCandidate) {
-                Color.argb(180, 255, 215, 0)  // Semi-transparent gold
+                Color.argb(180, Color.red(theme.candidateBestTextColor), Color.green(theme.candidateBestTextColor), Color.blue(theme.candidateBestTextColor))
             } else {
-                Color.argb(180, 255, 255, 255)  // Semi-transparent white
+                Color.argb(180, Color.red(theme.candidateTextColor), Color.green(theme.candidateTextColor), Color.blue(theme.candidateTextColor))
             }
         } else {
             if (isBestCandidate) {
-                Color.rgb(255, 215, 0)  // Gold color for best candidate
+                theme.candidateBestTextColor
             } else {
-                Color.WHITE
+                theme.candidateTextColor
             }
         }
 
@@ -1697,13 +1704,14 @@ class VariationBarView(
     }
 
     private fun createMicrophoneButton(buttonSize: Int): ImageView {
+        val theme = getCurrentTheme()
         val drawable = GradientDrawable().apply {
-            setColor(Color.BLACK)
+            setColor(theme.backgroundColor)
             cornerRadius = 0f
         }
         return ImageView(context).apply {
             setImageResource(R.drawable.ic_baseline_mic_24)
-            setColorFilter(Color.WHITE)
+            setColorFilter(theme.iconColor)
             background = drawable
             scaleType = ImageView.ScaleType.CENTER
             isClickable = true
@@ -1713,18 +1721,19 @@ class VariationBarView(
     }
 
     private fun createStatusBarSettingsButton(buttonSize: Int): ImageView {
+        val theme = getCurrentTheme()
         val dp3 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             3f,
             context.resources.displayMetrics
         ).toInt()
         val drawable = GradientDrawable().apply {
-            setColor(Color.BLACK)
+            setColor(theme.backgroundColor)
             cornerRadius = 0f
         }
         return ImageView(context).apply {
             setImageResource(R.drawable.ic_settings_24)
-            setColorFilter(Color.rgb(100, 100, 100))
+            setColorFilter(theme.iconInactiveColor)
             background = drawable
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             isClickable = true
@@ -1735,18 +1744,19 @@ class VariationBarView(
     }
 
     private fun createClipboardButton(buttonSize: Int): ImageView {
+        val theme = getCurrentTheme()
         val dp3 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             3f,
             context.resources.displayMetrics
         ).toInt()
         val drawable = GradientDrawable().apply {
-            setColor(Color.BLACK)
+            setColor(theme.backgroundColor)
             cornerRadius = 0f
         }
         return ImageView(context).apply {
             setImageResource(R.drawable.ic_clipboard_24)
-            setColorFilter(Color.rgb(100, 100, 100))
+            setColorFilter(theme.iconInactiveColor)
             background = drawable
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             isClickable = true
@@ -1774,19 +1784,20 @@ class VariationBarView(
     }
 
     private fun createSymButton(buttonSize: Int): TextView {
+        val theme = getCurrentTheme()
         val dp2 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             2f,
             context.resources.displayMetrics
         ).toInt()
         val drawable = GradientDrawable().apply {
-            setColor(Color.BLACK)
+            setColor(theme.backgroundColor)
             cornerRadius = 0f
         }
         return TextView(context).apply {
             text = "SYM"
             textSize = 10f
-            setTextColor(Color.WHITE)
+            setTextColor(theme.textColor)
             setTypeface(null, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
             background = drawable
@@ -1798,13 +1809,14 @@ class VariationBarView(
     }
 
     private fun createLanguageToggleButton(buttonSize: Int): TextView {
+        val theme = getCurrentTheme()
         val dp2 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             2f,
             context.resources.displayMetrics
         ).toInt()
         val drawable = GradientDrawable().apply {
-            setColor(Color.BLACK)
+            setColor(theme.backgroundColor)
             cornerRadius = 0f
         }
         return TextView(context).apply {
@@ -1818,8 +1830,8 @@ class VariationBarView(
             }
             textSize = 12f
             setTextColor(when {
-                isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive -> Color.rgb(100, 200, 255)
-                else -> Color.WHITE
+                isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive -> theme.accentColor
+                else -> theme.textColor
             })
             setTypeface(null, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
@@ -1832,6 +1844,7 @@ class VariationBarView(
     }
 
     private fun updateLanguageToggleButton() {
+        val theme = getCurrentTheme()
         languageToggleButtonView?.apply {
             text = when {
                 isPinyinModeActive -> "拼"
@@ -1842,26 +1855,27 @@ class VariationBarView(
                 else -> "EN"
             }
             setTextColor(when {
-                isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive -> Color.rgb(100, 200, 255)
-                else -> Color.WHITE
+                isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive -> theme.accentColor
+                else -> theme.textColor
             })
         }
     }
 
     private fun createPunctuationToggleButton(buttonSize: Int): TextView {
+        val theme = getCurrentTheme()
         val dp2 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             2f,
             context.resources.displayMetrics
         ).toInt()
         val drawable = GradientDrawable().apply {
-            setColor(Color.BLACK)
+            setColor(theme.backgroundColor)
             cornerRadius = 0f
         }
         return TextView(context).apply {
             text = if (isChinesePunctuationMode) "。" else "."
             textSize = 14f
-            setTextColor(if (isChinesePunctuationMode) Color.rgb(100, 200, 255) else Color.WHITE)
+            setTextColor(if (isChinesePunctuationMode) theme.accentColor else theme.textColor)
             setTypeface(null, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
             background = drawable
@@ -1873,26 +1887,28 @@ class VariationBarView(
     }
 
     private fun updatePunctuationToggleButton() {
+        val theme = getCurrentTheme()
         punctuationToggleButtonView?.apply {
             text = if (isChinesePunctuationMode) "。" else "."
-            setTextColor(if (isChinesePunctuationMode) Color.rgb(100, 200, 255) else Color.WHITE)
+            setTextColor(if (isChinesePunctuationMode) theme.accentColor else theme.textColor)
         }
     }
 
     private fun createTraditionalChineseToggleButton(buttonSize: Int): TextView {
+        val theme = getCurrentTheme()
         val dp2 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             2f,
             context.resources.displayMetrics
         ).toInt()
         val drawable = GradientDrawable().apply {
-            setColor(Color.BLACK)
+            setColor(theme.backgroundColor)
             cornerRadius = 0f
         }
         return TextView(context).apply {
             text = if (isTraditionalChineseMode) "繁" else "简"
             textSize = 14f
-            setTextColor(if (isTraditionalChineseMode) Color.rgb(255, 180, 100) else Color.rgb(100, 200, 255))
+            setTextColor(if (isTraditionalChineseMode) theme.ledLockedColor else theme.accentColor)
             setTypeface(null, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
             background = drawable
@@ -1904,9 +1920,10 @@ class VariationBarView(
     }
 
     private fun updateTraditionalChineseToggleButton() {
+        val theme = getCurrentTheme()
         traditionalChineseToggleButtonView?.apply {
             text = if (isTraditionalChineseMode) "繁" else "简"
-            setTextColor(if (isTraditionalChineseMode) Color.rgb(255, 180, 100) else Color.rgb(100, 200, 255))
+            setTextColor(if (isTraditionalChineseMode) theme.ledLockedColor else theme.accentColor)
         }
     }
 
@@ -1919,8 +1936,9 @@ class VariationBarView(
     }
 
     private fun createArrowButton(buttonSize: Int, isNext: Boolean): ImageView {
+        val theme = getCurrentTheme()
         val drawable = GradientDrawable().apply {
-            setColor(Color.rgb(17, 17, 17))
+            setColor(theme.candidateBackgroundColor)
             cornerRadius = 0f
         }
         return ImageView(context).apply {
@@ -1929,7 +1947,7 @@ class VariationBarView(
                 if (isNext) R.drawable.ic_chevron_right_24
                 else R.drawable.ic_chevron_left_24
             )
-            setColorFilter(Color.WHITE)
+            setColorFilter(theme.iconColor)
             background = drawable
             scaleType = ImageView.ScaleType.CENTER
             isClickable = true
