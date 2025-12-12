@@ -140,6 +140,20 @@ class PinyinInputController(
     }
 
     /**
+     * Checks if the input looks like an abbreviation (首字母).
+     * An abbreviation is a string that doesn't contain any valid pinyin syllable.
+     * For example: "nh" (你好), "xwza" (学无止境) are abbreviations.
+     * While "nihao", "wo", "ni" are valid pinyin inputs.
+     */
+    private fun isAbbreviationInput(input: String): Boolean {
+        val cleanInput = input.lowercase().replace("'", "")
+        if (cleanInput.isEmpty()) return false
+        // If we can find any valid pinyin syllable, it's not purely abbreviation
+        val longestSyllable = PinyinDictionary.findLongestSyllable(cleanInput)
+        return longestSyllable == null || longestSyllable.isEmpty()
+    }
+
+    /**
      * Sorts candidates by frequency if memory function is enabled, otherwise returns original list.
      */
     private fun sortByFrequencyIfEnabled(pinyin: String, candidates: List<String>): List<String> {
@@ -942,7 +956,9 @@ class PinyinInputController(
 
         // Add auto-learned phrases third (third highest priority)
         // First exact matches, then partial/prefix matches
-        val autoLearnedPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrases(bufferWithoutSep) else emptyList()
+        // Skip if input is abbreviation-style and abbreviation input is disabled
+        val skipAutoLearnedForAbbrev = isAbbreviationInput(bufferWithoutSep) && !isAbbreviationInputEnabled()
+        val autoLearnedPhrases = if (isAutoPhraseMemoryEnabled() && !skipAutoLearnedForAbbrev) autoPhraseMemory.getLearnedPhrases(bufferWithoutSep) else emptyList()
         for (phrase in autoLearnedPhrases) {
             if (phrase !in resultCandidates) {
                 resultCandidates.add(phrase)
@@ -1184,7 +1200,9 @@ class PinyinInputController(
         }
 
         // Check auto-learned phrases third (third highest priority)
-        val autoLearnedPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrases(cleanBuffer) else emptyList()
+        // Skip if input is abbreviation-style and abbreviation input is disabled
+        val skipAutoLearnedForAbbrev = isAbbreviationInput(cleanBuffer) && !isAbbreviationInputEnabled()
+        val autoLearnedPhrases = if (isAutoPhraseMemoryEnabled() && !skipAutoLearnedForAbbrev) autoPhraseMemory.getLearnedPhrases(cleanBuffer) else emptyList()
         for (phrase in autoLearnedPhrases) {
             if (phrase !in resultCandidates) {
                 resultCandidates.add(phrase)
