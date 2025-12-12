@@ -2548,7 +2548,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 // Fall through to handleKeyDownWithNoEditableField which handles power shortcuts
             } else {
                 // Check if SYM is configured as a Juying key and we have candidates
-                val symIsJuyingKey = SettingsManager.getJuyingCandidateIndex(this, KeyEvent.KEYCODE_SYM) >= 0
+                // For BlackBerry, Juying keys are stored as raw keycodes (58), not translated (63)
+                // So check BOTH raw keyCode and translated keyCode
+                val symIsJuyingKey = SettingsManager.getJuyingCandidateIndex(this, keyCode) >= 0 ||
+                                     SettingsManager.getJuyingCandidateIndex(this, translatedKeyCode) >= 0
                 val shouldUseForCandidateSelection = juyingModeEnabled && hasAnyCandidates && symIsJuyingKey
 
                 if (!shouldUseForCandidateSelection) {
