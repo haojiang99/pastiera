@@ -1024,7 +1024,8 @@ class PinyinInputController(
             // Single segment - check for dictionary phrase first
             val dictPhraseCandidates = PinyinDictionary.getPhraseCandidates(bufferWithoutSep)
             phraseCandidatesRaw.addAll(dictPhraseCandidates)
-            matchedPinyin = if (dictPhraseCandidates.isNotEmpty() || customPhrases.isNotEmpty()) bufferWithoutSep else actualFirstSyllable
+            // Include auto-learned phrases in the check - if any phrase matches, consume full buffer
+            matchedPinyin = if (dictPhraseCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty()) bufferWithoutSep else actualFirstSyllable
         }
 
         // Now combine phrases and single characters by merging frequency-sorted lists
@@ -1270,8 +1271,11 @@ class PinyinInputController(
             }
 
             allCandidates = resultCandidates
-            matchedPinyin = PinyinDictionary.getFirstSyllableForPrefix(cleanBuffer) ?: cleanBuffer
-            firstSyllable = matchedPinyin
+            // If we have phrase candidates (abbreviation, custom, auto-learned), use full buffer for phrase matching
+            // Otherwise fall back to first syllable for single-character selection
+            val hasPhraseCandidates = abbreviationCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty()
+            matchedPinyin = if (hasPhraseCandidates) cleanBuffer else (PinyinDictionary.getFirstSyllableForPrefix(cleanBuffer) ?: cleanBuffer)
+            firstSyllable = PinyinDictionary.getFirstSyllableForPrefix(cleanBuffer) ?: cleanBuffer
             // Build phrase set for accurate detection
             val phraseSet = mutableSetOf<String>()
             phraseSet.addAll(abbreviationCandidates)
