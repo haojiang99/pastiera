@@ -640,9 +640,9 @@
     <string name="virtual_keyboard_height_title">虚拟键盘高度</string>
     <string name="virtual_keyboard_height_description">当前：%1$d DIP</string>
 
-    <!-- Virtual Keyboard Sound -->
-    <string name="virtual_keyboard_sound_title">按键音效</string>
-    <string name="virtual_keyboard_sound_description">打字时播放机械键盘声音</string>
+    <!-- Keyboard Sound (both physical and virtual) -->
+    <string name="keyboard_sound_title">按键音效</string>
+    <string name="keyboard_sound_description">打字时播放机械键盘声音</string>
 
     <!-- Virtual Keyboard Vibration -->
     <string name="virtual_keyboard_vibration_title">按键振动</string>

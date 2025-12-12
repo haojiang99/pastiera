@@ -225,6 +225,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private var spaceHoldTriggeredVoice: Boolean = false
     private var voiceTriggeredByHoldSpace: Boolean = false  // Persists until voice result is received
 
+    // Keyboard sound for physical key presses
+    private var soundPool: android.media.SoundPool? = null
+    private var keyClickSoundId: Int = 0
+    private var soundLoaded = false
+    private val audioManager: android.media.AudioManager by lazy {
+        getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+    }
+
     // BlackBerry-specific keycodes
     private val BLACKBERRY_KEYCODE_ALT = 57
     private val BLACKBERRY_KEYCODE_SYM = 58
@@ -245,6 +253,42 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             BLACKBERRY_KEYCODE_CTRL -> KeyEvent.KEYCODE_CTRL_LEFT
             BLACKBERRY_KEYCODE_SYM -> KeyEvent.KEYCODE_SYM  // Translate to standard Android KEYCODE_SYM (63)
             else -> keyCode
+        }
+    }
+
+    /**
+     * Initializes the SoundPool for keyboard click sound if not already initialized.
+     */
+    private fun ensureSoundPoolInitialized() {
+        if (soundPool == null) {
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            soundPool = android.media.SoundPool.Builder()
+                .setMaxStreams(3)
+                .setAudioAttributes(audioAttributes)
+                .build()
+            keyClickSoundId = soundPool!!.load(this, it.neuralrad.coolwulf.R.raw.key_click, 1)
+            soundPool!!.setOnLoadCompleteListener { _, _, status ->
+                if (status == 0) {
+                    soundLoaded = true
+                }
+            }
+        }
+    }
+
+    /**
+     * Plays keyboard click sound for physical key presses.
+     */
+    private fun playKeyClickSound() {
+        if (!SettingsManager.isKeyboardSoundEnabled(this)) return
+        ensureSoundPoolInitialized()
+        if (soundLoaded && keyClickSoundId != 0) {
+            val maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).toFloat()
+            val currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat()
+            val volume = if (maxVolume > 0) currentVolume / maxVolume else 0.5f
+            soundPool?.play(keyClickSoundId, volume, volume, 1, 0, 1.0f)
         }
     }
 
@@ -1021,6 +1065,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Stop clipboard history listener
         it.neuralrad.coolwulf.core.ClipboardHistoryManager.stopListening(this)
+
+        // Release SoundPool resources
+        soundPool?.release()
+        soundPool = null
+        soundLoaded = false
     }
 
     override fun onCreateInputView(): View? = keyboardVisibilityController.onCreateInputView()
@@ -2117,6 +2166,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val isModifierKey = isDeviceModifierKey(keyCode)
         if (!isModifierKey) {
             modifierStateController.registerNonModifierKey()
+            // Play keyboard click sound for non-modifier key presses (only on first press, not repeats)
+            if (event?.repeatCount == 0) {
+                playKeyClickSound()
+            }
         }
 
         // Handle hold space for voice input - only when we have an active, real text input field

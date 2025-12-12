@@ -90,8 +90,8 @@ fun AdvancedSettingsScreen(
     var showVirtualKeyboardButton by remember {
         mutableStateOf(SettingsManager.getShowVirtualKeyboardButton(context))
     }
-    var virtualKeyboardSound by remember {
-        mutableStateOf(SettingsManager.isVirtualKeyboardSoundEnabled(context))
+    var keyboardSound by remember {
+        mutableStateOf(SettingsManager.isKeyboardSoundEnabled(context))
     }
     var virtualKeyboardVibration by remember {
         mutableStateOf(SettingsManager.isVirtualKeyboardVibrationEnabled(context))
@@ -384,6 +384,49 @@ fun AdvancedSettingsScreen(
                             }
                         }
 
+                        // Keyboard Sound (applies to both physical and virtual keyboards)
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.VolumeUp,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.keyboard_sound_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.keyboard_sound_description),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2
+                                    )
+                                }
+                                Switch(
+                                    checked = keyboardSound,
+                                    onCheckedChange = { enabled ->
+                                        keyboardSound = enabled
+                                        SettingsManager.setKeyboardSoundEnabled(context, enabled)
+                                    }
+                                )
+                            }
+                        }
+
                         // Virtual Keyboard Toggle
                         Surface(
                             modifier = Modifier
@@ -468,50 +511,6 @@ fun AdvancedSettingsScreen(
                                         onCheckedChange = { enabled ->
                                             showVirtualKeyboardButton = enabled
                                             SettingsManager.setShowVirtualKeyboardButton(context, enabled)
-                                        }
-                                    )
-                                }
-                            }
-
-                            // Virtual Keyboard Sound
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(64.dp)
-                                    .padding(start = 32.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.VolumeUp,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = stringResource(R.string.virtual_keyboard_sound_title),
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            maxLines = 1
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.virtual_keyboard_sound_description),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 2
-                                        )
-                                    }
-                                    Switch(
-                                        checked = virtualKeyboardSound,
-                                        onCheckedChange = { enabled ->
-                                            virtualKeyboardSound = enabled
-                                            SettingsManager.setVirtualKeyboardSoundEnabled(context, enabled)
                                         }
                                     )
                                 }

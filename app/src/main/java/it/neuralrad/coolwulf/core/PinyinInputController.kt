@@ -673,7 +673,8 @@ class PinyinInputController(
             // This is key: check phrases BEFORE falling back to single syllables
             val longestPhrase = findLongestPhraseMatch(remaining)
             if (longestPhrase != null) {
-                val phraseCandidates = PinyinDictionary.getPhraseCandidates(longestPhrase)
+                // Get phrase candidates - include fuzzy variants if enabled
+                val phraseCandidates = getPhraseCandidatesForInput(longestPhrase)
                 segments.add(ParsedSegment(
                     pinyin = longestPhrase,
                     candidates = sortByFrequencyIfEnabled(longestPhrase, phraseCandidates),
@@ -780,6 +781,42 @@ class PinyinInputController(
         }
 
         return null
+    }
+
+    /**
+     * Gets phrase candidates for a given pinyin input, including fuzzy variants if enabled.
+     * This ensures phrase candidates are properly found when fuzzy pinyin is active.
+     */
+    private fun getPhraseCandidatesForInput(pinyin: String): List<String> {
+        // First try exact match
+        val exactCandidates = PinyinDictionary.getPhraseCandidates(pinyin)
+        if (exactCandidates.isNotEmpty()) {
+            return exactCandidates
+        }
+
+        if (!fuzzyPinyinEnabled) {
+            return emptyList()
+        }
+
+        // Split pinyin into syllables and get fuzzy phrase candidates
+        val syllables = mutableListOf<String>()
+        var remaining = pinyin
+        while (remaining.isNotEmpty()) {
+            val syllable = PinyinDictionary.findLongestSyllable(remaining)
+                ?: findLongestSyllableWithFuzzy(remaining)
+            if (syllable != null) {
+                syllables.add(syllable)
+                remaining = remaining.substring(syllable.length)
+            } else {
+                break
+            }
+        }
+
+        return if (syllables.size >= 2) {
+            getPhraseCandidatesWithFuzzy(syllables)
+        } else {
+            emptyList()
+        }
     }
 
     /**

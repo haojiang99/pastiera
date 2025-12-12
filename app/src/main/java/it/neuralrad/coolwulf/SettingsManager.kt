@@ -91,7 +91,7 @@ object SettingsManager {
     private const val KEY_HOLD_SPACE_DURATION = "hold_space_duration" // Duration to hold space key for voice input (ms)
     private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
     private const val KEY_VIRTUAL_KEYBOARD_HEIGHT = "virtual_keyboard_height" // Height of virtual keyboard keys in DIP
-    private const val KEY_VIRTUAL_KEYBOARD_SOUND = "virtual_keyboard_sound" // Enable sound effect for virtual keyboard typing
+    private const val KEY_KEYBOARD_SOUND = "virtual_keyboard_sound" // Enable sound effect for keyboard typing (both physical and virtual)
     private const val KEY_VIRTUAL_KEYBOARD_VIBRATION = "virtual_keyboard_vibration" // Enable vibration for virtual keyboard typing
     private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
     private const val KEY_TRADITIONAL_CHINESE_TOGGLE_ENABLED = "traditional_chinese_toggle_enabled" // Show 简/繁 toggle button in status bar
@@ -1860,18 +1860,18 @@ object SettingsManager {
     fun getDefaultVirtualKeyboardHeight(): Int = DEFAULT_VIRTUAL_KEYBOARD_HEIGHT
 
     /**
-     * Gets whether virtual keyboard sound effect is enabled.
+     * Gets whether keyboard sound effect is enabled (for both physical and virtual keyboards).
      */
-    fun isVirtualKeyboardSoundEnabled(context: Context): Boolean {
-        return getPreferences(context).getBoolean(KEY_VIRTUAL_KEYBOARD_SOUND, DEFAULT_VIRTUAL_KEYBOARD_SOUND)
+    fun isKeyboardSoundEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_KEYBOARD_SOUND, DEFAULT_VIRTUAL_KEYBOARD_SOUND)
     }
 
     /**
-     * Sets whether virtual keyboard sound effect is enabled.
+     * Sets whether keyboard sound effect is enabled (for both physical and virtual keyboards).
      */
-    fun setVirtualKeyboardSoundEnabled(context: Context, enabled: Boolean) {
+    fun setKeyboardSoundEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
-            .putBoolean(KEY_VIRTUAL_KEYBOARD_SOUND, enabled)
+            .putBoolean(KEY_KEYBOARD_SOUND, enabled)
             .apply()
     }
 

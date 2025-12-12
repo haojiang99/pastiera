@@ -639,9 +639,9 @@
     <string name="virtual_keyboard_height_title">Virtual Keyboard Height</string>
     <string name="virtual_keyboard_height_description">Current: %1$d DIP</string>
 
-    <!-- Virtual Keyboard Sound -->
-    <string name="virtual_keyboard_sound_title">Keyboard Sound</string>
-    <string name="virtual_keyboard_sound_description">Play mechanical keyboard click sound when typing</string>
+    <!-- Keyboard Sound (both physical and virtual) -->
+    <string name="keyboard_sound_title">Keyboard Sound</string>
+    <string name="keyboard_sound_description">Play mechanical keyboard click sound when typing</string>
 
     <!-- Virtual Keyboard Vibration -->
     <string name="virtual_keyboard_vibration_title">Keyboard Vibration</string>

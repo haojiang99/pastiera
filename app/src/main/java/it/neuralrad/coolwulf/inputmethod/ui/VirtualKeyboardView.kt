@@ -142,7 +142,7 @@ class VirtualKeyboardView(
             )
         }
         // Play sound if enabled
-        if (SettingsManager.isVirtualKeyboardSoundEnabled(context)) {
+        if (SettingsManager.isKeyboardSoundEnabled(context)) {
             ensureSoundLoaded()
             if (soundLoaded && keyClickSoundId != 0) {
                 // Get current media volume as a fraction (0.0 to 1.0)
@@ -169,7 +169,7 @@ class VirtualKeyboardView(
             )
         }
         // Play sound if enabled
-        if (SettingsManager.isVirtualKeyboardSoundEnabled(context)) {
+        if (SettingsManager.isKeyboardSoundEnabled(context)) {
             ensureSoundLoaded()
             if (soundLoaded && keyClickSoundId != 0) {
                 val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
