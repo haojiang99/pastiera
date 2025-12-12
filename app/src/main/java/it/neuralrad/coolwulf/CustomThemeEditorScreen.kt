@@ -55,7 +55,8 @@ fun CustomThemeEditorScreen(
 
     fun saveColor(key: String, color: Color) {
         SettingsManager.setCustomThemeColor(context, key, color.toArgb())
-        colors = colors.toMutableMap().apply { this[key] = color }
+        // Create a new map to trigger recomposition
+        colors = HashMap(colors).apply { this[key] = color }
         // Broadcast theme change if custom theme is currently active
         if (SettingsManager.getStatusBarTheme(context) == StatusBarTheme.CUSTOM_THEME_ID) {
             context.sendBroadcast(

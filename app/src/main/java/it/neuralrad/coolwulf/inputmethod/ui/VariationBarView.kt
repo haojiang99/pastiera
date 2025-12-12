@@ -46,7 +46,7 @@ class VariationBarView(
     // Get current theme
     private fun getCurrentTheme(): StatusBarTheme {
         val themeId = SettingsManager.getStatusBarTheme(context)
-        return StatusBarTheme.getThemeById(themeId)
+        return StatusBarTheme.getThemeById(themeId, context)
     }
 
     var onVariationSelectedListener: VariationButtonHandler.OnVariationSelectedListener? = null

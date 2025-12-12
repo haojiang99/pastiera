@@ -943,30 +943,9 @@ class PinyinInputController(
         val resultCandidates = mutableListOf<String>()
         val customPhraseSet = customPhrases.toSet()  // For quick lookup
 
-        // Add abbreviation matches first (highest priority - learned from user input)
-        if (abbreviationCandidates.isNotEmpty()) {
-            resultCandidates.addAll(abbreviationCandidates)
-            Log.d(TAG, "Abbreviation matches for '$bufferWithoutSep': $abbreviationCandidates")
-        }
-
-        // Custom dictionary phrases will be included in frequency sorting with +2 boost (not added here)
-        if (customPhrases.isNotEmpty()) {
-            Log.d(TAG, "Custom dictionary phrases for '$bufferWithoutSep': $customPhrases (will be sorted by frequency)")
-        }
-
-        // Add auto-learned phrases third (third highest priority)
-        // First exact matches, then partial/prefix matches
         // Skip if input is abbreviation-style and abbreviation input is disabled
         val skipAutoLearnedForAbbrev = isAbbreviationInput(bufferWithoutSep) && !isAbbreviationInputEnabled()
         val autoLearnedPhrases = if (isAutoPhraseMemoryEnabled() && !skipAutoLearnedForAbbrev) autoPhraseMemory.getLearnedPhrases(bufferWithoutSep) else emptyList()
-        for (phrase in autoLearnedPhrases) {
-            if (phrase !in resultCandidates) {
-                resultCandidates.add(phrase)
-            }
-        }
-        if (autoLearnedPhrases.isNotEmpty()) {
-            Log.d(TAG, "Auto-learned phrases for '$bufferWithoutSep': $autoLearnedPhrases")
-        }
 
         // Add partial/prefix matching phrases (e.g., "wos" matches "woshi" → "我是")
         // Only activate AFTER at least one character has been selected in the current session
@@ -1025,7 +1004,6 @@ class PinyinInputController(
                 phraseCandidateCount = resultCandidates.size
                 phraseCandidateSet = resultCandidates.toSet()  // All are phrases
                 matchedPinyin = bufferWithoutSep
-                Log.d(TAG, "Using only abbreviation/custom matches for '$bufferWithoutSep': $resultCandidates")
                 return
             }
             // No candidates at all - fall back to single segment mode
@@ -1042,7 +1020,6 @@ class PinyinInputController(
             phraseCandidatesRaw.addAll(combinedPhrases)
             // Calculate the pinyin that will be consumed for phrase candidates
             matchedPinyin = segments.joinToString("") { it.pinyin }
-            Log.d(TAG, "Multi-segment: ${segments.map { it.pinyin }} → ${combinedPhrases.size} combined phrases")
         } else {
             // Single segment - check for dictionary phrase first
             val dictPhraseCandidates = PinyinDictionary.getPhraseCandidates(bufferWithoutSep)
@@ -1065,26 +1042,57 @@ class PinyinInputController(
 
         // Custom dictionary phrases get +2 frequency boost (need 3 uses of normal phrase to surpass)
         val CUSTOM_PHRASE_FREQUENCY_BOOST = 2
+        // Auto-learned phrases get +2 boost when frequency is 0 (same as dictionary phrases)
+        val AUTO_LEARNED_PHRASE_BOOST = 2
+        // Abbreviation candidates get +2 boost when frequency is 0
+        val ABBREVIATION_PHRASE_BOOST = 2
 
-        // Merge phrases, custom phrases, and single chars, sorted by effective user frequency
+        // Merge ALL candidates (abbreviation, custom, auto-learned, dictionary phrases, and single chars)
+        // sorted by effective user frequency. This ensures fair competition based on actual usage.
         // Phrases get +2 boost when frequency is 0
         // Custom phrases get +2 boost always (on top of any user frequency)
         val allCandidatesWithFreq = mutableListOf<Pair<String, Int>>()
+        val addedPhrases = mutableSetOf<String>()
 
-        // Add custom phrases first (they'll be sorted by frequency)
+        // Add custom phrases first (they'll be sorted by frequency with +2 boost always)
         for (phrase in customPhrases) {
             val freq = userFreqMap[phrase] ?: 0
             // Custom phrases get +2 boost always
             allCandidatesWithFreq.add(phrase to (freq + CUSTOM_PHRASE_FREQUENCY_BOOST))
+            addedPhrases.add(phrase)
         }
 
+        // Add abbreviation candidates (with +2 boost when freq is 0)
+        for (phrase in abbreviationCandidates) {
+            if (phrase !in addedPhrases) {
+                val freq = userFreqMap[phrase] ?: 0
+                val boost = if (freq == 0) ABBREVIATION_PHRASE_BOOST else 0
+                allCandidatesWithFreq.add(phrase to (freq + boost))
+                addedPhrases.add(phrase)
+            }
+        }
+
+        // Add auto-learned phrases (with +2 boost when freq is 0)
+        for (phrase in autoLearnedPhrases) {
+            if (phrase !in addedPhrases) {
+                val freq = userFreqMap[phrase] ?: 0
+                val boost = if (freq == 0) AUTO_LEARNED_PHRASE_BOOST else 0
+                allCandidatesWithFreq.add(phrase to (freq + boost))
+                addedPhrases.add(phrase)
+            }
+        }
+
+        // Add dictionary phrases
         for (phrase in sortedPhrases) {
-            if (phrase !in customPhraseSet) {  // Skip if already added as custom
+            if (phrase !in addedPhrases) {  // Skip if already added
                 val freq = userFreqMap[phrase] ?: 0
                 val boost = if (freq == 0) 2 else 0
                 allCandidatesWithFreq.add(phrase to (freq + boost))
+                addedPhrases.add(phrase)
             }
         }
+
+        // Add single-character candidates (no boost - raw frequency)
         for (char in firstSyllableCharCandidates) {
             val freq = userFreqMap[char] ?: 0
             allCandidatesWithFreq.add(char to freq)
@@ -1121,10 +1129,7 @@ class PinyinInputController(
         // phraseCandidateCount for compatibility (used in some places)
         phraseCandidateCount = phraseSet.size
 
-        Log.d(TAG, "Combined sorting: ${phraseCandidatesRaw.size} phrases + ${firstSyllableCharCandidates.size} chars → sorted by frequency, phraseSet=${phraseSet.size}")
-
         allCandidates = resultCandidates
-        Log.d(TAG, "Final candidates: ${allCandidates.size} (${phraseCandidateCount} phrases, ${firstSyllableCharCandidates.size} single chars for '$actualFirstSyllable')")
     }
 
     /**
@@ -1185,32 +1190,14 @@ class PinyinInputController(
 
         val resultCandidates = mutableListOf<String>()
 
-        // Check abbreviation matches first (highest priority - learned from user input)
         val abbreviationCandidates = if (isMemoryEnabled() && isAbbreviationInputEnabled()) userMemory.getAbbreviationCandidates(cleanBuffer) else emptyList()
-        if (abbreviationCandidates.isNotEmpty()) {
-            resultCandidates.addAll(abbreviationCandidates)
-            Log.d(TAG, "Abbreviation matches for unparsable '$cleanBuffer': $abbreviationCandidates")
-        }
 
-        // Custom dictionary phrases will be included in frequency sorting with +2 boost (not added here)
         val customPhrases = customDictionary.getPinyinPhrases(cleanBuffer)
         val customPhraseSet = customPhrases.toSet()  // For quick lookup
-        if (customPhrases.isNotEmpty()) {
-            Log.d(TAG, "Custom dictionary phrases for unparsable '$cleanBuffer': $customPhrases (will be sorted by frequency)")
-        }
 
-        // Check auto-learned phrases third (third highest priority)
         // Skip if input is abbreviation-style and abbreviation input is disabled
         val skipAutoLearnedForAbbrev = isAbbreviationInput(cleanBuffer) && !isAbbreviationInputEnabled()
         val autoLearnedPhrases = if (isAutoPhraseMemoryEnabled() && !skipAutoLearnedForAbbrev) autoPhraseMemory.getLearnedPhrases(cleanBuffer) else emptyList()
-        for (phrase in autoLearnedPhrases) {
-            if (phrase !in resultCandidates) {
-                resultCandidates.add(phrase)
-            }
-        }
-        if (autoLearnedPhrases.isNotEmpty()) {
-            Log.d(TAG, "Auto-learned phrases for unparsable '$cleanBuffer': $autoLearnedPhrases")
-        }
 
         // Check partial/prefix matching phrases - only after first character selected
         // Strip already-committed characters from suggestions
@@ -1256,29 +1243,54 @@ class PinyinInputController(
 
         val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(cleanBuffer)
 
-        if (prefixCandidates.isNotEmpty() || customPhrases.isNotEmpty()) {
+        if (prefixCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty() || abbreviationCandidates.isNotEmpty()) {
             // Get user frequency for accurate merging
             val userFreqMap = if (isMemoryEnabled()) userMemory.getFrequencyMap(cleanBuffer) else emptyMap()
 
             // Custom dictionary phrases get +2 frequency boost (need 3 uses of normal phrase to surpass)
             val CUSTOM_PHRASE_FREQUENCY_BOOST = 2
+            // Auto-learned phrases get +2 boost when frequency is 0
+            val AUTO_LEARNED_PHRASE_BOOST = 2
+            // Abbreviation candidates get +2 boost when frequency is 0
+            val ABBREVIATION_PHRASE_BOOST = 2
 
-            // Merge prefix candidates and custom phrases, sorted by effective user frequency
+            // Merge ALL candidates sorted by effective user frequency
             val allCandidatesWithFreq = mutableListOf<Pair<String, Int>>()
-            val seenInMerge = resultCandidates.toMutableSet()  // Already have abbreviations/auto-learned
+            val seenInMerge = resultCandidates.toMutableSet()
+            val addedToMerge = mutableSetOf<String>()
 
-            // Add custom phrases (they'll be sorted by frequency with +2 boost)
+            // Add custom phrases (they'll be sorted by frequency with +2 boost always)
             for (phrase in customPhrases) {
                 if (phrase !in seenInMerge) {
                     val freq = userFreqMap[phrase] ?: 0
-                    // Custom phrases get +2 boost always
                     allCandidatesWithFreq.add(phrase to (freq + CUSTOM_PHRASE_FREQUENCY_BOOST))
+                    addedToMerge.add(phrase)
                 }
             }
 
-            // Add prefix candidates
+            // Add abbreviation candidates (with +2 boost when freq is 0)
+            for (phrase in abbreviationCandidates) {
+                if (phrase !in seenInMerge && phrase !in addedToMerge) {
+                    val freq = userFreqMap[phrase] ?: 0
+                    val boost = if (freq == 0) ABBREVIATION_PHRASE_BOOST else 0
+                    allCandidatesWithFreq.add(phrase to (freq + boost))
+                    addedToMerge.add(phrase)
+                }
+            }
+
+            // Add auto-learned phrases (with +2 boost when freq is 0)
+            for (phrase in autoLearnedPhrases) {
+                if (phrase !in seenInMerge && phrase !in addedToMerge) {
+                    val freq = userFreqMap[phrase] ?: 0
+                    val boost = if (freq == 0) AUTO_LEARNED_PHRASE_BOOST else 0
+                    allCandidatesWithFreq.add(phrase to (freq + boost))
+                    addedToMerge.add(phrase)
+                }
+            }
+
+            // Add prefix candidates (single characters from prefix matching - no boost)
             for (candidate in prefixCandidates) {
-                if (candidate !in seenInMerge && candidate !in customPhraseSet) {
+                if (candidate !in seenInMerge && candidate !in addedToMerge) {
                     val freq = userFreqMap[candidate] ?: 0
                     allCandidatesWithFreq.add(candidate to freq)
                 }
@@ -1317,14 +1329,12 @@ class PinyinInputController(
             firstSyllable = cleanBuffer
             phraseCandidateSet = resultCandidates.toSet()
             phraseCandidateCount = resultCandidates.size
-            Log.d(TAG, "Only abbreviation/auto-learned/partial phrases for '$cleanBuffer': $resultCandidates")
         } else {
             allCandidates = emptyList()
             matchedPinyin = ""
             phraseCandidateSet = emptySet()
             firstSyllable = ""
             phraseCandidateCount = 0
-            Log.d(TAG, "No match for: $bufferStr")
         }
     }
 
@@ -1339,7 +1349,6 @@ class PinyinInputController(
             firstSyllable = firstSegment.pinyin
             phraseCandidateCount = 0
             phraseCandidateSet = emptySet()  // Single-char only, no phrases
-            Log.d(TAG, "Single segment fallback: ${firstSegment.pinyin} → ${allCandidates.size} candidates")
         } else {
             allCandidates = emptyList()
             matchedPinyin = ""
