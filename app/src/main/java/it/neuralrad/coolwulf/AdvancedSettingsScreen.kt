@@ -465,9 +465,10 @@ fun AdvancedSettingsScreen(
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         listOf(
                                             "mechanical" to R.string.keyboard_sound_type_mechanical,
-                                            "soft" to R.string.keyboard_sound_type_soft,
-                                            "typewriter" to R.string.keyboard_sound_type_typewriter,
-                                            "bucklespring" to R.string.keyboard_sound_type_bucklespring
+                                            "bucklespring" to R.string.keyboard_sound_type_bucklespring,
+                                            "video" to R.string.keyboard_sound_type_video,
+                                            "mario" to R.string.keyboard_sound_type_mario,
+                                            "piano" to R.string.keyboard_sound_type_piano
                                         ).forEach { (type, nameRes) ->
                                             Surface(
                                                 shape = MaterialTheme.shapes.small,

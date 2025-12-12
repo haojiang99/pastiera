@@ -233,10 +233,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private val audioManager: android.media.AudioManager by lazy {
         getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
     }
-    // Bucklespring sound IDs (10 different key sounds for variety)
-    private var buckleSoundIds: IntArray = IntArray(10)
-    private var buckleSoundsLoaded = false
+    // Multi-sound IDs (24 different key sounds for variety)
+    private var multiSoundIds: IntArray = IntArray(24)
+    private var multiSoundsLoaded = false
     private val soundRandom = java.util.Random()
+    private val SOUND_COUNT = 24
 
     // BlackBerry-specific keycodes
     private val BLACKBERRY_KEYCODE_ALT = 57
@@ -271,9 +272,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // If sound type changed, reload the sound
         if (soundPool != null && loadedSoundType != soundType) {
             soundLoaded = false
-            buckleSoundsLoaded = false
+            multiSoundsLoaded = false
             keyClickSoundId = 0
-            buckleSoundIds = IntArray(10)
+            multiSoundIds = IntArray(24)
         }
 
         if (soundPool == null) {
@@ -287,37 +288,82 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 .build()
         }
 
-        if (soundType == "bucklespring") {
-            if (!buckleSoundsLoaded && buckleSoundIds[0] == 0) {
-                val buckleResources = intArrayOf(
-                    it.neuralrad.coolwulf.R.raw.buckle_a, it.neuralrad.coolwulf.R.raw.buckle_b,
-                    it.neuralrad.coolwulf.R.raw.buckle_c, it.neuralrad.coolwulf.R.raw.buckle_q,
-                    it.neuralrad.coolwulf.R.raw.buckle_s, it.neuralrad.coolwulf.R.raw.buckle_t,
-                    it.neuralrad.coolwulf.R.raw.buckle_z, it.neuralrad.coolwulf.R.raw.buckle_space,
-                    it.neuralrad.coolwulf.R.raw.buckle_enter, it.neuralrad.coolwulf.R.raw.buckle_backspace
-                )
+        // Get multi-sound resources based on sound type
+        val multiSoundResources = when (soundType) {
+            "bucklespring" -> intArrayOf(
+                it.neuralrad.coolwulf.R.raw.buckle_10, it.neuralrad.coolwulf.R.raw.buckle_11,
+                it.neuralrad.coolwulf.R.raw.buckle_12, it.neuralrad.coolwulf.R.raw.buckle_13,
+                it.neuralrad.coolwulf.R.raw.buckle_14, it.neuralrad.coolwulf.R.raw.buckle_15,
+                it.neuralrad.coolwulf.R.raw.buckle_16, it.neuralrad.coolwulf.R.raw.buckle_17,
+                it.neuralrad.coolwulf.R.raw.buckle_18, it.neuralrad.coolwulf.R.raw.buckle_19
+            )
+            "video" -> intArrayOf(
+                it.neuralrad.coolwulf.R.raw.video_1, it.neuralrad.coolwulf.R.raw.video_2,
+                it.neuralrad.coolwulf.R.raw.video_3, it.neuralrad.coolwulf.R.raw.video_4,
+                it.neuralrad.coolwulf.R.raw.video_5, it.neuralrad.coolwulf.R.raw.video_6,
+                it.neuralrad.coolwulf.R.raw.video_7, it.neuralrad.coolwulf.R.raw.video_8,
+                it.neuralrad.coolwulf.R.raw.video_9, it.neuralrad.coolwulf.R.raw.video_10,
+                it.neuralrad.coolwulf.R.raw.video_11, it.neuralrad.coolwulf.R.raw.video_12,
+                it.neuralrad.coolwulf.R.raw.video_13, it.neuralrad.coolwulf.R.raw.video_14,
+                it.neuralrad.coolwulf.R.raw.video_15, it.neuralrad.coolwulf.R.raw.video_16,
+                it.neuralrad.coolwulf.R.raw.video_17, it.neuralrad.coolwulf.R.raw.video_18,
+                it.neuralrad.coolwulf.R.raw.video_19, it.neuralrad.coolwulf.R.raw.video_20,
+                it.neuralrad.coolwulf.R.raw.video_21, it.neuralrad.coolwulf.R.raw.video_22,
+                it.neuralrad.coolwulf.R.raw.video_23, it.neuralrad.coolwulf.R.raw.video_24
+            )
+            "mario" -> intArrayOf(
+                it.neuralrad.coolwulf.R.raw.mario_1, it.neuralrad.coolwulf.R.raw.mario_2,
+                it.neuralrad.coolwulf.R.raw.mario_3, it.neuralrad.coolwulf.R.raw.mario_4,
+                it.neuralrad.coolwulf.R.raw.mario_5, it.neuralrad.coolwulf.R.raw.mario_6,
+                it.neuralrad.coolwulf.R.raw.mario_7, it.neuralrad.coolwulf.R.raw.mario_8,
+                it.neuralrad.coolwulf.R.raw.mario_9, it.neuralrad.coolwulf.R.raw.mario_10,
+                it.neuralrad.coolwulf.R.raw.mario_11, it.neuralrad.coolwulf.R.raw.mario_12,
+                it.neuralrad.coolwulf.R.raw.mario_13, it.neuralrad.coolwulf.R.raw.mario_14,
+                it.neuralrad.coolwulf.R.raw.mario_15, it.neuralrad.coolwulf.R.raw.mario_16,
+                it.neuralrad.coolwulf.R.raw.mario_17, it.neuralrad.coolwulf.R.raw.mario_18,
+                it.neuralrad.coolwulf.R.raw.mario_19, it.neuralrad.coolwulf.R.raw.mario_20,
+                it.neuralrad.coolwulf.R.raw.mario_21, it.neuralrad.coolwulf.R.raw.mario_22,
+                it.neuralrad.coolwulf.R.raw.mario_23, it.neuralrad.coolwulf.R.raw.mario_24
+            )
+            "piano" -> intArrayOf(
+                it.neuralrad.coolwulf.R.raw.piano_1, it.neuralrad.coolwulf.R.raw.piano_2,
+                it.neuralrad.coolwulf.R.raw.piano_3, it.neuralrad.coolwulf.R.raw.piano_4,
+                it.neuralrad.coolwulf.R.raw.piano_5, it.neuralrad.coolwulf.R.raw.piano_6,
+                it.neuralrad.coolwulf.R.raw.piano_7, it.neuralrad.coolwulf.R.raw.piano_8,
+                it.neuralrad.coolwulf.R.raw.piano_9, it.neuralrad.coolwulf.R.raw.piano_10,
+                it.neuralrad.coolwulf.R.raw.piano_11, it.neuralrad.coolwulf.R.raw.piano_12,
+                it.neuralrad.coolwulf.R.raw.piano_13, it.neuralrad.coolwulf.R.raw.piano_14,
+                it.neuralrad.coolwulf.R.raw.piano_15, it.neuralrad.coolwulf.R.raw.piano_16,
+                it.neuralrad.coolwulf.R.raw.piano_17, it.neuralrad.coolwulf.R.raw.piano_18,
+                it.neuralrad.coolwulf.R.raw.piano_19, it.neuralrad.coolwulf.R.raw.piano_20,
+                it.neuralrad.coolwulf.R.raw.piano_21, it.neuralrad.coolwulf.R.raw.piano_22,
+                it.neuralrad.coolwulf.R.raw.piano_23, it.neuralrad.coolwulf.R.raw.piano_24
+            )
+            else -> null  // mechanical uses single sound
+        }
+
+        if (multiSoundResources != null) {
+            // Multi-sound types (bucklespring, video, mario, piano)
+            if (!multiSoundsLoaded && multiSoundIds[0] == 0) {
                 var loadedCount = 0
-                buckleResources.forEachIndexed { index, res ->
-                    buckleSoundIds[index] = soundPool!!.load(this, res, 1)
+                val expectedCount = multiSoundResources.size
+                multiSoundResources.forEachIndexed { index, res ->
+                    multiSoundIds[index] = soundPool!!.load(this, res, 1)
                 }
                 loadedSoundType = soundType
                 soundPool!!.setOnLoadCompleteListener { _, _, status ->
                     if (status == 0) {
                         loadedCount++
-                        if (loadedCount >= 10) {
-                            buckleSoundsLoaded = true
+                        if (loadedCount >= expectedCount) {
+                            multiSoundsLoaded = true
                         }
                     }
                 }
             }
         } else {
+            // Single sound type (mechanical)
             if (!soundLoaded && keyClickSoundId == 0) {
-                val soundRes = when (soundType) {
-                    "soft" -> it.neuralrad.coolwulf.R.raw.key_click_soft
-                    "typewriter" -> it.neuralrad.coolwulf.R.raw.key_click_typewriter
-                    else -> it.neuralrad.coolwulf.R.raw.key_click  // "mechanical" is default
-                }
-                keyClickSoundId = soundPool!!.load(this, soundRes, 1)
+                keyClickSoundId = soundPool!!.load(this, it.neuralrad.coolwulf.R.raw.key_click, 1)
                 loadedSoundType = soundType
                 soundPool!!.setOnLoadCompleteListener { _, _, status ->
                     if (status == 0) {
@@ -350,9 +396,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val soundType = SettingsManager.getKeyboardSoundType(this)
         val volume = getKeyboardSoundVolume()
 
-        if (soundType == "bucklespring" && buckleSoundsLoaded) {
-            // Pick a random bucklespring sound for variety
-            val soundId = buckleSoundIds[soundRandom.nextInt(10)]
+        if (soundType in listOf("bucklespring", "video", "mario", "piano") && multiSoundsLoaded) {
+            // Pick a random sound for variety - bucklespring has 10 sounds, others have 24
+            val count = if (soundType == "bucklespring") 10 else SOUND_COUNT
+            val soundId = multiSoundIds[soundRandom.nextInt(count)]
             if (soundId != 0) {
                 soundPool?.play(soundId, volume, volume, 1, 0, 1.0f)
             }

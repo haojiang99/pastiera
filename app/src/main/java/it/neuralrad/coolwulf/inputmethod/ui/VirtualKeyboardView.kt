@@ -38,6 +38,7 @@ class VirtualKeyboardView(
         private val KEY_TEXT_COLOR = Color.WHITE
         private val KEYBOARD_BG_COLOR = Color.argb(255, 30, 30, 35)
         private const val SEMI_TRANSPARENT_ALPHA = 0.4f  // 40% opacity for entire UI
+        private const val SOUND_COUNT = 24
 
         // QWERTY layout rows
         private val ROW_1 = listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p")
@@ -117,9 +118,9 @@ class VirtualKeyboardView(
     private var soundLoaded = false
     private var loadedSoundType: String = ""
 
-    // Bucklespring sound IDs (10 different key sounds for variety)
-    private var buckleSoundIds: IntArray = IntArray(10)
-    private var buckleSoundsLoaded = false
+    // Multi-sound IDs (24 different key sounds for variety)
+    private var multiSoundIds: IntArray = IntArray(24)
+    private var multiSoundsLoaded = false
     private val random = java.util.Random()
 
     private fun ensureSoundLoaded() {
@@ -127,39 +128,66 @@ class VirtualKeyboardView(
         // If sound type changed, reload the sound
         if (loadedSoundType != soundType) {
             soundLoaded = false
-            buckleSoundsLoaded = false
+            multiSoundsLoaded = false
             keyClickSoundId = 0
-            buckleSoundIds = IntArray(10)
+            multiSoundIds = IntArray(SOUND_COUNT)
         }
-        if (soundType == "bucklespring") {
-            if (!buckleSoundsLoaded && buckleSoundIds[0] == 0) {
-                val buckleResources = intArrayOf(
-                    R.raw.buckle_a, R.raw.buckle_b, R.raw.buckle_c,
-                    R.raw.buckle_q, R.raw.buckle_s, R.raw.buckle_t, R.raw.buckle_z,
-                    R.raw.buckle_space, R.raw.buckle_enter, R.raw.buckle_backspace
-                )
+
+        // Multi-sound types: bucklespring, video, mario, piano (24 sounds each)
+        val multiSoundResources = when (soundType) {
+            "bucklespring" -> intArrayOf(
+                R.raw.buckle_10, R.raw.buckle_11, R.raw.buckle_12, R.raw.buckle_13,
+                R.raw.buckle_14, R.raw.buckle_15, R.raw.buckle_16, R.raw.buckle_17,
+                R.raw.buckle_18, R.raw.buckle_19
+            )
+            "video" -> intArrayOf(
+                R.raw.video_1, R.raw.video_2, R.raw.video_3, R.raw.video_4,
+                R.raw.video_5, R.raw.video_6, R.raw.video_7, R.raw.video_8,
+                R.raw.video_9, R.raw.video_10, R.raw.video_11, R.raw.video_12,
+                R.raw.video_13, R.raw.video_14, R.raw.video_15, R.raw.video_16,
+                R.raw.video_17, R.raw.video_18, R.raw.video_19, R.raw.video_20,
+                R.raw.video_21, R.raw.video_22, R.raw.video_23, R.raw.video_24
+            )
+            "mario" -> intArrayOf(
+                R.raw.mario_1, R.raw.mario_2, R.raw.mario_3, R.raw.mario_4,
+                R.raw.mario_5, R.raw.mario_6, R.raw.mario_7, R.raw.mario_8,
+                R.raw.mario_9, R.raw.mario_10, R.raw.mario_11, R.raw.mario_12,
+                R.raw.mario_13, R.raw.mario_14, R.raw.mario_15, R.raw.mario_16,
+                R.raw.mario_17, R.raw.mario_18, R.raw.mario_19, R.raw.mario_20,
+                R.raw.mario_21, R.raw.mario_22, R.raw.mario_23, R.raw.mario_24
+            )
+            "piano" -> intArrayOf(
+                R.raw.piano_1, R.raw.piano_2, R.raw.piano_3, R.raw.piano_4,
+                R.raw.piano_5, R.raw.piano_6, R.raw.piano_7, R.raw.piano_8,
+                R.raw.piano_9, R.raw.piano_10, R.raw.piano_11, R.raw.piano_12,
+                R.raw.piano_13, R.raw.piano_14, R.raw.piano_15, R.raw.piano_16,
+                R.raw.piano_17, R.raw.piano_18, R.raw.piano_19, R.raw.piano_20,
+                R.raw.piano_21, R.raw.piano_22, R.raw.piano_23, R.raw.piano_24
+            )
+            else -> null
+        }
+
+        if (multiSoundResources != null) {
+            if (!multiSoundsLoaded && multiSoundIds[0] == 0) {
                 var loadedCount = 0
-                buckleResources.forEachIndexed { index, res ->
-                    buckleSoundIds[index] = soundPool.load(context, res, 1)
+                val expectedCount = multiSoundResources.size
+                multiSoundResources.forEachIndexed { index, res ->
+                    multiSoundIds[index] = soundPool.load(context, res, 1)
                 }
                 loadedSoundType = soundType
                 soundPool.setOnLoadCompleteListener { _, _, status ->
                     if (status == 0) {
                         loadedCount++
-                        if (loadedCount >= 10) {
-                            buckleSoundsLoaded = true
+                        if (loadedCount >= expectedCount) {
+                            multiSoundsLoaded = true
                         }
                     }
                 }
             }
         } else {
+            // Single sound: mechanical
             if (!soundLoaded && keyClickSoundId == 0) {
-                val soundRes = when (soundType) {
-                    "soft" -> R.raw.key_click_soft
-                    "typewriter" -> R.raw.key_click_typewriter
-                    else -> R.raw.key_click  // "mechanical" is default
-                }
-                keyClickSoundId = soundPool.load(context, soundRes, 1)
+                keyClickSoundId = soundPool.load(context, R.raw.key_click, 1)
                 loadedSoundType = soundType
                 soundPool.setOnLoadCompleteListener { _, _, status ->
                     if (status == 0) {
@@ -173,9 +201,12 @@ class VirtualKeyboardView(
     private fun playKeySound() {
         val soundType = SettingsManager.getKeyboardSoundType(context)
         val volume = getKeyboardSoundVolume()
-        if (soundType == "bucklespring" && buckleSoundsLoaded) {
-            // Pick a random bucklespring sound for variety
-            val soundId = buckleSoundIds[random.nextInt(10)]
+        val isMultiSound = soundType in listOf("bucklespring", "video", "mario", "piano")
+
+        if (isMultiSound && multiSoundsLoaded) {
+            // Pick a random sound for variety - bucklespring has 10 sounds, others have 24
+            val count = if (soundType == "bucklespring") 10 else SOUND_COUNT
+            val soundId = multiSoundIds[random.nextInt(count)]
             if (soundId != 0) {
                 soundPool.play(soundId, volume, volume, 1, 0, 1.0f)
             }
