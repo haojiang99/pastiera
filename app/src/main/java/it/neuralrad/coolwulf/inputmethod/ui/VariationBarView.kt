@@ -62,6 +62,7 @@ class VariationBarView(
     var onSymButtonListener: (() -> Unit)? = null
     var onPunctuationToggleListener: (() -> Unit)? = null
     var onTraditionalChineseToggleListener: (() -> Unit)? = null
+    var onSoundToggleListener: (() -> Unit)? = null
 
     private var wrapper: FrameLayout? = null
     private var symButtonView: TextView? = null
@@ -86,6 +87,7 @@ class VariationBarView(
     private var settingsButtonView: ImageView? = null
     private var clipboardButtonView: ImageView? = null
     private var keyboardToggleButtonView: ImageView? = null
+    private var soundToggleButtonView: ImageView? = null
     private var clipboardHistoryPopup: ClipboardHistoryPopup? = null
     private var onVirtualKeyboardToggleListener: (() -> Unit)? = null
     private var lastDisplayedVariations: List<String> = emptyList()
@@ -270,6 +272,7 @@ class VariationBarView(
         removeSettingsImmediate()
         removeClipboardImmediate()
         removeKeyboardToggleImmediate()
+        removeSoundToggleImmediate()
         removeSymButtonImmediate()
         removeLanguageToggleImmediate()
         removeArrowsImmediate()
@@ -298,6 +301,7 @@ class VariationBarView(
         removeSettingsImmediate()
         removeClipboardImmediate()
         removeKeyboardToggleImmediate()
+        removeSoundToggleImmediate()
         removeLanguageToggleImmediate()
         removePunctuationToggleImmediate()
         removeTraditionalChineseToggleImmediate()
@@ -366,6 +370,7 @@ class VariationBarView(
         removeSettingsImmediate()
         removeClipboardImmediate()
         removeKeyboardToggleImmediate()
+        removeSoundToggleImmediate()
         removeSymButtonImmediate()
         removeLanguageToggleImmediate()
         removeArrowsImmediate()
@@ -966,6 +971,56 @@ class VariationBarView(
             keyboardToggleButton.visibility = View.GONE
         }
 
+        // Sound toggle button - reuse if already attached
+        val showSoundToggleButton = SettingsManager.isShowSoundToggleButton(context) && !hideStatusBarIconsForJuying
+        val soundToggleButton = soundToggleButtonView ?: createSoundToggleButton(buttonWidth).also {
+            soundToggleButtonView = it
+        }
+        val soundToggleMargin = buttonMargin
+        if (showSoundToggleButton) {
+            if (soundToggleButton.parent == null) {
+                val soundParams = if (stretchButtons) {
+                    LinearLayout.LayoutParams(0, buttonWidth, 1f).apply {
+                        marginStart = soundToggleMargin
+                    }
+                } else {
+                    LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
+                        marginStart = soundToggleMargin
+                    }
+                }
+                containerView.addView(soundToggleButton, soundParams)
+            } else if (stretchButtons) {
+                (soundToggleButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                    width = 0
+                    weight = 1f
+                    marginStart = soundToggleMargin
+                }
+            } else {
+                (soundToggleButton.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                    width = buttonWidth
+                    weight = 0f
+                    marginStart = soundToggleMargin
+                }
+            }
+            soundToggleButton.setOnClickListener {
+                // Toggle sound and update icon
+                val newState = !SettingsManager.isKeyboardSoundEnabled(context)
+                SettingsManager.setKeyboardSoundEnabled(context, newState)
+                updateSoundToggleButtonIcon(soundToggleButton, newState)
+                onSoundToggleListener?.invoke()
+            }
+            soundToggleButton.alpha = 1f
+            soundToggleButton.visibility = View.VISIBLE
+            // Update icon based on current state
+            updateSoundToggleButtonIcon(soundToggleButton, SettingsManager.isKeyboardSoundEnabled(context))
+        } else {
+            // Hide/remove sound toggle button when disabled or in Juying mode with suggestions
+            if (soundToggleButton.parent != null) {
+                (soundToggleButton.parent as? ViewGroup)?.removeView(soundToggleButton)
+            }
+            soundToggleButton.visibility = View.GONE
+        }
+
         // SYM button - reuse if already attached
         val symButton = symButtonView ?: createSymButton(buttonWidth).also {
             symButtonView = it
@@ -1442,6 +1497,14 @@ class VariationBarView(
         }
     }
 
+    private fun removeSoundToggleImmediate() {
+        soundToggleButtonView?.let { toggle ->
+            (toggle.parent as? ViewGroup)?.removeView(toggle)
+            toggle.visibility = View.GONE
+            toggle.alpha = 1f
+        }
+    }
+
     private fun removeLanguageToggleImmediate() {
         languageToggleButtonView?.let { toggle ->
             (toggle.parent as? ViewGroup)?.removeView(toggle)
@@ -1764,6 +1827,36 @@ class VariationBarView(
             setPadding(dp3, dp3, dp3, dp3)
             layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
         }
+    }
+
+    private fun createSoundToggleButton(buttonSize: Int): ImageView {
+        val theme = getCurrentTheme()
+        val dp3 = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            3f,
+            context.resources.displayMetrics
+        ).toInt()
+        val drawable = GradientDrawable().apply {
+            setColor(theme.backgroundColor)
+            cornerRadius = 0f
+        }
+        val isSoundEnabled = SettingsManager.isKeyboardSoundEnabled(context)
+        return ImageView(context).apply {
+            setImageResource(if (isSoundEnabled) R.drawable.ic_volume_up_24 else R.drawable.ic_volume_off_24)
+            setColorFilter(if (isSoundEnabled) theme.accentColor else theme.iconInactiveColor)
+            background = drawable
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            isClickable = true
+            isFocusable = true
+            setPadding(dp3, dp3, dp3, dp3)
+            layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
+        }
+    }
+
+    private fun updateSoundToggleButtonIcon(button: ImageView, isEnabled: Boolean) {
+        val theme = getCurrentTheme()
+        button.setImageResource(if (isEnabled) R.drawable.ic_volume_up_24 else R.drawable.ic_volume_off_24)
+        button.setColorFilter(if (isEnabled) theme.accentColor else theme.iconInactiveColor)
     }
 
     private fun showClipboardHistory(anchorView: View, inputConnection: android.view.inputmethod.InputConnection?) {

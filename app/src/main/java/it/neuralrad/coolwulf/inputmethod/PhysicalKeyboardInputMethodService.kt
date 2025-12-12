@@ -449,16 +449,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     /**
      * Checks if the given keycode should produce a keyboard click sound.
-     * Letter keys, number keys, space, enter, delete, SYM, function keys, and volume keys should produce sound.
-     * Navigation keys (Back, Recent/App Switch, Home) should be silent.
+     * Letter keys, number keys, space, enter, delete, SYM, function keys should produce sound.
+     * Navigation keys (Back, Recent/App Switch, Home) and volume keys should be silent.
      */
     private fun shouldPlaySoundForKey(keyCode: Int): Boolean {
         return when (keyCode) {
-            // Silent keys - navigation buttons
+            // Silent keys - navigation buttons and volume keys
             KeyEvent.KEYCODE_BACK,
             KeyEvent.KEYCODE_APP_SWITCH,
             KeyEvent.KEYCODE_HOME,
-            KeyEvent.KEYCODE_MENU -> false
+            KeyEvent.KEYCODE_MENU,
+            KeyEvent.KEYCODE_VOLUME_UP,
+            KeyEvent.KEYCODE_VOLUME_DOWN,
+            KeyEvent.KEYCODE_VOLUME_MUTE -> false
 
             // All other keys should produce sound (letters, numbers, symbols, function keys, etc.)
             else -> true

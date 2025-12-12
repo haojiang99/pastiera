@@ -100,6 +100,7 @@ object SettingsManager {
     private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
     private const val KEY_TRADITIONAL_CHINESE_TOGGLE_ENABLED = "traditional_chinese_toggle_enabled" // Show 简/繁 toggle button in status bar
     private const val KEY_SHOW_SYM_BUTTON = "show_sym_button" // Show SYM button in status bar
+    private const val KEY_SHOW_SOUND_TOGGLE_BUTTON = "show_sound_toggle_button" // Show sound toggle button in status bar
     private const val KEY_STATUS_BAR_THEME = "status_bar_theme" // Status bar theme ID
 
     // Custom theme color keys
@@ -199,6 +200,7 @@ object SettingsManager {
     private const val DEFAULT_SHOW_LED_STATUS = true  // LED status indicator shown by default
     private const val DEFAULT_TRADITIONAL_CHINESE_TOGGLE_ENABLED = false  // 简/繁 toggle disabled by default
     private const val DEFAULT_SHOW_SYM_BUTTON = true  // SYM button shown by default
+    private const val DEFAULT_SHOW_SOUND_TOGGLE_BUTTON = false  // Sound toggle button hidden by default
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
@@ -2223,6 +2225,22 @@ object SettingsManager {
     fun setShowSymButton(context: Context, show: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_SHOW_SYM_BUTTON, show)
+            .apply()
+    }
+
+    /**
+     * Returns whether the sound toggle button is shown in the status bar.
+     */
+    fun isShowSoundToggleButton(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SHOW_SOUND_TOGGLE_BUTTON, DEFAULT_SHOW_SOUND_TOGGLE_BUTTON)
+    }
+
+    /**
+     * Sets whether to show the sound toggle button in the status bar.
+     */
+    fun setShowSoundToggleButton(context: Context, show: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SHOW_SOUND_TOGGLE_BUTTON, show)
             .apply()
     }
 

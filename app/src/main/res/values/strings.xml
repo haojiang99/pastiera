@@ -655,6 +655,8 @@
     <string name="keyboard_sound_custom_select_file">Tap to select an MP3 file</string>
     <string name="keyboard_sound_volume_title">Sound Volume</string>
     <string name="keyboard_sound_volume_description">Current: %1$d%%</string>
+    <string name="show_sound_toggle_button_title">Show Sound Toggle</string>
+    <string name="show_sound_toggle_button_description">Show a button in status bar to quickly toggle sound on/off</string>
 
     <!-- Virtual Keyboard Vibration -->
     <string name="virtual_keyboard_vibration_title">Keyboard Vibration</string>

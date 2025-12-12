@@ -99,6 +99,9 @@ fun AdvancedSettingsScreen(
     var keyboardSoundVolume by remember {
         mutableStateOf(SettingsManager.getKeyboardSoundVolume(context))
     }
+    var showSoundToggleButton by remember {
+        mutableStateOf(SettingsManager.isShowSoundToggleButton(context))
+    }
     var customSoundPath by remember {
         mutableStateOf(SettingsManager.getCustomSoundPath(context))
     }
@@ -621,6 +624,49 @@ fun AdvancedSettingsScreen(
                                         valueRange = 0f..100f,
                                         steps = 9,
                                         modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                }
+                            }
+                            // Show Sound Toggle Button in status bar
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(64.dp)
+                                    .padding(start = 32.dp) // Indent to show it's a sub-setting
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.VolumeUp,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.show_sound_toggle_button_title),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.show_sound_toggle_button_description),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 2
+                                        )
+                                    }
+                                    Switch(
+                                        checked = showSoundToggleButton,
+                                        onCheckedChange = { enabled ->
+                                            showSoundToggleButton = enabled
+                                            SettingsManager.setShowSoundToggleButton(context, enabled)
+                                        }
                                     )
                                 }
                             }

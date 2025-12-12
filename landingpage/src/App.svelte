@@ -54,6 +54,18 @@
       title: '离线语音识别',
       desc: '高精度普通话识别，完全本地运行',
       example: '无需网络，隐私无忧'
+    },
+    {
+      icon: '🎨',
+      title: '自定义主题',
+      desc: '自由定制状态栏颜色，打造专属界面',
+      example: '15种颜色可调 · 8款预设主题'
+    },
+    {
+      icon: '🔊',
+      title: '自定义音效',
+      desc: '多种键盘音效可选，支持自定义音效',
+      example: '机械/打字机/钢琴/马里奥等'
     }
   ];
 
@@ -82,7 +94,7 @@
         <a href="#features">功能特色</a>
         <a href="#juying">巨硬模式</a>
         <a href="#voice">语音识别</a>
-        <a href="/coolwulfIMEv0.78.1536.apk" class="btn-nav" download>立即下载</a>
+        <a href="/coolwulfIMEv0.80.1586.apk" class="btn-nav" download>立即下载</a>
       </div>
     </div>
   </nav>
@@ -107,7 +119,7 @@
         <strong>永久免费 · 无广告 · 隐私安全</strong>
       </p>
       <div class="hero-buttons">
-        <a href="/coolwulfIMEv0.78.1536.apk" class="btn btn-primary" download>
+        <a href="/coolwulfIMEv0.80.1586.apk" class="btn btn-primary" download>
           <span>立即下载</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
@@ -470,11 +482,11 @@
           酷狼输入法就是为你量身定做的输入工具。
         </p>
         <div class="cta-buttons">
-          <a href="/coolwulfIMEv0.78.1536.apk" class="btn btn-primary btn-large" download>
+          <a href="/coolwulfIMEv0.80.1586.apk" class="btn btn-primary btn-large" download>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
             </svg>
-            <span>下载 APK (v0.78)</span>
+            <span>下载 APK (v0.80)</span>
           </a>
           <a href="/sherpa-onnx-paraformer-zh-small-2024-03-09.zip" class="btn btn-voice-model btn-large" download>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">

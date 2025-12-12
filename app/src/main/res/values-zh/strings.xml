@@ -656,6 +656,8 @@
     <string name="keyboard_sound_custom_select_file">点击选择MP3文件</string>
     <string name="keyboard_sound_volume_title">音量</string>
     <string name="keyboard_sound_volume_description">当前：%1$d%%</string>
+    <string name="show_sound_toggle_button_title">显示声音开关</string>
+    <string name="show_sound_toggle_button_description">在状态栏显示快速开关声音的按钮</string>
 
     <!-- Virtual Keyboard Vibration -->
     <string name="virtual_keyboard_vibration_title">按键振动</string>
