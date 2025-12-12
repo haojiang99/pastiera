@@ -641,7 +641,14 @@
 
     <!-- Keyboard Sound (both physical and virtual) -->
     <string name="keyboard_sound_title">Keyboard Sound</string>
-    <string name="keyboard_sound_description">Play mechanical keyboard click sound when typing</string>
+    <string name="keyboard_sound_description">Play click sound when typing</string>
+    <string name="keyboard_sound_type_title">Sound Type</string>
+    <string name="keyboard_sound_type_mechanical">Mechanical</string>
+    <string name="keyboard_sound_type_soft">Soft</string>
+    <string name="keyboard_sound_type_typewriter">Typewriter</string>
+    <string name="keyboard_sound_type_bucklespring">Bucklespring</string>
+    <string name="keyboard_sound_volume_title">Sound Volume</string>
+    <string name="keyboard_sound_volume_description">Current: %1$d%%</string>
 
     <!-- Virtual Keyboard Vibration -->
     <string name="virtual_keyboard_vibration_title">Keyboard Vibration</string>

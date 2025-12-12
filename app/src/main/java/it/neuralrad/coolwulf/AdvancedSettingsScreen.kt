@@ -93,6 +93,12 @@ fun AdvancedSettingsScreen(
     var keyboardSound by remember {
         mutableStateOf(SettingsManager.isKeyboardSoundEnabled(context))
     }
+    var keyboardSoundType by remember {
+        mutableStateOf(SettingsManager.getKeyboardSoundType(context))
+    }
+    var keyboardSoundVolume by remember {
+        mutableStateOf(SettingsManager.getKeyboardSoundVolume(context))
+    }
     var virtualKeyboardVibration by remember {
         mutableStateOf(SettingsManager.isVirtualKeyboardVibrationEnabled(context))
     }
@@ -424,6 +430,118 @@ fun AdvancedSettingsScreen(
                                         SettingsManager.setKeyboardSoundEnabled(context, enabled)
                                     }
                                 )
+                            }
+                        }
+
+                        // Sound Type Selector (only visible when keyboard sound is enabled)
+                        if (keyboardSound) {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(64.dp)
+                                    .padding(start = 32.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.VolumeUp,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.keyboard_sound_type_title),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1
+                                        )
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        listOf(
+                                            "mechanical" to R.string.keyboard_sound_type_mechanical,
+                                            "soft" to R.string.keyboard_sound_type_soft,
+                                            "typewriter" to R.string.keyboard_sound_type_typewriter,
+                                            "bucklespring" to R.string.keyboard_sound_type_bucklespring
+                                        ).forEach { (type, nameRes) ->
+                                            Surface(
+                                                shape = MaterialTheme.shapes.small,
+                                                color = if (keyboardSoundType == type)
+                                                    MaterialTheme.colorScheme.primaryContainer
+                                                else
+                                                    MaterialTheme.colorScheme.surfaceVariant,
+                                                modifier = Modifier
+                                                    .padding(vertical = 4.dp)
+                                                    .clickable {
+                                                        keyboardSoundType = type
+                                                        SettingsManager.setKeyboardSoundType(context, type)
+                                                    }
+                                            ) {
+                                                Text(
+                                                    text = stringResource(nameRes),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                    color = if (keyboardSoundType == type)
+                                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                                    else
+                                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Sound Volume Slider
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 32.dp, top = 8.dp, bottom = 8.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.VolumeUp,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = stringResource(R.string.keyboard_sound_volume_title),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.keyboard_sound_volume_description, keyboardSoundVolume),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                    Slider(
+                                        value = keyboardSoundVolume.toFloat(),
+                                        onValueChange = { newValue ->
+                                            keyboardSoundVolume = newValue.toInt()
+                                            SettingsManager.setKeyboardSoundVolume(context, newValue.toInt())
+                                        },
+                                        valueRange = 0f..100f,
+                                        steps = 9,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                }
                             }
                         }
 

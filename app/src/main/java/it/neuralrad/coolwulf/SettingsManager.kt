@@ -92,6 +92,8 @@ object SettingsManager {
     private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
     private const val KEY_VIRTUAL_KEYBOARD_HEIGHT = "virtual_keyboard_height" // Height of virtual keyboard keys in DIP
     private const val KEY_KEYBOARD_SOUND = "virtual_keyboard_sound" // Enable sound effect for keyboard typing (both physical and virtual)
+    private const val KEY_KEYBOARD_SOUND_TYPE = "keyboard_sound_type" // Sound type: "mechanical", "soft", "typewriter"
+    private const val KEY_KEYBOARD_SOUND_VOLUME = "keyboard_sound_volume" // Sound volume: 0-100
     private const val KEY_VIRTUAL_KEYBOARD_VIBRATION = "virtual_keyboard_vibration" // Enable vibration for virtual keyboard typing
     private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
     private const val KEY_TRADITIONAL_CHINESE_TOGGLE_ENABLED = "traditional_chinese_toggle_enabled" // Show 简/繁 toggle button in status bar
@@ -160,6 +162,8 @@ object SettingsManager {
     private const val MIN_VIRTUAL_KEYBOARD_HEIGHT = 32
     private const val MAX_VIRTUAL_KEYBOARD_HEIGHT = 60
     private const val DEFAULT_VIRTUAL_KEYBOARD_SOUND = false  // Virtual keyboard sound disabled by default
+    private const val DEFAULT_KEYBOARD_SOUND_TYPE = "mechanical"  // Default sound type
+    private const val DEFAULT_KEYBOARD_SOUND_VOLUME = 70  // Default sound volume (0-100)
     private const val DEFAULT_VIRTUAL_KEYBOARD_VIBRATION = true  // Virtual keyboard vibration enabled by default
     private const val DEFAULT_PARTIAL_PINYIN_MATCHING = false  // Partial pinyin matching disabled by default
     private const val DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON = false  // Virtual keyboard button hidden by default
@@ -1872,6 +1876,38 @@ object SettingsManager {
     fun setKeyboardSoundEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_KEYBOARD_SOUND, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets the keyboard sound type: "mechanical", "soft", or "typewriter".
+     */
+    fun getKeyboardSoundType(context: Context): String {
+        return getPreferences(context).getString(KEY_KEYBOARD_SOUND_TYPE, DEFAULT_KEYBOARD_SOUND_TYPE) ?: DEFAULT_KEYBOARD_SOUND_TYPE
+    }
+
+    /**
+     * Sets the keyboard sound type: "mechanical", "soft", or "typewriter".
+     */
+    fun setKeyboardSoundType(context: Context, type: String) {
+        getPreferences(context).edit()
+            .putString(KEY_KEYBOARD_SOUND_TYPE, type)
+            .apply()
+    }
+
+    /**
+     * Gets the keyboard sound volume (0-100).
+     */
+    fun getKeyboardSoundVolume(context: Context): Int {
+        return getPreferences(context).getInt(KEY_KEYBOARD_SOUND_VOLUME, DEFAULT_KEYBOARD_SOUND_VOLUME)
+    }
+
+    /**
+     * Sets the keyboard sound volume (0-100).
+     */
+    fun setKeyboardSoundVolume(context: Context, volume: Int) {
+        getPreferences(context).edit()
+            .putInt(KEY_KEYBOARD_SOUND_VOLUME, volume.coerceIn(0, 100))
             .apply()
     }
 

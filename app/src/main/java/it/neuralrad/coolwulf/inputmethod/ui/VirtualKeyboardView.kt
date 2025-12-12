@@ -115,16 +115,83 @@ class VirtualKeyboardView(
 
     private var keyClickSoundId: Int = 0
     private var soundLoaded = false
+    private var loadedSoundType: String = ""
+
+    // Bucklespring sound IDs (10 different key sounds for variety)
+    private var buckleSoundIds: IntArray = IntArray(10)
+    private var buckleSoundsLoaded = false
+    private val random = java.util.Random()
 
     private fun ensureSoundLoaded() {
-        if (!soundLoaded && keyClickSoundId == 0) {
-            keyClickSoundId = soundPool.load(context, R.raw.key_click, 1)  // Uses key_click.wav
-            soundPool.setOnLoadCompleteListener { _, _, status ->
-                if (status == 0) {
-                    soundLoaded = true
+        val soundType = SettingsManager.getKeyboardSoundType(context)
+        // If sound type changed, reload the sound
+        if (loadedSoundType != soundType) {
+            soundLoaded = false
+            buckleSoundsLoaded = false
+            keyClickSoundId = 0
+            buckleSoundIds = IntArray(10)
+        }
+        if (soundType == "bucklespring") {
+            if (!buckleSoundsLoaded && buckleSoundIds[0] == 0) {
+                val buckleResources = intArrayOf(
+                    R.raw.buckle_a, R.raw.buckle_b, R.raw.buckle_c,
+                    R.raw.buckle_q, R.raw.buckle_s, R.raw.buckle_t, R.raw.buckle_z,
+                    R.raw.buckle_space, R.raw.buckle_enter, R.raw.buckle_backspace
+                )
+                var loadedCount = 0
+                buckleResources.forEachIndexed { index, res ->
+                    buckleSoundIds[index] = soundPool.load(context, res, 1)
+                }
+                loadedSoundType = soundType
+                soundPool.setOnLoadCompleteListener { _, _, status ->
+                    if (status == 0) {
+                        loadedCount++
+                        if (loadedCount >= 10) {
+                            buckleSoundsLoaded = true
+                        }
+                    }
+                }
+            }
+        } else {
+            if (!soundLoaded && keyClickSoundId == 0) {
+                val soundRes = when (soundType) {
+                    "soft" -> R.raw.key_click_soft
+                    "typewriter" -> R.raw.key_click_typewriter
+                    else -> R.raw.key_click  // "mechanical" is default
+                }
+                keyClickSoundId = soundPool.load(context, soundRes, 1)
+                loadedSoundType = soundType
+                soundPool.setOnLoadCompleteListener { _, _, status ->
+                    if (status == 0) {
+                        soundLoaded = true
+                    }
                 }
             }
         }
+    }
+
+    private fun playKeySound() {
+        val soundType = SettingsManager.getKeyboardSoundType(context)
+        val volume = getKeyboardSoundVolume()
+        if (soundType == "bucklespring" && buckleSoundsLoaded) {
+            // Pick a random bucklespring sound for variety
+            val soundId = buckleSoundIds[random.nextInt(10)]
+            if (soundId != 0) {
+                soundPool.play(soundId, volume, volume, 1, 0, 1.0f)
+            }
+        } else if (soundLoaded && keyClickSoundId != 0) {
+            soundPool.play(keyClickSoundId, volume, volume, 1, 0, 1.0f)
+        }
+    }
+
+    private fun getKeyboardSoundVolume(): Float {
+        // Get user-configured volume (0-100) and convert to 0.0-1.0
+        val userVolume = SettingsManager.getKeyboardSoundVolume(context) / 100f
+        // Apply system media volume on top
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
+        val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
+        val systemVolume = if (maxVolume > 0) currentVolume / maxVolume else 0.5f
+        return userVolume * systemVolume
     }
 
     /**
@@ -144,13 +211,7 @@ class VirtualKeyboardView(
         // Play sound if enabled
         if (SettingsManager.isKeyboardSoundEnabled(context)) {
             ensureSoundLoaded()
-            if (soundLoaded && keyClickSoundId != 0) {
-                // Get current media volume as a fraction (0.0 to 1.0)
-                val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
-                val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
-                val volume = if (maxVolume > 0) currentVolume / maxVolume else 0.5f
-                soundPool.play(keyClickSoundId, volume, volume, 1, 0, 1.0f)
-            }
+            playKeySound()
         }
     }
 
@@ -171,12 +232,7 @@ class VirtualKeyboardView(
         // Play sound if enabled
         if (SettingsManager.isKeyboardSoundEnabled(context)) {
             ensureSoundLoaded()
-            if (soundLoaded && keyClickSoundId != 0) {
-                val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
-                val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
-                val volume = if (maxVolume > 0) currentVolume / maxVolume else 0.5f
-                soundPool.play(keyClickSoundId, volume, volume, 1, 0, 1.0f)
-            }
+            playKeySound()
         }
     }
 

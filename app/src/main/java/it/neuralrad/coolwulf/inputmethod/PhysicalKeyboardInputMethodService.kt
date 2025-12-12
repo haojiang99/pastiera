@@ -229,9 +229,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private var soundPool: android.media.SoundPool? = null
     private var keyClickSoundId: Int = 0
     private var soundLoaded = false
+    private var loadedSoundType: String = ""
     private val audioManager: android.media.AudioManager by lazy {
         getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
     }
+    // Bucklespring sound IDs (10 different key sounds for variety)
+    private var buckleSoundIds: IntArray = IntArray(10)
+    private var buckleSoundsLoaded = false
+    private val soundRandom = java.util.Random()
 
     // BlackBerry-specific keycodes
     private val BLACKBERRY_KEYCODE_ALT = 57
@@ -258,8 +263,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     /**
      * Initializes the SoundPool for keyboard click sound if not already initialized.
+     * Also handles reloading when sound type changes.
      */
     private fun ensureSoundPoolInitialized() {
+        val soundType = SettingsManager.getKeyboardSoundType(this)
+
+        // If sound type changed, reload the sound
+        if (soundPool != null && loadedSoundType != soundType) {
+            soundLoaded = false
+            buckleSoundsLoaded = false
+            keyClickSoundId = 0
+            buckleSoundIds = IntArray(10)
+        }
+
         if (soundPool == null) {
             val audioAttributes = android.media.AudioAttributes.Builder()
                 .setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
@@ -269,13 +285,60 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 .setMaxStreams(3)
                 .setAudioAttributes(audioAttributes)
                 .build()
-            keyClickSoundId = soundPool!!.load(this, it.neuralrad.coolwulf.R.raw.key_click, 1)
-            soundPool!!.setOnLoadCompleteListener { _, _, status ->
-                if (status == 0) {
-                    soundLoaded = true
+        }
+
+        if (soundType == "bucklespring") {
+            if (!buckleSoundsLoaded && buckleSoundIds[0] == 0) {
+                val buckleResources = intArrayOf(
+                    it.neuralrad.coolwulf.R.raw.buckle_a, it.neuralrad.coolwulf.R.raw.buckle_b,
+                    it.neuralrad.coolwulf.R.raw.buckle_c, it.neuralrad.coolwulf.R.raw.buckle_q,
+                    it.neuralrad.coolwulf.R.raw.buckle_s, it.neuralrad.coolwulf.R.raw.buckle_t,
+                    it.neuralrad.coolwulf.R.raw.buckle_z, it.neuralrad.coolwulf.R.raw.buckle_space,
+                    it.neuralrad.coolwulf.R.raw.buckle_enter, it.neuralrad.coolwulf.R.raw.buckle_backspace
+                )
+                var loadedCount = 0
+                buckleResources.forEachIndexed { index, res ->
+                    buckleSoundIds[index] = soundPool!!.load(this, res, 1)
+                }
+                loadedSoundType = soundType
+                soundPool!!.setOnLoadCompleteListener { _, _, status ->
+                    if (status == 0) {
+                        loadedCount++
+                        if (loadedCount >= 10) {
+                            buckleSoundsLoaded = true
+                        }
+                    }
+                }
+            }
+        } else {
+            if (!soundLoaded && keyClickSoundId == 0) {
+                val soundRes = when (soundType) {
+                    "soft" -> it.neuralrad.coolwulf.R.raw.key_click_soft
+                    "typewriter" -> it.neuralrad.coolwulf.R.raw.key_click_typewriter
+                    else -> it.neuralrad.coolwulf.R.raw.key_click  // "mechanical" is default
+                }
+                keyClickSoundId = soundPool!!.load(this, soundRes, 1)
+                loadedSoundType = soundType
+                soundPool!!.setOnLoadCompleteListener { _, _, status ->
+                    if (status == 0) {
+                        soundLoaded = true
+                    }
                 }
             }
         }
+    }
+
+    /**
+     * Gets the keyboard sound volume combining user setting and system volume.
+     */
+    private fun getKeyboardSoundVolume(): Float {
+        // Get user-configured volume (0-100) and convert to 0.0-1.0
+        val userVolume = SettingsManager.getKeyboardSoundVolume(this) / 100f
+        // Apply system media volume on top
+        val maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).toFloat()
+        val currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat()
+        val systemVolume = if (maxVolume > 0) currentVolume / maxVolume else 0.5f
+        return userVolume * systemVolume
     }
 
     /**
@@ -284,11 +347,35 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private fun playKeyClickSound() {
         if (!SettingsManager.isKeyboardSoundEnabled(this)) return
         ensureSoundPoolInitialized()
-        if (soundLoaded && keyClickSoundId != 0) {
-            val maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).toFloat()
-            val currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat()
-            val volume = if (maxVolume > 0) currentVolume / maxVolume else 0.5f
+        val soundType = SettingsManager.getKeyboardSoundType(this)
+        val volume = getKeyboardSoundVolume()
+
+        if (soundType == "bucklespring" && buckleSoundsLoaded) {
+            // Pick a random bucklespring sound for variety
+            val soundId = buckleSoundIds[soundRandom.nextInt(10)]
+            if (soundId != 0) {
+                soundPool?.play(soundId, volume, volume, 1, 0, 1.0f)
+            }
+        } else if (soundLoaded && keyClickSoundId != 0) {
             soundPool?.play(keyClickSoundId, volume, volume, 1, 0, 1.0f)
+        }
+    }
+
+    /**
+     * Checks if the given keycode should produce a keyboard click sound.
+     * Letter keys, number keys, space, enter, delete, SYM, function keys, and volume keys should produce sound.
+     * Navigation keys (Back, Recent/App Switch, Home) should be silent.
+     */
+    private fun shouldPlaySoundForKey(keyCode: Int): Boolean {
+        return when (keyCode) {
+            // Silent keys - navigation buttons
+            KeyEvent.KEYCODE_BACK,
+            KeyEvent.KEYCODE_APP_SWITCH,
+            KeyEvent.KEYCODE_HOME,
+            KeyEvent.KEYCODE_MENU -> false
+
+            // All other keys should produce sound (letters, numbers, symbols, function keys, etc.)
+            else -> true
         }
     }
 
@@ -2167,7 +2254,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         if (!isModifierKey) {
             modifierStateController.registerNonModifierKey()
             // Play keyboard click sound for non-modifier key presses (only on first press, not repeats)
-            if (event?.repeatCount == 0) {
+            // Skip sound for navigation keys (Back, Recent, Home)
+            if (event?.repeatCount == 0 && shouldPlaySoundForKey(translatedKeyCode)) {
                 playKeyClickSound()
             }
         }
