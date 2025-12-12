@@ -299,6 +299,7 @@ fun CustomizationSettingsScreen(
                                             "rose_gold" -> stringResource(R.string.theme_rose_gold)
                                             "charcoal_gray" -> stringResource(R.string.theme_charcoal_gray)
                                             "cyber_neon" -> stringResource(R.string.theme_cyber_neon)
+                                            StatusBarTheme.CUSTOM_THEME_ID -> stringResource(R.string.theme_custom)
                                             else -> stringResource(R.string.theme_classic_dark)
                                         },
                                         style = MaterialTheme.typography.bodySmall,
@@ -320,7 +321,13 @@ fun CustomizationSettingsScreen(
                                 onDismissRequest = { showThemeDialog = false },
                                 title = { Text(stringResource(R.string.status_bar_theme_title)) },
                                 text = {
-                                    Column {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(max = 400.dp)
+                                            .verticalScroll(rememberScrollState())
+                                    ) {
+                                        // Built-in themes
                                         StatusBarTheme.ALL_THEMES.forEach { theme ->
                                             val themeName = when (theme.id) {
                                                 "classic_dark" -> stringResource(R.string.theme_classic_dark)
@@ -380,6 +387,73 @@ fun CustomizationSettingsScreen(
                                                 }
                                             }
                                         }
+
+                                        // Divider before custom theme
+                                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                                        // Custom theme option
+                                        val customTheme = StatusBarTheme.getCustomTheme(context)
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    statusBarTheme = StatusBarTheme.CUSTOM_THEME_ID
+                                                    SettingsManager.setStatusBarTheme(context, StatusBarTheme.CUSTOM_THEME_ID)
+                                                    context.sendBroadcast(
+                                                        android.content.Intent(it.neuralrad.coolwulf.inputmethod.PhysicalKeyboardInputMethodService.ACTION_THEME_CHANGED).apply {
+                                                            setPackage(context.packageName)
+                                                        }
+                                                    )
+                                                    showThemeDialog = false
+                                                }
+                                                .padding(vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            // Color preview circle for custom theme
+                                            Surface(
+                                                modifier = Modifier.size(24.dp),
+                                                shape = MaterialTheme.shapes.small,
+                                                color = androidx.compose.ui.graphics.Color(customTheme.backgroundColor)
+                                            ) {
+                                                Surface(
+                                                    modifier = Modifier
+                                                        .padding(6.dp)
+                                                        .size(12.dp),
+                                                    shape = MaterialTheme.shapes.extraSmall,
+                                                    color = androidx.compose.ui.graphics.Color(customTheme.accentColor)
+                                                ) {}
+                                            }
+                                            Spacer(modifier = Modifier.width(16.dp))
+                                            Text(
+                                                text = stringResource(R.string.theme_custom),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            if (statusBarTheme == StatusBarTheme.CUSTOM_THEME_ID) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Check,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
+
+                                        // Edit custom theme button
+                                        TextButton(
+                                            onClick = {
+                                                showThemeDialog = false
+                                                navigateTo(CustomizationDestination.CustomThemeEditor)
+                                            },
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Palette,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(stringResource(R.string.theme_custom_edit))
+                                        }
                                     }
                                 },
                                 confirmButton = {
@@ -406,6 +480,13 @@ fun CustomizationSettingsScreen(
                     onBack = { navigateBack() }
                 )
             }
+
+            CustomizationDestination.CustomThemeEditor -> {
+                CustomThemeEditorScreen(
+                    modifier = modifier,
+                    onBack = { navigateBack() }
+                )
+            }
         }
     }
 }
@@ -414,6 +495,7 @@ private sealed class CustomizationDestination {
     object Main : CustomizationDestination()
     object NavMode : CustomizationDestination()
     object CustomDictionary : CustomizationDestination()
+    object CustomThemeEditor : CustomizationDestination()
 }
 
 private enum class CustomizationNavigationDirection {

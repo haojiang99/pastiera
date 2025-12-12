@@ -102,6 +102,23 @@ object SettingsManager {
     private const val KEY_SHOW_SYM_BUTTON = "show_sym_button" // Show SYM button in status bar
     private const val KEY_STATUS_BAR_THEME = "status_bar_theme" // Status bar theme ID
 
+    // Custom theme color keys
+    private const val KEY_CUSTOM_THEME_BACKGROUND = "custom_theme_background"
+    private const val KEY_CUSTOM_THEME_TEXT = "custom_theme_text"
+    private const val KEY_CUSTOM_THEME_TEXT_SECONDARY = "custom_theme_text_secondary"
+    private const val KEY_CUSTOM_THEME_ACCENT = "custom_theme_accent"
+    private const val KEY_CUSTOM_THEME_BUTTON_BG = "custom_theme_button_bg"
+    private const val KEY_CUSTOM_THEME_BUTTON_PRESSED = "custom_theme_button_pressed"
+    private const val KEY_CUSTOM_THEME_CANDIDATE_BG = "custom_theme_candidate_bg"
+    private const val KEY_CUSTOM_THEME_CANDIDATE_BEST_BG = "custom_theme_candidate_best_bg"
+    private const val KEY_CUSTOM_THEME_CANDIDATE_TEXT = "custom_theme_candidate_text"
+    private const val KEY_CUSTOM_THEME_CANDIDATE_BEST_TEXT = "custom_theme_candidate_best_text"
+    private const val KEY_CUSTOM_THEME_ICON = "custom_theme_icon"
+    private const val KEY_CUSTOM_THEME_ICON_INACTIVE = "custom_theme_icon_inactive"
+    private const val KEY_CUSTOM_THEME_LED_ACTIVE = "custom_theme_led_active"
+    private const val KEY_CUSTOM_THEME_LED_LOCKED = "custom_theme_led_locked"
+    private const val KEY_CUSTOM_THEME_LED_INACTIVE = "custom_theme_led_inactive"
+
     // Default values
     private const val DEFAULT_STATUS_BAR_THEME = "classic_dark"
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -2222,6 +2239,82 @@ object SettingsManager {
     fun setStatusBarTheme(context: Context, themeId: String) {
         getPreferences(context).edit()
             .putString(KEY_STATUS_BAR_THEME, themeId)
+            .apply()
+    }
+
+    /**
+     * Gets all custom theme colors as a map.
+     * Returns default values based on Classic Dark theme if not set.
+     */
+    fun getCustomThemeColors(context: Context): Map<String, Int> {
+        val prefs = getPreferences(context)
+        // Default colors based on Classic Dark theme
+        return mapOf(
+            "backgroundColor" to prefs.getInt(KEY_CUSTOM_THEME_BACKGROUND, android.graphics.Color.parseColor("#000000")),
+            "textColor" to prefs.getInt(KEY_CUSTOM_THEME_TEXT, android.graphics.Color.WHITE),
+            "textColorSecondary" to prefs.getInt(KEY_CUSTOM_THEME_TEXT_SECONDARY, android.graphics.Color.argb(180, 255, 255, 255)),
+            "accentColor" to prefs.getInt(KEY_CUSTOM_THEME_ACCENT, android.graphics.Color.rgb(100, 200, 255)),
+            "buttonBackgroundColor" to prefs.getInt(KEY_CUSTOM_THEME_BUTTON_BG, android.graphics.Color.argb(40, 255, 255, 255)),
+            "buttonPressedColor" to prefs.getInt(KEY_CUSTOM_THEME_BUTTON_PRESSED, android.graphics.Color.argb(80, 255, 255, 255)),
+            "candidateBackgroundColor" to prefs.getInt(KEY_CUSTOM_THEME_CANDIDATE_BG, android.graphics.Color.rgb(17, 17, 17)),
+            "candidateBestBackgroundColor" to prefs.getInt(KEY_CUSTOM_THEME_CANDIDATE_BEST_BG, android.graphics.Color.rgb(50, 45, 10)),
+            "candidateTextColor" to prefs.getInt(KEY_CUSTOM_THEME_CANDIDATE_TEXT, android.graphics.Color.WHITE),
+            "candidateBestTextColor" to prefs.getInt(KEY_CUSTOM_THEME_CANDIDATE_BEST_TEXT, android.graphics.Color.rgb(255, 215, 0)),
+            "iconColor" to prefs.getInt(KEY_CUSTOM_THEME_ICON, android.graphics.Color.WHITE),
+            "iconInactiveColor" to prefs.getInt(KEY_CUSTOM_THEME_ICON_INACTIVE, android.graphics.Color.rgb(100, 100, 100)),
+            "ledActiveColor" to prefs.getInt(KEY_CUSTOM_THEME_LED_ACTIVE, android.graphics.Color.rgb(100, 150, 255)),
+            "ledLockedColor" to prefs.getInt(KEY_CUSTOM_THEME_LED_LOCKED, android.graphics.Color.rgb(247, 99, 0)),
+            "ledInactiveColor" to prefs.getInt(KEY_CUSTOM_THEME_LED_INACTIVE, android.graphics.Color.argb(26, 255, 255, 255))
+        )
+    }
+
+    /**
+     * Sets a custom theme color.
+     */
+    fun setCustomThemeColor(context: Context, colorKey: String, colorValue: Int) {
+        val prefKey = when (colorKey) {
+            "backgroundColor" -> KEY_CUSTOM_THEME_BACKGROUND
+            "textColor" -> KEY_CUSTOM_THEME_TEXT
+            "textColorSecondary" -> KEY_CUSTOM_THEME_TEXT_SECONDARY
+            "accentColor" -> KEY_CUSTOM_THEME_ACCENT
+            "buttonBackgroundColor" -> KEY_CUSTOM_THEME_BUTTON_BG
+            "buttonPressedColor" -> KEY_CUSTOM_THEME_BUTTON_PRESSED
+            "candidateBackgroundColor" -> KEY_CUSTOM_THEME_CANDIDATE_BG
+            "candidateBestBackgroundColor" -> KEY_CUSTOM_THEME_CANDIDATE_BEST_BG
+            "candidateTextColor" -> KEY_CUSTOM_THEME_CANDIDATE_TEXT
+            "candidateBestTextColor" -> KEY_CUSTOM_THEME_CANDIDATE_BEST_TEXT
+            "iconColor" -> KEY_CUSTOM_THEME_ICON
+            "iconInactiveColor" -> KEY_CUSTOM_THEME_ICON_INACTIVE
+            "ledActiveColor" -> KEY_CUSTOM_THEME_LED_ACTIVE
+            "ledLockedColor" -> KEY_CUSTOM_THEME_LED_LOCKED
+            "ledInactiveColor" -> KEY_CUSTOM_THEME_LED_INACTIVE
+            else -> return
+        }
+        getPreferences(context).edit()
+            .putInt(prefKey, colorValue)
+            .apply()
+    }
+
+    /**
+     * Copies colors from an existing theme to custom theme settings.
+     */
+    fun copyThemeToCustom(context: Context, theme: it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme) {
+        getPreferences(context).edit()
+            .putInt(KEY_CUSTOM_THEME_BACKGROUND, theme.backgroundColor)
+            .putInt(KEY_CUSTOM_THEME_TEXT, theme.textColor)
+            .putInt(KEY_CUSTOM_THEME_TEXT_SECONDARY, theme.textColorSecondary)
+            .putInt(KEY_CUSTOM_THEME_ACCENT, theme.accentColor)
+            .putInt(KEY_CUSTOM_THEME_BUTTON_BG, theme.buttonBackgroundColor)
+            .putInt(KEY_CUSTOM_THEME_BUTTON_PRESSED, theme.buttonPressedColor)
+            .putInt(KEY_CUSTOM_THEME_CANDIDATE_BG, theme.candidateBackgroundColor)
+            .putInt(KEY_CUSTOM_THEME_CANDIDATE_BEST_BG, theme.candidateBestBackgroundColor)
+            .putInt(KEY_CUSTOM_THEME_CANDIDATE_TEXT, theme.candidateTextColor)
+            .putInt(KEY_CUSTOM_THEME_CANDIDATE_BEST_TEXT, theme.candidateBestTextColor)
+            .putInt(KEY_CUSTOM_THEME_ICON, theme.iconColor)
+            .putInt(KEY_CUSTOM_THEME_ICON_INACTIVE, theme.iconInactiveColor)
+            .putInt(KEY_CUSTOM_THEME_LED_ACTIVE, theme.ledActiveColor)
+            .putInt(KEY_CUSTOM_THEME_LED_LOCKED, theme.ledLockedColor)
+            .putInt(KEY_CUSTOM_THEME_LED_INACTIVE, theme.ledInactiveColor)
             .apply()
     }
 

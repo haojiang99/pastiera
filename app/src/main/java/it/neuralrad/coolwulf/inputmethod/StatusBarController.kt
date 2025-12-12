@@ -151,7 +151,7 @@ class StatusBarController(
     // Get current theme
     private fun getCurrentTheme(): it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme {
         val themeId = SettingsManager.getStatusBarTheme(context)
-        return it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme.getThemeById(themeId)
+        return it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme.getThemeById(themeId, context)
     }
 
     data class StatusSnapshot(

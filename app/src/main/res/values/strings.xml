@@ -671,6 +671,26 @@
     <string name="theme_rose_gold">Rose Gold</string>
     <string name="theme_charcoal_gray">Charcoal Gray</string>
     <string name="theme_cyber_neon">Cyber Neon</string>
+    <string name="theme_custom">Custom</string>
+    <string name="theme_custom_edit">Edit Custom Theme</string>
+    <string name="theme_custom_editor_title">Custom Theme Editor</string>
+    <string name="theme_color_background">Background</string>
+    <string name="theme_color_text">Text</string>
+    <string name="theme_color_text_secondary">Secondary Text</string>
+    <string name="theme_color_accent">Accent</string>
+    <string name="theme_color_button_bg">Button Background</string>
+    <string name="theme_color_button_pressed">Button Pressed</string>
+    <string name="theme_color_candidate_bg">Candidate Background</string>
+    <string name="theme_color_candidate_best_bg">Best Candidate Background</string>
+    <string name="theme_color_candidate_text">Candidate Text</string>
+    <string name="theme_color_candidate_best_text">Best Candidate Text</string>
+    <string name="theme_color_icon">Icon</string>
+    <string name="theme_color_icon_inactive">Inactive Icon</string>
+    <string name="theme_color_led_active">LED Active</string>
+    <string name="theme_color_led_locked">LED Locked</string>
+    <string name="theme_color_led_inactive">LED Inactive</string>
+    <string name="theme_copy_from">Copy colors from</string>
+    <string name="theme_preview">Preview</string>
 
     <!-- LED Status Indicator -->
     <string name="show_led_status_title">Show LED Status Indicator</string>

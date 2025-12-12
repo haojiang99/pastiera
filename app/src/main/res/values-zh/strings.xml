@@ -672,6 +672,26 @@
     <string name="theme_rose_gold">玫瑰金</string>
     <string name="theme_charcoal_gray">炭灰色</string>
     <string name="theme_cyber_neon">赛博霓虹</string>
+    <string name="theme_custom">自定义</string>
+    <string name="theme_custom_edit">编辑自定义主题</string>
+    <string name="theme_custom_editor_title">自定义主题编辑器</string>
+    <string name="theme_color_background">背景色</string>
+    <string name="theme_color_text">文字颜色</string>
+    <string name="theme_color_text_secondary">次要文字颜色</string>
+    <string name="theme_color_accent">强调色</string>
+    <string name="theme_color_button_bg">按钮背景</string>
+    <string name="theme_color_button_pressed">按钮按下</string>
+    <string name="theme_color_candidate_bg">候选词背景</string>
+    <string name="theme_color_candidate_best_bg">最佳候选词背景</string>
+    <string name="theme_color_candidate_text">候选词文字</string>
+    <string name="theme_color_candidate_best_text">最佳候选词文字</string>
+    <string name="theme_color_icon">图标颜色</string>
+    <string name="theme_color_icon_inactive">非活动图标</string>
+    <string name="theme_color_led_active">LED激活</string>
+    <string name="theme_color_led_locked">LED锁定</string>
+    <string name="theme_color_led_inactive">LED非活动</string>
+    <string name="theme_copy_from">从主题复制颜色</string>
+    <string name="theme_preview">预览</string>
 
     <!-- LED Status Indicator -->
     <string name="show_led_status_title">显示LED状态指示灯</string>

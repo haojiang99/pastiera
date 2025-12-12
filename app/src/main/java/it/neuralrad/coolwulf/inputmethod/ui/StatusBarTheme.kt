@@ -1,6 +1,8 @@
 package it.neuralrad.coolwulf.inputmethod.ui
 
+import android.content.Context
 import android.graphics.Color
+import it.neuralrad.coolwulf.SettingsManager
 
 /**
  * Defines the color scheme for the status bar and suggestion/candidate bar.
@@ -204,8 +206,46 @@ data class StatusBarTheme(
             CYBER_NEON
         )
 
+        const val CUSTOM_THEME_ID = "custom"
+
         fun getThemeById(id: String): StatusBarTheme {
             return ALL_THEMES.find { it.id == id } ?: CLASSIC_DARK
+        }
+
+        /**
+         * Gets a theme by ID, with context for custom theme support.
+         */
+        fun getThemeById(id: String, context: Context): StatusBarTheme {
+            if (id == CUSTOM_THEME_ID) {
+                return getCustomTheme(context)
+            }
+            return ALL_THEMES.find { it.id == id } ?: CLASSIC_DARK
+        }
+
+        /**
+         * Creates a custom theme from user settings.
+         */
+        fun getCustomTheme(context: Context): StatusBarTheme {
+            val colors = SettingsManager.getCustomThemeColors(context)
+            return StatusBarTheme(
+                id = CUSTOM_THEME_ID,
+                nameResId = 0,
+                backgroundColor = colors["backgroundColor"] ?: CLASSIC_DARK.backgroundColor,
+                textColor = colors["textColor"] ?: CLASSIC_DARK.textColor,
+                textColorSecondary = colors["textColorSecondary"] ?: CLASSIC_DARK.textColorSecondary,
+                accentColor = colors["accentColor"] ?: CLASSIC_DARK.accentColor,
+                buttonBackgroundColor = colors["buttonBackgroundColor"] ?: CLASSIC_DARK.buttonBackgroundColor,
+                buttonPressedColor = colors["buttonPressedColor"] ?: CLASSIC_DARK.buttonPressedColor,
+                candidateBackgroundColor = colors["candidateBackgroundColor"] ?: CLASSIC_DARK.candidateBackgroundColor,
+                candidateBestBackgroundColor = colors["candidateBestBackgroundColor"] ?: CLASSIC_DARK.candidateBestBackgroundColor,
+                candidateTextColor = colors["candidateTextColor"] ?: CLASSIC_DARK.candidateTextColor,
+                candidateBestTextColor = colors["candidateBestTextColor"] ?: CLASSIC_DARK.candidateBestTextColor,
+                iconColor = colors["iconColor"] ?: CLASSIC_DARK.iconColor,
+                iconInactiveColor = colors["iconInactiveColor"] ?: CLASSIC_DARK.iconInactiveColor,
+                ledActiveColor = colors["ledActiveColor"] ?: CLASSIC_DARK.ledActiveColor,
+                ledLockedColor = colors["ledLockedColor"] ?: CLASSIC_DARK.ledLockedColor,
+                ledInactiveColor = colors["ledInactiveColor"] ?: CLASSIC_DARK.ledInactiveColor
+            )
         }
     }
 }
