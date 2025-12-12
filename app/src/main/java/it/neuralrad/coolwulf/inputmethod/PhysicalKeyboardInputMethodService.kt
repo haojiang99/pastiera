@@ -239,6 +239,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private val soundRandom = java.util.Random()
     private val SOUND_COUNT = 24
 
+    // Custom sound support
+    private var customSoundId: Int = 0
+    private var customSoundLoaded = false
+    private var loadedCustomSoundPath: String? = null
+
     // BlackBerry-specific keycodes
     private val BLACKBERRY_KEYCODE_ALT = 57
     private val BLACKBERRY_KEYCODE_SYM = 58
@@ -268,13 +273,22 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      */
     private fun ensureSoundPoolInitialized() {
         val soundType = SettingsManager.getKeyboardSoundType(this)
+        val customSoundPath = SettingsManager.getCustomSoundPath(this)
 
         // If sound type changed, reload the sound
         if (soundPool != null && loadedSoundType != soundType) {
             soundLoaded = false
             multiSoundsLoaded = false
+            customSoundLoaded = false
             keyClickSoundId = 0
+            customSoundId = 0
             multiSoundIds = IntArray(24)
+        }
+
+        // If custom sound path changed, reload custom sound
+        if (soundType == "custom" && loadedCustomSoundPath != customSoundPath) {
+            customSoundLoaded = false
+            customSoundId = 0
         }
 
         if (soundPool == null) {
@@ -286,6 +300,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 .setMaxStreams(3)
                 .setAudioAttributes(audioAttributes)
                 .build()
+        }
+
+        // Handle custom sound type
+        if (soundType == "custom") {
+            if (!customSoundLoaded && customSoundId == 0 && customSoundPath != null) {
+                try {
+                    customSoundId = soundPool!!.load(customSoundPath, 1)
+                    loadedSoundType = soundType
+                    loadedCustomSoundPath = customSoundPath
+                    soundPool!!.setOnLoadCompleteListener { _, _, status ->
+                        if (status == 0) {
+                            customSoundLoaded = true
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("PhysicalKeyboardIME", "Failed to load custom sound", e)
+                }
+            }
+            return
         }
 
         // Get multi-sound resources based on sound type
@@ -395,6 +428,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         ensureSoundPoolInitialized()
         val soundType = SettingsManager.getKeyboardSoundType(this)
         val volume = getKeyboardSoundVolume()
+
+        // Handle custom sound
+        if (soundType == "custom" && customSoundLoaded && customSoundId != 0) {
+            soundPool?.play(customSoundId, volume, volume, 1, 0, 1.0f)
+            return
+        }
 
         if (soundType in listOf("bucklespring", "video", "mario", "piano") && multiSoundsLoaded) {
             // Pick a random sound for variety - bucklespring has 10 sounds, others have 24

@@ -99,6 +99,36 @@ fun AdvancedSettingsScreen(
     var keyboardSoundVolume by remember {
         mutableStateOf(SettingsManager.getKeyboardSoundVolume(context))
     }
+    var customSoundPath by remember {
+        mutableStateOf(SettingsManager.getCustomSoundPath(context))
+    }
+    // File picker launcher for custom sound
+    val customSoundPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            // Copy the selected file to internal storage
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val path = SettingsManager.copyCustomSoundFile(context, inputStream)
+                    if (path != null) {
+                        customSoundPath = path
+                        SettingsManager.setCustomSoundPath(context, path)
+                        // Auto-select custom sound type
+                        keyboardSoundType = "custom"
+                        SettingsManager.setKeyboardSoundType(context, "custom")
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Custom sound loaded successfully")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                scope.launch {
+                    snackbarHostState.showSnackbar("Failed to load sound file")
+                }
+            }
+        }
+    }
     var virtualKeyboardVibration by remember {
         mutableStateOf(SettingsManager.isVirtualKeyboardVibrationEnabled(context))
     }
@@ -468,7 +498,8 @@ fun AdvancedSettingsScreen(
                                             "bucklespring" to R.string.keyboard_sound_type_bucklespring,
                                             "video" to R.string.keyboard_sound_type_video,
                                             "mario" to R.string.keyboard_sound_type_mario,
-                                            "piano" to R.string.keyboard_sound_type_piano
+                                            "piano" to R.string.keyboard_sound_type_piano,
+                                            "custom" to R.string.keyboard_sound_type_custom
                                         ).forEach { (type, nameRes) ->
                                             Surface(
                                                 shape = MaterialTheme.shapes.small,
@@ -479,8 +510,13 @@ fun AdvancedSettingsScreen(
                                                 modifier = Modifier
                                                     .padding(vertical = 4.dp)
                                                     .clickable {
-                                                        keyboardSoundType = type
-                                                        SettingsManager.setKeyboardSoundType(context, type)
+                                                        if (type == "custom" && customSoundPath == null) {
+                                                            // Launch file picker for custom sound
+                                                            customSoundPicker.launch("audio/*")
+                                                        } else {
+                                                            keyboardSoundType = type
+                                                            SettingsManager.setKeyboardSoundType(context, type)
+                                                        }
                                                     }
                                             ) {
                                                 Text(
@@ -493,6 +529,50 @@ fun AdvancedSettingsScreen(
                                                         MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Custom Sound File Picker (shown when custom type is selected or available)
+                            if (keyboardSoundType == "custom" || customSoundPath != null) {
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 32.dp, top = 8.dp, bottom = 8.dp)
+                                        .clickable {
+                                            customSoundPicker.launch("audio/*")
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.VolumeUp,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = stringResource(R.string.keyboard_sound_custom_select),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            Text(
+                                                text = if (customSoundPath != null) {
+                                                    val fileName = customSoundPath!!.substringAfterLast("/")
+                                                    stringResource(R.string.keyboard_sound_custom_current, fileName)
+                                                } else {
+                                                    stringResource(R.string.keyboard_sound_custom_select_file)
+                                                },
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
                                         }
                                     }
                                 }

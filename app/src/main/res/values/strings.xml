@@ -648,6 +648,11 @@
     <string name="keyboard_sound_type_video">Video</string>
     <string name="keyboard_sound_type_mario">Mario</string>
     <string name="keyboard_sound_type_piano">Piano</string>
+    <string name="keyboard_sound_type_custom">Custom</string>
+    <string name="keyboard_sound_custom_select">Select Sound File</string>
+    <string name="keyboard_sound_custom_current">Current: %1$s</string>
+    <string name="keyboard_sound_custom_none">No custom sound selected</string>
+    <string name="keyboard_sound_custom_select_file">Tap to select an MP3 file</string>
     <string name="keyboard_sound_volume_title">Sound Volume</string>
     <string name="keyboard_sound_volume_description">Current: %1$d%%</string>
 

@@ -92,8 +92,9 @@ object SettingsManager {
     private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
     private const val KEY_VIRTUAL_KEYBOARD_HEIGHT = "virtual_keyboard_height" // Height of virtual keyboard keys in DIP
     private const val KEY_KEYBOARD_SOUND = "virtual_keyboard_sound" // Enable sound effect for keyboard typing (both physical and virtual)
-    private const val KEY_KEYBOARD_SOUND_TYPE = "keyboard_sound_type" // Sound type: "mechanical", "soft", "typewriter"
+    private const val KEY_KEYBOARD_SOUND_TYPE = "keyboard_sound_type" // Sound type: "mechanical", "bucklespring", "video", "mario", "piano", "custom"
     private const val KEY_KEYBOARD_SOUND_VOLUME = "keyboard_sound_volume" // Sound volume: 0-100
+    private const val KEY_CUSTOM_SOUND_PATH = "custom_sound_path" // Path to user's custom sound file
     private const val KEY_VIRTUAL_KEYBOARD_VIBRATION = "virtual_keyboard_vibration" // Enable vibration for virtual keyboard typing
     private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
     private const val KEY_TRADITIONAL_CHINESE_TOGGLE_ENABLED = "traditional_chinese_toggle_enabled" // Show 简/繁 toggle button in status bar
@@ -1909,6 +1910,58 @@ object SettingsManager {
         getPreferences(context).edit()
             .putInt(KEY_KEYBOARD_SOUND_VOLUME, volume.coerceIn(0, 100))
             .apply()
+    }
+
+    /**
+     * Gets the custom sound file path (internal storage path).
+     * Returns null if no custom sound is set.
+     */
+    fun getCustomSoundPath(context: Context): String? {
+        return getPreferences(context).getString(KEY_CUSTOM_SOUND_PATH, null)
+    }
+
+    /**
+     * Sets the custom sound file path.
+     */
+    fun setCustomSoundPath(context: Context, path: String?) {
+        getPreferences(context).edit()
+            .putString(KEY_CUSTOM_SOUND_PATH, path)
+            .apply()
+    }
+
+    /**
+     * Copies a sound file from the given URI to internal storage.
+     * Returns the internal storage path, or null if copy failed.
+     */
+    fun copyCustomSoundFile(context: Context, inputStream: InputStream): String? {
+        return try {
+            val soundDir = File(context.filesDir, "custom_sounds")
+            if (!soundDir.exists()) {
+                soundDir.mkdirs()
+            }
+            val destFile = File(soundDir, "custom_keyboard_sound.mp3")
+            FileOutputStream(destFile).use { output ->
+                inputStream.copyTo(output)
+            }
+            destFile.absolutePath
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to copy custom sound file", e)
+            null
+        }
+    }
+
+    /**
+     * Deletes the custom sound file if it exists.
+     */
+    fun deleteCustomSoundFile(context: Context) {
+        val path = getCustomSoundPath(context)
+        if (path != null) {
+            val file = File(path)
+            if (file.exists()) {
+                file.delete()
+            }
+        }
+        setCustomSoundPath(context, null)
     }
 
     /**

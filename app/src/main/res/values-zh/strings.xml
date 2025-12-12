@@ -649,6 +649,11 @@
     <string name="keyboard_sound_type_video">短视频</string>
     <string name="keyboard_sound_type_mario">马里奥</string>
     <string name="keyboard_sound_type_piano">钢琴</string>
+    <string name="keyboard_sound_type_custom">自定义</string>
+    <string name="keyboard_sound_custom_select">选择音效文件</string>
+    <string name="keyboard_sound_custom_current">当前：%1$s</string>
+    <string name="keyboard_sound_custom_none">未选择自定义音效</string>
+    <string name="keyboard_sound_custom_select_file">点击选择MP3文件</string>
     <string name="keyboard_sound_volume_title">音量</string>
     <string name="keyboard_sound_volume_description">当前：%1$d%%</string>
 

@@ -123,14 +123,48 @@ class VirtualKeyboardView(
     private var multiSoundsLoaded = false
     private val random = java.util.Random()
 
+    // Custom sound support
+    private var customSoundId: Int = 0
+    private var customSoundLoaded = false
+    private var loadedCustomSoundPath: String? = null
+
     private fun ensureSoundLoaded() {
         val soundType = SettingsManager.getKeyboardSoundType(context)
+        val customSoundPath = SettingsManager.getCustomSoundPath(context)
+
         // If sound type changed, reload the sound
         if (loadedSoundType != soundType) {
             soundLoaded = false
             multiSoundsLoaded = false
+            customSoundLoaded = false
             keyClickSoundId = 0
+            customSoundId = 0
             multiSoundIds = IntArray(SOUND_COUNT)
+        }
+
+        // If custom sound path changed, reload custom sound
+        if (soundType == "custom" && loadedCustomSoundPath != customSoundPath) {
+            customSoundLoaded = false
+            customSoundId = 0
+        }
+
+        // Handle custom sound type
+        if (soundType == "custom") {
+            if (!customSoundLoaded && customSoundId == 0 && customSoundPath != null) {
+                try {
+                    customSoundId = soundPool.load(customSoundPath, 1)
+                    loadedSoundType = soundType
+                    loadedCustomSoundPath = customSoundPath
+                    soundPool.setOnLoadCompleteListener { _, _, status ->
+                        if (status == 0) {
+                            customSoundLoaded = true
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("VirtualKeyboardView", "Failed to load custom sound", e)
+                }
+            }
+            return
         }
 
         // Multi-sound types: bucklespring, video, mario, piano (24 sounds each)
@@ -201,6 +235,13 @@ class VirtualKeyboardView(
     private fun playKeySound() {
         val soundType = SettingsManager.getKeyboardSoundType(context)
         val volume = getKeyboardSoundVolume()
+
+        // Handle custom sound
+        if (soundType == "custom" && customSoundLoaded && customSoundId != 0) {
+            soundPool.play(customSoundId, volume, volume, 1, 0, 1.0f)
+            return
+        }
+
         val isMultiSound = soundType in listOf("bucklespring", "video", "mario", "piano")
 
         if (isMultiSound && multiSoundsLoaded) {
