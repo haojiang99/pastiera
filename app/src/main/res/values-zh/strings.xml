@@ -685,6 +685,10 @@
     <string name="partial_pinyin_matching_title">部分拼音匹配</string>
     <string name="partial_pinyin_matching_description">输入部分拼音时显示词组建议（需先选择第一个字）</string>
 
+    <!-- Abbreviation Input -->
+    <string name="abbreviation_input_title">首字母输入</string>
+    <string name="abbreviation_input_description">允许使用首字母匹配词组（如输入"nh"匹配你好）。双拼用户建议关闭。</string>
+
     <!-- Vosk Offline Speech Recognition -->
     <string name="vosk_initializing">初始化中...</string>
     <string name="vosk_extracting">正在解压语音模型...</string>

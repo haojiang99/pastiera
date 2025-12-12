@@ -133,6 +133,13 @@ class PinyinInputController(
     }
 
     /**
+     * Checks if abbreviation input (首字母) is enabled.
+     */
+    private fun isAbbreviationInputEnabled(): Boolean {
+        return SettingsManager.isAbbreviationInputEnabled(context)
+    }
+
+    /**
      * Sorts candidates by frequency if memory function is enabled, otherwise returns original list.
      */
     private fun sortByFrequencyIfEnabled(pinyin: String, candidates: List<String>): List<String> {
@@ -883,7 +890,7 @@ class PinyinInputController(
 
         // Get abbreviation matches from user memory (highest priority)
         // These are phrases the user has typed before using abbreviations like "nh" for "你好"
-        val abbreviationCandidates = if (isMemoryEnabled()) userMemory.getAbbreviationCandidates(bufferWithoutSep) else emptyList()
+        val abbreviationCandidates = if (isMemoryEnabled() && isAbbreviationInputEnabled()) userMemory.getAbbreviationCandidates(bufferWithoutSep) else emptyList()
 
         // Get custom dictionary phrases for this code (second highest priority)
         val customPhrases = customDictionary.getPinyinPhrases(bufferWithoutSep)
@@ -1163,7 +1170,7 @@ class PinyinInputController(
         val resultCandidates = mutableListOf<String>()
 
         // Check abbreviation matches first (highest priority - learned from user input)
-        val abbreviationCandidates = if (isMemoryEnabled()) userMemory.getAbbreviationCandidates(cleanBuffer) else emptyList()
+        val abbreviationCandidates = if (isMemoryEnabled() && isAbbreviationInputEnabled()) userMemory.getAbbreviationCandidates(cleanBuffer) else emptyList()
         if (abbreviationCandidates.isNotEmpty()) {
             resultCandidates.addAll(abbreviationCandidates)
             Log.d(TAG, "Abbreviation matches for unparsable '$cleanBuffer': $abbreviationCandidates")

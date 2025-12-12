@@ -4,10 +4,14 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -82,91 +86,185 @@ class SherpaSpeechActivity : Activity() {
     }
 
     private fun createUI() {
+        val density = resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).toInt()
+
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(48, 48, 48, 48)
-            setBackgroundColor(0xFF1A1A1A.toInt())
+            setPadding(dp(24), dp(32), dp(24), dp(24))
+            setBackgroundColor(0xFF1E1E1E.toInt())
         }
 
-        // Status text
-        statusText = TextView(this).apply {
-            text = getString(R.string.sherpa_initializing)
-            textSize = 16f
-            setTextColor(0xFFFFFFFF.toInt())
+        // Listening indicator container with pulsing circle
+        val indicatorContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 24)
-        }
-        layout.addView(statusText)
-
-        // Progress bar
-        progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-            max = 100
-            progress = 0
-            visibility = View.GONE
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                bottomMargin = 24
+                bottomMargin = dp(16)
+            }
+        }
+
+        // Listening indicator (pulsing circle)
+        listeningIndicator = View(this).apply {
+            val circleDrawable = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(0xFFE53935.toInt()) // Material Red 600
+            }
+            background = circleDrawable
+            visibility = View.GONE
+            layoutParams = LinearLayout.LayoutParams(dp(64), dp(64)).apply {
+                gravity = Gravity.CENTER
+            }
+        }
+        indicatorContainer.addView(listeningIndicator)
+        layout.addView(indicatorContainer)
+
+        // Status text
+        statusText = TextView(this).apply {
+            text = getString(R.string.sherpa_initializing)
+            textSize = 14f
+            setTextColor(0xFFB0B0B0.toInt())
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(16)
+            }
+        }
+        layout.addView(statusText)
+
+        // Progress bar with modern styling
+        progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = 100
+            progress = 0
+            visibility = View.GONE
+            progressTintList = ColorStateList.valueOf(0xFF4CAF50.toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(4)
+            ).apply {
+                bottomMargin = dp(16)
             }
         }
         layout.addView(progressBar)
 
-        // Listening indicator (pulsing dot)
-        listeningIndicator = View(this).apply {
-            setBackgroundColor(0xFFFF4444.toInt())
-            visibility = View.GONE
-            layoutParams = LinearLayout.LayoutParams(24, 24).apply {
-                gravity = Gravity.CENTER
-                bottomMargin = 16
+        // Recognized text display with card-like background
+        val textContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                setColor(0xFF2D2D2D.toInt())
+                cornerRadius = dp(12).toFloat()
             }
+            setPadding(dp(16), dp(20), dp(16), dp(20))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(24)
+            }
+            minimumHeight = dp(80)
         }
-        layout.addView(listeningIndicator)
 
-        // Recognized text display
         recognizedText = TextView(this).apply {
             text = ""
             textSize = 20f
-            setTextColor(0xFF4CAF50.toInt())
+            setTextColor(0xFFFFFFFF.toInt())
             gravity = Gravity.CENTER
-            minHeight = 100
-            setPadding(0, 16, 0, 16)
+            setLineSpacing(dp(4).toFloat(), 1f)
         }
-        layout.addView(recognizedText)
+        textContainer.addView(recognizedText)
+        layout.addView(textContainer)
 
-        // Button container
+        // Button container - horizontal with spacing
         val buttonLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(0, 24, 0, 0)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
         }
 
-        // Start button
-        startButton = Button(this).apply {
-            text = getString(R.string.sherpa_start_listening)
+        // Cancel button (left side) - secondary style
+        cancelButton = createStyledButton(
+            text = getString(R.string.cancel),
+            backgroundColor = 0xFF424242.toInt(),
+            textColor = 0xFFFFFFFF.toInt(),
+            onClick = { finish() }
+        ).apply {
+            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+                rightMargin = dp(8)
+            }
+        }
+        buttonLayout.addView(cancelButton)
+
+        // Start button (right side) - hidden initially
+        startButton = createStyledButton(
+            text = getString(R.string.sherpa_start_listening),
+            backgroundColor = 0xFF4CAF50.toInt(),
+            textColor = 0xFFFFFFFF.toInt(),
+            onClick = { startListening() }
+        ).apply {
             visibility = View.GONE
-            setOnClickListener { startListening() }
+            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+                leftMargin = dp(8)
+            }
         }
         buttonLayout.addView(startButton)
 
-        // Stop button
-        stopButton = Button(this).apply {
-            text = getString(R.string.sherpa_stop_send)
+        // Stop/Confirm button (right side) - primary style, hidden initially
+        stopButton = createStyledButton(
+            text = getString(R.string.sherpa_stop_send),
+            backgroundColor = 0xFF4CAF50.toInt(),
+            textColor = 0xFFFFFFFF.toInt(),
+            onClick = { stopAndSend() }
+        ).apply {
             visibility = View.GONE
-            setOnClickListener { stopAndSend() }
+            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+                leftMargin = dp(8)
+            }
         }
         buttonLayout.addView(stopButton)
-
-        // Cancel button
-        cancelButton = Button(this).apply {
-            text = getString(R.string.cancel)
-            setOnClickListener { finish() }
-        }
-        buttonLayout.addView(cancelButton)
 
         layout.addView(buttonLayout)
 
         setContentView(layout)
+    }
+
+    private fun createStyledButton(
+        text: String,
+        backgroundColor: Int,
+        textColor: Int,
+        onClick: () -> Unit
+    ): Button {
+        val density = resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).toInt()
+
+        return Button(this).apply {
+            this.text = text
+            setTextColor(textColor)
+            textSize = 14f
+            isAllCaps = false
+            stateListAnimator = null // Remove default elevation animation
+
+            // Create rounded background
+            val normalDrawable = GradientDrawable().apply {
+                setColor(backgroundColor)
+                cornerRadius = dp(24).toFloat()
+            }
+
+            // Create ripple effect
+            val rippleColor = ColorStateList.valueOf(0x40FFFFFF)
+            background = RippleDrawable(rippleColor, normalDrawable, normalDrawable)
+
+            setPadding(dp(24), dp(12), dp(24), dp(12))
+            setOnClickListener { onClick() }
+        }
     }
 
     private fun checkPermissionAndSetup() {
@@ -421,6 +519,7 @@ class SherpaSpeechActivity : Activity() {
     private fun stopAndSend() {
         statusText.text = getString(R.string.sherpa_processing)
         stopButton.isEnabled = false
+        stopButton.alpha = 0.5f
 
         sherpaRecognizer.stopListening { finalText ->
             stopListeningUI()
@@ -468,6 +567,8 @@ class SherpaSpeechActivity : Activity() {
         pauseRunnable = null
         startButton.visibility = View.VISIBLE
         stopButton.visibility = View.GONE
+        stopButton.isEnabled = true
+        stopButton.alpha = 1f
         listeningIndicator.visibility = View.GONE
         listeningIndicator.clearAnimation()
         statusText.text = getString(R.string.sherpa_ready)

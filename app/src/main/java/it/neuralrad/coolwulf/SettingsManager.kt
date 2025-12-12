@@ -80,6 +80,7 @@ object SettingsManager {
     private const val KEY_WUBI_Z_KEY_MODE = "wubi_z_key_mode" // Wubi: Z key function mode: "disabled", "wildcard", "symbol"
     private const val KEY_CANDIDATE_FONT_SIZE = "candidate_font_size" // Font size for candidates/suggestions
     private const val KEY_PARTIAL_PINYIN_MATCHING = "partial_pinyin_matching" // Enable partial pinyin matching for phrases
+    private const val KEY_ABBREVIATION_INPUT_ENABLED = "abbreviation_input_enabled" // Enable 首字母 (first letter abbreviation) input
     private const val KEY_SHOW_VIRTUAL_KEYBOARD_BUTTON = "show_virtual_keyboard_button" // Show virtual keyboard toggle button in status bar
     private const val KEY_SEMI_TRANSPARENT_STATUS_BAR = "semi_transparent_status_bar" // Make status bar semi-transparent
     private const val KEY_OFFLINE_VOICE_INPUT = "offline_voice_input" // Use Sherpa-ONNX for offline Mandarin Chinese speech recognition
@@ -167,6 +168,7 @@ object SettingsManager {
     private const val DEFAULT_KEYBOARD_SOUND_VOLUME = 70  // Default sound volume (0-100)
     private const val DEFAULT_VIRTUAL_KEYBOARD_VIBRATION = true  // Virtual keyboard vibration enabled by default
     private const val DEFAULT_PARTIAL_PINYIN_MATCHING = false  // Partial pinyin matching disabled by default
+    private const val DEFAULT_ABBREVIATION_INPUT_ENABLED = true  // 首字母 input enabled by default
     private const val DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON = false  // Virtual keyboard button hidden by default
     private const val DEFAULT_SEMI_TRANSPARENT_STATUS_BAR = false  // Status bar is opaque by default
     private const val DEFAULT_OFFLINE_VOICE_INPUT = false  // Online (Google) voice recognition by default
@@ -1993,6 +1995,23 @@ object SettingsManager {
     fun setPartialPinyinMatchingEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_PARTIAL_PINYIN_MATCHING, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets whether abbreviation input (首字母) is enabled.
+     * When enabled, users can type first letters of pinyin syllables to get phrase suggestions.
+     */
+    fun isAbbreviationInputEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_ABBREVIATION_INPUT_ENABLED, DEFAULT_ABBREVIATION_INPUT_ENABLED)
+    }
+
+    /**
+     * Sets whether abbreviation input (首字母) is enabled.
+     */
+    fun setAbbreviationInputEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_ABBREVIATION_INPUT_ENABLED, enabled)
             .apply()
     }
 

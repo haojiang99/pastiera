@@ -218,6 +218,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getPinyinFuzzyEnabled(context))
     }
 
+    var abbreviationInputEnabled by remember {
+        mutableStateOf(SettingsManager.isAbbreviationInputEnabled(context))
+    }
+
     var defaultInputMode by remember {
         mutableStateOf(SettingsManager.getDefaultInputMode(context))
     }
@@ -2622,6 +2626,51 @@ fun TextInputSettingsScreen(
                             onCheckedChange = { enabled ->
                                 fuzzyPinyinEnabled = enabled
                                 SettingsManager.setPinyinFuzzyEnabled(context, enabled)
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Abbreviation Input Toggle (only show if Pinyin is enabled)
+            if (pinyinEnabled) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.TextFields,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.abbreviation_input_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = stringResource(R.string.abbreviation_input_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                        }
+                        Switch(
+                            checked = abbreviationInputEnabled,
+                            onCheckedChange = { enabled ->
+                                abbreviationInputEnabled = enabled
+                                SettingsManager.setAbbreviationInputEnabled(context, enabled)
                             }
                         )
                     }
