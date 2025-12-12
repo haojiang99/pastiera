@@ -786,8 +786,15 @@ class ZiranmaInputController(
         }
     }
 
+    /**
+     * Checks if abbreviation input (首字母) is enabled.
+     */
+    private fun isAbbreviationInputEnabled(): Boolean {
+        return SettingsManager.isAbbreviationInputEnabled(context)
+    }
+
     private fun getAbbreviationCandidatesIfEnabled(input: String): List<String> {
-        return if (isMemoryEnabled()) {
+        return if (isMemoryEnabled() && isAbbreviationInputEnabled()) {
             userMemory.getAbbreviationCandidates(input)
         } else {
             emptyList()

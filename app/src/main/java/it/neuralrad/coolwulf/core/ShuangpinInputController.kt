@@ -440,7 +440,9 @@ class ShuangpinInputController(
         }
 
         // Get auto-learned phrases
-        val autoLearnedPhrases = if (isAutoPhraseLearningEnabled()) shuangpinPhraseMemory.getLearnedPhrases(bufferStr) else emptyList()
+        // Skip if input is abbreviation-style and abbreviation input is disabled
+        val skipAutoLearnedForAbbrev = isAbbreviationInput(bufferStr) && !isAbbreviationInputEnabled()
+        val autoLearnedPhrases = if (isAutoPhraseLearningEnabled() && !skipAutoLearnedForAbbrev) shuangpinPhraseMemory.getLearnedPhrases(bufferStr) else emptyList()
         for (phrase in autoLearnedPhrases) {
             if (phrase !in resultCandidates) {
                 resultCandidates.add(phrase)
@@ -451,7 +453,7 @@ class ShuangpinInputController(
         }
 
         // Get partial/prefix matching learned phrases
-        val partialMatchPhrases = if (isAutoPhraseLearningEnabled()) shuangpinPhraseMemory.getLearnedPhrasesWithPrefix(bufferStr) else emptyList()
+        val partialMatchPhrases = if (isAutoPhraseLearningEnabled() && !skipAutoLearnedForAbbrev) shuangpinPhraseMemory.getLearnedPhrasesWithPrefix(bufferStr) else emptyList()
         for (phrase in partialMatchPhrases) {
             if (phrase !in resultCandidates) {
                 resultCandidates.add(phrase)
@@ -990,10 +992,17 @@ class ShuangpinInputController(
     }
 
     /**
-     * Gets abbreviation candidates if memory function is enabled, otherwise returns empty list.
+     * Checks if abbreviation input (首字母) is enabled.
+     */
+    private fun isAbbreviationInputEnabled(): Boolean {
+        return SettingsManager.isAbbreviationInputEnabled(context)
+    }
+
+    /**
+     * Gets abbreviation candidates if memory function and abbreviation input are enabled.
      */
     private fun getAbbreviationCandidatesIfEnabled(input: String): List<String> {
-        return if (isMemoryEnabled()) {
+        return if (isMemoryEnabled() && isAbbreviationInputEnabled()) {
             userMemory.getAbbreviationCandidates(input)
         } else {
             emptyList()
@@ -1005,6 +1014,18 @@ class ShuangpinInputController(
      */
     private fun isAutoPhraseLearningEnabled(): Boolean {
         return isMemoryEnabled() && SettingsManager.isAutoPhrasMemoryEnabled(context)
+    }
+
+    /**
+     * Checks if the input looks like an abbreviation (首字母) in Shuangpin.
+     * An abbreviation is when the input doesn't convert to valid Shuangpin syllables.
+     * For example: "nh" doesn't convert to valid pinyin in Shuangpin mode.
+     */
+    private fun isAbbreviationInput(input: String): Boolean {
+        if (input.isEmpty()) return false
+        val syllables = ShuangpinConverter.toPinyinSyllables(input)
+        // If no syllables can be parsed, it's likely an abbreviation
+        return syllables.isEmpty()
     }
 
     /**
