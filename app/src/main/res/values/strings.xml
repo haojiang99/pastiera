@@ -697,6 +697,18 @@
     <string name="theme_color_led_inactive">LED Inactive</string>
     <string name="theme_copy_from">Copy colors from</string>
     <string name="theme_preview">Preview</string>
+    <string name="theme_export">Export Theme</string>
+    <string name="theme_import">Import Theme</string>
+    <string name="theme_export_success">Theme exported successfully</string>
+    <string name="theme_export_failed">Failed to export theme</string>
+    <string name="theme_import_success">Theme imported successfully</string>
+    <string name="theme_import_failed">Failed to import theme</string>
+    <string name="theme_rename">Rename Theme</string>
+    <string name="theme_name_label">Theme Name</string>
+    <string name="theme_custom_slots_title">Custom Themes</string>
+    <string name="theme_custom_slot_1">Custom 1</string>
+    <string name="theme_custom_slot_2">Custom 2</string>
+    <string name="theme_custom_slot_3">Custom 3</string>
 
     <!-- LED Status Indicator -->
     <string name="show_led_status_title">Show LED Status Indicator</string>

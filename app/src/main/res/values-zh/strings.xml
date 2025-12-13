@@ -698,6 +698,18 @@
     <string name="theme_color_led_inactive">LED非活动</string>
     <string name="theme_copy_from">从主题复制颜色</string>
     <string name="theme_preview">预览</string>
+    <string name="theme_export">导出主题</string>
+    <string name="theme_import">导入主题</string>
+    <string name="theme_export_success">主题导出成功</string>
+    <string name="theme_export_failed">主题导出失败</string>
+    <string name="theme_import_success">主题导入成功</string>
+    <string name="theme_import_failed">主题导入失败</string>
+    <string name="theme_rename">重命名主题</string>
+    <string name="theme_name_label">主题名称</string>
+    <string name="theme_custom_slots_title">自定义主题</string>
+    <string name="theme_custom_slot_1">自定义 1</string>
+    <string name="theme_custom_slot_2">自定义 2</string>
+    <string name="theme_custom_slot_3">自定义 3</string>
 
     <!-- LED Status Indicator -->
     <string name="show_led_status_title">显示LED状态指示灯</string>

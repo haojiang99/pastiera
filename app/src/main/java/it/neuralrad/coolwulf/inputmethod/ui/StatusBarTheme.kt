@@ -207,6 +207,9 @@ data class StatusBarTheme(
         )
 
         const val CUSTOM_THEME_ID = "custom"
+        const val CUSTOM_THEME_1_ID = "custom_1"
+        const val CUSTOM_THEME_2_ID = "custom_2"
+        const val CUSTOM_THEME_3_ID = "custom_3"
 
         fun getThemeById(id: String): StatusBarTheme {
             return ALL_THEMES.find { it.id == id } ?: CLASSIC_DARK
@@ -218,6 +221,16 @@ data class StatusBarTheme(
         fun getThemeById(id: String, context: Context): StatusBarTheme {
             if (id == CUSTOM_THEME_ID) {
                 return getCustomTheme(context)
+            }
+            // Custom theme slots
+            if (id == CUSTOM_THEME_1_ID) {
+                return getCustomThemeForSlot(context, 1)
+            }
+            if (id == CUSTOM_THEME_2_ID) {
+                return getCustomThemeForSlot(context, 2)
+            }
+            if (id == CUSTOM_THEME_3_ID) {
+                return getCustomThemeForSlot(context, 3)
             }
             return ALL_THEMES.find { it.id == id } ?: CLASSIC_DARK
         }
@@ -246,6 +259,57 @@ data class StatusBarTheme(
                 ledLockedColor = colors["ledLockedColor"] ?: CLASSIC_DARK.ledLockedColor,
                 ledInactiveColor = colors["ledInactiveColor"] ?: CLASSIC_DARK.ledInactiveColor
             )
+        }
+
+        /**
+         * Creates a custom theme for a specific slot (1, 2, or 3).
+         */
+        fun getCustomThemeForSlot(context: Context, slot: Int): StatusBarTheme {
+            val colors = SettingsManager.getCustomThemeColorsForSlot(context, slot)
+            val slotId = when (slot) {
+                1 -> CUSTOM_THEME_1_ID
+                2 -> CUSTOM_THEME_2_ID
+                3 -> CUSTOM_THEME_3_ID
+                else -> CUSTOM_THEME_1_ID
+            }
+            return StatusBarTheme(
+                id = slotId,
+                nameResId = 0,
+                backgroundColor = colors["backgroundColor"] ?: CLASSIC_DARK.backgroundColor,
+                textColor = colors["textColor"] ?: CLASSIC_DARK.textColor,
+                textColorSecondary = colors["textColorSecondary"] ?: CLASSIC_DARK.textColorSecondary,
+                accentColor = colors["accentColor"] ?: CLASSIC_DARK.accentColor,
+                buttonBackgroundColor = colors["buttonBackgroundColor"] ?: CLASSIC_DARK.buttonBackgroundColor,
+                buttonPressedColor = colors["buttonPressedColor"] ?: CLASSIC_DARK.buttonPressedColor,
+                candidateBackgroundColor = colors["candidateBackgroundColor"] ?: CLASSIC_DARK.candidateBackgroundColor,
+                candidateBestBackgroundColor = colors["candidateBestBackgroundColor"] ?: CLASSIC_DARK.candidateBestBackgroundColor,
+                candidateTextColor = colors["candidateTextColor"] ?: CLASSIC_DARK.candidateTextColor,
+                candidateBestTextColor = colors["candidateBestTextColor"] ?: CLASSIC_DARK.candidateBestTextColor,
+                iconColor = colors["iconColor"] ?: CLASSIC_DARK.iconColor,
+                iconInactiveColor = colors["iconInactiveColor"] ?: CLASSIC_DARK.iconInactiveColor,
+                ledActiveColor = colors["ledActiveColor"] ?: CLASSIC_DARK.ledActiveColor,
+                ledLockedColor = colors["ledLockedColor"] ?: CLASSIC_DARK.ledLockedColor,
+                ledInactiveColor = colors["ledInactiveColor"] ?: CLASSIC_DARK.ledInactiveColor
+            )
+        }
+
+        /**
+         * Checks if a theme ID is a custom theme slot.
+         */
+        fun isCustomThemeSlot(id: String): Boolean {
+            return id == CUSTOM_THEME_1_ID || id == CUSTOM_THEME_2_ID || id == CUSTOM_THEME_3_ID
+        }
+
+        /**
+         * Gets the slot number from a custom theme ID (1, 2, or 3).
+         */
+        fun getSlotFromThemeId(id: String): Int {
+            return when (id) {
+                CUSTOM_THEME_1_ID -> 1
+                CUSTOM_THEME_2_ID -> 2
+                CUSTOM_THEME_3_ID -> 3
+                else -> 0
+            }
         }
     }
 }

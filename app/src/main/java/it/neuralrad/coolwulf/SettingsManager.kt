@@ -104,7 +104,7 @@ object SettingsManager {
     private const val KEY_SHOW_SOUND_TOGGLE_BUTTON = "show_sound_toggle_button" // Show sound toggle button in status bar
     private const val KEY_STATUS_BAR_THEME = "status_bar_theme" // Status bar theme ID
 
-    // Custom theme color keys
+    // Custom theme color keys (slot 1 - default/legacy)
     private const val KEY_CUSTOM_THEME_BACKGROUND = "custom_theme_background"
     private const val KEY_CUSTOM_THEME_TEXT = "custom_theme_text"
     private const val KEY_CUSTOM_THEME_TEXT_SECONDARY = "custom_theme_text_secondary"
@@ -120,6 +120,11 @@ object SettingsManager {
     private const val KEY_CUSTOM_THEME_LED_ACTIVE = "custom_theme_led_active"
     private const val KEY_CUSTOM_THEME_LED_LOCKED = "custom_theme_led_locked"
     private const val KEY_CUSTOM_THEME_LED_INACTIVE = "custom_theme_led_inactive"
+
+    // Custom theme slot names
+    private const val KEY_CUSTOM_THEME_NAME_1 = "custom_theme_name_1"
+    private const val KEY_CUSTOM_THEME_NAME_2 = "custom_theme_name_2"
+    private const val KEY_CUSTOM_THEME_NAME_3 = "custom_theme_name_3"
 
     // Default values
     private const val DEFAULT_STATUS_BAR_THEME = "classic_dark"
@@ -2352,6 +2357,132 @@ object SettingsManager {
             .putInt(KEY_CUSTOM_THEME_LED_LOCKED, theme.ledLockedColor)
             .putInt(KEY_CUSTOM_THEME_LED_INACTIVE, theme.ledInactiveColor)
             .apply()
+    }
+
+    // ==================== Custom Theme Slots (1, 2, 3) ====================
+
+    /**
+     * Gets the prefix for a custom theme slot's keys.
+     */
+    private fun getCustomThemeSlotPrefix(slot: Int): String {
+        return "custom_theme_${slot}_"
+    }
+
+    /**
+     * Gets custom theme colors for a specific slot (1, 2, or 3).
+     */
+    fun getCustomThemeColorsForSlot(context: Context, slot: Int): Map<String, Int> {
+        val prefs = getPreferences(context)
+        val prefix = getCustomThemeSlotPrefix(slot)
+        // Default colors based on Classic Dark theme
+        return mapOf(
+            "backgroundColor" to prefs.getInt("${prefix}background", android.graphics.Color.parseColor("#000000")),
+            "textColor" to prefs.getInt("${prefix}text", android.graphics.Color.WHITE),
+            "textColorSecondary" to prefs.getInt("${prefix}text_secondary", android.graphics.Color.argb(180, 255, 255, 255)),
+            "accentColor" to prefs.getInt("${prefix}accent", android.graphics.Color.rgb(100, 200, 255)),
+            "buttonBackgroundColor" to prefs.getInt("${prefix}button_bg", android.graphics.Color.argb(40, 255, 255, 255)),
+            "buttonPressedColor" to prefs.getInt("${prefix}button_pressed", android.graphics.Color.argb(80, 255, 255, 255)),
+            "candidateBackgroundColor" to prefs.getInt("${prefix}candidate_bg", android.graphics.Color.rgb(17, 17, 17)),
+            "candidateBestBackgroundColor" to prefs.getInt("${prefix}candidate_best_bg", android.graphics.Color.rgb(50, 45, 10)),
+            "candidateTextColor" to prefs.getInt("${prefix}candidate_text", android.graphics.Color.WHITE),
+            "candidateBestTextColor" to prefs.getInt("${prefix}candidate_best_text", android.graphics.Color.rgb(255, 215, 0)),
+            "iconColor" to prefs.getInt("${prefix}icon", android.graphics.Color.WHITE),
+            "iconInactiveColor" to prefs.getInt("${prefix}icon_inactive", android.graphics.Color.rgb(100, 100, 100)),
+            "ledActiveColor" to prefs.getInt("${prefix}led_active", android.graphics.Color.rgb(100, 150, 255)),
+            "ledLockedColor" to prefs.getInt("${prefix}led_locked", android.graphics.Color.rgb(247, 99, 0)),
+            "ledInactiveColor" to prefs.getInt("${prefix}led_inactive", android.graphics.Color.argb(26, 255, 255, 255))
+        )
+    }
+
+    /**
+     * Sets a custom theme color for a specific slot.
+     */
+    fun setCustomThemeColorForSlot(context: Context, slot: Int, colorKey: String, colorValue: Int) {
+        val prefix = getCustomThemeSlotPrefix(slot)
+        val prefKey = when (colorKey) {
+            "backgroundColor" -> "${prefix}background"
+            "textColor" -> "${prefix}text"
+            "textColorSecondary" -> "${prefix}text_secondary"
+            "accentColor" -> "${prefix}accent"
+            "buttonBackgroundColor" -> "${prefix}button_bg"
+            "buttonPressedColor" -> "${prefix}button_pressed"
+            "candidateBackgroundColor" -> "${prefix}candidate_bg"
+            "candidateBestBackgroundColor" -> "${prefix}candidate_best_bg"
+            "candidateTextColor" -> "${prefix}candidate_text"
+            "candidateBestTextColor" -> "${prefix}candidate_best_text"
+            "iconColor" -> "${prefix}icon"
+            "iconInactiveColor" -> "${prefix}icon_inactive"
+            "ledActiveColor" -> "${prefix}led_active"
+            "ledLockedColor" -> "${prefix}led_locked"
+            "ledInactiveColor" -> "${prefix}led_inactive"
+            else -> return
+        }
+        getPreferences(context).edit()
+            .putInt(prefKey, colorValue)
+            .apply()
+    }
+
+    /**
+     * Copies colors from an existing theme to a custom theme slot.
+     */
+    fun copyThemeToCustomSlot(context: Context, theme: it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme, slot: Int) {
+        val prefix = getCustomThemeSlotPrefix(slot)
+        getPreferences(context).edit()
+            .putInt("${prefix}background", theme.backgroundColor)
+            .putInt("${prefix}text", theme.textColor)
+            .putInt("${prefix}text_secondary", theme.textColorSecondary)
+            .putInt("${prefix}accent", theme.accentColor)
+            .putInt("${prefix}button_bg", theme.buttonBackgroundColor)
+            .putInt("${prefix}button_pressed", theme.buttonPressedColor)
+            .putInt("${prefix}candidate_bg", theme.candidateBackgroundColor)
+            .putInt("${prefix}candidate_best_bg", theme.candidateBestBackgroundColor)
+            .putInt("${prefix}candidate_text", theme.candidateTextColor)
+            .putInt("${prefix}candidate_best_text", theme.candidateBestTextColor)
+            .putInt("${prefix}icon", theme.iconColor)
+            .putInt("${prefix}icon_inactive", theme.iconInactiveColor)
+            .putInt("${prefix}led_active", theme.ledActiveColor)
+            .putInt("${prefix}led_locked", theme.ledLockedColor)
+            .putInt("${prefix}led_inactive", theme.ledInactiveColor)
+            .apply()
+    }
+
+    /**
+     * Gets the custom name for a theme slot.
+     */
+    fun getCustomThemeSlotName(context: Context, slot: Int): String {
+        val prefs = getPreferences(context)
+        val key = when (slot) {
+            1 -> KEY_CUSTOM_THEME_NAME_1
+            2 -> KEY_CUSTOM_THEME_NAME_2
+            3 -> KEY_CUSTOM_THEME_NAME_3
+            else -> return "Custom $slot"
+        }
+        return prefs.getString(key, "") ?: ""
+    }
+
+    /**
+     * Sets the custom name for a theme slot.
+     */
+    fun setCustomThemeSlotName(context: Context, slot: Int, name: String) {
+        val key = when (slot) {
+            1 -> KEY_CUSTOM_THEME_NAME_1
+            2 -> KEY_CUSTOM_THEME_NAME_2
+            3 -> KEY_CUSTOM_THEME_NAME_3
+            else -> return
+        }
+        getPreferences(context).edit()
+            .putString(key, name)
+            .apply()
+    }
+
+    /**
+     * Checks if a custom theme slot has been configured (has custom colors saved).
+     */
+    fun isCustomThemeSlotConfigured(context: Context, slot: Int): Boolean {
+        val prefs = getPreferences(context)
+        val prefix = getCustomThemeSlotPrefix(slot)
+        // Check if at least the background color has been set
+        return prefs.contains("${prefix}background")
     }
 
     /**

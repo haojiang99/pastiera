@@ -1,5 +1,10 @@
 package it.neuralrad.coolwulf
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,6 +17,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,27 +35,139 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme
+import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Custom theme editor screen with color pickers.
+ * @param slot The custom theme slot (1, 2, or 3)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomThemeEditorScreen(
+    slot: Int = 1,
     modifier: Modifier = Modifier,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
 
-    // Load current custom theme colors
+    // Load current custom theme colors for the specific slot
     var colors by remember {
-        mutableStateOf(SettingsManager.getCustomThemeColors(context).mapValues { Color(it.value) })
+        mutableStateOf(SettingsManager.getCustomThemeColorsForSlot(context, slot).mapValues { Color(it.value) })
+    }
+
+    // Theme name for this slot
+    var themeName by remember {
+        mutableStateOf(SettingsManager.getCustomThemeSlotName(context, slot))
+    }
+    var showRenameDialog by remember { mutableStateOf(false) }
+
+    // Get the theme ID for this slot
+    val slotThemeId = when (slot) {
+        1 -> StatusBarTheme.CUSTOM_THEME_1_ID
+        2 -> StatusBarTheme.CUSTOM_THEME_2_ID
+        3 -> StatusBarTheme.CUSTOM_THEME_3_ID
+        else -> StatusBarTheme.CUSTOM_THEME_1_ID
     }
 
     // Currently selected color for editing
     var editingColorKey by remember { mutableStateOf<String?>(null) }
     var showColorPicker by remember { mutableStateOf(false) }
     var showCopyFromDialog by remember { mutableStateOf(false) }
+    var showExportImportMenu by remember { mutableStateOf(false) }
+
+    // Export theme to JSON
+    fun exportThemeToJson(): String {
+        val json = JSONObject()
+        json.put("theme_name", if (themeName.isNotEmpty()) themeName else "Custom Theme $slot")
+        json.put("slot", slot)
+        json.put("version", 1)
+        json.put("exported_at", SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
+
+        val colorsJson = JSONObject()
+        colors.forEach { (key, color) ->
+            colorsJson.put(key, String.format("#%08X", color.toArgb()))
+        }
+        json.put("colors", colorsJson)
+
+        return json.toString(2)
+    }
+
+    // Import theme from JSON
+    fun importThemeFromJson(jsonString: String): Boolean {
+        return try {
+            val json = JSONObject(jsonString)
+            val colorsJson = json.getJSONObject("colors")
+
+            // Import theme name if present
+            if (json.has("theme_name")) {
+                val importedName = json.getString("theme_name")
+                themeName = importedName
+                SettingsManager.setCustomThemeSlotName(context, slot, importedName)
+            }
+
+            val newColors = mutableMapOf<String, Color>()
+            colorsJson.keys().forEach { key ->
+                val colorStr = colorsJson.getString(key)
+                val colorInt = android.graphics.Color.parseColor(colorStr)
+                newColors[key] = Color(colorInt)
+                SettingsManager.setCustomThemeColorForSlot(context, slot, key, colorInt)
+            }
+
+            colors = newColors
+
+            // Broadcast theme change if this slot's theme is currently active
+            if (SettingsManager.getStatusBarTheme(context) == slotThemeId) {
+                context.sendBroadcast(
+                    Intent(it.neuralrad.coolwulf.inputmethod.PhysicalKeyboardInputMethodService.ACTION_THEME_CHANGED).apply {
+                        setPackage(context.packageName)
+                    }
+                )
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // File picker for export
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.openOutputStream(it)?.use { outputStream ->
+                    outputStream.write(exportThemeToJson().toByteArray())
+                }
+                Toast.makeText(context, context.getString(R.string.theme_export_success), Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, context.getString(R.string.theme_export_failed), Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // File picker for import
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.openInputStream(it)?.use { inputStream ->
+                    val jsonString = inputStream.bufferedReader().readText()
+                    if (importThemeFromJson(jsonString)) {
+                        Toast.makeText(context, context.getString(R.string.theme_import_success), Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, context.getString(R.string.theme_import_failed), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, context.getString(R.string.theme_import_failed), Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     // Color picker state
     var pickerHue by remember { mutableFloatStateOf(0f) }
@@ -54,11 +176,11 @@ fun CustomThemeEditorScreen(
     var pickerAlpha by remember { mutableFloatStateOf(1f) }
 
     fun saveColor(key: String, color: Color) {
-        SettingsManager.setCustomThemeColor(context, key, color.toArgb())
+        SettingsManager.setCustomThemeColorForSlot(context, slot, key, color.toArgb())
         // Create a new map to trigger recomposition
         colors = HashMap(colors).apply { this[key] = color }
-        // Broadcast theme change if custom theme is currently active
-        if (SettingsManager.getStatusBarTheme(context) == StatusBarTheme.CUSTOM_THEME_ID) {
+        // Broadcast theme change if this slot's theme is currently active
+        if (SettingsManager.getStatusBarTheme(context) == slotThemeId) {
             context.sendBroadcast(
                 android.content.Intent(it.neuralrad.coolwulf.inputmethod.PhysicalKeyboardInputMethodService.ACTION_THEME_CHANGED).apply {
                     setPackage(context.packageName)
@@ -78,16 +200,50 @@ fun CustomThemeEditorScreen(
         return Color(argb)
     }
 
+    // Default slot name
+    val defaultSlotName = when (slot) {
+        1 -> stringResource(R.string.theme_custom_slot_1)
+        2 -> stringResource(R.string.theme_custom_slot_2)
+        3 -> stringResource(R.string.theme_custom_slot_3)
+        else -> "Custom $slot"
+    }
+    val displayTitle = if (themeName.isNotEmpty()) themeName else defaultSlotName
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.theme_custom_editor_title)) },
+                title = {
+                    Column {
+                        Text(displayTitle)
+                        Text(
+                            text = stringResource(R.string.theme_custom_editor_title),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
+                    // Rename button
+                    IconButton(onClick = { showRenameDialog = true }) {
+                        Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.theme_rename))
+                    }
+                    // Import button
+                    IconButton(onClick = { importLauncher.launch(arrayOf("application/json")) }) {
+                        Icon(Icons.Filled.FileUpload, contentDescription = stringResource(R.string.theme_import))
+                    }
+                    // Export button
+                    IconButton(onClick = {
+                        val filename = "coolwulf_theme_${slot}_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}.json"
+                        exportLauncher.launch(filename)
+                    }) {
+                        Icon(Icons.Filled.FileDownload, contentDescription = stringResource(R.string.theme_export))
+                    }
+                    // Copy from theme button
                     IconButton(onClick = { showCopyFromDialog = true }) {
                         Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.theme_copy_from))
                     }
@@ -102,7 +258,7 @@ fun CustomThemeEditorScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Preview section
+            // Preview section - Enhanced to show more elements
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -116,67 +272,203 @@ fun CustomThemeEditorScreen(
                         .fillMaxWidth()
                         .padding(12.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.theme_preview),
-                        color = colors["textColor"] ?: Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    // Header row with title and icons
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Sample candidate
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    colors["candidateBackgroundColor"] ?: Color.DarkGray,
-                                    RoundedCornerShape(4.dp)
-                                )
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = "Candidate",
-                                color = colors["candidateTextColor"] ?: Color.White,
-                                fontSize = 12.sp
+                        Text(
+                            text = stringResource(R.string.theme_preview),
+                            color = colors["textColor"] ?: Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // Active icon
+                            Icon(
+                                imageVector = Icons.Filled.Mic,
+                                contentDescription = null,
+                                tint = colors["iconColor"] ?: Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            // Inactive icon
+                            Icon(
+                                imageVector = Icons.Filled.ContentPaste,
+                                contentDescription = null,
+                                tint = colors["iconInactiveColor"] ?: Color.Gray,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
-                        // Best candidate
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Secondary text
+                    Text(
+                        text = "Secondary text example",
+                        color = colors["textColorSecondary"] ?: Color.Gray,
+                        fontSize = 11.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Candidate buttons row
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // Best candidate (highlighted)
                         Box(
                             modifier = Modifier
                                 .background(
                                     colors["candidateBestBackgroundColor"] ?: Color.DarkGray,
                                     RoundedCornerShape(4.dp)
                                 )
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                text = "Best",
+                                text = "1.你好",
                                 color = colors["candidateBestTextColor"] ?: Color.Yellow,
-                                fontSize = 12.sp
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        // Normal candidate
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    colors["candidateBackgroundColor"] ?: Color.DarkGray,
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "2.您好",
+                                color = colors["candidateTextColor"] ?: Color.White,
+                                fontSize = 13.sp
+                            )
+                        }
+                        // Another normal candidate
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    colors["candidateBackgroundColor"] ?: Color.DarkGray,
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "3.妳好",
+                                color = colors["candidateTextColor"] ?: Color.White,
+                                fontSize = 13.sp
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Button row
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        // LED indicators
+                        // Normal button
                         Box(
                             modifier = Modifier
-                                .size(12.dp)
+                                .background(
+                                    colors["buttonBackgroundColor"] ?: Color.DarkGray,
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "SYM",
+                                color = colors["textColor"] ?: Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        // Pressed/active button
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    colors["buttonPressedColor"] ?: Color.Gray,
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "拼",
+                                color = colors["accentColor"] ?: Color.Cyan,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        // Another button with accent
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    colors["buttonBackgroundColor"] ?: Color.DarkGray,
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .border(
+                                    1.dp,
+                                    colors["accentColor"] ?: Color.Cyan,
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "简",
+                                color = colors["accentColor"] ?: Color.Cyan,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // LED indicators row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "LED:",
+                            color = colors["textColorSecondary"] ?: Color.Gray,
+                            fontSize = 10.sp
+                        )
+                        // Active LED (Shift active)
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
                                 .clip(CircleShape)
                                 .background(colors["ledActiveColor"] ?: Color.Blue)
                         )
+                        // Locked LED (Caps lock)
                         Box(
                             modifier = Modifier
-                                .size(12.dp)
+                                .size(14.dp)
                                 .clip(CircleShape)
                                 .background(colors["ledLockedColor"] ?: Color.Red)
                         )
+                        // Inactive LEDs
                         Box(
                             modifier = Modifier
-                                .size(12.dp)
+                                .size(14.dp)
+                                .clip(CircleShape)
+                                .background(colors["ledInactiveColor"] ?: Color.Gray)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
+                                .clip(CircleShape)
+                                .background(colors["ledInactiveColor"] ?: Color.Gray)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
                                 .clip(CircleShape)
                                 .background(colors["ledInactiveColor"] ?: Color.Gray)
                         )
@@ -359,10 +651,10 @@ fun CustomThemeEditorScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    SettingsManager.copyThemeToCustom(context, theme)
-                                    colors = SettingsManager.getCustomThemeColors(context).mapValues { Color(it.value) }
-                                    // Broadcast if custom theme is active
-                                    if (SettingsManager.getStatusBarTheme(context) == StatusBarTheme.CUSTOM_THEME_ID) {
+                                    SettingsManager.copyThemeToCustomSlot(context, theme, slot)
+                                    colors = SettingsManager.getCustomThemeColorsForSlot(context, slot).mapValues { Color(it.value) }
+                                    // Broadcast if this slot's theme is active
+                                    if (SettingsManager.getStatusBarTheme(context) == slotThemeId) {
                                         context.sendBroadcast(
                                             android.content.Intent(it.neuralrad.coolwulf.inputmethod.PhysicalKeyboardInputMethodService.ACTION_THEME_CHANGED).apply {
                                                 setPackage(context.packageName)
@@ -399,6 +691,40 @@ fun CustomThemeEditorScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showCopyFromDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
+    }
+
+    // Rename theme dialog
+    if (showRenameDialog) {
+        var newName by remember { mutableStateOf(themeName) }
+        AlertDialog(
+            onDismissRequest = { showRenameDialog = false },
+            title = { Text(stringResource(R.string.theme_rename)) },
+            text = {
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    label = { Text(stringResource(R.string.theme_name_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        themeName = newName
+                        SettingsManager.setCustomThemeSlotName(context, slot, newName)
+                        showRenameDialog = false
+                    }
+                ) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRenameDialog = false }) {
                     Text(stringResource(android.R.string.cancel))
                 }
             }
