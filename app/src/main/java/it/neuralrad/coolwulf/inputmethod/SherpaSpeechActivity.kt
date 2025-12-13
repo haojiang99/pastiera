@@ -91,13 +91,13 @@ class SherpaSpeechActivity : Activity() {
 
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(16), dp(16), dp(16))
+            setPadding(dp(16), dp(12), dp(16), dp(12))
             setBackgroundColor(0xFF1E1E1E.toInt())
         }
 
-        // Listening indicator container with pulsing circle
-        val indicatorContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+        // Status row - horizontal container with indicator and text on same line
+        val statusRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -107,7 +107,7 @@ class SherpaSpeechActivity : Activity() {
             }
         }
 
-        // Listening indicator (pulsing circle) - smaller
+        // Listening indicator (pulsing circle) - smaller, inline with text
         listeningIndicator = View(this).apply {
             val circleDrawable = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -115,27 +115,26 @@ class SherpaSpeechActivity : Activity() {
             }
             background = circleDrawable
             visibility = View.GONE
-            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply {
-                gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(dp(12), dp(12)).apply {
+                rightMargin = dp(8)
+                gravity = Gravity.CENTER_VERTICAL
             }
         }
-        indicatorContainer.addView(listeningIndicator)
-        layout.addView(indicatorContainer)
+        statusRow.addView(listeningIndicator)
 
-        // Status text
+        // Status text - inline with indicator
         statusText = TextView(this).apply {
             text = getString(R.string.sherpa_initializing)
-            textSize = 12f
+            textSize = 13f
             setTextColor(0xFFB0B0B0.toInt())
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                bottomMargin = dp(8)
-            }
+            )
         }
-        layout.addView(statusText)
+        statusRow.addView(statusText)
+        layout.addView(statusRow)
 
         // Progress bar with modern styling
         progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
