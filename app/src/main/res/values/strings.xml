@@ -658,6 +658,10 @@
     <string name="show_sound_toggle_button_title">Show Sound Toggle</string>
     <string name="show_sound_toggle_button_description">Show a button in status bar to quickly toggle sound on/off</string>
 
+    <!-- 3D Effect -->
+    <string name="effect_3d_title">3D Button Effect</string>
+    <string name="effect_3d_description">Add 3D shadow and gradient effect to status bar buttons</string>
+
     <!-- Virtual Keyboard Vibration -->
     <string name="virtual_keyboard_vibration_title">Keyboard Vibration</string>
     <string name="virtual_keyboard_vibration_description">Vibrate on key press for tactile feedback</string>

@@ -126,6 +126,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.isSemiTransparentStatusBar(context))
     }
 
+    var effect3DEnabled by remember {
+        mutableStateOf(SettingsManager.is3DEffectEnabled(context))
+    }
+
     var staticVariationBarMode by remember {
         mutableStateOf(SettingsManager.isStaticVariationBarModeEnabled(context))
     }
@@ -1136,6 +1140,49 @@ fun TextInputSettingsScreen(
                         onCheckedChange = { enabled ->
                             semiTransparentStatusBar = enabled
                             SettingsManager.setSemiTransparentStatusBar(context, enabled)
+                        }
+                    )
+                }
+            }
+
+            // 3D Effect
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.effect_3d_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.effect_3d_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                    Switch(
+                        checked = effect3DEnabled,
+                        onCheckedChange = { enabled ->
+                            effect3DEnabled = enabled
+                            SettingsManager.set3DEffectEnabled(context, enabled)
                         }
                     )
                 }

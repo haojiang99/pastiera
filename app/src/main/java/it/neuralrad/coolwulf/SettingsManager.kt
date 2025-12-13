@@ -83,6 +83,7 @@ object SettingsManager {
     private const val KEY_ABBREVIATION_INPUT_ENABLED = "abbreviation_input_enabled" // Enable 首字母 (first letter abbreviation) input
     private const val KEY_SHOW_VIRTUAL_KEYBOARD_BUTTON = "show_virtual_keyboard_button" // Show virtual keyboard toggle button in status bar
     private const val KEY_SEMI_TRANSPARENT_STATUS_BAR = "semi_transparent_status_bar" // Make status bar semi-transparent
+    private const val KEY_3D_EFFECT_ENABLED = "3d_effect_enabled" // Enable 3D shadow effect for status bar buttons
     private const val KEY_OFFLINE_VOICE_INPUT = "offline_voice_input" // Use Sherpa-ONNX for offline Mandarin Chinese speech recognition
     private const val KEY_SHERPA_MODEL_PATH = "sherpa_model_path" // Path to Sherpa-ONNX model zip file
     private const val KEY_VOICE_AUTO_INSERT = "voice_auto_insert" // Auto-insert recognized text after silence
@@ -189,6 +190,7 @@ object SettingsManager {
     private const val DEFAULT_ABBREVIATION_INPUT_ENABLED = true  // 首字母 input enabled by default
     private const val DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON = false  // Virtual keyboard button hidden by default
     private const val DEFAULT_SEMI_TRANSPARENT_STATUS_BAR = false  // Status bar is opaque by default
+    private const val DEFAULT_3D_EFFECT_ENABLED = false  // 3D effect disabled by default
     private const val DEFAULT_OFFLINE_VOICE_INPUT = false  // Online (Google) voice recognition by default
     private const val DEFAULT_VOICE_AUTO_INSERT = true  // Auto-insert voice recognition result
     private const val DEFAULT_VOICE_CHINESE_PUNCTUATION = true  // Use Chinese punctuation for voice input by default
@@ -2063,6 +2065,22 @@ object SettingsManager {
     fun setSemiTransparentStatusBar(context: Context, transparent: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_SEMI_TRANSPARENT_STATUS_BAR, transparent)
+            .apply()
+    }
+
+    /**
+     * Gets whether 3D effect is enabled for status bar buttons.
+     */
+    fun is3DEffectEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_3D_EFFECT_ENABLED, DEFAULT_3D_EFFECT_ENABLED)
+    }
+
+    /**
+     * Sets whether 3D effect is enabled for status bar buttons.
+     */
+    fun set3DEffectEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_3D_EFFECT_ENABLED, enabled)
             .apply()
     }
 

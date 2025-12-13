@@ -1696,13 +1696,93 @@ class VariationBarView(
             }
         }
 
+        // Check if 3D effect is enabled
+        val is3DEffect = SettingsManager.is3DEffectEnabled(context)
+
         return TextView(context).apply {
             text = displayText
             setTextColor(textColor)
             setTypeface(null, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
             setPadding(dp6, dp4, dp6, dp4)
-            background = stateListDrawable
+
+            // Apply 3D effect with shadow and layered background
+            if (is3DEffect) {
+                // Create 3D layered background drawable
+                val dp2 = TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_DIP,
+                    2f,
+                    context.resources.displayMetrics
+                ).toInt()
+
+                // Shadow layer (darker, offset down-right)
+                val shadowColor = Color.argb(
+                    120,
+                    (Color.red(normalColor) * 0.4f).toInt(),
+                    (Color.green(normalColor) * 0.4f).toInt(),
+                    (Color.blue(normalColor) * 0.4f).toInt()
+                )
+                val shadowDrawable = GradientDrawable().apply {
+                    setColor(shadowColor)
+                    cornerRadius = dp3.toFloat()
+                }
+
+                // Highlight layer (lighter, for top edge)
+                val highlightColor = Color.argb(
+                    80,
+                    minOf(Color.red(normalColor) + 60, 255),
+                    minOf(Color.green(normalColor) + 60, 255),
+                    minOf(Color.blue(normalColor) + 60, 255)
+                )
+
+                // Main button with gradient for 3D effect
+                val topColor = Color.argb(
+                    Color.alpha(normalColor),
+                    minOf(Color.red(normalColor) + 30, 255),
+                    minOf(Color.green(normalColor) + 30, 255),
+                    minOf(Color.blue(normalColor) + 30, 255)
+                )
+                val bottomColor = Color.argb(
+                    Color.alpha(normalColor),
+                    maxOf(Color.red(normalColor) - 20, 0),
+                    maxOf(Color.green(normalColor) - 20, 0),
+                    maxOf(Color.blue(normalColor) - 20, 0)
+                )
+                val mainDrawable = GradientDrawable(
+                    GradientDrawable.Orientation.TOP_BOTTOM,
+                    intArrayOf(topColor, normalColor, bottomColor)
+                ).apply {
+                    cornerRadius = dp3.toFloat()
+                }
+
+                // Layer drawable: shadow behind, main on top
+                val layers = android.graphics.drawable.LayerDrawable(arrayOf(shadowDrawable, mainDrawable))
+                layers.setLayerInset(0, dp2, dp2, 0, 0)  // Shadow offset
+                layers.setLayerInset(1, 0, 0, dp2, dp2)  // Main button offset
+
+                // Pressed state - flatter look
+                val pressedGradient = GradientDrawable(
+                    GradientDrawable.Orientation.TOP_BOTTOM,
+                    intArrayOf(bottomColor, normalColor, topColor)
+                ).apply {
+                    cornerRadius = dp3.toFloat()
+                }
+                val pressedLayers = android.graphics.drawable.LayerDrawable(arrayOf(shadowDrawable, pressedGradient))
+                pressedLayers.setLayerInset(0, dp2, dp2, 0, 0)
+                pressedLayers.setLayerInset(1, dp2/2, dp2/2, dp2/2, dp2/2)  // Smaller offset when pressed
+
+                val stateList3D = android.graphics.drawable.StateListDrawable().apply {
+                    addState(intArrayOf(android.R.attr.state_pressed), pressedLayers)
+                    addState(intArrayOf(), layers)
+                }
+                background = stateList3D
+
+                // Add text shadow for 3D text effect
+                setShadowLayer(2f, 1f, 1f, Color.argb(100, 0, 0, 0))
+            } else {
+                background = stateListDrawable
+            }
+
             layoutParams = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
                 marginEnd = dp3
             }

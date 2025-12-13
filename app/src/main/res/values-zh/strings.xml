@@ -659,6 +659,10 @@
     <string name="show_sound_toggle_button_title">显示声音开关</string>
     <string name="show_sound_toggle_button_description">在状态栏显示快速开关声音的按钮</string>
 
+    <!-- 3D Effect -->
+    <string name="effect_3d_title">3D按钮效果</string>
+    <string name="effect_3d_description">为状态栏按钮添加3D阴影和渐变效果</string>
+
     <!-- Virtual Keyboard Vibration -->
     <string name="virtual_keyboard_vibration_title">按键振动</string>
     <string name="virtual_keyboard_vibration_description">按键时振动以提供触觉反馈</string>
