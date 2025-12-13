@@ -91,7 +91,7 @@ class SherpaSpeechActivity : Activity() {
 
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(32), dp(24), dp(24))
+            setPadding(dp(16), dp(16), dp(16), dp(16))
             setBackgroundColor(0xFF1E1E1E.toInt())
         }
 
@@ -103,11 +103,11 @@ class SherpaSpeechActivity : Activity() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                bottomMargin = dp(16)
+                bottomMargin = dp(8)
             }
         }
 
-        // Listening indicator (pulsing circle)
+        // Listening indicator (pulsing circle) - smaller
         listeningIndicator = View(this).apply {
             val circleDrawable = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -115,7 +115,7 @@ class SherpaSpeechActivity : Activity() {
             }
             background = circleDrawable
             visibility = View.GONE
-            layoutParams = LinearLayout.LayoutParams(dp(64), dp(64)).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply {
                 gravity = Gravity.CENTER
             }
         }
@@ -125,14 +125,14 @@ class SherpaSpeechActivity : Activity() {
         // Status text
         statusText = TextView(this).apply {
             text = getString(R.string.sherpa_initializing)
-            textSize = 14f
+            textSize = 12f
             setTextColor(0xFFB0B0B0.toInt())
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                bottomMargin = dp(16)
+                bottomMargin = dp(8)
             }
         }
         layout.addView(statusText)
@@ -145,37 +145,37 @@ class SherpaSpeechActivity : Activity() {
             progressTintList = ColorStateList.valueOf(0xFF4CAF50.toInt())
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(4)
+                dp(3)
             ).apply {
-                bottomMargin = dp(16)
+                bottomMargin = dp(8)
             }
         }
         layout.addView(progressBar)
 
-        // Recognized text display with card-like background
+        // Recognized text display with card-like background - more compact
         val textContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
                 setColor(0xFF2D2D2D.toInt())
-                cornerRadius = dp(12).toFloat()
+                cornerRadius = dp(8).toFloat()
             }
-            setPadding(dp(16), dp(20), dp(16), dp(20))
+            setPadding(dp(12), dp(12), dp(12), dp(12))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                bottomMargin = dp(24)
+                bottomMargin = dp(12)
             }
-            minimumHeight = dp(80)
+            minimumHeight = dp(48)
         }
 
         recognizedText = TextView(this).apply {
             text = ""
-            textSize = 20f
+            textSize = 18f
             setTextColor(0xFFFFFFFF.toInt())
             gravity = Gravity.CENTER
-            setLineSpacing(dp(4).toFloat(), 1f)
+            setLineSpacing(dp(2).toFloat(), 1f)
         }
         textContainer.addView(recognizedText)
         layout.addView(textContainer)
@@ -197,8 +197,8 @@ class SherpaSpeechActivity : Activity() {
             textColor = 0xFFFFFFFF.toInt(),
             onClick = { finish() }
         ).apply {
-            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f).apply {
-                rightMargin = dp(8)
+            layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f).apply {
+                rightMargin = dp(6)
             }
         }
         buttonLayout.addView(cancelButton)
@@ -211,8 +211,8 @@ class SherpaSpeechActivity : Activity() {
             onClick = { startListening() }
         ).apply {
             visibility = View.GONE
-            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f).apply {
-                leftMargin = dp(8)
+            layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f).apply {
+                leftMargin = dp(6)
             }
         }
         buttonLayout.addView(startButton)
@@ -225,8 +225,8 @@ class SherpaSpeechActivity : Activity() {
             onClick = { stopAndSend() }
         ).apply {
             visibility = View.GONE
-            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f).apply {
-                leftMargin = dp(8)
+            layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f).apply {
+                leftMargin = dp(6)
             }
         }
         buttonLayout.addView(stopButton)
@@ -248,21 +248,21 @@ class SherpaSpeechActivity : Activity() {
         return Button(this).apply {
             this.text = text
             setTextColor(textColor)
-            textSize = 14f
+            textSize = 13f
             isAllCaps = false
             stateListAnimator = null // Remove default elevation animation
 
             // Create rounded background
             val normalDrawable = GradientDrawable().apply {
                 setColor(backgroundColor)
-                cornerRadius = dp(24).toFloat()
+                cornerRadius = dp(20).toFloat()
             }
 
             // Create ripple effect
             val rippleColor = ColorStateList.valueOf(0x40FFFFFF)
             background = RippleDrawable(rippleColor, normalDrawable, normalDrawable)
 
-            setPadding(dp(24), dp(12), dp(24), dp(12))
+            setPadding(dp(16), dp(8), dp(16), dp(8))
             setOnClickListener { onClick() }
         }
     }

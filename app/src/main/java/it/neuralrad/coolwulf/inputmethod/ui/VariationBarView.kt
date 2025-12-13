@@ -1836,15 +1836,12 @@ class VariationBarView(
             3f,
             context.resources.displayMetrics
         ).toInt()
-        val drawable = GradientDrawable().apply {
-            setColor(theme.backgroundColor)
-            cornerRadius = 0f
-        }
         val isSoundEnabled = SettingsManager.isKeyboardSoundEnabled(context)
         return ImageView(context).apply {
             setImageResource(if (isSoundEnabled) R.drawable.ic_volume_up_24 else R.drawable.ic_volume_off_24)
             setColorFilter(if (isSoundEnabled) theme.accentColor else theme.iconInactiveColor)
-            background = drawable
+            // No background - transparent to work with any theme
+            background = null
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             isClickable = true
             isFocusable = true
