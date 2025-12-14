@@ -23,6 +23,7 @@ import it.neuralrad.coolwulf.core.InputContextState
 import it.neuralrad.coolwulf.core.ModifierStateController
 import it.neuralrad.coolwulf.core.NavModeController
 import it.neuralrad.coolwulf.core.PinyinInputController
+import it.neuralrad.coolwulf.core.T9PinyinInputController
 import it.neuralrad.coolwulf.core.ShuangpinInputController
 import it.neuralrad.coolwulf.core.WubiInputController
 import it.neuralrad.coolwulf.core.ZhenmaInputController
@@ -150,6 +151,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private lateinit var keyboardVisibilityController: KeyboardVisibilityController
     private lateinit var launcherShortcutController: LauncherShortcutController
     private lateinit var pinyinInputController: PinyinInputController
+    private lateinit var t9PinyinInputController: T9PinyinInputController
     private lateinit var shuangpinInputController: ShuangpinInputController
     private lateinit var wubiInputController: WubiInputController
     private lateinit var zhenmaInputController: ZhenmaInputController
@@ -751,6 +753,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         )
         autoCorrectionManager = AutoCorrectionManager(this)
         pinyinInputController = PinyinInputController(this)
+        t9PinyinInputController = T9PinyinInputController(this)
         shuangpinInputController = ShuangpinInputController(this)
         wubiInputController = WubiInputController(this)
         zhenmaInputController = ZhenmaInputController(this)
@@ -1336,6 +1339,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
 
         val isPinyinActive = pinyinInputController.isPinyinMode()
+        val isT9PinyinActive = t9PinyinInputController.isT9Mode()
         val isShuangpinActive = shuangpinInputController.isShuangpinMode()
         val isZiranmaActive = ziranmaInputController.isZiranmaMode()
         val isWubiActive = wubiInputController.isWubiMode()
@@ -1348,6 +1352,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 "pinyin" -> {
                     pinyinInputController.togglePinyinMode()
                     if (!pinyinInputController.isPinyinMode()) {
+                        currentInputConnection?.finishComposingText()
+                    }
+                }
+                "t9pinyin" -> {
+                    t9PinyinInputController.toggleT9Mode()
+                    if (!t9PinyinInputController.isT9Mode()) {
                         currentInputConnection?.finishComposingText()
                     }
                 }
@@ -1378,9 +1388,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         } else {
             // Multiple methods enabled - cycle through them in order: EN -> first -> second -> ... -> EN
-            // Order is based on enabledMethods list: pinyin, shuangpin, ziranma, wubi, zhenma
+            // Order is based on enabledMethods list: pinyin, t9pinyin, shuangpin, ziranma, wubi, zhenma
             val currentMethod = when {
                 isPinyinActive -> "pinyin"
+                isT9PinyinActive -> "t9pinyin"
                 isShuangpinActive -> "shuangpin"
                 isZiranmaActive -> "ziranma"
                 isWubiActive -> "wubi"
@@ -1395,6 +1406,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             when (currentMethod) {
                 "pinyin" -> {
                     pinyinInputController.setPinyinMode(false)
+                    currentInputConnection?.finishComposingText()
+                }
+                "t9pinyin" -> {
+                    t9PinyinInputController.setT9Mode(false)
                     currentInputConnection?.finishComposingText()
                 }
                 "shuangpin" -> {
@@ -1419,6 +1434,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (nextIndex < enabledMethods.size) {
                 when (enabledMethods[nextIndex]) {
                     "pinyin" -> pinyinInputController.setPinyinMode(true)
+                    "t9pinyin" -> t9PinyinInputController.setT9Mode(true)
                     "shuangpin" -> shuangpinInputController.setShuangpinMode(true)
                     "ziranma" -> ziranmaInputController.setZiranmaMode(true)
                     "wubi" -> wubiInputController.setWubiMode(true)
@@ -1435,18 +1451,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
 
     /**
-     * Checks if any Chinese input mode is active (Pinyin, Shuangpin, Ziranma, Wubi, or Zhenma).
+     * Checks if any Chinese input mode is active (Pinyin, T9 Pinyin, Shuangpin, Ziranma, Wubi, or Zhenma).
      */
     private fun isChineseInputModeActive(): Boolean {
-        return pinyinInputController.isPinyinMode() || shuangpinInputController.isShuangpinMode() || ziranmaInputController.isZiranmaMode() || wubiInputController.isWubiMode() || zhenmaInputController.isZhenmaMode()
+        return pinyinInputController.isPinyinMode() || t9PinyinInputController.isT9Mode() || shuangpinInputController.isShuangpinMode() || ziranmaInputController.isZiranmaMode() || wubiInputController.isWubiMode() || zhenmaInputController.isZhenmaMode()
     }
 
     /**
-     * Gets the current input mode as a string ("english", "pinyin", "shuangpin", "ziranma", "wubi", or "zhenma").
+     * Gets the current input mode as a string ("english", "pinyin", "t9pinyin", "shuangpin", "ziranma", "wubi", or "zhenma").
      */
     private fun getCurrentInputMode(): String {
         return when {
             pinyinInputController.isPinyinMode() -> "pinyin"
+            t9PinyinInputController.isT9Mode() -> "t9pinyin"
             shuangpinInputController.isShuangpinMode() -> "shuangpin"
             ziranmaInputController.isZiranmaMode() -> "ziranma"
             wubiInputController.isWubiMode() -> "wubi"
@@ -1464,6 +1481,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Deactivate all modes first
         if (pinyinInputController.isPinyinMode()) {
             pinyinInputController.setPinyinMode(false)
+            currentInputConnection?.finishComposingText()
+        }
+        if (t9PinyinInputController.isT9Mode()) {
+            t9PinyinInputController.setT9Mode(false)
             currentInputConnection?.finishComposingText()
         }
         if (shuangpinInputController.isShuangpinMode()) {
@@ -1488,6 +1509,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             "pinyin" -> {
                 if (SettingsManager.getPinyinEnabled(this)) {
                     pinyinInputController.setPinyinMode(true)
+                }
+            }
+            "t9pinyin" -> {
+                if (SettingsManager.getT9PinyinEnabled(this)) {
+                    t9PinyinInputController.setT9Mode(true)
                 }
             }
             "shuangpin" -> {
@@ -1609,6 +1635,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      */
     private fun isChinesePunctuationModeActive(): Boolean {
         return if (pinyinInputController.isPinyinMode()) {
+            pinyinInputController.isChinesePunctuationMode()
+        } else if (t9PinyinInputController.isT9Mode()) {
+            // T9 mode uses Pinyin's Chinese punctuation setting
             pinyinInputController.isChinesePunctuationMode()
         } else if (shuangpinInputController.isShuangpinMode()) {
             shuangpinInputController.isChinesePunctuationMode()
@@ -1890,8 +1919,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      * Aggiorna la status bar delegando al controller dedicato.
      */
     private fun updateStatusBarText() {
-        // Check if Pinyin, Shuangpin, Ziranma, Wubi, or Zhenma mode is active and use their candidates
+        // Check if Pinyin, T9 Pinyin, Shuangpin, Ziranma, Wubi, or Zhenma mode is active and use their candidates
         val pinyinSnapshot = pinyinInputController.getSnapshot()
+        val t9PinyinSnapshot = t9PinyinInputController.getSnapshot()
         val shuangpinSnapshot = shuangpinInputController.getSnapshot()
         val ziranmaSnapshot = ziranmaInputController.getSnapshot()
         val wubiSnapshot = wubiInputController.getSnapshot()
@@ -1949,6 +1979,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             totalPages = pinyinSnapshot.totalPages
             hasNextPage = pinyinSnapshot.hasNextPage
             hasPrevPage = pinyinSnapshot.hasPrevPage
+        } else if (t9PinyinSnapshot.isActive) {
+            // T9 Pinyin mode
+            val rawCandidates = t9PinyinSnapshot.candidates.take(candidateLimit)
+            variationSnapshot = VariationStateController.Snapshot(
+                isActive = true,
+                lastInsertedChar = if (t9PinyinSnapshot.buffer.isNotEmpty()) t9PinyinSnapshot.buffer.last() else null,
+                variations = reorderForJuyingDisplay(rawCandidates)
+            )
+            // Pagination info from T9 Pinyin
+            currentPage = t9PinyinSnapshot.currentPage
+            totalPages = t9PinyinSnapshot.totalPages
+            hasNextPage = t9PinyinSnapshot.hasNextPage
+            hasPrevPage = t9PinyinSnapshot.hasPrevPage
         } else if (shuangpinSnapshot.isActive) {
             // Shuangpin mode
             val rawCandidates = shuangpinSnapshot.candidates.take(candidateLimit)
@@ -2057,6 +2100,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             shouldDisableSmartFeatures = shouldDisableSmartFeatures,
             pinyinModeActive = pinyinSnapshot.isActive,
             pinyinBuffer = pinyinSnapshot.buffer,
+            t9PinyinModeActive = t9PinyinSnapshot.isActive,
+            t9PinyinBuffer = t9PinyinSnapshot.buffer,
             shuangpinModeActive = shuangpinSnapshot.isActive,
             shuangpinBuffer = shuangpinSnapshot.buffer,
             ziranmaModeActive = ziranmaSnapshot.isActive,
@@ -2086,6 +2131,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val compactModeEnabled = SettingsManager.getCompactModeEnabled(this)
         val hasSuggestions = variationSnapshot.variations.isNotEmpty() ||
                             pinyinSnapshot.hasCandidates ||
+                            t9PinyinSnapshot.hasCandidates ||
                             shuangpinSnapshot.hasCandidates ||
                             ziranmaSnapshot.hasCandidates ||
                             wubiSnapshot.hasCandidates ||
@@ -2383,6 +2429,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val isShuangpinMode = shuangpinInputController.isShuangpinMode()
         val isWubiMode = wubiInputController.isWubiMode()
         val isZhenmaMode = zhenmaInputController.isZhenmaMode()
+        val isT9PinyinMode = t9PinyinInputController.isT9Mode()
         val isWordPredictionActive = englishWordPredictionController.hasActivePrediction()
 
         // Check if we have candidates to paginate (buffer not empty or has candidates)
@@ -2390,8 +2437,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val hasShuangpinCandidates = isShuangpinMode && shuangpinInputController.hasCandidates()
         val hasWubiCandidates = isWubiMode && wubiInputController.hasCandidates()
         val hasZhenmaCandidates = isZhenmaMode && zhenmaInputController.hasCandidates()
+        val hasT9PinyinCandidates = isT9PinyinMode && t9PinyinInputController.hasCandidates()
         val hasWordPredictions = isWordPredictionActive && englishWordPredictionController.hasSuggestions()
-        val hasCandidatesToPaginate = hasPinyinCandidates || hasShuangpinCandidates || hasWubiCandidates || hasZhenmaCandidates || hasWordPredictions
+        val hasCandidatesToPaginate = hasPinyinCandidates || hasShuangpinCandidates || hasWubiCandidates || hasZhenmaCandidates || hasT9PinyinCandidates || hasWordPredictions
 
         // Handle touchpad DPAD_DOWN/DPAD_UP for Chinese input candidate pagination
         // Only intercept when we have candidates to paginate and touchpad page is enabled
@@ -2411,6 +2459,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         wubiInputController.nextPage()
                     } else if (hasZhenmaCandidates) {
                         zhenmaInputController.nextPage()
+                    } else if (hasT9PinyinCandidates) {
+                        t9PinyinInputController.nextPage()
                     } else if (hasWordPredictions) {
                         englishWordPredictionController.nextPage()
                     }
@@ -2428,6 +2478,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         wubiInputController.prevPage()
                     } else if (hasZhenmaCandidates) {
                         zhenmaInputController.prevPage()
+                    } else if (hasT9PinyinCandidates) {
+                        t9PinyinInputController.prevPage()
                     } else if (hasWordPredictions) {
                         englishWordPredictionController.prevPage()
                     }
@@ -2444,8 +2496,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Check Juying mode settings upfront
         val juyingModeEnabled = SettingsManager.getJuyingModeEnabled(this)
-        val isChineseInputActive = isPinyinMode || isShuangpinMode || isWubiMode || isZhenmaMode
-        val hasChineseCandidates = hasPinyinCandidates || hasShuangpinCandidates || hasWubiCandidates || hasZhenmaCandidates
+        val isChineseInputActive = isPinyinMode || isShuangpinMode || isWubiMode || isZhenmaMode || isT9PinyinMode
+        val hasChineseCandidates = hasPinyinCandidates || hasShuangpinCandidates || hasWubiCandidates || hasZhenmaCandidates || hasT9PinyinCandidates
         // Juying mode works with both Chinese input and English word predictions
         val hasAnyCandidates = hasChineseCandidates || hasWordPredictions
 
@@ -2759,6 +2811,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     when {
                         isPinyinMode && pinyinInputController.hasPrevPage() -> {
                             pinyinInputController.prevPage()
+                            updateStatusBarText()
+                        }
+                        isT9PinyinMode && t9PinyinInputController.getSnapshot().hasPrevPage -> {
+                            t9PinyinInputController.prevPage()
                             updateStatusBarText()
                         }
                         isShuangpinMode && shuangpinInputController.hasPrevPage() -> {
@@ -3252,6 +3308,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 zhenmaInputController.nextPage()
                                 updateStatusBarText()
                             }
+                            isT9PinyinMode && t9PinyinInputController.getSnapshot().hasNextPage -> {
+                                t9PinyinInputController.nextPage()
+                                updateStatusBarText()
+                            }
                             englishWordPredictionController.hasNextPage() -> {
                                 englishWordPredictionController.nextPage()
                                 updateStatusBarText()
@@ -3285,6 +3345,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             }
                             isZhenmaMode && zhenmaInputController.hasPrevPage() -> {
                                 zhenmaInputController.prevPage()
+                                updateStatusBarText()
+                            }
+                            isT9PinyinMode && t9PinyinInputController.getSnapshot().hasPrevPage -> {
+                                t9PinyinInputController.prevPage()
                                 updateStatusBarText()
                             }
                             englishWordPredictionController.hasPrevPage() -> {
@@ -3982,6 +4046,121 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (keyCode == KeyEvent.KEYCODE_ESCAPE ||
                 (keyCode == KeyEvent.KEYCODE_Q && ctrlPressed)) {
                 pinyinInputController.setPinyinMode(false)
+                ic.finishComposingText()
+                updateStatusBarText()
+                return true
+            }
+        }
+
+        // Handle T9 Pinyin input mode (九宫格)
+        if (t9PinyinInputController.isT9Mode() && ic != null) {
+            // Handle SYM mode - when SYM is active, allow symbol input
+            if (symLayoutController.isSymActive()) {
+                val symResult = symLayoutController.handleKeyWhenActive(
+                    keyCode,
+                    event,
+                    ic,
+                    ctrlLatchActive = ctrlLatchActive,
+                    altLatchActive = altLatchActive,
+                    updateStatusBar = { updateStatusBarText() },
+                    onSymbolInserted = { }
+                )
+                when (symResult) {
+                    SymLayoutController.SymKeyResult.CONSUME -> return true
+                    SymLayoutController.SymKeyResult.CALL_SUPER -> return super.onKeyDown(keyCode, event)
+                    SymLayoutController.SymKeyResult.NOT_HANDLED -> { /* Continue to T9 handling */ }
+                }
+            }
+
+            // Handle number keys 1-9 for candidate selection when Alt/Shift is not pressed
+            // and when we have candidates
+            if (t9PinyinInputController.hasCandidates() && !altPressed && !altLatchActive && !altOneShot) {
+                // Check for number key candidate selection
+                if (keyCode in KeyEvent.KEYCODE_1..KeyEvent.KEYCODE_9) {
+                    val index = keyCode - KeyEvent.KEYCODE_1
+                    val selected = t9PinyinInputController.selectCandidate(index)
+                    if (selected != null) {
+                        ic.finishComposingText()
+                        ic.commitText(selected, 1)
+                        updateStatusBarText()
+                        return true
+                    }
+                }
+            }
+
+            // Handle backspace in T9 mode
+            if (keyCode == KeyEvent.KEYCODE_DEL) {
+                if (t9PinyinInputController.handleBackspace()) {
+                    val displayBuffer = t9PinyinInputController.getDisplayBuffer()
+                    if (displayBuffer.isNotEmpty()) {
+                        ic.setComposingText(displayBuffer, 1)
+                    } else {
+                        ic.finishComposingText()
+                    }
+                    updateStatusBarText()
+                    return true
+                } else {
+                    // Buffer was empty, delete character normally
+                    ic.finishComposingText()
+                    ic.deleteSurroundingText(1, 0)
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // Handle space key - select first candidate
+            if (keyCode == KeyEvent.KEYCODE_SPACE && t9PinyinInputController.hasCandidates()) {
+                val selected = t9PinyinInputController.selectFirstCandidate()
+                if (selected != null) {
+                    ic.finishComposingText()
+                    ic.commitText(selected, 1)
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // Handle space key when no candidates - input space
+            if (keyCode == KeyEvent.KEYCODE_SPACE && !t9PinyinInputController.hasCandidates()) {
+                ic.commitText(" ", 1)
+                return true
+            }
+
+            // Handle T9 input keys (2-9, 1 for separator, or W/E/R/S/D/F/X/C/V)
+            if (event != null) {
+                val unicodeChar = event.unicodeChar
+                val char = if (unicodeChar != 0) unicodeChar.toChar() else null
+
+                // Check if this is a T9 input key
+                val isT9Key = when {
+                    keyCode in KeyEvent.KEYCODE_1..KeyEvent.KEYCODE_9 -> true
+                    char != null && char.lowercaseChar() in listOf('w', 'e', 'r', 's', 'd', 'f', 'x', 'c', 'v') -> true
+                    else -> false
+                }
+
+                if (isT9Key && t9PinyinInputController.handleKeyPress(keyCode, char)) {
+                    val displayBuffer = t9PinyinInputController.getDisplayBuffer()
+                    if (displayBuffer.isNotEmpty()) {
+                        ic.setComposingText(displayBuffer, 1)
+                    }
+                    updateStatusBarText()
+                    return true
+                }
+            }
+
+            // Handle Enter key - commit buffer as-is or insert newline
+            if (keyCode == KeyEvent.KEYCODE_ENTER) {
+                val buffer = t9PinyinInputController.getBuffer()
+                if (buffer.isNotEmpty()) {
+                    ic.finishComposingText()
+                    t9PinyinInputController.clearBuffer()
+                }
+                // Let Enter pass through for normal handling
+            }
+
+            // ESC key or Ctrl+Q to exit T9 mode
+            if (keyCode == KeyEvent.KEYCODE_ESCAPE ||
+                (keyCode == KeyEvent.KEYCODE_Q && ctrlPressed)) {
+                t9PinyinInputController.setT9Mode(false)
                 ic.finishComposingText()
                 updateStatusBarText()
                 return true

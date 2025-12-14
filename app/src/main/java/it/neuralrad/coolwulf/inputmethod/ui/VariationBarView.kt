@@ -70,6 +70,7 @@ class VariationBarView(
     private var punctuationToggleButtonView: TextView? = null
     private var traditionalChineseToggleButtonView: TextView? = null
     private var isPinyinModeActive: Boolean = false
+    private var isT9PinyinModeActive: Boolean = false
     private var isShuangpinModeActive: Boolean = false
     private var isZiranmaModeActive: Boolean = false
     private var isWubiModeActive: Boolean = false
@@ -201,6 +202,13 @@ class VariationBarView(
     fun setPinyinModeActive(active: Boolean) {
         if (isPinyinModeActive != active) {
             isPinyinModeActive = active
+            updateLanguageToggleButton()
+        }
+    }
+
+    fun setT9PinyinModeActive(active: Boolean) {
+        if (isT9PinyinModeActive != active) {
+            isT9PinyinModeActive = active
             updateLanguageToggleButton()
         }
     }
@@ -790,7 +798,7 @@ class VariationBarView(
         val showVoiceInputButton = SettingsManager.getShowVoiceInputButton(context) && !hideStatusBarIconsForJuying
 
         // Count visible buttons for weight calculation
-        val baseButtonCount = if (isPinyinModeActive || isShuangpinModeActive || isWubiModeActive) 5 else 4
+        val baseButtonCount = if (isPinyinModeActive || isT9PinyinModeActive || isShuangpinModeActive || isWubiModeActive) 5 else 4
         val visibleButtonCount = if (showVoiceInputButton) baseButtonCount else baseButtonCount - 1
 
         // Common margin for button spacing
@@ -1114,7 +1122,7 @@ class VariationBarView(
                 (btn.parent as? ViewGroup)?.removeView(btn)
                 btn.visibility = View.GONE
             }
-        } else if (isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive) {
+        } else if (isPinyinModeActive || isT9PinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive) {
             val punctuationToggleButton = punctuationToggleButtonView ?: createPunctuationToggleButton(buttonWidth).also {
                 punctuationToggleButtonView = it
             }
@@ -1171,7 +1179,7 @@ class VariationBarView(
         }
 
         // Traditional Chinese toggle button (简/繁) - show in Chinese mode when enabled in settings
-        val isInChineseMode = isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive
+        val isInChineseMode = isPinyinModeActive || isT9PinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive
         val showTraditionalToggle = isInChineseMode && isTraditionalChineseToggleEnabled && !hideStatusBarIconsForJuying
         if (showTraditionalToggle) {
             val traditionalToggleButton = traditionalChineseToggleButtonView ?: createTraditionalChineseToggleButton(buttonWidth).also {
@@ -1992,6 +2000,7 @@ class VariationBarView(
         return TextView(context).apply {
             text = when {
                 isPinyinModeActive -> "拼"
+                isT9PinyinModeActive -> "T9"
                 isShuangpinModeActive -> "双"
                 isZiranmaModeActive -> "自"
                 isWubiModeActive -> "五"
@@ -2000,7 +2009,7 @@ class VariationBarView(
             }
             textSize = 12f
             setTextColor(when {
-                isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive -> theme.accentColor
+                isPinyinModeActive || isT9PinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive -> theme.accentColor
                 else -> theme.textColor
             })
             setTypeface(null, android.graphics.Typeface.BOLD)
@@ -2018,6 +2027,7 @@ class VariationBarView(
         languageToggleButtonView?.apply {
             text = when {
                 isPinyinModeActive -> "拼"
+                isT9PinyinModeActive -> "T9"
                 isShuangpinModeActive -> "双"
                 isZiranmaModeActive -> "自"
                 isWubiModeActive -> "五"
@@ -2025,7 +2035,7 @@ class VariationBarView(
                 else -> "EN"
             }
             setTextColor(when {
-                isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive -> theme.accentColor
+                isPinyinModeActive || isT9PinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive -> theme.accentColor
                 else -> theme.textColor
             })
         }
@@ -2263,7 +2273,7 @@ class VariationBarView(
 
         // Refresh language toggle button
         languageToggleButtonView?.let { btn ->
-            val isChineseMode = isPinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive
+            val isChineseMode = isPinyinModeActive || isT9PinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive
             btn.setTextColor(if (isChineseMode) theme.accentColor else theme.textColor)
             (btn.background as? GradientDrawable)?.setColor(theme.backgroundColor)
             btn.invalidate()

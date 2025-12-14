@@ -171,6 +171,8 @@ class StatusBarController(
         val shouldDisableSmartFeatures: Boolean = false,
         val pinyinModeActive: Boolean = false,
         val pinyinBuffer: String = "",
+        val t9PinyinModeActive: Boolean = false,
+        val t9PinyinBuffer: String = "",
         val shuangpinModeActive: Boolean = false,
         val shuangpinBuffer: String = "",
         val ziranmaModeActive: Boolean = false,
@@ -1197,6 +1199,7 @@ class StatusBarController(
         variationBarView?.updateInputConnection(inputConnection)
         variationBarView?.setSymModeActive(snapshot.symPage > 0)
         variationBarView?.setPinyinModeActive(snapshot.pinyinModeActive)
+        variationBarView?.setT9PinyinModeActive(snapshot.t9PinyinModeActive)
         variationBarView?.setShuangpinModeActive(snapshot.shuangpinModeActive)
         variationBarView?.setZiranmaModeActive(snapshot.ziranmaModeActive)
         variationBarView?.setWubiModeActive(snapshot.wubiModeActive)

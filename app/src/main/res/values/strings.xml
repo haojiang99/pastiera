@@ -102,6 +102,8 @@
     <string name="chinese_input_method_description">Choose your preferred Chinese input method</string>
     <string name="chinese_input_pinyin">Pinyin (拼音)</string>
     <string name="chinese_input_pinyin_description">Enable Pinyin phonetic input</string>
+    <string name="chinese_input_t9pinyin">T9 Pinyin (九宫格)</string>
+    <string name="chinese_input_t9pinyin_description">Single-handed 9-key Chinese input. Use keys 2-9 or W/E/R/S/D/F/X/C/V</string>
     <string name="chinese_input_shuangpin">Shuangpin (双拼)</string>
     <string name="chinese_input_shuangpin_description">Enable Xiaohe Shuangpin (小鹤双拼) input</string>
     <string name="chinese_input_wubi">Wubi (五笔)</string>

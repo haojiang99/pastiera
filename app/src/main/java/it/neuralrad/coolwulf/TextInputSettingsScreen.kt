@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.*
 import it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme
@@ -140,6 +141,10 @@ fun TextInputSettingsScreen(
 
     var pinyinEnabled by remember {
         mutableStateOf(SettingsManager.getPinyinEnabled(context))
+    }
+
+    var t9PinyinEnabled by remember {
+        mutableStateOf(SettingsManager.getT9PinyinEnabled(context))
     }
 
     var wubiEnabled by remember {
@@ -1323,6 +1328,49 @@ fun TextInputSettingsScreen(
                         onCheckedChange = { enabled ->
                             pinyinEnabled = enabled
                             SettingsManager.setPinyinEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
+
+            // T9 Pinyin Toggle
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Dialpad,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.chinese_input_t9pinyin),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.chinese_input_t9pinyin_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                    Switch(
+                        checked = t9PinyinEnabled,
+                        onCheckedChange = { enabled ->
+                            t9PinyinEnabled = enabled
+                            SettingsManager.setT9PinyinEnabled(context, enabled)
                         }
                     )
                 }

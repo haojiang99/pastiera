@@ -39,6 +39,7 @@ object SettingsManager {
     private const val KEY_SYM_AUTO_CLOSE = "sym_auto_close" // Auto-close SYM layout after key press
     private const val KEY_DISMISSED_RELEASES = "dismissed_releases" // Set of release tag_names that were dismissed
     private const val KEY_PINYIN_ENABLED = "pinyin_enabled" // Enable Pinyin input
+    private const val KEY_T9_PINYIN_ENABLED = "t9_pinyin_enabled" // Enable T9 (九宫格) Pinyin input
     private const val KEY_WUBI_ENABLED = "wubi_enabled" // Enable Wubi input
     private const val KEY_SHUANGPIN_ENABLED = "shuangpin_enabled" // Enable Shuangpin (双拼) input
     private const val KEY_ZHENMA_ENABLED = "zhenma_enabled" // Enable Zhenma (真码) input
@@ -159,6 +160,7 @@ object SettingsManager {
     private const val DEFAULT_SYM_AUTO_CLOSE = true
     private val DEFAULT_SYM_PAGES_CONFIG = SymPagesConfig()
     private const val DEFAULT_PINYIN_ENABLED = true
+    private const val DEFAULT_T9_PINYIN_ENABLED = false  // T9 mode off by default
     private const val DEFAULT_WUBI_ENABLED = false
     private const val DEFAULT_SHUANGPIN_ENABLED = false
     private const val DEFAULT_ZHENMA_ENABLED = false
@@ -1216,6 +1218,22 @@ object SettingsManager {
     }
 
     /**
+     * Returns whether T9 (九宫格) Pinyin input is enabled.
+     */
+    fun getT9PinyinEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_T9_PINYIN_ENABLED, DEFAULT_T9_PINYIN_ENABLED)
+    }
+
+    /**
+     * Sets whether T9 (九宫格) Pinyin input is enabled.
+     */
+    fun setT9PinyinEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_T9_PINYIN_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
      * Returns the Pinyin character set ("simplified" or "traditional").
      */
     fun getPinyinCharacterSet(context: Context): String {
@@ -1373,6 +1391,7 @@ object SettingsManager {
     fun isMultipleChineseInputMethodsEnabled(context: Context): Boolean {
         var count = 0
         if (getPinyinEnabled(context)) count++
+        if (getT9PinyinEnabled(context)) count++
         if (getWubiEnabled(context)) count++
         if (getShuangpinEnabled(context)) count++
         if (getZhenmaEnabled(context)) count++
@@ -1395,6 +1414,7 @@ object SettingsManager {
     fun getEnabledChineseInputMethods(context: Context): List<String> {
         val methods = mutableListOf<String>()
         if (getPinyinEnabled(context)) methods.add("pinyin")
+        if (getT9PinyinEnabled(context)) methods.add("t9pinyin")
         if (getShuangpinEnabled(context)) methods.add("shuangpin")
         if (getZiranmaEnabled(context)) methods.add("ziranma")
         if (getWubiEnabled(context)) methods.add("wubi")
@@ -1448,6 +1468,7 @@ object SettingsManager {
         return when (lastMode) {
             "english" -> "english"
             "pinyin" -> if (getPinyinEnabled(context)) "pinyin" else "english"
+            "t9pinyin" -> if (getT9PinyinEnabled(context)) "t9pinyin" else "english"
             "shuangpin" -> if (getShuangpinEnabled(context)) "shuangpin" else "english"
             "ziranma" -> if (getZiranmaEnabled(context)) "ziranma" else "english"
             "wubi" -> if (getWubiEnabled(context)) "wubi" else "english"
