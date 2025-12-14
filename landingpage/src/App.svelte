@@ -94,7 +94,7 @@
         <a href="#features">功能特色</a>
         <a href="#juying">巨硬模式</a>
         <a href="#voice">语音识别</a>
-        <a href="/coolwulfIMEv0.80.1586.apk" class="btn-nav" download>立即下载</a>
+        <a href="/coolwulfIMEv0.80.1593.apk" class="btn-nav" download>立即下载</a>
       </div>
     </div>
   </nav>
@@ -119,7 +119,7 @@
         <strong>永久免费 · 无广告 · 隐私安全</strong>
       </p>
       <div class="hero-buttons">
-        <a href="/coolwulfIMEv0.80.1586.apk" class="btn btn-primary" download>
+        <a href="/coolwulfIMEv0.80.1593.apk" class="btn btn-primary" download>
           <span>立即下载</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
@@ -482,7 +482,7 @@
           酷狼输入法就是为你量身定做的输入工具。
         </p>
         <div class="cta-buttons">
-          <a href="/coolwulfIMEv0.80.1586.apk" class="btn btn-primary btn-large" download>
+          <a href="/coolwulfIMEv0.80.1593.apk" class="btn btn-primary btn-large" download>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
             </svg>
