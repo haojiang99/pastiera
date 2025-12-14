@@ -2716,6 +2716,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 if (isPinyinMode) {
                     pinyinInputController.clearBuffer()
                     pinyinInputController.clearNextWordPredictions()
+                } else if (isT9PinyinMode) {
+                    t9PinyinInputController.clearBuffer()
                 } else if (isShuangpinMode) {
                     shuangpinInputController.clearBuffer()
                     shuangpinInputController.clearNextWordPredictions()
@@ -2870,6 +2872,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     pinyinInputController.nextPage()
                                 }
                             }
+                            "t9pinyin" -> {
+                                t9PinyinInputController.restoreCandidatesForNextPage(savedAltCandidatesForNextPage, savedAltCurrentPage)
+                                if (savedAltBuffer.isNotEmpty()) {
+                                    t9PinyinInputController.restoreBuffer(savedAltBuffer)
+                                    ic?.setComposingText(t9PinyinInputController.getDisplayBuffer(), 1)
+                                }
+                                if (t9PinyinInputController.getSnapshot().hasNextPage) {
+                                    t9PinyinInputController.nextPage()
+                                }
+                            }
                             "shuangpin" -> {
                                 shuangpinInputController.restoreCandidatesForNextPage(savedAltCandidatesForNextPage, savedAltCurrentPage)
                                 if (savedAltBuffer.isNotEmpty()) {
@@ -2961,6 +2973,27 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             } else {
                                 pinyinInputController.clearBuffer()
                                 pinyinInputController.clearNextWordPredictions()
+                            }
+                        }
+                        isT9PinyinMode -> {
+                            val candidates = t9PinyinInputController.getCurrentPageCandidates()
+                            val suggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
+                            savedAltSuggestion = suggestion
+                            savedAltCandidatesForNextPage = t9PinyinInputController.getAllCandidates()
+                            savedAltCurrentPage = t9PinyinInputController.getCurrentPage()
+                            savedAltBuffer = t9PinyinInputController.getBuffer()
+                            savedAltChineseMode = "t9pinyin"
+
+                            if (suggestion != null && ic != null) {
+                                val selected = t9PinyinInputController.selectCandidate(altCandidateIndex)
+                                if (selected != null) {
+                                    altCommittedCharacter = selected
+                                    altRemainingBuffer = ""
+                                    ic.commitText(selected, 1)
+                                    // T9 always clears buffer after selection
+                                }
+                            } else {
+                                t9PinyinInputController.clearBuffer()
                             }
                         }
                         isShuangpinMode -> {
@@ -3076,6 +3109,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         } else {
                             when {
                                 isPinyinMode -> pinyinInputController.getCurrentPageCandidates().size
+                                isT9PinyinMode -> t9PinyinInputController.getCurrentPageCandidates().size
                                 isShuangpinMode -> shuangpinInputController.getCurrentPageCandidates().size
                                 isWubiMode -> wubiInputController.getCurrentPageCandidates().size
                                 isZhenmaMode -> zhenmaInputController.getCurrentPageCandidates().size
@@ -3170,6 +3204,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     if (remainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(remainingBuffer, 1)
                                     }
+                                    updateStatusBarText()
+                                    if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
+                                    return true
+                                }
+                            }
+                            isT9PinyinMode -> {
+                                val selected = t9PinyinInputController.selectCandidate(originalCandidateIndex)
+                                if (selected != null) {
+                                    // T9 always clears buffer after selection (no partial matching)
+                                    ic.setComposingText("", 1)
+                                    ic.commitText(selected, 1)
                                     updateStatusBarText()
                                     if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
                                     return true

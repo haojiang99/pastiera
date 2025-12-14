@@ -483,7 +483,7 @@ class VariationBarView(
         // Calculate button widths dynamically based on text content
         // Show numbered buttons for Pinyin, Shuangpin, Wubi, and Zhenma only (not for English word prediction)
         // In Juying mode, hide numbers - users select with physical keys (Shift/Sym/Space/Ctrl)
-        val showNumberedButtons = (snapshot.pinyinModeActive || snapshot.shuangpinModeActive || snapshot.wubiModeActive || snapshot.zhenmaModeActive) && !snapshot.isJuyingMode
+        val showNumberedButtons = (snapshot.pinyinModeActive || snapshot.t9PinyinModeActive || snapshot.shuangpinModeActive || snapshot.wubiModeActive || snapshot.zhenmaModeActive) && !snapshot.isJuyingMode
         val userFontSize = SettingsManager.getCandidateFontSize(context).toFloat()
         val textSizeSp = if (showNumberedButtons || snapshot.wordPredictionActive) userFontSize else (userFontSize - 0.4f)
         val textPaint = android.graphics.Paint().apply {
@@ -523,7 +523,7 @@ class VariationBarView(
         val variationsToProcess = snapshot.variations.take(maxSuggestionsToShow)
 
         // For English word predictions, stretch buttons to fill screen width evenly
-        val isEnglishWordPrediction = snapshot.wordPredictionActive && !snapshot.pinyinModeActive && !snapshot.wubiModeActive && !snapshot.zhenmaModeActive
+        val isEnglishWordPrediction = snapshot.wordPredictionActive && !snapshot.pinyinModeActive && !snapshot.t9PinyinModeActive && !snapshot.wubiModeActive && !snapshot.zhenmaModeActive
 
         // In Juying mode with suggestions, use full screen width for better key alignment
         val isJuyingModeWithSuggestions = snapshot.isJuyingMode && variationsToProcess.isNotEmpty()
@@ -683,7 +683,7 @@ class VariationBarView(
             //   - 4+ candidates: [2nd, 3rd, 1st, ...] -> best is at position 2
             // - English word prediction: [1st best, typed word, 2nd best]
             //   - Best candidate is always at position 0 (left, Sym key)
-            val isChineseMode = snapshot.pinyinModeActive || snapshot.shuangpinModeActive ||
+            val isChineseMode = snapshot.pinyinModeActive || snapshot.t9PinyinModeActive || snapshot.shuangpinModeActive ||
                                 snapshot.wubiModeActive || snapshot.zhenmaModeActive
             val bestCandidatePosition = when {
                 isChineseMode -> when (limitedVariations.size) {
@@ -723,7 +723,7 @@ class VariationBarView(
         containerView.requestLayout()
 
         // Add navigation arrows when in Pinyin, Shuangpin, Ziranma, Wubi, Zhenma, or word prediction mode with suggestions
-        val showPagination = (snapshot.pinyinModeActive || snapshot.shuangpinModeActive || snapshot.ziranmaModeActive || snapshot.wubiModeActive || snapshot.zhenmaModeActive || snapshot.wordPredictionActive) &&
+        val showPagination = (snapshot.pinyinModeActive || snapshot.t9PinyinModeActive || snapshot.shuangpinModeActive || snapshot.ziranmaModeActive || snapshot.wubiModeActive || snapshot.zhenmaModeActive || snapshot.wordPredictionActive) &&
                              snapshot.variations.isNotEmpty()
 
         // Smaller arrow button size

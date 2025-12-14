@@ -556,6 +556,28 @@ class T9PinyinInputController(
     fun getAllCandidates(): List<String> = allCandidates
 
     /**
+     * Gets the current page index.
+     */
+    fun getCurrentPage(): Int = currentPage
+
+    /**
+     * Restores the buffer content.
+     */
+    fun restoreBuffer(buffer: String) {
+        digitBuffer.clear()
+        digitBuffer.append(buffer)
+        updateCandidates()
+    }
+
+    /**
+     * Restores candidates for Alt double-click next page functionality.
+     */
+    fun restoreCandidatesForNextPage(candidates: List<String>, page: Int) {
+        allCandidates = candidates.toMutableList()
+        currentPage = page
+    }
+
+    /**
      * Converts a display character to its T9 digit equivalent for display.
      */
     fun getT9DisplayForDigit(digit: Char): String {
