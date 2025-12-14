@@ -64,6 +64,11 @@ fun CustomThemeEditorScreen(
     }
     var showRenameDialog by remember { mutableStateOf(false) }
 
+    // Theme type (light/dark) for day/night switching
+    var themeType by remember {
+        mutableStateOf(SettingsManager.getCustomThemeSlotType(context, slot))
+    }
+
     // Get the theme ID for this slot
     val slotThemeId = when (slot) {
         1 -> StatusBarTheme.CUSTOM_THEME_1_ID
@@ -82,6 +87,7 @@ fun CustomThemeEditorScreen(
     fun exportThemeToJson(): String {
         val json = JSONObject()
         json.put("theme_name", if (themeName.isNotEmpty()) themeName else "Custom Theme $slot")
+        json.put("theme_type", themeType)
         json.put("slot", slot)
         json.put("version", 1)
         json.put("exported_at", SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
@@ -106,6 +112,15 @@ fun CustomThemeEditorScreen(
                 val importedName = json.getString("theme_name")
                 themeName = importedName
                 SettingsManager.setCustomThemeSlotName(context, slot, importedName)
+            }
+
+            // Import theme type if present
+            if (json.has("theme_type")) {
+                val importedType = json.getString("theme_type")
+                if (importedType == "light" || importedType == "dark") {
+                    themeType = importedType
+                    SettingsManager.setCustomThemeSlotType(context, slot, importedType)
+                }
             }
 
             val newColors = mutableMapOf<String, Color>()
@@ -471,6 +486,56 @@ fun CustomThemeEditorScreen(
                                 .size(14.dp)
                                 .clip(CircleShape)
                                 .background(colors["ledInactiveColor"] ?: Color.Gray)
+                        )
+                    }
+                }
+            }
+
+            // Theme Type Selector (Light/Dark)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.theme_type_selector_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = stringResource(R.string.theme_type_selector_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Dark button
+                        FilterChip(
+                            selected = themeType == "dark",
+                            onClick = {
+                                themeType = "dark"
+                                SettingsManager.setCustomThemeSlotType(context, slot, "dark")
+                            },
+                            label = { Text(stringResource(R.string.theme_type_dark)) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        // Light button
+                        FilterChip(
+                            selected = themeType == "light",
+                            onClick = {
+                                themeType = "light"
+                                SettingsManager.setCustomThemeSlotType(context, slot, "light")
+                            },
+                            label = { Text(stringResource(R.string.theme_type_light)) },
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }

@@ -7,9 +7,18 @@ import it.neuralrad.coolwulf.SettingsManager
 /**
  * Defines the color scheme for the status bar and suggestion/candidate bar.
  */
+/**
+ * Theme type classification for day/night auto-switching.
+ */
+enum class ThemeType {
+    LIGHT,  // For daytime use
+    DARK    // For nighttime use
+}
+
 data class StatusBarTheme(
     val id: String,
     val nameResId: Int,
+    val themeType: ThemeType = ThemeType.DARK,  // Default to dark
     val backgroundColor: Int,
     val textColor: Int,
     val textColorSecondary: Int,
@@ -31,6 +40,7 @@ data class StatusBarTheme(
         val CLASSIC_DARK = StatusBarTheme(
             id = "classic_dark",
             nameResId = 0, // Will be set via string resource
+            themeType = ThemeType.DARK,
             backgroundColor = Color.parseColor("#000000"),
             textColor = Color.WHITE,
             textColorSecondary = Color.argb(180, 255, 255, 255),
@@ -52,6 +62,7 @@ data class StatusBarTheme(
         val OCEAN_BLUE = StatusBarTheme(
             id = "ocean_blue",
             nameResId = 0,
+            themeType = ThemeType.DARK,
             backgroundColor = Color.parseColor("#0D1B2A"),
             textColor = Color.WHITE,
             textColorSecondary = Color.argb(200, 200, 220, 255),
@@ -73,6 +84,7 @@ data class StatusBarTheme(
         val MIDNIGHT_PURPLE = StatusBarTheme(
             id = "midnight_purple",
             nameResId = 0,
+            themeType = ThemeType.DARK,
             backgroundColor = Color.parseColor("#1A1A2E"),
             textColor = Color.WHITE,
             textColorSecondary = Color.argb(200, 220, 200, 255),
@@ -94,6 +106,7 @@ data class StatusBarTheme(
         val FOREST_GREEN = StatusBarTheme(
             id = "forest_green",
             nameResId = 0,
+            themeType = ThemeType.DARK,
             backgroundColor = Color.parseColor("#0D1F0D"),
             textColor = Color.WHITE,
             textColorSecondary = Color.argb(200, 200, 255, 200),
@@ -115,6 +128,7 @@ data class StatusBarTheme(
         val SUNSET_ORANGE = StatusBarTheme(
             id = "sunset_orange",
             nameResId = 0,
+            themeType = ThemeType.DARK,
             backgroundColor = Color.parseColor("#1F1410"),
             textColor = Color.WHITE,
             textColorSecondary = Color.argb(200, 255, 220, 200),
@@ -136,6 +150,7 @@ data class StatusBarTheme(
         val ROSE_GOLD = StatusBarTheme(
             id = "rose_gold",
             nameResId = 0,
+            themeType = ThemeType.DARK,
             backgroundColor = Color.parseColor("#1A1418"),
             textColor = Color.WHITE,
             textColorSecondary = Color.argb(200, 255, 210, 220),
@@ -157,6 +172,7 @@ data class StatusBarTheme(
         val CHARCOAL_GRAY = StatusBarTheme(
             id = "charcoal_gray",
             nameResId = 0,
+            themeType = ThemeType.DARK,
             backgroundColor = Color.parseColor("#1C1C1E"),
             textColor = Color.WHITE,
             textColorSecondary = Color.argb(200, 200, 200, 200),
@@ -178,6 +194,7 @@ data class StatusBarTheme(
         val CYBER_NEON = StatusBarTheme(
             id = "cyber_neon",
             nameResId = 0,
+            themeType = ThemeType.DARK,
             backgroundColor = Color.parseColor("#0A0A0F"),
             textColor = Color.rgb(0, 255, 255),
             textColorSecondary = Color.argb(200, 0, 200, 200),
@@ -195,6 +212,50 @@ data class StatusBarTheme(
             ledInactiveColor = Color.argb(30, 0, 255, 255)
         )
 
+        // Silver Light - Clean light silver theme for daytime
+        val SILVER_LIGHT = StatusBarTheme(
+            id = "silver_light",
+            nameResId = 0,
+            themeType = ThemeType.LIGHT,
+            backgroundColor = Color.parseColor("#E8E8ED"),
+            textColor = Color.parseColor("#1C1C1E"),
+            textColorSecondary = Color.argb(180, 60, 60, 67),
+            accentColor = Color.parseColor("#007AFF"),
+            buttonBackgroundColor = Color.argb(40, 0, 0, 0),
+            buttonPressedColor = Color.argb(80, 0, 0, 0),
+            candidateBackgroundColor = Color.parseColor("#F2F2F7"),
+            candidateBestBackgroundColor = Color.parseColor("#D1D1D6"),
+            candidateTextColor = Color.parseColor("#1C1C1E"),
+            candidateBestTextColor = Color.parseColor("#007AFF"),
+            iconColor = Color.parseColor("#3C3C43"),
+            iconInactiveColor = Color.parseColor("#AEAEB2"),
+            ledActiveColor = Color.parseColor("#34C759"),
+            ledLockedColor = Color.parseColor("#FF9500"),
+            ledInactiveColor = Color.argb(40, 60, 60, 67)
+        )
+
+        // Warm Cream - Soft warm light theme
+        val WARM_CREAM = StatusBarTheme(
+            id = "warm_cream",
+            nameResId = 0,
+            themeType = ThemeType.LIGHT,
+            backgroundColor = Color.parseColor("#FAF8F5"),
+            textColor = Color.parseColor("#2C2417"),
+            textColorSecondary = Color.argb(180, 80, 70, 50),
+            accentColor = Color.parseColor("#B8860B"),
+            buttonBackgroundColor = Color.argb(35, 80, 60, 30),
+            buttonPressedColor = Color.argb(70, 80, 60, 30),
+            candidateBackgroundColor = Color.parseColor("#F5F0E8"),
+            candidateBestBackgroundColor = Color.parseColor("#E8DFD0"),
+            candidateTextColor = Color.parseColor("#2C2417"),
+            candidateBestTextColor = Color.parseColor("#8B6914"),
+            iconColor = Color.parseColor("#5D4E37"),
+            iconInactiveColor = Color.parseColor("#B8A88A"),
+            ledActiveColor = Color.parseColor("#6B8E23"),
+            ledLockedColor = Color.parseColor("#CD853F"),
+            ledInactiveColor = Color.argb(40, 80, 70, 50)
+        )
+
         val ALL_THEMES = listOf(
             CLASSIC_DARK,
             OCEAN_BLUE,
@@ -203,7 +264,9 @@ data class StatusBarTheme(
             SUNSET_ORANGE,
             ROSE_GOLD,
             CHARCOAL_GRAY,
-            CYBER_NEON
+            CYBER_NEON,
+            SILVER_LIGHT,
+            WARM_CREAM
         )
 
         const val CUSTOM_THEME_ID = "custom"
@@ -243,6 +306,7 @@ data class StatusBarTheme(
             return StatusBarTheme(
                 id = CUSTOM_THEME_ID,
                 nameResId = 0,
+                themeType = ThemeType.DARK,
                 backgroundColor = colors["backgroundColor"] ?: CLASSIC_DARK.backgroundColor,
                 textColor = colors["textColor"] ?: CLASSIC_DARK.textColor,
                 textColorSecondary = colors["textColorSecondary"] ?: CLASSIC_DARK.textColorSecondary,
@@ -272,9 +336,12 @@ data class StatusBarTheme(
                 3 -> CUSTOM_THEME_3_ID
                 else -> CUSTOM_THEME_1_ID
             }
+            val themeTypeStr = SettingsManager.getCustomThemeSlotType(context, slot)
+            val themeType = if (themeTypeStr == "light") ThemeType.LIGHT else ThemeType.DARK
             return StatusBarTheme(
                 id = slotId,
                 nameResId = 0,
+                themeType = themeType,
                 backgroundColor = colors["backgroundColor"] ?: CLASSIC_DARK.backgroundColor,
                 textColor = colors["textColor"] ?: CLASSIC_DARK.textColor,
                 textColorSecondary = colors["textColorSecondary"] ?: CLASSIC_DARK.textColorSecondary,
@@ -292,6 +359,23 @@ data class StatusBarTheme(
                 ledInactiveColor = colors["ledInactiveColor"] ?: CLASSIC_DARK.ledInactiveColor
             )
         }
+
+        /**
+         * Gets all themes of a specific type (light or dark).
+         */
+        fun getThemesByType(type: ThemeType): List<StatusBarTheme> {
+            return ALL_THEMES.filter { it.themeType == type }
+        }
+
+        /**
+         * Gets all light themes.
+         */
+        fun getLightThemes(): List<StatusBarTheme> = getThemesByType(ThemeType.LIGHT)
+
+        /**
+         * Gets all dark themes.
+         */
+        fun getDarkThemes(): List<StatusBarTheme> = getThemesByType(ThemeType.DARK)
 
         /**
          * Checks if a theme ID is a custom theme slot.

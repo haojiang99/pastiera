@@ -148,9 +148,9 @@ class StatusBarController(
         private const val SEMI_TRANSPARENT_ALPHA = 0.4f  // 40% opacity for entire UI
     }
 
-    // Get current theme
+    // Get current theme (considers day/night mode if enabled)
     private fun getCurrentTheme(): it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme {
-        val themeId = SettingsManager.getStatusBarTheme(context)
+        val themeId = SettingsManager.getEffectiveTheme(context)
         return it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme.getThemeById(themeId, context)
     }
 

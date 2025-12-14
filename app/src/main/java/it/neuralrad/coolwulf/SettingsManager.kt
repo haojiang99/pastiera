@@ -103,6 +103,11 @@ object SettingsManager {
     private const val KEY_SHOW_SYM_BUTTON = "show_sym_button" // Show SYM button in status bar
     private const val KEY_SHOW_SOUND_TOGGLE_BUTTON = "show_sound_toggle_button" // Show sound toggle button in status bar
     private const val KEY_STATUS_BAR_THEME = "status_bar_theme" // Status bar theme ID
+    private const val KEY_DAY_NIGHT_THEME_ENABLED = "day_night_theme_enabled" // Enable automatic day/night theme switching
+    private const val KEY_DAY_THEME = "day_theme" // Theme ID to use during daytime
+    private const val KEY_NIGHT_THEME = "night_theme" // Theme ID to use during nighttime
+    private const val KEY_DAY_START_HOUR = "day_start_hour" // Hour when daytime starts (default: 6)
+    private const val KEY_NIGHT_START_HOUR = "night_start_hour" // Hour when nighttime starts (default: 18)
 
     // Custom theme color keys (slot 1 - default/legacy)
     private const val KEY_CUSTOM_THEME_BACKGROUND = "custom_theme_background"
@@ -126,8 +131,18 @@ object SettingsManager {
     private const val KEY_CUSTOM_THEME_NAME_2 = "custom_theme_name_2"
     private const val KEY_CUSTOM_THEME_NAME_3 = "custom_theme_name_3"
 
+    // Custom theme slot types (light/dark)
+    private const val KEY_CUSTOM_THEME_TYPE_1 = "custom_theme_type_1"
+    private const val KEY_CUSTOM_THEME_TYPE_2 = "custom_theme_type_2"
+    private const val KEY_CUSTOM_THEME_TYPE_3 = "custom_theme_type_3"
+
     // Default values
     private const val DEFAULT_STATUS_BAR_THEME = "classic_dark"
+    private const val DEFAULT_DAY_NIGHT_THEME_ENABLED = false
+    private const val DEFAULT_DAY_THEME = "charcoal_gray" // Light-ish theme for day
+    private const val DEFAULT_NIGHT_THEME = "classic_dark" // Dark theme for night
+    private const val DEFAULT_DAY_START_HOUR = 6
+    private const val DEFAULT_NIGHT_START_HOUR = 18
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
     private const val MIN_LONG_PRESS_THRESHOLD = 50L
     private const val MAX_LONG_PRESS_THRESHOLD = 1000L
@@ -2283,6 +2298,139 @@ object SettingsManager {
             .apply()
     }
 
+    // ==================== Day/Night Theme Settings ====================
+
+    /**
+     * Gets whether day/night theme switching is enabled.
+     */
+    fun isDayNightThemeEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_DAY_NIGHT_THEME_ENABLED, DEFAULT_DAY_NIGHT_THEME_ENABLED)
+    }
+
+    /**
+     * Sets whether day/night theme switching is enabled.
+     */
+    fun setDayNightThemeEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_DAY_NIGHT_THEME_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets the theme ID for daytime.
+     */
+    fun getDayTheme(context: Context): String {
+        return getPreferences(context).getString(KEY_DAY_THEME, DEFAULT_DAY_THEME) ?: DEFAULT_DAY_THEME
+    }
+
+    /**
+     * Sets the theme ID for daytime.
+     */
+    fun setDayTheme(context: Context, themeId: String) {
+        getPreferences(context).edit()
+            .putString(KEY_DAY_THEME, themeId)
+            .apply()
+    }
+
+    /**
+     * Gets the theme ID for nighttime.
+     */
+    fun getNightTheme(context: Context): String {
+        return getPreferences(context).getString(KEY_NIGHT_THEME, DEFAULT_NIGHT_THEME) ?: DEFAULT_NIGHT_THEME
+    }
+
+    /**
+     * Sets the theme ID for nighttime.
+     */
+    fun setNightTheme(context: Context, themeId: String) {
+        getPreferences(context).edit()
+            .putString(KEY_NIGHT_THEME, themeId)
+            .apply()
+    }
+
+    /**
+     * Gets the hour when daytime starts (0-23).
+     */
+    fun getDayStartHour(context: Context): Int {
+        return getPreferences(context).getInt(KEY_DAY_START_HOUR, DEFAULT_DAY_START_HOUR)
+    }
+
+    /**
+     * Sets the hour when daytime starts (0-23).
+     */
+    fun setDayStartHour(context: Context, hour: Int) {
+        getPreferences(context).edit()
+            .putInt(KEY_DAY_START_HOUR, hour.coerceIn(0, 23))
+            .apply()
+    }
+
+    /**
+     * Gets the hour when nighttime starts (0-23).
+     */
+    fun getNightStartHour(context: Context): Int {
+        return getPreferences(context).getInt(KEY_NIGHT_START_HOUR, DEFAULT_NIGHT_START_HOUR)
+    }
+
+    /**
+     * Sets the hour when nighttime starts (0-23).
+     */
+    fun setNightStartHour(context: Context, hour: Int) {
+        getPreferences(context).edit()
+            .putInt(KEY_NIGHT_START_HOUR, hour.coerceIn(0, 23))
+            .apply()
+    }
+
+    /**
+     * Checks if it's currently daytime based on the configured hours.
+     */
+    fun isDaytime(context: Context): Boolean {
+        val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val dayStart = getDayStartHour(context)
+        val nightStart = getNightStartHour(context)
+
+        return if (dayStart < nightStart) {
+            // Normal case: day is 6-18, night is 18-6
+            currentHour >= dayStart && currentHour < nightStart
+        } else {
+            // Inverted case: night spans midnight (e.g., day 18-6, night 6-18)
+            currentHour >= dayStart || currentHour < nightStart
+        }
+    }
+
+    /**
+     * Gets the appropriate theme ID based on day/night setting and current time.
+     * If day/night mode is disabled, returns the regular status bar theme.
+     * If day/night mode is enabled, returns the day theme (light) during daytime
+     * and night theme (dark) during nighttime.
+     */
+    fun getEffectiveTheme(context: Context): String {
+        return if (isDayNightThemeEnabled(context)) {
+            if (isDaytime(context)) getDayTheme(context) else getNightTheme(context)
+        } else {
+            getStatusBarTheme(context)
+        }
+    }
+
+    /**
+     * Gets the theme type (light/dark) for a given theme ID.
+     * Returns "dark" for unknown themes.
+     */
+    fun getThemeType(context: Context, themeId: String): String {
+        // Check custom theme slots
+        if (themeId == it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme.CUSTOM_THEME_1_ID) {
+            return getCustomThemeSlotType(context, 1)
+        }
+        if (themeId == it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme.CUSTOM_THEME_2_ID) {
+            return getCustomThemeSlotType(context, 2)
+        }
+        if (themeId == it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme.CUSTOM_THEME_3_ID) {
+            return getCustomThemeSlotType(context, 3)
+        }
+        // Check built-in themes
+        val theme = it.neuralrad.coolwulf.inputmethod.ui.StatusBarTheme.ALL_THEMES.find { it.id == themeId }
+        return if (theme?.themeType == it.neuralrad.coolwulf.inputmethod.ui.ThemeType.LIGHT) "light" else "dark"
+    }
+
     /**
      * Gets all custom theme colors as a map.
      * Returns default values based on Classic Dark theme if not set.
@@ -2483,6 +2631,36 @@ object SettingsManager {
         val prefix = getCustomThemeSlotPrefix(slot)
         // Check if at least the background color has been set
         return prefs.contains("${prefix}background")
+    }
+
+    /**
+     * Gets the theme type (light/dark) for a custom theme slot.
+     * Returns "dark" by default.
+     */
+    fun getCustomThemeSlotType(context: Context, slot: Int): String {
+        val prefs = getPreferences(context)
+        val key = when (slot) {
+            1 -> KEY_CUSTOM_THEME_TYPE_1
+            2 -> KEY_CUSTOM_THEME_TYPE_2
+            3 -> KEY_CUSTOM_THEME_TYPE_3
+            else -> return "dark"
+        }
+        return prefs.getString(key, "dark") ?: "dark"
+    }
+
+    /**
+     * Sets the theme type (light/dark) for a custom theme slot.
+     */
+    fun setCustomThemeSlotType(context: Context, slot: Int, type: String) {
+        val key = when (slot) {
+            1 -> KEY_CUSTOM_THEME_TYPE_1
+            2 -> KEY_CUSTOM_THEME_TYPE_2
+            3 -> KEY_CUSTOM_THEME_TYPE_3
+            else -> return
+        }
+        getPreferences(context).edit()
+            .putString(key, type)
+            .apply()
     }
 
     /**

@@ -709,6 +709,18 @@
     <string name="theme_custom_slot_1">Custom 1</string>
     <string name="theme_custom_slot_2">Custom 2</string>
     <string name="theme_custom_slot_3">Custom 3</string>
+    <string name="theme_silver_light">Silver Light</string>
+    <string name="theme_warm_cream">Warm Cream</string>
+    <string name="theme_type_light">Light</string>
+    <string name="theme_type_dark">Dark</string>
+    <string name="theme_type_selector_title">Theme Type</string>
+    <string name="theme_type_selector_description">Set whether this theme is light or dark for day/night switching</string>
+
+    <!-- Day/Night Theme -->
+    <string name="day_night_theme_title">Day/Night Theme</string>
+    <string name="day_night_theme_description">Auto-switch between light and dark themes based on time of day</string>
+    <string name="day_theme_title">Day Theme</string>
+    <string name="night_theme_title">Night Theme</string>
 
     <!-- LED Status Indicator -->
     <string name="show_led_status_title">Show LED Status Indicator</string>
