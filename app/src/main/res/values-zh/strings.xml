@@ -104,7 +104,7 @@
     <string name="chinese_input_pinyin">拼音</string>
     <string name="chinese_input_pinyin_description">启用拼音语音输入</string>
     <string name="chinese_input_t9pinyin">九宫格拼音</string>
-    <string name="chinese_input_t9pinyin_description">单手9键中文输入。使用数字键2-9或字母键W/E/R/S/D/F/X/C/V</string>
+    <string name="chinese_input_t9pinyin_description">单手9键中文输入。使用数字键1-9或字母键（Titan 2: W/E/R/S/D/F/X/C/V，BlackBerry: W/E/R/S/D/F/Z/X/C）</string>
     <string name="chinese_input_shuangpin">双拼</string>
     <string name="chinese_input_shuangpin_description">启用小鹤双拼输入</string>
     <string name="chinese_input_wubi">五笔</string>

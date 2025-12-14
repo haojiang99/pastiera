@@ -187,6 +187,16 @@ class ShuangpinInputController(
      * @return true if handled, false otherwise
      */
     fun handleBackspace(): Boolean {
+        return handleBackspaceAtPosition(-1)
+    }
+
+    /**
+     * Handles backspace in Shuangpin mode at a specific cursor position within the buffer.
+     * @param cursorPosition The cursor position within the buffer (0 = before first char, buffer.length = after last char).
+     *                       If -1 or >= buffer.length, deletes the last character.
+     * @return true if handled, false otherwise
+     */
+    fun handleBackspaceAtPosition(cursorPosition: Int): Boolean {
         if (!isShuangpinModeActive) {
             return false
         }
@@ -204,11 +214,27 @@ class ShuangpinInputController(
             return false
         }
 
-        buffer.deleteCharAt(buffer.length - 1)
-        updateCandidates()
-        Log.d(TAG, "Backspace - Buffer: '$buffer', Candidates: ${allCandidates.size}")
+        // Determine which character to delete
+        val deletePosition = if (cursorPosition <= 0 || cursorPosition > buffer.length) {
+            // Default: delete last character (cursor at end or invalid position)
+            buffer.length - 1
+        } else {
+            // Delete the character before the cursor
+            cursorPosition - 1
+        }
+
+        if (deletePosition >= 0 && deletePosition < buffer.length) {
+            buffer.deleteCharAt(deletePosition)
+            updateCandidates()
+            Log.d(TAG, "Backspace at position $cursorPosition - Buffer: '$buffer', Candidates: ${allCandidates.size}")
+        }
         return true
     }
+
+    /**
+     * Gets the buffer length.
+     */
+    fun getBufferLength(): Int = buffer.length
 
     /**
      * Selects a candidate by index on current page and returns the selected character.

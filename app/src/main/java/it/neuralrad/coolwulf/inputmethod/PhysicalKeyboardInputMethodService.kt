@@ -3905,10 +3905,44 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (keyCode == KeyEvent.KEYCODE_DEL) {
                 val hadBuffer = pinyinInputController.getBuffer().isNotEmpty()
                 val hadPredictions = pinyinInputController.isShowingNextWordPredictions()
-                if (pinyinInputController.handleBackspace()) {
+
+                // Get cursor position within composing text for cursor-aware deletion
+                val bufferLength = pinyinInputController.getBufferLength()
+                var cursorPositionInBuffer = bufferLength // Default: cursor at end
+                if (bufferLength > 0) {
+                    val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                    if (extractedText != null) {
+                        // The composing region is typically at the end of text before cursor
+                        // selectionStart relative to composing start gives us cursor position in buffer
+                        val composingStart = extractedText.text.length - bufferLength
+                        if (composingStart >= 0 && extractedText.selectionStart >= composingStart) {
+                            cursorPositionInBuffer = extractedText.selectionStart - composingStart
+                        }
+                    }
+                }
+
+                if (pinyinInputController.handleBackspaceAtPosition(cursorPositionInBuffer)) {
                     val buffer = pinyinInputController.getBuffer()
                     if (buffer.isNotEmpty()) {
+                        // Restore cursor position after deletion (one position back if we deleted before cursor)
+                        val newCursorPos = if (cursorPositionInBuffer > 0 && cursorPositionInBuffer <= bufferLength) {
+                            cursorPositionInBuffer - 1
+                        } else {
+                            buffer.length
+                        }
+                        // setComposingText with cursor position: 1 means cursor at end,
+                        // but we need to use setComposingRegion for precise cursor control
                         ic.setComposingText(buffer, 1)
+                        // Adjust cursor if not at end
+                        if (newCursorPos < buffer.length) {
+                            val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                            if (extractedText != null) {
+                                val composingStart = extractedText.text.length - buffer.length
+                                if (composingStart >= 0) {
+                                    ic.setSelection(composingStart + newCursorPos, composingStart + newCursorPos)
+                                }
+                            }
+                        }
                     } else if (hadBuffer) {
                         // Buffer was cleared, finish composing text
                         ic.finishComposingText()
@@ -4470,10 +4504,38 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (keyCode == KeyEvent.KEYCODE_DEL) {
                 val hadBuffer = shuangpinInputController.getBuffer().isNotEmpty()
                 val hadPredictions = shuangpinInputController.isShowingNextWordPredictions()
-                if (shuangpinInputController.handleBackspace()) {
+
+                // Get cursor position within composing text for cursor-aware deletion
+                val bufferLength = shuangpinInputController.getBufferLength()
+                var cursorPositionInBuffer = bufferLength // Default: cursor at end
+                if (bufferLength > 0) {
+                    val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                    if (extractedText != null) {
+                        val composingStart = extractedText.text.length - bufferLength
+                        if (composingStart >= 0 && extractedText.selectionStart >= composingStart) {
+                            cursorPositionInBuffer = extractedText.selectionStart - composingStart
+                        }
+                    }
+                }
+
+                if (shuangpinInputController.handleBackspaceAtPosition(cursorPositionInBuffer)) {
                     val buffer = shuangpinInputController.getBuffer()
                     if (buffer.isNotEmpty()) {
+                        val newCursorPos = if (cursorPositionInBuffer > 0 && cursorPositionInBuffer <= bufferLength) {
+                            cursorPositionInBuffer - 1
+                        } else {
+                            buffer.length
+                        }
                         ic.setComposingText(buffer, 1)
+                        if (newCursorPos < buffer.length) {
+                            val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                            if (extractedText != null) {
+                                val composingStart = extractedText.text.length - buffer.length
+                                if (composingStart >= 0) {
+                                    ic.setSelection(composingStart + newCursorPos, composingStart + newCursorPos)
+                                }
+                            }
+                        }
                     } else if (hadBuffer) {
                         // Buffer was cleared, finish composing text
                         ic.finishComposingText()

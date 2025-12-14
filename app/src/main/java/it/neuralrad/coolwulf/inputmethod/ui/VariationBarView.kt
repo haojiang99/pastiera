@@ -43,9 +43,9 @@ class VariationBarView(
         private const val TAG = "VariationBarView"
     }
 
-    // Get current theme
+    // Get current theme (considers day/night mode if enabled)
     private fun getCurrentTheme(): StatusBarTheme {
-        val themeId = SettingsManager.getStatusBarTheme(context)
+        val themeId = SettingsManager.getEffectiveTheme(context)
         return StatusBarTheme.getThemeById(themeId, context)
     }
 

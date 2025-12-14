@@ -12,17 +12,19 @@ import it.neuralrad.coolwulf.SettingsManager
  * T9 (九宫格) Pinyin input controller for single-handed Chinese input.
  *
  * Uses the standard T9 key mapping:
+ * - 1 = Separator (')
  * - 2 (W) = ABC
  * - 3 (E) = DEF
  * - 4 (R) = GHI
  * - 5 (S) = JKL
  * - 6 (D) = MNO
  * - 7 (F) = PQRS
- * - 8 (X) = TUV
- * - 9 (C) = WXYZ
+ * - 8 = TUV
+ * - 9 = WXYZ
  *
- * Also supports letter keys W/E/R/S/D/F/X/C/V mapping to 2-9.
- * Key 1 (V) is used for syllable separator (').
+ * Device-specific letter key mappings:
+ * - Titan 2: W/E/R/S/D/F/X/C/V -> 1/2/3/4/5/6/7/8/9
+ * - BlackBerry: W/E/R/S/D/F/Z/X/C -> 1/2/3/4/5/6/7/8/9
  */
 class T9PinyinInputController(
     private val context: Context
@@ -44,27 +46,52 @@ class T9PinyinInputController(
             '9' to "wxyz"
         )
 
-        // Letter keys to T9 digit mapping (for physical keyboard)
-        // W/E/R/S/D/F/X/C/V -> 2/3/4/5/6/7/8/9/1
-        private val LETTER_TO_T9 = mapOf(
-            'w' to '2', 'W' to '2',
-            'e' to '3', 'E' to '3',
-            'r' to '4', 'R' to '4',
-            's' to '5', 'S' to '5',
-            'd' to '6', 'D' to '6',
-            'f' to '7', 'F' to '7',
-            'x' to '8', 'X' to '8',
-            'c' to '9', 'C' to '9',
-            'v' to '1', 'V' to '1'  // Separator key
+        // Letter keys to T9 digit mapping for Titan 2
+        // W/E/R/S/D/F/X/C/V -> 1/2/3/4/5/6/7/8/9
+        private val LETTER_TO_T9_TITAN2 = mapOf(
+            'w' to '1', 'W' to '1',  // Separator key
+            'e' to '2', 'E' to '2',
+            'r' to '3', 'R' to '3',
+            's' to '4', 'S' to '4',
+            'd' to '5', 'D' to '5',
+            'f' to '6', 'F' to '6',
+            'x' to '7', 'X' to '7',
+            'c' to '8', 'C' to '8',
+            'v' to '9', 'V' to '9'
         )
 
-        // Reverse mapping for display
-        private val T9_TO_LETTER = mapOf(
-            '2' to 'W', '3' to 'E', '4' to 'R',
-            '5' to 'S', '6' to 'D', '7' to 'F',
-            '8' to 'X', '9' to 'C', '1' to 'V'
+        // Reverse mapping for display (Titan 2)
+        private val T9_TO_LETTER_TITAN2 = mapOf(
+            '1' to 'W', '2' to 'E', '3' to 'R',
+            '4' to 'S', '5' to 'D', '6' to 'F',
+            '7' to 'X', '8' to 'C', '9' to 'V'
+        )
+
+        // Letter keys to T9 digit mapping for BlackBerry
+        // W/E/R/S/D/F/Z/X/C -> 1/2/3/4/5/6/7/8/9
+        private val LETTER_TO_T9_BLACKBERRY = mapOf(
+            'w' to '1', 'W' to '1',  // Separator key
+            'e' to '2', 'E' to '2',
+            'r' to '3', 'R' to '3',
+            's' to '4', 'S' to '4',
+            'd' to '5', 'D' to '5',
+            'f' to '6', 'F' to '6',
+            'z' to '7', 'Z' to '7',
+            'x' to '8', 'X' to '8',
+            'c' to '9', 'C' to '9'
+        )
+
+        // Reverse mapping for display (BlackBerry)
+        private val T9_TO_LETTER_BLACKBERRY = mapOf(
+            '1' to 'W', '2' to 'E', '3' to 'R',
+            '4' to 'S', '5' to 'D', '6' to 'F',
+            '7' to 'Z', '8' to 'X', '9' to 'C'
         )
     }
+
+    // Device-specific mappings (loaded based on device type)
+    private var letterToT9: Map<Char, Char> = LETTER_TO_T9_TITAN2
+    private var t9ToLetter: Map<Char, Char> = T9_TO_LETTER_TITAN2
 
     // T9 digit buffer (e.g., "64426" for "nihao")
     private var digitBuffer = StringBuilder()
@@ -104,6 +131,19 @@ class T9PinyinInputController(
         if (!PinyinDictionary.isLoaded()) {
             PinyinDictionary.load(context)
         }
+        // Load device-specific key mappings
+        updateDeviceMappings()
+    }
+
+    /**
+     * Updates the key mappings based on the current device type.
+     * Call this when device type changes.
+     */
+    fun updateDeviceMappings() {
+        val isBlackBerry = SettingsManager.isBlackBerryDevice(context)
+        letterToT9 = if (isBlackBerry) LETTER_TO_T9_BLACKBERRY else LETTER_TO_T9_TITAN2
+        t9ToLetter = if (isBlackBerry) T9_TO_LETTER_BLACKBERRY else T9_TO_LETTER_TITAN2
+        Log.d(TAG, "Device mappings updated: ${if (isBlackBerry) "BlackBerry" else "Titan 2"}")
     }
 
     /**
@@ -133,7 +173,7 @@ class T9PinyinInputController(
 
     /**
      * Handles a key press in T9 mode.
-     * Accepts number keys 2-9, or letter keys W/E/R/S/D/F/X/C/V.
+     * Accepts number keys 1-9, or device-specific letter keys.
      * @param keyCode The Android key code
      * @param char The character if available
      * @return true if the key was handled
@@ -143,7 +183,8 @@ class T9PinyinInputController(
 
         // Try to map the input to a T9 digit
         val digit = when {
-            // Number keys 2-9
+            // Number keys 1-9
+            keyCode == KeyEvent.KEYCODE_1 || char == '1' -> '1'  // Separator
             keyCode == KeyEvent.KEYCODE_2 || char == '2' -> '2'
             keyCode == KeyEvent.KEYCODE_3 || char == '3' -> '3'
             keyCode == KeyEvent.KEYCODE_4 || char == '4' -> '4'
@@ -152,15 +193,14 @@ class T9PinyinInputController(
             keyCode == KeyEvent.KEYCODE_7 || char == '7' -> '7'
             keyCode == KeyEvent.KEYCODE_8 || char == '8' -> '8'
             keyCode == KeyEvent.KEYCODE_9 || char == '9' -> '9'
-            keyCode == KeyEvent.KEYCODE_1 || char == '1' -> '1'  // Separator
-            // Letter keys W/E/R/S/D/F/X/C/V
-            char != null && LETTER_TO_T9.containsKey(char) -> LETTER_TO_T9[char]!!
+            // Device-specific letter keys (W/E/R/S/D/F/X/C/V for Titan 2, W/E/R/S/D/F/Z/X/C for BlackBerry)
+            char != null && letterToT9.containsKey(char) -> letterToT9[char]!!
             else -> null
         }
 
         if (digit == null) return false
 
-        // Handle separator key (1 or V)
+        // Handle separator key (1)
         if (digit == '1') {
             return handleSeparator()
         }
