@@ -32,3 +32,8 @@ landingpage/dist/sherpa-onnx-paraformer-zh-small-2024-03-09.zip
 landingpage/dist/coolwulfIMEv0.77.1420.apk
 landingpage/public/sherpa-onnx-paraformer-zh-small-2024-03-09.zip
 landingpage/public/coolwulfIMEv0.77.1420.apk
+*.zip
+*.onnx
+*.data
+*.pth
+/tools/cache

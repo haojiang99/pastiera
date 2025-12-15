@@ -825,4 +825,21 @@
     <string name="sherpa_permission_denied">Microphone permission denied</string>
     <string name="sherpa_model_not_configured">Model not configured. Please select a Sherpa-ONNX model file in Settings → Text Input → Voice Model.</string>
     <string name="sherpa_library_not_available">Sherpa-ONNX library not installed. Please add the AAR file to enable recognition.</string>
+
+    <!-- Neural Pinyin Model -->
+    <string name="neural_pinyin_title">Neural Pinyin (AI-Enhanced)</string>
+    <string name="neural_pinyin_description">Use deep learning model for better accuracy on long sentences (4+ letters)</string>
+    <string name="neural_pinyin_model_path_title">Neural Pinyin Model</string>
+    <string name="neural_pinyin_model_not_selected">No model file selected</string>
+    <string name="neural_pinyin_model_status_not_configured">Not configured</string>
+    <string name="neural_pinyin_model_status_zip_configured">Model file selected - tap Extract</string>
+    <string name="neural_pinyin_model_status_extracting">Extracting model...</string>
+    <string name="neural_pinyin_model_status_available">Model ready to use</string>
+    <string name="neural_pinyin_model_status_loading">Loading model...</string>
+    <string name="neural_pinyin_model_status_ready">Model loaded</string>
+    <string name="neural_pinyin_model_instructions">Download a neural pinyin model zip file and select it below. The model will be used for long sentence input (4+ pinyin letters) for improved accuracy.</string>
+    <string name="neural_pinyin_model_select_button">Select Model File</string>
+    <string name="neural_pinyin_model_extract_button">Extract</string>
+    <string name="neural_pinyin_min_length_title">Minimum Length</string>
+    <string name="neural_pinyin_min_length_description">Use neural model when pinyin has %1$d+ letters</string>
 </resources>

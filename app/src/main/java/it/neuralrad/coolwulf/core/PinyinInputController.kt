@@ -9,6 +9,7 @@ import it.neuralrad.coolwulf.data.pinyin.PinyinDictionary
 import it.neuralrad.coolwulf.data.pinyin.UserPinyinMemory
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
+import it.neuralrad.coolwulf.inputmethod.NeuralPinyinRecognizer
 import it.neuralrad.coolwulf.SettingsManager
 
 /**
@@ -105,7 +106,8 @@ class PinyinInputController(
         val totalPages: Int = 1,
         val hasNextPage: Boolean = false,
         val hasPrevPage: Boolean = false,
-        val isNextWordPrediction: Boolean = false  // True when showing next-word predictions
+        val isNextWordPrediction: Boolean = false,  // True when showing next-word predictions
+        val isUsingNeuralPinyin: Boolean = false    // True when neural deep learning model is providing candidates
     )
 
     // User memory for learning preferences
@@ -179,6 +181,134 @@ class PinyinInputController(
 
     // User custom dictionary for user-defined shortcuts
     private val customDictionary: UserCustomDictionary = UserCustomDictionary.getInstance(context)
+
+    // Neural pinyin recognizer for long sentence input (lazy initialization)
+    private val neuralPinyinRecognizer: NeuralPinyinRecognizer by lazy {
+        NeuralPinyinRecognizer.getInstance(context)
+    }
+
+    // Cache for neural pinyin results to avoid repeated inference
+    private var lastNeuralPinyinInput: String = ""
+    private var lastNeuralPinyinResult: List<String> = emptyList()
+
+    // Track whether current candidates include neural pinyin results
+    private var isCurrentlyUsingNeuralPinyin: Boolean = false
+
+    /**
+     * Checks if neural pinyin is enabled and ready to use.
+     */
+    private fun isNeuralPinyinAvailable(): Boolean {
+        val isEnabled = SettingsManager.isNeuralPinyinEnabled(context)
+        val isReady = neuralPinyinRecognizer.isReady()
+        Log.d(TAG, "isNeuralPinyinAvailable check: enabled=$isEnabled, ready=$isReady")
+        return isEnabled && isReady
+    }
+
+    /**
+     * Gets the minimum buffer length to use neural pinyin.
+     */
+    private fun getNeuralPinyinMinLength(): Int {
+        return SettingsManager.getNeuralPinyinMinLength(context)
+    }
+
+    /**
+     * Gets neural pinyin suggestions for the current buffer.
+     * Returns empty list if neural pinyin is not available or buffer is too short.
+     */
+    private fun getNeuralPinyinSuggestions(buffer: String): List<String> {
+        Log.d(TAG, "getNeuralPinyinSuggestions called with buffer: '$buffer'")
+        Log.d(TAG, "isNeuralPinyinAvailable: ${isNeuralPinyinAvailable()}, minLength: ${getNeuralPinyinMinLength()}, bufferLength: ${buffer.length}")
+
+        if (!isNeuralPinyinAvailable()) {
+            Log.d(TAG, "Neural pinyin not available - skipping")
+            return emptyList()
+        }
+        if (buffer.length < getNeuralPinyinMinLength()) {
+            Log.d(TAG, "Buffer too short (${buffer.length} < ${getNeuralPinyinMinLength()}) - skipping")
+            return emptyList()
+        }
+
+        // Use cached result if input hasn't changed
+        if (buffer == lastNeuralPinyinInput) {
+            Log.d(TAG, "Using cached result: $lastNeuralPinyinResult")
+            return lastNeuralPinyinResult
+        }
+
+        // Parse buffer into space-separated syllables for the neural model
+        val syllables = parsePinyinToSyllables(buffer)
+        if (syllables.isEmpty()) {
+            Log.d(TAG, "No syllables parsed from buffer - skipping")
+            return emptyList()
+        }
+
+        val pinyinInput = syllables.joinToString(" ")
+        Log.d(TAG, "Neural pinyin input: $pinyinInput")
+
+        val result = neuralPinyinRecognizer.convert(pinyinInput)
+
+        // Cache the result
+        lastNeuralPinyinInput = buffer
+        lastNeuralPinyinResult = result
+
+        Log.d(TAG, "Neural pinyin result: $result (count: ${result.size})")
+        return result
+    }
+
+    /**
+     * Parses a pinyin buffer into individual syllables for neural model input.
+     */
+    private fun parsePinyinToSyllables(input: String): List<String> {
+        val cleanInput = input.lowercase().replace(SEPARATOR.toString(), "")
+        if (cleanInput.isEmpty()) return emptyList()
+
+        val syllables = mutableListOf<String>()
+        var remaining = cleanInput
+
+        while (remaining.isNotEmpty()) {
+            // Use fuzzy matching if enabled
+            val syllable = findLongestSyllableWithFuzzy(remaining)
+                ?: PinyinDictionary.findLongestSyllable(remaining)
+
+            if (syllable != null) {
+                syllables.add(syllable)
+                remaining = remaining.substring(syllable.length)
+            } else {
+                // Can't parse - return what we have so far
+                break
+            }
+        }
+
+        return syllables
+    }
+
+    /**
+     * Initializes the neural pinyin model if configured and enabled.
+     * Should be called when the IME service starts.
+     */
+    fun initNeuralPinyinIfNeeded() {
+        val isEnabled = SettingsManager.isNeuralPinyinEnabled(context)
+        val isExtracted = neuralPinyinRecognizer.isModelExtracted()
+        val isReady = neuralPinyinRecognizer.isReady()
+
+        Log.d(TAG, "initNeuralPinyinIfNeeded: enabled=$isEnabled, extracted=$isExtracted, ready=$isReady")
+
+        if (isEnabled && isExtracted && !isReady) {
+            Log.d(TAG, "Starting neural pinyin model initialization...")
+            neuralPinyinRecognizer.initModel { success, error ->
+                if (success) {
+                    Log.i(TAG, "Neural pinyin model initialized successfully!")
+                } else {
+                    Log.w(TAG, "Failed to initialize neural pinyin model: $error")
+                }
+            }
+        } else if (!isEnabled) {
+            Log.d(TAG, "Neural pinyin is disabled in settings")
+        } else if (!isExtracted) {
+            Log.d(TAG, "Neural pinyin model not extracted yet")
+        } else if (isReady) {
+            Log.d(TAG, "Neural pinyin model already ready")
+        }
+    }
 
     init {
         // Load dictionary if not already loaded
@@ -1090,20 +1220,51 @@ class PinyinInputController(
         val AUTO_LEARNED_PHRASE_BOOST = 2
         // Abbreviation candidates get +2 boost when frequency is 0
         val ABBREVIATION_PHRASE_BOOST = 2
+        // Neural pinyin candidates get +3 boost (highest priority for long sentence input)
+        val NEURAL_PINYIN_BOOST = 3
 
-        // Merge ALL candidates (abbreviation, custom, auto-learned, dictionary phrases, and single chars)
+        // Get neural pinyin suggestions for long sentences
+        val neuralPinyinCandidates = getNeuralPinyinSuggestions(bufferWithoutSep)
+
+        // Track whether neural pinyin is being used for this candidate set
+        isCurrentlyUsingNeuralPinyin = neuralPinyinCandidates.isNotEmpty()
+        Log.d(TAG, "Neural pinyin candidates: ${neuralPinyinCandidates.size}, isCurrentlyUsingNeuralPinyin: $isCurrentlyUsingNeuralPinyin")
+
+        // When neural pinyin is active, only show the first AI suggestion (for Space key input)
+        if (isCurrentlyUsingNeuralPinyin && neuralPinyinCandidates.isNotEmpty()) {
+            val aiCandidate = neuralPinyinCandidates.first()
+            allCandidates = listOf(aiCandidate)
+            matchedPinyin = bufferWithoutSep
+            phraseCandidateSet = setOf(aiCandidate)
+            phraseCandidateCount = 1
+            Log.d(TAG, "AI mode: showing only one candidate: $aiCandidate")
+            return
+        }
+
+        // Merge ALL candidates (neural, abbreviation, custom, auto-learned, dictionary phrases, and single chars)
         // sorted by effective user frequency. This ensures fair competition based on actual usage.
         // Phrases get +2 boost when frequency is 0
         // Custom phrases get +2 boost always (on top of any user frequency)
+        // Neural pinyin gets +3 boost (highest priority for accurate long sentences)
         val allCandidatesWithFreq = mutableListOf<Pair<String, Int>>()
         val addedPhrases = mutableSetOf<String>()
 
-        // Add custom phrases first (they'll be sorted by frequency with +2 boost always)
-        for (phrase in customPhrases) {
+        // Add neural pinyin candidates first (highest priority for long sentence accuracy)
+        for (phrase in neuralPinyinCandidates) {
             val freq = userFreqMap[phrase] ?: 0
-            // Custom phrases get +2 boost always
-            allCandidatesWithFreq.add(phrase to (freq + CUSTOM_PHRASE_FREQUENCY_BOOST))
+            // Neural pinyin gets +3 boost to appear at the top for long sentences
+            allCandidatesWithFreq.add(phrase to (freq + NEURAL_PINYIN_BOOST))
             addedPhrases.add(phrase)
+        }
+
+        // Add custom phrases (they'll be sorted by frequency with +2 boost always)
+        for (phrase in customPhrases) {
+            if (phrase !in addedPhrases) {
+                val freq = userFreqMap[phrase] ?: 0
+                // Custom phrases get +2 boost always
+                allCandidatesWithFreq.add(phrase to (freq + CUSTOM_PHRASE_FREQUENCY_BOOST))
+                addedPhrases.add(phrase)
+            }
         }
 
         // Add abbreviation candidates (with +2 boost when freq is 0)
@@ -1168,6 +1329,7 @@ class PinyinInputController(
         phraseSet.addAll(autoLearnedPhrases)
         phraseSet.addAll(partialMatchPhrases)  // Include user-learned partial matches
         phraseSet.addAll(dictPartialPhrases)   // Include dictionary partial matches
+        phraseSet.addAll(neuralPinyinCandidates)  // Include neural pinyin candidates
         phraseCandidateSet = phraseSet
 
         // phraseCandidateCount for compatibility (used in some places)
@@ -1422,7 +1584,8 @@ class PinyinInputController(
             totalPages = totalPages,
             hasNextPage = currentPage < totalPages - 1,
             hasPrevPage = currentPage > 0,
-            isNextWordPrediction = isShowingNextWordPredictions
+            isNextWordPrediction = isShowingNextWordPredictions,
+            isUsingNeuralPinyin = isCurrentlyUsingNeuralPinyin
         )
     }
 

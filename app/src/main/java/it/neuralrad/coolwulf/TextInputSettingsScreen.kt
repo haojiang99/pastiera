@@ -47,6 +47,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.activity.compose.BackHandler
 import it.neuralrad.coolwulf.R
 import it.neuralrad.coolwulf.inputmethod.SherpaSpeechRecognizer
+import it.neuralrad.coolwulf.inputmethod.NeuralPinyinRecognizer
 import java.io.File
 
 /**
@@ -111,6 +112,22 @@ fun TextInputSettingsScreen(
 
     var sherpaModelStatus by remember {
         mutableStateOf(SherpaSpeechRecognizer.getInstance(context).getModelStatus())
+    }
+
+    var neuralPinyinEnabled by remember {
+        mutableStateOf(SettingsManager.isNeuralPinyinEnabled(context))
+    }
+
+    var neuralPinyinModelPath by remember {
+        mutableStateOf(SettingsManager.getNeuralPinyinModelPath(context))
+    }
+
+    var neuralPinyinModelStatus by remember {
+        mutableStateOf(NeuralPinyinRecognizer.getInstance(context).getModelStatus())
+    }
+
+    var neuralPinyinMinLength by remember {
+        mutableStateOf(SettingsManager.getNeuralPinyinMinLength(context))
     }
 
     var holdSpaceDuration by remember {
@@ -1029,6 +1046,238 @@ fun TextInputSettingsScreen(
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            // Neural Pinyin Model Section
+            val neuralPinyinZipFileLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.OpenDocument()
+            ) { uri: Uri? ->
+                uri?.let {
+                    try {
+                        context.contentResolver.takePersistableUriPermission(
+                            it,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    } catch (e: Exception) {
+                        // Permission may already be granted
+                    }
+                    SettingsManager.setNeuralPinyinModelPath(context, it.toString())
+                    neuralPinyinModelPath = it.toString()
+                    // Delete old extracted model when new file is selected
+                    NeuralPinyinRecognizer.getInstance(context).deleteExtractedModel()
+                    neuralPinyinModelStatus = NeuralPinyinRecognizer.getInstance(context).getModelStatus()
+                }
+            }
+
+            var neuralPinyinExtractionProgress by remember { mutableStateOf(0) }
+            var neuralPinyinExtractionMessage by remember { mutableStateOf("") }
+            var isExtractingNeuralPinyinModel by remember { mutableStateOf(false) }
+
+            val neuralPinyinStatusText = when (neuralPinyinModelStatus) {
+                NeuralPinyinRecognizer.ModelStatus.NOT_CONFIGURED -> stringResource(R.string.neural_pinyin_model_status_not_configured)
+                NeuralPinyinRecognizer.ModelStatus.ZIP_CONFIGURED -> stringResource(R.string.neural_pinyin_model_status_zip_configured)
+                NeuralPinyinRecognizer.ModelStatus.EXTRACTING -> stringResource(R.string.neural_pinyin_model_status_extracting)
+                NeuralPinyinRecognizer.ModelStatus.AVAILABLE -> stringResource(R.string.neural_pinyin_model_status_available)
+                NeuralPinyinRecognizer.ModelStatus.LOADING -> stringResource(R.string.neural_pinyin_model_status_loading)
+                NeuralPinyinRecognizer.ModelStatus.READY -> stringResource(R.string.neural_pinyin_model_status_ready)
+            }
+
+            val neuralPinyinDisplayName = NeuralPinyinRecognizer.getInstance(context).getModelZipName()
+            val neuralPinyinDisplayText = neuralPinyinDisplayName ?: stringResource(R.string.neural_pinyin_model_not_selected)
+
+            // Neural Pinyin Enable Toggle
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Memory,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.neural_pinyin_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.neural_pinyin_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                    Switch(
+                        checked = neuralPinyinEnabled,
+                        onCheckedChange = { enabled ->
+                            neuralPinyinEnabled = enabled
+                            SettingsManager.setNeuralPinyinEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
+
+            // Neural Pinyin Model Selection (only shown when enabled)
+            if (neuralPinyinEnabled) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Folder,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.neural_pinyin_model_path_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = neuralPinyinDisplayText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = if (isExtractingNeuralPinyinModel) neuralPinyinExtractionMessage else neuralPinyinStatusText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = when (neuralPinyinModelStatus) {
+                                        NeuralPinyinRecognizer.ModelStatus.READY,
+                                        NeuralPinyinRecognizer.ModelStatus.AVAILABLE -> MaterialTheme.colorScheme.secondary
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
+                        if (isExtractingNeuralPinyinModel) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(
+                                progress = { neuralPinyinExtractionProgress / 100f },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = stringResource(R.string.neural_pinyin_model_instructions),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    neuralPinyinZipFileLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "*/*"))
+                                },
+                                modifier = Modifier.weight(1f),
+                                enabled = !isExtractingNeuralPinyinModel
+                            ) {
+                                Text(stringResource(R.string.neural_pinyin_model_select_button))
+                            }
+
+                            if (neuralPinyinModelStatus == NeuralPinyinRecognizer.ModelStatus.ZIP_CONFIGURED) {
+                                Button(
+                                    onClick = {
+                                        isExtractingNeuralPinyinModel = true
+                                        NeuralPinyinRecognizer.getInstance(context).extractModel(
+                                            onProgress = { progress, message ->
+                                                neuralPinyinExtractionProgress = progress
+                                                neuralPinyinExtractionMessage = message
+                                            },
+                                            onComplete = { success, error ->
+                                                isExtractingNeuralPinyinModel = false
+                                                neuralPinyinModelStatus = NeuralPinyinRecognizer.getInstance(context).getModelStatus()
+                                                if (!success) {
+                                                    neuralPinyinExtractionMessage = error ?: "Extraction failed"
+                                                }
+                                            }
+                                        )
+                                    },
+                                    enabled = !isExtractingNeuralPinyinModel
+                                ) {
+                                    Text(stringResource(R.string.neural_pinyin_model_extract_button))
+                                }
+                            }
+
+                            if (neuralPinyinModelPath != null) {
+                                OutlinedButton(
+                                    onClick = {
+                                        NeuralPinyinRecognizer.getInstance(context).clearConfig(true)
+                                        neuralPinyinModelStatus = NeuralPinyinRecognizer.getInstance(context).getModelStatus()
+                                        neuralPinyinModelPath = null
+                                    },
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.error
+                                    ),
+                                    enabled = !isExtractingNeuralPinyinModel
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Clear,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Min length slider
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = stringResource(R.string.neural_pinyin_min_length_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = stringResource(R.string.neural_pinyin_min_length_description, neuralPinyinMinLength),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = neuralPinyinMinLength.toFloat(),
+                            onValueChange = { value ->
+                                neuralPinyinMinLength = value.toInt()
+                            },
+                            onValueChangeFinished = {
+                                SettingsManager.setNeuralPinyinMinLength(context, neuralPinyinMinLength)
+                            },
+                            valueRange = 0f..12f,
+                            steps = 11,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
             }

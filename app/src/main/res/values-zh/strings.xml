@@ -826,4 +826,21 @@
     <string name="sherpa_permission_denied">麦克风权限被拒绝</string>
     <string name="sherpa_model_not_configured">未配置模型。请在设置 → 文本输入 → 语音模型中选择 Sherpa-ONNX 模型文件。</string>
     <string name="sherpa_library_not_available">Sherpa-ONNX 库未安装。请添加 AAR 文件以启用语音识别。</string>
+
+    <!-- Neural Pinyin Model -->
+    <string name="neural_pinyin_title">神经网络拼音（AI增强）</string>
+    <string name="neural_pinyin_description">使用深度学习模型提高长句子（4个字母以上）的输入准确率</string>
+    <string name="neural_pinyin_model_path_title">神经网络拼音模型</string>
+    <string name="neural_pinyin_model_not_selected">未选择模型文件</string>
+    <string name="neural_pinyin_model_status_not_configured">未配置</string>
+    <string name="neural_pinyin_model_status_zip_configured">已选择模型文件 - 点击解压</string>
+    <string name="neural_pinyin_model_status_extracting">正在解压模型...</string>
+    <string name="neural_pinyin_model_status_available">模型可用</string>
+    <string name="neural_pinyin_model_status_loading">正在加载模型...</string>
+    <string name="neural_pinyin_model_status_ready">模型已就绪</string>
+    <string name="neural_pinyin_model_instructions">下载神经网络拼音模型 zip 文件，然后在下方选择。该模型将用于长句子输入（4个以上拼音字母）以提高准确率。</string>
+    <string name="neural_pinyin_model_select_button">选择模型文件</string>
+    <string name="neural_pinyin_model_extract_button">解压</string>
+    <string name="neural_pinyin_min_length_title">最小长度</string>
+    <string name="neural_pinyin_min_length_description">拼音达到 %1$d 个字母时使用神经网络模型</string>
 </resources>
