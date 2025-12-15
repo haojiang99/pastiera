@@ -61,10 +61,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     // Keycode for the SYM key (device-specific, initialized in onCreate)
     private var KEYCODE_SYM = 63
-
-    // Flag to suppress buffer clearing in onUpdateSelection during our own operations
-    // (e.g., when setting remaining buffer after candidate selection)
-    private var suppressBufferClearOnSelectionChange = false
     
     // Mapping Ctrl+key -> action or keycode (loaded from JSON)
     private val ctrlKeyMap = mutableMapOf<Int, KeyMappingLoader.CtrlMapping>()
@@ -492,19 +488,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
 
     /**
-     * Sets the remaining buffer as composing text while suppressing buffer clearing in onUpdateSelection.
-     * This prevents the buffer from being cleared when we programmatically change the composing region.
-     */
-    private fun setRemainingBufferAsComposing(ic: android.view.inputmethod.InputConnection, remainingBuffer: String) {
-        suppressBufferClearOnSelectionChange = true
-        ic.setComposingText(remainingBuffer, 1)
-        // Reset the flag after a short delay to allow onUpdateSelection to be processed
-        android.os.Handler(mainLooper).postDelayed({
-            suppressBufferClearOnSelectionChange = false
-        }, 50)
-    }
-
-    /**
      * Checks if the given keycode should produce a keyboard click sound.
      * Letter keys, number keys, space, enter, delete, SYM, function keys should produce sound.
      * Navigation keys (Back, Recent/App Switch, Home) and volume keys should be silent.
@@ -904,7 +887,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val remainingBuffer = pinyinInputController.getBuffer()
                 // Set remaining buffer as composing text (e.g., 'wode' -> '我' + 'de' underlined)
                 if (remainingBuffer.isNotEmpty()) {
-                    setRemainingBufferAsComposing(ic, remainingBuffer)
+                    ic.setComposingText(remainingBuffer, 1)
                 }
                 // Clear Alt state after touch selection (e.g., after double-tap Alt to navigate pages)
                 modifierStateController.clearAltState(resetPressedState = true)
@@ -926,7 +909,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 wubiInputController.selectCandidate(originalIndex)
                 val remainingBuffer = wubiInputController.getBuffer()
                 if (remainingBuffer.isNotEmpty()) {
-                    setRemainingBufferAsComposing(ic, remainingBuffer)
+                    ic.setComposingText(remainingBuffer, 1)
                 }
                 // Clear Alt state after touch selection
                 modifierStateController.clearAltState(resetPressedState = true)
@@ -948,7 +931,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 shuangpinInputController.selectCandidate(originalIndex)
                 val remainingBuffer = shuangpinInputController.getBuffer()
                 if (remainingBuffer.isNotEmpty()) {
-                    setRemainingBufferAsComposing(ic, remainingBuffer)
+                    ic.setComposingText(remainingBuffer, 1)
                 }
                 // Clear Alt state after touch selection
                 modifierStateController.clearAltState(resetPressedState = true)
@@ -970,7 +953,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 zhenmaInputController.selectCandidate(originalIndex)
                 val remainingBuffer = zhenmaInputController.getBuffer()
                 if (remainingBuffer.isNotEmpty()) {
-                    setRemainingBufferAsComposing(ic, remainingBuffer)
+                    ic.setComposingText(remainingBuffer, 1)
                 }
                 // Clear Alt state after touch selection
                 modifierStateController.clearAltState(resetPressedState = true)
@@ -992,7 +975,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 ziranmaInputController.selectCandidate(originalIndex)
                 val remainingBuffer = ziranmaInputController.getBuffer()
                 if (remainingBuffer.isNotEmpty()) {
-                    setRemainingBufferAsComposing(ic, remainingBuffer)
+                    ic.setComposingText(remainingBuffer, 1)
                 }
                 // Clear Alt state after touch selection
                 modifierStateController.clearAltState(resetPressedState = true)
@@ -1773,7 +1756,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.commitText(selected, 1)
                         val remainingBuffer = pinyinInputController.getBuffer()
                         if (remainingBuffer.isNotEmpty()) {
-                            setRemainingBufferAsComposing(ic, remainingBuffer)
+                            ic.setComposingText(remainingBuffer, 1)
                         }
                     }
                 } else if (shuangpinInputController.hasCandidates()) {
@@ -1783,7 +1766,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.commitText(selected, 1)
                         val remainingBuffer = shuangpinInputController.getBuffer()
                         if (remainingBuffer.isNotEmpty()) {
-                            setRemainingBufferAsComposing(ic, remainingBuffer)
+                            ic.setComposingText(remainingBuffer, 1)
                         }
                     }
                 } else if (ziranmaInputController.hasCandidates()) {
@@ -1793,7 +1776,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.commitText(selected, 1)
                         val remainingBuffer = ziranmaInputController.getBuffer()
                         if (remainingBuffer.isNotEmpty()) {
-                            setRemainingBufferAsComposing(ic, remainingBuffer)
+                            ic.setComposingText(remainingBuffer, 1)
                         }
                     }
                 } else if (wubiInputController.hasCandidates()) {
@@ -1803,7 +1786,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.commitText(selected, 1)
                         val remainingBuffer = wubiInputController.getBuffer()
                         if (remainingBuffer.isNotEmpty()) {
-                            setRemainingBufferAsComposing(ic, remainingBuffer)
+                            ic.setComposingText(remainingBuffer, 1)
                         }
                     }
                 } else if (zhenmaInputController.hasCandidates()) {
@@ -1813,7 +1796,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.commitText(selected, 1)
                         val remainingBuffer = zhenmaInputController.getBuffer()
                         if (remainingBuffer.isNotEmpty()) {
-                            setRemainingBufferAsComposing(ic, remainingBuffer)
+                            ic.setComposingText(remainingBuffer, 1)
                         }
                     }
                 } else {
@@ -1995,16 +1978,59 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Check if we're in a Chinese input mode that handles this character
         if (pinyinInputController.isPinyinMode() && char.isLetter()) {
-            // Always append at end - cursor-aware insertion was causing bugs
-            // The buffer is cleared when cursor moves outside composing region (in onUpdateSelection)
-            pinyinInputController.handleLetterKey(char.lowercaseChar())
+            // Get cursor position within composing text for cursor-aware insertion
+            val bufferLength = pinyinInputController.getBufferLength()
+            var cursorPositionInBuffer = bufferLength
+            if (bufferLength > 0) {
+                val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                if (extractedText != null) {
+                    val composingStart = extractedText.text.length - bufferLength
+                    if (composingStart >= 0 && extractedText.selectionStart >= composingStart) {
+                        cursorPositionInBuffer = extractedText.selectionStart - composingStart
+                    }
+                }
+            }
+            pinyinInputController.handleLetterKeyAtPosition(char.lowercaseChar(), cursorPositionInBuffer)
             val buffer = pinyinInputController.getBuffer()
             ic.setComposingText(buffer, 1)
+            // Restore cursor position after insertion (one position forward)
+            val newCursorPos = cursorPositionInBuffer + 1
+            if (newCursorPos < buffer.length) {
+                val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                if (extractedText != null) {
+                    val composingStart = extractedText.text.length - buffer.length
+                    if (composingStart >= 0) {
+                        ic.setSelection(composingStart + newCursorPos, composingStart + newCursorPos)
+                    }
+                }
+            }
         } else if (shuangpinInputController.isShuangpinMode() && char.isLetter()) {
-            // Always append at end - cursor-aware insertion was causing bugs
-            shuangpinInputController.handleLetterKey(char.lowercaseChar())
+            // Get cursor position within composing text for cursor-aware insertion
+            val bufferLength = shuangpinInputController.getBufferLength()
+            var cursorPositionInBuffer = bufferLength
+            if (bufferLength > 0) {
+                val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                if (extractedText != null) {
+                    val composingStart = extractedText.text.length - bufferLength
+                    if (composingStart >= 0 && extractedText.selectionStart >= composingStart) {
+                        cursorPositionInBuffer = extractedText.selectionStart - composingStart
+                    }
+                }
+            }
+            shuangpinInputController.handleLetterKeyAtPosition(char.lowercaseChar(), cursorPositionInBuffer)
             val buffer = shuangpinInputController.getBuffer()
             ic.setComposingText(buffer, 1)
+            // Restore cursor position after insertion (one position forward)
+            val newCursorPos = cursorPositionInBuffer + 1
+            if (newCursorPos < buffer.length) {
+                val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                if (extractedText != null) {
+                    val composingStart = extractedText.text.length - buffer.length
+                    if (composingStart >= 0) {
+                        ic.setSelection(composingStart + newCursorPos, composingStart + newCursorPos)
+                    }
+                }
+            }
         } else if (ziranmaInputController.isZiranmaMode() && char.isLetter()) {
             ziranmaInputController.handleLetterKey(char.lowercaseChar())
             val buffer = ziranmaInputController.getBuffer()
@@ -2457,49 +2483,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         candidatesEnd: Int
     ) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
-
-        // Clear Chinese input buffer when cursor moves outside the composing region
-        // This prevents buffer corruption when user clicks elsewhere in the text
-        // Skip if we're in the middle of our own operation (e.g., setting remaining buffer)
-        if (!suppressBufferClearOnSelectionChange) {
-            val hasComposingRegion = candidatesStart >= 0 && candidatesEnd >= 0
-            val cursorOutsideComposing = !hasComposingRegion || newSelStart < candidatesStart || newSelStart > candidatesEnd
-
-            if (cursorOutsideComposing) {
-                // Check each Chinese input mode and clear buffer if active
-                if (pinyinInputController.isPinyinMode() && pinyinInputController.getBuffer().isNotEmpty()) {
-                    pinyinInputController.clearBuffer()
-                    currentInputConnection?.finishComposingText()
-                    updateStatusBarText()
-                }
-                if (shuangpinInputController.isShuangpinMode() && shuangpinInputController.getBuffer().isNotEmpty()) {
-                    shuangpinInputController.clearBuffer()
-                    currentInputConnection?.finishComposingText()
-                    updateStatusBarText()
-                }
-                if (wubiInputController.isWubiMode() && wubiInputController.getBuffer().isNotEmpty()) {
-                    wubiInputController.clearBuffer()
-                    currentInputConnection?.finishComposingText()
-                    updateStatusBarText()
-                }
-                if (zhenmaInputController.isZhenmaMode() && zhenmaInputController.getBuffer().isNotEmpty()) {
-                    zhenmaInputController.clearBuffer()
-                    currentInputConnection?.finishComposingText()
-                    updateStatusBarText()
-                }
-                if (ziranmaInputController.isZiranmaMode() && ziranmaInputController.getBuffer().isNotEmpty()) {
-                    ziranmaInputController.clearBuffer()
-                    currentInputConnection?.finishComposingText()
-                    updateStatusBarText()
-                }
-                if (t9PinyinInputController.isT9Mode() && t9PinyinInputController.getBuffer().isNotEmpty()) {
-                    t9PinyinInputController.clearBuffer()
-                    currentInputConnection?.finishComposingText()
-                    updateStatusBarText()
-                }
-            }
-        }
-
+        
         if (!shouldDisableSmartFeatures) {
             val cursorPositionChanged = (oldSelStart != newSelStart) || (oldSelEnd != newSelEnd)
             if (cursorPositionChanged && newSelStart == newSelEnd) {
@@ -2508,7 +2492,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }, CURSOR_UPDATE_DELAY)
             }
         }
-
+        
         AutoCapitalizeHelper.checkAutoCapitalizeOnSelectionChange(
             this,
             currentInputConnection,
@@ -3387,7 +3371,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     playJuyingSelectionSound(keyCode)
                                     // Set remaining buffer as composing text (e.g., 'wode' -> '我' + 'de' underlined)
                                     if (remainingBuffer.isNotEmpty()) {
-                                        setRemainingBufferAsComposing(ic, remainingBuffer)
+                                        ic.setComposingText(remainingBuffer, 1)
                                     }
                                     updateStatusBarText()
                                     if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
@@ -3420,7 +3404,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     ic.commitText(selected, 1)
                                     playJuyingSelectionSound(keyCode)
                                     if (remainingBuffer.isNotEmpty()) {
-                                        setRemainingBufferAsComposing(ic, remainingBuffer)
+                                        ic.setComposingText(remainingBuffer, 1)
                                     }
                                     updateStatusBarText()
                                     if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
@@ -3441,7 +3425,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     ic.commitText(selected, 1)
                                     playJuyingSelectionSound(keyCode)
                                     if (remainingBuffer.isNotEmpty()) {
-                                        setRemainingBufferAsComposing(ic, remainingBuffer)
+                                        ic.setComposingText(remainingBuffer, 1)
                                     }
                                     updateStatusBarText()
                                     if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
@@ -3462,7 +3446,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     ic.commitText(selected, 1)
                                     playJuyingSelectionSound(keyCode)
                                     if (remainingBuffer.isNotEmpty()) {
-                                        setRemainingBufferAsComposing(ic, remainingBuffer)
+                                        ic.setComposingText(remainingBuffer, 1)
                                     }
                                     updateStatusBarText()
                                     if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
@@ -3884,7 +3868,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // Set remaining buffer as new composing text
                         val remainingBuffer = pinyinInputController.getBuffer()
                         if (remainingBuffer.isNotEmpty()) {
-                            setRemainingBufferAsComposing(ic, remainingBuffer)
+                            ic.setComposingText(remainingBuffer, 1)
                         }
 
                         // Clear Alt modifier (including latch state from double-tap)
@@ -4028,7 +4012,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // Set remaining buffer as new composing text
                         val remainingBuffer = pinyinInputController.getBuffer()
                         if (remainingBuffer.isNotEmpty()) {
-                            setRemainingBufferAsComposing(ic, remainingBuffer)
+                            ic.setComposingText(remainingBuffer, 1)
                         }
 
                         // Clear Alt modifier (including latch state from double-tap)
@@ -4058,7 +4042,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             // Set remaining buffer as new composing text
                             val remainingBuffer = pinyinInputController.getBuffer()
                             if (remainingBuffer.isNotEmpty()) {
-                                setRemainingBufferAsComposing(ic, remainingBuffer)
+                                ic.setComposingText(remainingBuffer, 1)
                             }
 
                             // Clear Alt modifier (including latch state from double-tap)
@@ -4178,7 +4162,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     ic.setComposingText("", 1)
                     ic.commitText(selected, 1)
                     if (remainingBuffer.isNotEmpty()) {
-                        setRemainingBufferAsComposing(ic, remainingBuffer)
+                        ic.setComposingText(remainingBuffer, 1)
                     }
 
                     updateStatusBarText()
@@ -4225,12 +4209,34 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         return true
                     }
 
-                    // Otherwise, add to pinyin buffer (lowercase)
-                    // Always append at end - cursor-aware insertion was causing bugs
-                    // The buffer is cleared when cursor moves outside composing region (in onUpdateSelection)
-                    if (pinyinInputController.handleLetterKey(char)) {
+                    // Otherwise, add to pinyin buffer (lowercase) at cursor position
+                    // Get cursor position within composing text for cursor-aware insertion
+                    val bufferLength = pinyinInputController.getBufferLength()
+                    var cursorPositionInBuffer = bufferLength // Default: cursor at end
+                    if (bufferLength > 0) {
+                        val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                        if (extractedText != null) {
+                            val composingStart = extractedText.text.length - bufferLength
+                            if (composingStart >= 0 && extractedText.selectionStart >= composingStart) {
+                                cursorPositionInBuffer = extractedText.selectionStart - composingStart
+                            }
+                        }
+                    }
+
+                    if (pinyinInputController.handleLetterKeyAtPosition(char, cursorPositionInBuffer)) {
                         val buffer = pinyinInputController.getBuffer()
                         ic.setComposingText(buffer, 1)
+                        // Restore cursor position after insertion (one position forward)
+                        val newCursorPos = cursorPositionInBuffer + 1
+                        if (newCursorPos < buffer.length) {
+                            val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                            if (extractedText != null) {
+                                val composingStart = extractedText.text.length - buffer.length
+                                if (composingStart >= 0) {
+                                    ic.setSelection(composingStart + newCursorPos, composingStart + newCursorPos)
+                                }
+                            }
+                        }
                         updateStatusBarText()
                         return true
                     }
@@ -4502,7 +4508,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // Set remaining buffer as new composing text
                         val remainingBuffer = shuangpinInputController.getBuffer()
                         if (remainingBuffer.isNotEmpty()) {
-                            setRemainingBufferAsComposing(ic, remainingBuffer)
+                            ic.setComposingText(remainingBuffer, 1)
                         }
 
                         // Clear Alt modifier (including latch state from double-tap)
@@ -4641,7 +4647,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
                         val remainingBuffer = shuangpinInputController.getBuffer()
                         if (remainingBuffer.isNotEmpty()) {
-                            setRemainingBufferAsComposing(ic, remainingBuffer)
+                            ic.setComposingText(remainingBuffer, 1)
                         }
 
                         modifierStateController.clearAltState(resetPressedState = true)
@@ -4665,7 +4671,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
                             val remainingBuffer = shuangpinInputController.getBuffer()
                             if (remainingBuffer.isNotEmpty()) {
-                                setRemainingBufferAsComposing(ic, remainingBuffer)
+                                ic.setComposingText(remainingBuffer, 1)
                             }
 
                             modifierStateController.clearAltState(resetPressedState = true)
@@ -4772,7 +4778,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     ic.setComposingText("", 1)
                     ic.commitText(selected, 1)
                     if (remainingBuffer.isNotEmpty()) {
-                        setRemainingBufferAsComposing(ic, remainingBuffer)
+                        ic.setComposingText(remainingBuffer, 1)
                     }
 
                     updateStatusBarText()
@@ -4817,12 +4823,34 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         return true
                     }
 
-                    // Add to Shuangpin buffer (lowercase)
-                    // Always append at end - cursor-aware insertion was causing bugs
-                    // The buffer is cleared when cursor moves outside composing region (in onUpdateSelection)
-                    if (shuangpinInputController.handleLetterKey(char)) {
+                    // Add to Shuangpin buffer (lowercase) at cursor position
+                    // Get cursor position within composing text for cursor-aware insertion
+                    val bufferLength = shuangpinInputController.getBufferLength()
+                    var cursorPositionInBuffer = bufferLength // Default: cursor at end
+                    if (bufferLength > 0) {
+                        val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                        if (extractedText != null) {
+                            val composingStart = extractedText.text.length - bufferLength
+                            if (composingStart >= 0 && extractedText.selectionStart >= composingStart) {
+                                cursorPositionInBuffer = extractedText.selectionStart - composingStart
+                            }
+                        }
+                    }
+
+                    if (shuangpinInputController.handleLetterKeyAtPosition(char, cursorPositionInBuffer)) {
                         val buffer = shuangpinInputController.getBuffer()
                         ic.setComposingText(buffer, 1)
+                        // Restore cursor position after insertion (one position forward)
+                        val newCursorPos = cursorPositionInBuffer + 1
+                        if (newCursorPos < buffer.length) {
+                            val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                            if (extractedText != null) {
+                                val composingStart = extractedText.text.length - buffer.length
+                                if (composingStart >= 0) {
+                                    ic.setSelection(composingStart + newCursorPos, composingStart + newCursorPos)
+                                }
+                            }
+                        }
                         updateStatusBarText()
                         return true
                     }
@@ -4938,7 +4966,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
                     ic.commitText(selected, 1)
                     if (remainingBuffer.isNotEmpty()) {
-                        setRemainingBufferAsComposing(ic, remainingBuffer)
+                        ic.setComposingText(remainingBuffer, 1)
                     }
                     updateStatusBarText()
                     return true
@@ -5001,7 +5029,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
                     ic.commitText(selected, 1)
                     if (remainingBuffer.isNotEmpty()) {
-                        setRemainingBufferAsComposing(ic, remainingBuffer)
+                        ic.setComposingText(remainingBuffer, 1)
                     }
                     updateStatusBarText()
                     return true
@@ -5188,7 +5216,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // Set remaining buffer as new composing text
                         val remainingBuffer = wubiInputController.getBuffer()
                         if (remainingBuffer.isNotEmpty()) {
-                            setRemainingBufferAsComposing(ic, remainingBuffer)
+                            ic.setComposingText(remainingBuffer, 1)
                         }
 
                         // Clear Alt modifier (including latch state from double-tap)
@@ -5421,7 +5449,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     ic.setComposingText("", 1)
                     ic.commitText(selected, 1)
                     if (remainingBuffer.isNotEmpty()) {
-                        setRemainingBufferAsComposing(ic, remainingBuffer)
+                        ic.setComposingText(remainingBuffer, 1)
                     }
                     updateStatusBarText()
                     return true
@@ -5639,7 +5667,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // Set remaining buffer as new composing text
                         val remainingBuffer = zhenmaInputController.getBuffer()
                         if (remainingBuffer.isNotEmpty()) {
-                            setRemainingBufferAsComposing(ic, remainingBuffer)
+                            ic.setComposingText(remainingBuffer, 1)
                         }
 
                         // Clear Alt modifier (including latch state from double-tap)
@@ -5872,7 +5900,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     ic.setComposingText("", 1)
                     ic.commitText(selected, 1)
                     if (remainingBuffer.isNotEmpty()) {
-                        setRemainingBufferAsComposing(ic, remainingBuffer)
+                        ic.setComposingText(remainingBuffer, 1)
                     }
                     updateStatusBarText()
                     return true
