@@ -626,7 +626,15 @@ class ShuangpinInputController(
             }
         }
 
-        allCandidates = resultCandidates
+        // Rule: When typing exactly 2 letters, only show single-character candidates (no phrases)
+        // This ensures single characters are prioritized for short inputs
+        val finalCandidates = if (bufferStr.length == 2) {
+            resultCandidates.filter { it.length == 1 }
+        } else {
+            resultCandidates
+        }
+
+        allCandidates = finalCandidates
     }
 
     /**

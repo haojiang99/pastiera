@@ -194,6 +194,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getJuyingFixedPositions(context))
     }
 
+    var juyingSoundEnabled by remember {
+        mutableStateOf(SettingsManager.getJuyingSoundEnabled(context))
+    }
+
     var touchpadPageEnabled by remember {
         mutableStateOf(SettingsManager.getTouchpadPageEnabled(context))
     }
@@ -2009,6 +2013,7 @@ fun TextInputSettingsScreen(
 
                 // Juying Fixed Positions toggle (only show if Juying mode is enabled)
                 if (juyingModeEnabled) {
+                    // Fixed Position Layout toggle (sub-setting of Juying mode)
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -2041,6 +2046,44 @@ fun TextInputSettingsScreen(
                                 onCheckedChange = { enabled ->
                                     juyingFixedPositions = enabled
                                     SettingsManager.setJuyingFixedPositions(context, enabled)
+                                }
+                            )
+                        }
+                    }
+
+                    // Juying Sound toggle (sub-setting of Juying mode)
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(72.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Spacer(modifier = Modifier.width(24.dp)) // Indent to align with parent
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.juying_sound_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = stringResource(R.string.juying_sound_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2
+                                )
+                            }
+                            Switch(
+                                checked = juyingSoundEnabled,
+                                onCheckedChange = { enabled ->
+                                    juyingSoundEnabled = enabled
+                                    SettingsManager.setJuyingSoundEnabled(context, enabled)
                                 }
                             )
                         }

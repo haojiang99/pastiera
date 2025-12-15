@@ -450,6 +450,44 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
 
     /**
+     * Plays keyboard sound when Juying key selects a candidate (if enabled).
+     * Requires both main keyboard sound AND Juying selection sound to be enabled.
+     * Uses the same sound configuration as keyboard sounds.
+     *
+     * @param keyCode The key code that triggered the selection. Space and Sym are excluded
+     *                since they already produce sound from normal key handling.
+     */
+    private fun playJuyingSelectionSound(keyCode: Int) {
+        // Require main keyboard sound to be enabled first
+        if (!SettingsManager.isKeyboardSoundEnabled(this)) return
+        // Then check Juying-specific sound setting
+        if (!SettingsManager.getJuyingSoundEnabled(this)) return
+        // Skip Space and Sym keys - they already produce sound from normal key handling
+        if (keyCode == KeyEvent.KEYCODE_SPACE || keyCode == KeyEvent.KEYCODE_SYM || keyCode == KEYCODE_SYM) return
+
+        // Reuse the same sound playing logic as keyboard clicks
+        ensureSoundPoolInitialized()
+        val soundType = SettingsManager.getKeyboardSoundType(this)
+        val volume = getKeyboardSoundVolume()
+
+        // Handle custom sound
+        if (soundType == "custom" && customSoundLoaded && customSoundId != 0) {
+            soundPool?.play(customSoundId, volume, volume, 1, 0, 1.0f)
+            return
+        }
+
+        if (soundType in listOf("bucklespring", "video", "mario", "piano") && multiSoundsLoaded) {
+            val count = if (soundType == "bucklespring") 10 else SOUND_COUNT
+            val soundId = multiSoundIds[soundRandom.nextInt(count)]
+            if (soundId != 0) {
+                soundPool?.play(soundId, volume, volume, 1, 0, 1.0f)
+            }
+        } else if (soundLoaded && keyClickSoundId != 0) {
+            soundPool?.play(keyClickSoundId, volume, volume, 1, 0, 1.0f)
+        }
+    }
+
+    /**
      * Checks if the given keycode should produce a keyboard click sound.
      * Letter keys, number keys, space, enter, delete, SYM, function keys should produce sound.
      * Navigation keys (Back, Recent/App Switch, Home) and volume keys should be silent.
@@ -3086,6 +3124,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     altCommittedCharacter = selected
                                     altRemainingBuffer = pinyinInputController.getBuffer()
                                     ic.commitText(selected, 1)
+                                    playJuyingSelectionSound(keyCode)
                                     if (altRemainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(altRemainingBuffer, 1)
                                         // Keep buffer and regenerate candidates for remaining pinyin
@@ -3115,6 +3154,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     altCommittedCharacter = selected
                                     altRemainingBuffer = ""
                                     ic.commitText(selected, 1)
+                                    playJuyingSelectionSound(keyCode)
                                     // T9 always clears buffer after selection
                                 }
                             } else {
@@ -3136,6 +3176,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     altCommittedCharacter = selected
                                     altRemainingBuffer = shuangpinInputController.getBuffer()
                                     ic.commitText(selected, 1)
+                                    playJuyingSelectionSound(keyCode)
                                     if (altRemainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(altRemainingBuffer, 1)
                                         // Keep buffer and regenerate candidates for remaining pinyin
@@ -3164,6 +3205,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     altCommittedCharacter = selected
                                     altRemainingBuffer = wubiInputController.getBuffer()
                                     ic.commitText(selected, 1)
+                                    playJuyingSelectionSound(keyCode)
                                     if (altRemainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(altRemainingBuffer, 1)
                                         // Keep buffer and regenerate candidates for remaining input
@@ -3192,6 +3234,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     altCommittedCharacter = selected
                                     altRemainingBuffer = zhenmaInputController.getBuffer()
                                     ic.commitText(selected, 1)
+                                    playJuyingSelectionSound(keyCode)
                                     if (altRemainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(altRemainingBuffer, 1)
                                         // Keep buffer and regenerate candidates for remaining input
@@ -3325,6 +3368,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     // may not work properly in some apps
                                     ic.setComposingText("", 1)
                                     ic.commitText(selected, 1)
+                                    playJuyingSelectionSound(keyCode)
                                     // Set remaining buffer as composing text (e.g., 'wode' -> '我' + 'de' underlined)
                                     if (remainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(remainingBuffer, 1)
@@ -3340,6 +3384,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     // T9 always clears buffer after selection (no partial matching)
                                     ic.setComposingText("", 1)
                                     ic.commitText(selected, 1)
+                                    playJuyingSelectionSound(keyCode)
                                     updateStatusBarText()
                                     if (isDeviceShiftKey(keyCode)) shiftLastPressTime = currentTime
                                     return true
@@ -3357,6 +3402,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     // Clear composing text first, then commit
                                     ic.setComposingText("", 1)
                                     ic.commitText(selected, 1)
+                                    playJuyingSelectionSound(keyCode)
                                     if (remainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(remainingBuffer, 1)
                                     }
@@ -3377,6 +3423,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     // Clear composing text first, then commit
                                     ic.setComposingText("", 1)
                                     ic.commitText(selected, 1)
+                                    playJuyingSelectionSound(keyCode)
                                     if (remainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(remainingBuffer, 1)
                                     }
@@ -3397,6 +3444,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     // Clear composing text first, then commit
                                     ic.setComposingText("", 1)
                                     ic.commitText(selected, 1)
+                                    playJuyingSelectionSound(keyCode)
                                     if (remainingBuffer.isNotEmpty()) {
                                         ic.setComposingText(remainingBuffer, 1)
                                     }
@@ -3420,6 +3468,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 if (result != null) {
                                     ic.deleteSurroundingText(result.prefixLength, 0)
                                     ic.commitText(result.word + " ", 1)
+                                    playJuyingSelectionSound(keyCode)
                                     englishWordPredictionController.updateFromCursor(ic)
                                     updateStatusBarText()
                                     // Consumed - always return after successful selection

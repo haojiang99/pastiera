@@ -47,9 +47,14 @@ class ShuangpinPhraseMemory(context: Context) {
     fun recordPhrase(shuangpinCode: String, phrase: String) {
         val normalizedCode = shuangpinCode.lowercase().trim()
 
-        // Skip short codes - require at least 4 letters (2 characters in Shuangpin)
-        // to avoid wrong learning from single character inputs
-        if (normalizedCode.length < 4 || phrase.length < 2) {
+        // 2N rule: code length must equal 2 × phrase length (each Chinese character = 2 letters in Shuangpin)
+        // Also require at least 4 letters (2 characters) to avoid wrong learning
+        if (phrase.length < 2 || normalizedCode.length < 4) {
+            return
+        }
+
+        // Enforce 2N rule: code length must be exactly 2 × phrase length
+        if (normalizedCode.length != phrase.length * 2) {
             return
         }
 
@@ -85,12 +90,21 @@ class ShuangpinPhraseMemory(context: Context) {
 
     /**
      * Gets learned phrases for a given Shuangpin code, sorted by frequency.
+     * Only returns phrases when code length >= 3 letters.
+     * When user types only 2 letters, always show single character words, not phrases.
      *
      * @param shuangpinCode The Shuangpin code to look up
-     * @return List of learned phrases, most frequent first
+     * @return List of learned phrases, most frequent first (empty if code length < 3)
      */
     fun getLearnedPhrases(shuangpinCode: String): List<String> {
         val normalizedCode = shuangpinCode.lowercase().trim()
+
+        // Only show learned phrases when typing >= 3 letters
+        // When user types 2 letters, show single characters instead of phrases
+        if (normalizedCode.length < 3) {
+            return emptyList()
+        }
+
         val phraseMap = learnedPhrases[normalizedCode] ?: return emptyList()
 
         return phraseMap.entries

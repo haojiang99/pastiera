@@ -133,6 +133,8 @@
     <string name="juying_mode_description">Use 5 physical keys to select candidates. Chinese: Shift/Sym/Space/Ctrl/Alt (Space selects 1st candidate, double-click Alt for next page). English: Shift/Sym/Ctrl for 3 suggestions.</string>
     <string name="juying_fixed_positions_title">Fixed Position Layout</string>
     <string name="juying_fixed_positions_description">Keep 5 suggestion slots and arrow buttons at fixed positions. Each physical key always maps to the same screen location.</string>
+    <string name="juying_sound_title">Selection Sound</string>
+    <string name="juying_sound_description">Play keyboard sound when pressing Juying keys (Shift/Sym/Space/Ctrl/Alt) to select candidates.</string>
 
     <!-- Touchpad Page Navigation -->
     <string name="touchpad_page_title">Touchpad Page Navigation</string>
