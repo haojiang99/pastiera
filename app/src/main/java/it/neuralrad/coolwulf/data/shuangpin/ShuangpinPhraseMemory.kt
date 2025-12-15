@@ -47,8 +47,9 @@ class ShuangpinPhraseMemory(context: Context) {
     fun recordPhrase(shuangpinCode: String, phrase: String) {
         val normalizedCode = shuangpinCode.lowercase().trim()
 
-        // Skip single characters - not a phrase
-        if (phrase.length < 2) {
+        // Skip short codes - require at least 4 letters (2 characters in Shuangpin)
+        // to avoid wrong learning from single character inputs
+        if (normalizedCode.length < 4 || phrase.length < 2) {
             return
         }
 
@@ -188,6 +189,69 @@ class ShuangpinPhraseMemory(context: Context) {
         pendingPhrases.clear()
         learnedPhrases.clear()
         prefs.edit().clear().apply()
+    }
+
+    /**
+     * Exports all learned phrases to a JSON string for backup/transfer.
+     * Format: { "shuangpinCode": { "phrase": frequency, ... }, ... }
+     */
+    fun exportToJson(): String {
+        val json = JSONObject()
+        for ((shuangpinCode, phraseMap) in learnedPhrases) {
+            val phrasesJson = JSONObject()
+            for ((phrase, frequency) in phraseMap) {
+                phrasesJson.put(phrase, frequency)
+            }
+            json.put(shuangpinCode, phrasesJson)
+        }
+        return json.toString(2)  // Pretty print with 2-space indent
+    }
+
+    /**
+     * Imports learned phrases from a JSON string.
+     * @param jsonString The JSON string to import
+     * @param merge If true, merges with existing phrases (higher frequency wins). If false, replaces all.
+     * @return Number of phrases imported
+     */
+    fun importFromJson(jsonString: String, merge: Boolean = true): Int {
+        try {
+            val json = JSONObject(jsonString)
+            var importedCount = 0
+
+            if (!merge) {
+                learnedPhrases.clear()
+            }
+
+            val keys = json.keys()
+            while (keys.hasNext()) {
+                val shuangpinCode = keys.next()
+                val phrasesJson = json.getJSONObject(shuangpinCode)
+                val phraseMap = learnedPhrases.getOrPut(shuangpinCode) { mutableMapOf() }
+
+                val phraseKeys = phrasesJson.keys()
+                while (phraseKeys.hasNext()) {
+                    val phrase = phraseKeys.next()
+                    val frequency = phrasesJson.getInt(phrase)
+
+                    if (merge) {
+                        // Keep higher frequency
+                        val existingFreq = phraseMap[phrase] ?: 0
+                        if (frequency > existingFreq) {
+                            phraseMap[phrase] = frequency
+                            importedCount++
+                        }
+                    } else {
+                        phraseMap[phrase] = frequency
+                        importedCount++
+                    }
+                }
+            }
+
+            saveToPreferences()
+            return importedCount
+        } catch (e: Exception) {
+            return -1
+        }
     }
 
     /**

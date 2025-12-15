@@ -196,6 +196,71 @@ class AutoPhraseMemory(context: Context) {
     }
 
     /**
+     * Exports all learned phrases to a JSON string for backup/transfer.
+     * Format: { "pinyin": { "phrase": frequency, ... }, ... }
+     */
+    fun exportToJson(): String {
+        val json = JSONObject()
+        for ((pinyin, phraseMap) in learnedPhrases) {
+            val phrasesJson = JSONObject()
+            for ((phrase, frequency) in phraseMap) {
+                phrasesJson.put(phrase, frequency)
+            }
+            json.put(pinyin, phrasesJson)
+        }
+        return json.toString(2)  // Pretty print with 2-space indent
+    }
+
+    /**
+     * Imports learned phrases from a JSON string.
+     * @param jsonString The JSON string to import
+     * @param merge If true, merges with existing phrases (higher frequency wins). If false, replaces all.
+     * @return Number of phrases imported
+     */
+    fun importFromJson(jsonString: String, merge: Boolean = true): Int {
+        try {
+            val json = JSONObject(jsonString)
+            var importedCount = 0
+
+            if (!merge) {
+                learnedPhrases.clear()
+            }
+
+            val keys = json.keys()
+            while (keys.hasNext()) {
+                val pinyin = keys.next()
+                val phrasesJson = json.getJSONObject(pinyin)
+                val phraseMap = learnedPhrases.getOrPut(pinyin) { mutableMapOf() }
+
+                val phraseKeys = phrasesJson.keys()
+                while (phraseKeys.hasNext()) {
+                    val phrase = phraseKeys.next()
+                    val frequency = phrasesJson.getInt(phrase)
+
+                    if (merge) {
+                        // Keep higher frequency
+                        val existingFreq = phraseMap[phrase] ?: 0
+                        if (frequency > existingFreq) {
+                            phraseMap[phrase] = frequency
+                            importedCount++
+                        }
+                    } else {
+                        phraseMap[phrase] = frequency
+                        importedCount++
+                    }
+                }
+            }
+
+            saveToPreferences()
+            Log.d(TAG, "Imported $importedCount phrases from JSON (merge=$merge)")
+            return importedCount
+        } catch (e: Exception) {
+            Log.e(TAG, "Error importing phrases from JSON", e)
+            return -1
+        }
+    }
+
+    /**
      * Gets all learned phrases as a list of LearnedPhrase objects.
      * Useful for displaying in settings UI.
      */

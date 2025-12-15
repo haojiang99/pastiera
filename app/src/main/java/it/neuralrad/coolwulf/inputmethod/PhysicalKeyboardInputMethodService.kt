@@ -1251,6 +1251,26 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         soundLoaded = false
     }
 
+    // Track the last known UI mode to detect theme changes
+    private var lastUiMode: Int = 0
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+
+        // Check if the UI mode (dark/light theme) has changed
+        val currentUiMode = newConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        if (lastUiMode != 0 && currentUiMode != lastUiMode) {
+            Log.d(TAG, "System theme changed, refreshing UI (was: $lastUiMode, now: $currentUiMode)")
+            // Post to main handler to ensure configuration is fully applied before refreshing theme
+            android.os.Handler(mainLooper).post {
+                // Refresh the status bar UI with the new theme
+                keyboardVisibilityController.refreshTheme()
+                candidatesBarController.refreshTheme()
+            }
+        }
+        lastUiMode = currentUiMode
+    }
+
     override fun onCreateInputView(): View? = keyboardVisibilityController.onCreateInputView()
 
     /**

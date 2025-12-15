@@ -627,6 +627,12 @@
     <string name="learned_phrases_all_deleted">All phrases deleted</string>
     <string name="learned_phrases_pending_title">Pending Phrases</string>
     <string name="learned_phrases_no_pending">No pending phrases</string>
+    <string name="learned_phrases_export">Export</string>
+    <string name="learned_phrases_import">Import</string>
+    <string name="learned_phrases_export_success">Phrases exported successfully</string>
+    <string name="learned_phrases_export_failed">Failed to export phrases</string>
+    <string name="learned_phrases_import_success">Imported %1$d phrases</string>
+    <string name="learned_phrases_import_failed">Failed to import phrases</string>
     <string name="delete_all">Delete All</string>
 
     <!-- Candidate Font Size -->

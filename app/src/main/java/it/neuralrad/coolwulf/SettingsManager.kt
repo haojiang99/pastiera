@@ -2439,10 +2439,13 @@ object SettingsManager {
 
     /**
      * Checks if the system is currently in light mode (not dark mode).
-     * Uses Android's UI_MODE_NIGHT configuration.
+     * Uses Android's UI_MODE_NIGHT configuration from the application context
+     * to ensure we get the most up-to-date configuration after system theme changes.
      */
     fun isSystemLightMode(context: Context): Boolean {
-        val nightModeFlags = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        // Use applicationContext to get the latest system configuration
+        val appContext = context.applicationContext
+        val nightModeFlags = appContext.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
         return nightModeFlags != android.content.res.Configuration.UI_MODE_NIGHT_YES
     }
 

@@ -1,7 +1,11 @@
 package it.neuralrad.coolwulf
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,6 +14,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -66,6 +72,117 @@ fun LearnedPhrasesScreen(
     // Dialog state for confirm delete single (Wubi)
     var wubiPhraseToDelete by remember { mutableStateOf<WubiPhraseMemory.LearnedPhrase?>(null) }
 
+    // Export file launcher
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val jsonContent = autoPhraseMemory.exportToJson()
+                context.contentResolver.openOutputStream(it)?.use { outputStream ->
+                    outputStream.write(jsonContent.toByteArray())
+                }
+                Toast.makeText(context, R.string.learned_phrases_export_success, Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, R.string.learned_phrases_export_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Import file launcher for Pinyin
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val jsonContent = context.contentResolver.openInputStream(it)?.bufferedReader()?.readText() ?: ""
+                val importedCount = autoPhraseMemory.importFromJson(jsonContent, merge = true)
+                if (importedCount >= 0) {
+                    pinyinPhrases = autoPhraseMemory.getAllLearnedPhrases()
+                    Toast.makeText(context, context.getString(R.string.learned_phrases_import_success, importedCount), Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, R.string.learned_phrases_import_failed, Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, R.string.learned_phrases_import_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Export file launcher for Shuangpin
+    val shuangpinExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val jsonContent = shuangpinPhraseMemory.exportToJson()
+                context.contentResolver.openOutputStream(it)?.use { outputStream ->
+                    outputStream.write(jsonContent.toByteArray())
+                }
+                Toast.makeText(context, R.string.learned_phrases_export_success, Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, R.string.learned_phrases_export_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Import file launcher for Shuangpin
+    val shuangpinImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val jsonContent = context.contentResolver.openInputStream(it)?.bufferedReader()?.readText() ?: ""
+                val importedCount = shuangpinPhraseMemory.importFromJson(jsonContent, merge = true)
+                if (importedCount >= 0) {
+                    shuangpinPhrases = shuangpinPhraseMemory.getAllLearnedPhrases()
+                    Toast.makeText(context, context.getString(R.string.learned_phrases_import_success, importedCount), Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, R.string.learned_phrases_import_failed, Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, R.string.learned_phrases_import_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Export file launcher for Wubi
+    val wubiExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val jsonContent = wubiPhraseMemory.exportToJson()
+                context.contentResolver.openOutputStream(it)?.use { outputStream ->
+                    outputStream.write(jsonContent.toByteArray())
+                }
+                Toast.makeText(context, R.string.learned_phrases_export_success, Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, R.string.learned_phrases_export_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Import file launcher for Wubi
+    val wubiImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val jsonContent = context.contentResolver.openInputStream(it)?.bufferedReader()?.readText() ?: ""
+                val importedCount = wubiPhraseMemory.importFromJson(jsonContent, merge = true)
+                if (importedCount >= 0) {
+                    wubiPhrases = wubiPhraseMemory.getAllLearnedPhrases()
+                    Toast.makeText(context, context.getString(R.string.learned_phrases_import_success, importedCount), Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, R.string.learned_phrases_import_failed, Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, R.string.learned_phrases_import_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     BackHandler { onBack() }
 
     Scaffold(
@@ -78,6 +195,69 @@ fun LearnedPhrasesScreen(
                     }
                 },
                 actions = {
+                    // Export/Import buttons based on current tab
+                    when (selectedTabIndex) {
+                        0 -> {
+                            // Pinyin tab
+                            IconButton(onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }) {
+                                Icon(
+                                    Icons.Filled.FileUpload,
+                                    contentDescription = stringResource(R.string.learned_phrases_import)
+                                )
+                            }
+                            if (pinyinPhrases.isNotEmpty()) {
+                                IconButton(onClick = {
+                                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                                    exportLauncher.launch("coolwulf_pinyin_phrases_$timestamp.json")
+                                }) {
+                                    Icon(
+                                        Icons.Filled.FileDownload,
+                                        contentDescription = stringResource(R.string.learned_phrases_export)
+                                    )
+                                }
+                            }
+                        }
+                        1 -> {
+                            // Shuangpin tab
+                            IconButton(onClick = { shuangpinImportLauncher.launch(arrayOf("application/json", "*/*")) }) {
+                                Icon(
+                                    Icons.Filled.FileUpload,
+                                    contentDescription = stringResource(R.string.learned_phrases_import)
+                                )
+                            }
+                            if (shuangpinPhrases.isNotEmpty()) {
+                                IconButton(onClick = {
+                                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                                    shuangpinExportLauncher.launch("coolwulf_shuangpin_phrases_$timestamp.json")
+                                }) {
+                                    Icon(
+                                        Icons.Filled.FileDownload,
+                                        contentDescription = stringResource(R.string.learned_phrases_export)
+                                    )
+                                }
+                            }
+                        }
+                        2 -> {
+                            // Wubi tab
+                            IconButton(onClick = { wubiImportLauncher.launch(arrayOf("application/json", "*/*")) }) {
+                                Icon(
+                                    Icons.Filled.FileUpload,
+                                    contentDescription = stringResource(R.string.learned_phrases_import)
+                                )
+                            }
+                            if (wubiPhrases.isNotEmpty()) {
+                                IconButton(onClick = {
+                                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                                    wubiExportLauncher.launch("coolwulf_wubi_phrases_$timestamp.json")
+                                }) {
+                                    Icon(
+                                        Icons.Filled.FileDownload,
+                                        contentDescription = stringResource(R.string.learned_phrases_export)
+                                    )
+                                }
+                            }
+                        }
+                    }
                     // Delete all button - based on current tab
                     val hasItems = when (selectedTabIndex) {
                         0 -> pinyinPhrases.isNotEmpty()

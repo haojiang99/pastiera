@@ -765,7 +765,8 @@ class VariationBarView(
                 val prevArrow = prevArrowButton ?: createArrowButton(arrowButtonSize, isNext = false).also {
                     prevArrowButton = it
                 }
-                val prevParams = LinearLayout.LayoutParams(arrowButtonSize, arrowButtonSize).apply {
+                // Use buttonHeight to match suggestion button heights
+                val prevParams = LinearLayout.LayoutParams(arrowButtonSize, buttonHeight).apply {
                     marginStart = TypedValue.applyDimension(
                         TypedValue.COMPLEX_UNIT_DIP,
                         2f,
@@ -785,7 +786,8 @@ class VariationBarView(
                 val nextArrow = nextArrowButton ?: createArrowButton(arrowButtonSize, isNext = true).also {
                     nextArrowButton = it
                 }
-                val nextParams = LinearLayout.LayoutParams(arrowButtonSize, arrowButtonSize).apply {
+                // Use buttonHeight to match suggestion button heights
+                val nextParams = LinearLayout.LayoutParams(arrowButtonSize, buttonHeight).apply {
                     marginStart = TypedValue.applyDimension(
                         TypedValue.COMPLEX_UNIT_DIP,
                         4f,
