@@ -133,7 +133,7 @@
     <string name="neural_pinyin_description">Use deep learning model for long sentences</string>
     <string name="neural_pinyin_min_letters_title">Minimum Letters</string>
     <string name="neural_pinyin_min_letters_description">Use neural network when typing %d+ letters</string>
-    <string name="neural_pinyin_model_title">Neural Pinyin Model</string>
+    <string name="neural_pinyin_model_title">Deep Learning Pinyin Model</string>
     <string name="neural_pinyin_model_not_selected">No zip file selected</string>
     <string name="neural_pinyin_model_status_not_configured">Not configured</string>
     <string name="neural_pinyin_model_status_zip_configured">Zip file selected - tap Extract</string>
@@ -141,7 +141,6 @@
     <string name="neural_pinyin_model_status_available">Model ready to use</string>
     <string name="neural_pinyin_model_status_loading">Loading model...</string>
     <string name="neural_pinyin_model_status_ready">Model loaded</string>
-    <string name="neural_pinyin_model_instructions">Download pinyin_model.zip from the release page and select it below.</string>
     <string name="neural_pinyin_model_select_button">Select Zip</string>
     <string name="neural_pinyin_model_extract_button">Extract</string>
 

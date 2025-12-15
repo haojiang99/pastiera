@@ -3059,15 +3059,6 @@ fun TextInputSettingsScreen(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Text(
-                                text = stringResource(R.string.neural_pinyin_model_instructions),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = 36.dp)
-                            )
-
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Row(
