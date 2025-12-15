@@ -90,18 +90,18 @@ class ShuangpinPhraseMemory(context: Context) {
 
     /**
      * Gets learned phrases for a given Shuangpin code, sorted by frequency.
-     * Only returns phrases when code length >= 3 letters.
-     * When user types only 2 letters, always show single character words, not phrases.
+     * When user types exactly 2 letters, show single character words only (no phrases).
+     * When user types 1 letter or 3+ letters, phrases are allowed.
      *
      * @param shuangpinCode The Shuangpin code to look up
-     * @return List of learned phrases, most frequent first (empty if code length < 3)
+     * @return List of learned phrases, most frequent first (empty if code length == 2)
      */
     fun getLearnedPhrases(shuangpinCode: String): List<String> {
         val normalizedCode = shuangpinCode.lowercase().trim()
 
-        // Only show learned phrases when typing >= 3 letters
-        // When user types 2 letters, show single characters instead of phrases
-        if (normalizedCode.length < 3) {
+        // When user types exactly 2 letters, show single characters only (no phrases)
+        // 1 letter or 3+ letters can show phrases
+        if (normalizedCode.length == 2) {
             return emptyList()
         }
 
