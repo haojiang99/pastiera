@@ -90,6 +90,8 @@ object SettingsManager {
     private const val KEY_OFFLINE_VOICE_INPUT = "offline_voice_input" // Use Sherpa-ONNX for offline Mandarin Chinese speech recognition
     private const val KEY_SHERPA_MODEL_PATH = "sherpa_model_path" // Path to Sherpa-ONNX model zip file
     private const val KEY_NEURAL_PINYIN_MODEL_PATH = "neural_pinyin_model_path" // Path to Neural Pinyin ONNX model zip file
+    private const val KEY_NEURAL_PINYIN_ENABLED = "neural_pinyin_enabled" // Enable neural network for long pinyin sentences
+    private const val KEY_NEURAL_PINYIN_MIN_LETTERS = "neural_pinyin_min_letters" // Minimum letters to trigger neural pinyin (default 6)
     private const val KEY_VOICE_AUTO_INSERT = "voice_auto_insert" // Auto-insert recognized text after silence
     private const val KEY_VOICE_CHINESE_PUNCTUATION = "voice_chinese_punctuation" // Use Chinese punctuation (。,) for voice input
     private const val KEY_VOICE_ADD_PUNCTUATION = "voice_add_punctuation" // Add punctuation to voice input text
@@ -2249,6 +2251,40 @@ object SettingsManager {
     fun setNeuralPinyinModelPath(context: Context, path: String?) {
         getPreferences(context).edit()
             .putString(KEY_NEURAL_PINYIN_MODEL_PATH, path)
+            .apply()
+    }
+
+    /**
+     * Returns whether neural pinyin (deep learning based) is enabled.
+     * When enabled and model is loaded, long pinyin sentences use neural network for conversion.
+     */
+    fun isNeuralPinyinEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_NEURAL_PINYIN_ENABLED, false)
+    }
+
+    /**
+     * Sets whether neural pinyin is enabled.
+     */
+    fun setNeuralPinyinEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_NEURAL_PINYIN_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets the minimum number of letters required to trigger neural pinyin.
+     * Default is 6 letters.
+     */
+    fun getNeuralPinyinMinLetters(context: Context): Int {
+        return getPreferences(context).getInt(KEY_NEURAL_PINYIN_MIN_LETTERS, 6)
+    }
+
+    /**
+     * Sets the minimum number of letters required to trigger neural pinyin.
+     */
+    fun setNeuralPinyinMinLetters(context: Context, minLetters: Int) {
+        getPreferences(context).edit()
+            .putInt(KEY_NEURAL_PINYIN_MIN_LETTERS, minLetters)
             .apply()
     }
 

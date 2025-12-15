@@ -135,6 +135,11 @@ android {
         }
         jniLibs {
             useLegacyPackaging = true
+            // Use pickFirst to resolve duplicate libonnxruntime.so:
+            // - sherpa-onnx AAR includes libonnxruntime.so (v1.17.1)
+            // - onnxruntime-android AAR also includes libonnxruntime.so (v1.17.1)
+            // Both are the same version so picking first is safe
+            pickFirsts += setOf("lib/*/libonnxruntime.so")
         }
     }
 
@@ -172,6 +177,12 @@ dependencies {
     // Sherpa-ONNX offline speech recognition (better accuracy for Chinese)
     // Native libraries extracted from official AAR, Kotlin wrappers in our source
     // The .so files should be in app/src/main/jniLibs/arm64-v8a/
+
+    // ONNX Runtime Android for Neural Pinyin model inference
+    // Must match the version bundled in sherpa-onnx (1.17.1)
+    // The native libs are excluded via packagingOptions since we use sherpa-onnx's libonnxruntime.so
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.17.1")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

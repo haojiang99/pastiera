@@ -809,6 +809,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val fuzzyPinyinEnabled = SettingsManager.getPinyinFuzzyEnabled(this)
         pinyinInputController.setFuzzyPinyinEnabled(fuzzyPinyinEnabled)
 
+        // Apply neural pinyin settings
+        val neuralPinyinEnabled = SettingsManager.isNeuralPinyinEnabled(this)
+        val neuralPinyinMinLetters = SettingsManager.getNeuralPinyinMinLetters(this)
+        pinyinInputController.setNeuralPinyinEnabled(neuralPinyinEnabled)
+        pinyinInputController.setNeuralPinyinMinLetters(neuralPinyinMinLetters)
+
         // Start clipboard history listener if enabled
         if (SettingsManager.getClipboardHistoryEnabled(this)) {
             it.neuralrad.coolwulf.core.ClipboardHistoryManager.startListening(this)
@@ -2432,6 +2438,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val fuzzyPinyinEnabled = SettingsManager.getPinyinFuzzyEnabled(this)
         pinyinInputController.setFuzzyPinyinEnabled(fuzzyPinyinEnabled)
 
+        // Refresh neural pinyin settings (may have changed in settings)
+        val neuralPinyinEnabled = SettingsManager.isNeuralPinyinEnabled(this)
+        val neuralPinyinMinLetters = SettingsManager.getNeuralPinyinMinLetters(this)
+        pinyinInputController.setNeuralPinyinEnabled(neuralPinyinEnabled)
+        pinyinInputController.setNeuralPinyinMinLetters(neuralPinyinMinLetters)
+
         // Refresh virtual keyboard setting (may have changed in settings)
         val newVirtualKeyboardEnabled = SettingsManager.isVirtualKeyboardEnabled(this)
         if (newVirtualKeyboardEnabled != isVirtualKeyboardEnabled) {
@@ -2482,6 +2494,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Refresh fuzzy pinyin setting (may have changed in settings)
         val fuzzyPinyinEnabled = SettingsManager.getPinyinFuzzyEnabled(this)
         pinyinInputController.setFuzzyPinyinEnabled(fuzzyPinyinEnabled)
+
+        // Refresh neural pinyin settings (may have changed in settings)
+        val neuralPinyinEnabled = SettingsManager.isNeuralPinyinEnabled(this)
+        val neuralPinyinMinLetters = SettingsManager.getNeuralPinyinMinLetters(this)
+        pinyinInputController.setNeuralPinyinEnabled(neuralPinyinEnabled)
+        pinyinInputController.setNeuralPinyinMinLetters(neuralPinyinMinLetters)
 
         // Refresh Juying mode page size for all Chinese input controllers
         val juyingModeEnabled = SettingsManager.getJuyingModeEnabled(this)

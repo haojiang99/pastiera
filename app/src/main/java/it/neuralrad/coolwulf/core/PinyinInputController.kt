@@ -9,6 +9,7 @@ import it.neuralrad.coolwulf.data.pinyin.PinyinDictionary
 import it.neuralrad.coolwulf.data.pinyin.UserPinyinMemory
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
+import it.neuralrad.coolwulf.inputmethod.NeuralPinyinRecognizer
 import it.neuralrad.coolwulf.SettingsManager
 
 /**
@@ -82,6 +83,11 @@ class PinyinInputController(
 
     // Whether fuzzy pinyin (模糊音) is enabled
     private var fuzzyPinyinEnabled: Boolean = false
+
+    // Neural pinyin recognizer for deep learning based conversion
+    private var neuralPinyinRecognizer: NeuralPinyinRecognizer? = null
+    private var neuralPinyinEnabled: Boolean = false
+    private var neuralPinyinMinLetters: Int = 6
 
     // Fuzzy pinyin substitution rules
     // z↔zh, c↔ch, s↔sh, l↔n, en↔eng, in↔ing
@@ -987,6 +993,13 @@ class PinyinInputController(
         val resultCandidates = mutableListOf<String>()
         val customPhraseSet = customPhrases.toSet()  // For quick lookup
 
+        // Add neural pinyin suggestion as the first candidate (highest priority for long input)
+        val neuralSuggestion = getNeuralPinyinSuggestion(bufferWithoutSep)
+        if (neuralSuggestion != null && neuralSuggestion !in resultCandidates) {
+            resultCandidates.add(neuralSuggestion)
+            Log.d(TAG, "Neural pinyin suggestion: '$neuralSuggestion'")
+        }
+
         // Skip if input is abbreviation-style and abbreviation input is disabled
         val skipAutoLearnedForAbbrev = isAbbreviationInput(bufferWithoutSep) && !isAbbreviationInputEnabled()
         val autoLearnedPhrases = if (isAutoPhraseMemoryEnabled() && !skipAutoLearnedForAbbrev) autoPhraseMemory.getLearnedPhrases(bufferWithoutSep) else emptyList()
@@ -1168,6 +1181,10 @@ class PinyinInputController(
         phraseSet.addAll(autoLearnedPhrases)
         phraseSet.addAll(partialMatchPhrases)  // Include user-learned partial matches
         phraseSet.addAll(dictPartialPhrases)   // Include dictionary partial matches
+        // Include neural pinyin suggestion as a phrase (consumes entire buffer)
+        if (neuralSuggestion != null) {
+            phraseSet.add(neuralSuggestion)
+        }
         phraseCandidateSet = phraseSet
 
         // phraseCandidateCount for compatibility (used in some places)
@@ -1233,6 +1250,13 @@ class PinyinInputController(
         val cleanBuffer = bufferStr.replace(SEPARATOR.toString(), "")
 
         val resultCandidates = mutableListOf<String>()
+
+        // Add neural pinyin suggestion as the first candidate (highest priority for long input)
+        val neuralSuggestion = getNeuralPinyinSuggestion(cleanBuffer)
+        if (neuralSuggestion != null && neuralSuggestion !in resultCandidates) {
+            resultCandidates.add(neuralSuggestion)
+            Log.d(TAG, "Neural pinyin suggestion (unparsable): '$neuralSuggestion'")
+        }
 
         val abbreviationCandidates = if (isMemoryEnabled() && isAbbreviationInputEnabled()) userMemory.getAbbreviationCandidates(cleanBuffer) else emptyList()
 
@@ -1352,9 +1376,9 @@ class PinyinInputController(
             }
 
             allCandidates = resultCandidates
-            // If we have phrase candidates (abbreviation, custom, auto-learned), use full buffer for phrase matching
+            // If we have phrase candidates (abbreviation, custom, auto-learned, neural), use full buffer for phrase matching
             // Otherwise fall back to first syllable for single-character selection
-            val hasPhraseCandidates = abbreviationCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty()
+            val hasPhraseCandidates = abbreviationCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty() || neuralSuggestion != null
             matchedPinyin = if (hasPhraseCandidates) cleanBuffer else (PinyinDictionary.getFirstSyllableForPrefix(cleanBuffer) ?: cleanBuffer)
             firstSyllable = PinyinDictionary.getFirstSyllableForPrefix(cleanBuffer) ?: cleanBuffer
             // Build phrase set for accurate detection
@@ -1364,15 +1388,24 @@ class PinyinInputController(
             phraseSet.addAll(autoLearnedPhrases)
             phraseSet.addAll(partialMatchPhrases)
             phraseSet.addAll(dictPartialPhrases)
+            // Include neural pinyin suggestion as a phrase
+            if (neuralSuggestion != null) {
+                phraseSet.add(neuralSuggestion)
+            }
             phraseCandidateSet = phraseSet
             phraseCandidateCount = phraseSet.size
         } else if (resultCandidates.isNotEmpty()) {
-            // Only abbreviation/auto-learned/partial-match phrases available (no custom or prefix)
+            // Only neural/abbreviation/auto-learned/partial-match phrases available (no custom or prefix)
             allCandidates = resultCandidates
             matchedPinyin = cleanBuffer
             firstSyllable = cleanBuffer
-            phraseCandidateSet = resultCandidates.toSet()
-            phraseCandidateCount = resultCandidates.size
+            // Include neural suggestion in phrase set
+            val phraseSet = resultCandidates.toMutableSet()
+            if (neuralSuggestion != null) {
+                phraseSet.add(neuralSuggestion)
+            }
+            phraseCandidateSet = phraseSet
+            phraseCandidateCount = phraseSet.size
         } else {
             allCandidates = emptyList()
             matchedPinyin = ""
@@ -1752,5 +1785,61 @@ class PinyinInputController(
         }
 
         return null
+    }
+
+    /**
+     * Sets whether neural pinyin is enabled.
+     */
+    fun setNeuralPinyinEnabled(enabled: Boolean) {
+        neuralPinyinEnabled = enabled
+        if (enabled && neuralPinyinRecognizer == null) {
+            neuralPinyinRecognizer = NeuralPinyinRecognizer.getInstance(context)
+        }
+        Log.d(TAG, "Neural pinyin ${if (enabled) "enabled" else "disabled"}")
+    }
+
+    /**
+     * Returns whether neural pinyin is enabled.
+     */
+    fun isNeuralPinyinEnabled(): Boolean = neuralPinyinEnabled
+
+    /**
+     * Sets the minimum number of letters required for neural pinyin.
+     */
+    fun setNeuralPinyinMinLetters(minLetters: Int) {
+        neuralPinyinMinLetters = minLetters
+        Log.d(TAG, "Neural pinyin min letters: $minLetters")
+    }
+
+    /**
+     * Returns the minimum number of letters for neural pinyin.
+     */
+    fun getNeuralPinyinMinLetters(): Int = neuralPinyinMinLetters
+
+    /**
+     * Gets neural pinyin suggestion if conditions are met.
+     * Returns a single suggestion from the neural network model, or null if not available.
+     */
+    private fun getNeuralPinyinSuggestion(pinyinInput: String): String? {
+        if (!neuralPinyinEnabled) return null
+        if (pinyinInput.length < neuralPinyinMinLetters) return null
+
+        val recognizer = neuralPinyinRecognizer ?: return null
+        if (!recognizer.isReady()) {
+            // Try to initialize if model is available but not yet loaded
+            if (recognizer.isModelExtracted()) {
+                recognizer.initModel { success, _ ->
+                    if (success) {
+                        Log.d(TAG, "Neural pinyin model initialized on-demand")
+                    }
+                }
+            }
+            return null
+        }
+
+        // Run inference - the model expects space-separated pinyin for long sentences
+        // For our character-level model, we can pass the input as-is (it handles character tokenization)
+        val result = recognizer.convert(pinyinInput)
+        return result.firstOrNull()?.takeIf { it.isNotEmpty() }
     }
 }

@@ -51,3 +51,7 @@
 # Sherpa-ONNX speech recognition - keep all classes and fields for JNI access
 -keep class com.k2fsa.sherpa.onnx.** { *; }
 -keepclassmembers class com.k2fsa.sherpa.onnx.** { *; }
+
+# ONNX Runtime - keep all classes for neural pinyin model inference
+-keep class ai.onnxruntime.** { *; }
+-keepclassmembers class ai.onnxruntime.** { *; }

@@ -128,6 +128,23 @@
     <string name="fuzzy_pinyin_title">Fuzzy Pinyin (模糊音)</string>
     <string name="fuzzy_pinyin_description">Allow z/zh, c/ch, s/sh, l/n, en/eng, in/ing substitutions</string>
 
+    <!-- Neural Pinyin -->
+    <string name="neural_pinyin_title">Neural Network Input</string>
+    <string name="neural_pinyin_description">Use deep learning model for long sentences</string>
+    <string name="neural_pinyin_min_letters_title">Minimum Letters</string>
+    <string name="neural_pinyin_min_letters_description">Use neural network when typing %d+ letters</string>
+    <string name="neural_pinyin_model_title">Neural Pinyin Model</string>
+    <string name="neural_pinyin_model_not_selected">No zip file selected</string>
+    <string name="neural_pinyin_model_status_not_configured">Not configured</string>
+    <string name="neural_pinyin_model_status_zip_configured">Zip file selected - tap Extract</string>
+    <string name="neural_pinyin_model_status_extracting">Extracting model...</string>
+    <string name="neural_pinyin_model_status_available">Model ready to use</string>
+    <string name="neural_pinyin_model_status_loading">Loading model...</string>
+    <string name="neural_pinyin_model_status_ready">Model loaded</string>
+    <string name="neural_pinyin_model_instructions">Download pinyin_model.zip from the release page and select it below.</string>
+    <string name="neural_pinyin_model_select_button">Select Zip</string>
+    <string name="neural_pinyin_model_extract_button">Extract</string>
+
     <!-- Juying Mode -->
     <string name="juying_mode_title">Juying Mode (巨硬)</string>
     <string name="juying_mode_description">Use 5 physical keys to select candidates. Chinese: Shift/Sym/Space/Ctrl/Alt (Space selects 1st candidate, double-click Alt for next page). English: Shift/Sym/Ctrl for 3 suggestions.</string>
