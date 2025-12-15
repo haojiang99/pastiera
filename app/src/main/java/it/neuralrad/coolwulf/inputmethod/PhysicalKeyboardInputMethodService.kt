@@ -4035,10 +4035,34 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         return true
                     }
 
-                    // Otherwise, add to pinyin buffer (lowercase)
-                    if (pinyinInputController.handleLetterKey(char)) {
+                    // Otherwise, add to pinyin buffer (lowercase) at cursor position
+                    // Get cursor position within composing text for cursor-aware insertion
+                    val bufferLength = pinyinInputController.getBufferLength()
+                    var cursorPositionInBuffer = bufferLength // Default: cursor at end
+                    if (bufferLength > 0) {
+                        val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                        if (extractedText != null) {
+                            val composingStart = extractedText.text.length - bufferLength
+                            if (composingStart >= 0 && extractedText.selectionStart >= composingStart) {
+                                cursorPositionInBuffer = extractedText.selectionStart - composingStart
+                            }
+                        }
+                    }
+
+                    if (pinyinInputController.handleLetterKeyAtPosition(char, cursorPositionInBuffer)) {
                         val buffer = pinyinInputController.getBuffer()
                         ic.setComposingText(buffer, 1)
+                        // Restore cursor position after insertion (one position forward)
+                        val newCursorPos = cursorPositionInBuffer + 1
+                        if (newCursorPos < buffer.length) {
+                            val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                            if (extractedText != null) {
+                                val composingStart = extractedText.text.length - buffer.length
+                                if (composingStart >= 0) {
+                                    ic.setSelection(composingStart + newCursorPos, composingStart + newCursorPos)
+                                }
+                            }
+                        }
                         updateStatusBarText()
                         return true
                     }
@@ -4625,10 +4649,34 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         return true
                     }
 
-                    // Add to Shuangpin buffer (lowercase)
-                    if (shuangpinInputController.handleLetterKey(char)) {
+                    // Add to Shuangpin buffer (lowercase) at cursor position
+                    // Get cursor position within composing text for cursor-aware insertion
+                    val bufferLength = shuangpinInputController.getBufferLength()
+                    var cursorPositionInBuffer = bufferLength // Default: cursor at end
+                    if (bufferLength > 0) {
+                        val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                        if (extractedText != null) {
+                            val composingStart = extractedText.text.length - bufferLength
+                            if (composingStart >= 0 && extractedText.selectionStart >= composingStart) {
+                                cursorPositionInBuffer = extractedText.selectionStart - composingStart
+                            }
+                        }
+                    }
+
+                    if (shuangpinInputController.handleLetterKeyAtPosition(char, cursorPositionInBuffer)) {
                         val buffer = shuangpinInputController.getBuffer()
                         ic.setComposingText(buffer, 1)
+                        // Restore cursor position after insertion (one position forward)
+                        val newCursorPos = cursorPositionInBuffer + 1
+                        if (newCursorPos < buffer.length) {
+                            val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                            if (extractedText != null) {
+                                val composingStart = extractedText.text.length - buffer.length
+                                if (composingStart >= 0) {
+                                    ic.setSelection(composingStart + newCursorPos, composingStart + newCursorPos)
+                                }
+                            }
+                        }
                         updateStatusBarText()
                         return true
                     }

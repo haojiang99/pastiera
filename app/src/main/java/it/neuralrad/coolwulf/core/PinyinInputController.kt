@@ -223,15 +223,26 @@ class PinyinInputController(
      * @return true if the key was handled, false otherwise
      */
     fun handleLetterKey(char: Char): Boolean {
+        return handleLetterKeyAtPosition(char, -1)
+    }
+
+    /**
+     * Processes a letter key press in Pinyin mode at a specific cursor position.
+     * Inserts the letter at the specified position in the buffer and updates candidates.
+     * @param char The character to add (a-z)
+     * @param cursorPosition The position to insert at (0 = before first char). If -1 or > buffer.length, appends at end.
+     * @return true if the key was handled, false otherwise
+     */
+    fun handleLetterKeyAtPosition(char: Char, cursorPosition: Int): Boolean {
         if (!isPinyinModeActive) {
-            Log.d(TAG, "handleLetterKey: Pinyin mode not active")
+            Log.d(TAG, "handleLetterKeyAtPosition: Pinyin mode not active")
             return false
         }
 
         // Only accept lowercase letters
         val lowerChar = char.lowercaseChar()
         if (!lowerChar.isLetter() || lowerChar < 'a' || lowerChar > 'z') {
-            Log.d(TAG, "handleLetterKey: Invalid character '$char'")
+            Log.d(TAG, "handleLetterKeyAtPosition: Invalid character '$char'")
             return false
         }
 
@@ -255,9 +266,15 @@ class PinyinInputController(
             nextWordPredictor.onUserStartedTyping()
         }
 
-        buffer.append(lowerChar)
+        // Insert at position or append at end
+        val insertPosition = if (cursorPosition < 0 || cursorPosition > buffer.length) {
+            buffer.length
+        } else {
+            cursorPosition
+        }
+        buffer.insert(insertPosition, lowerChar)
         updateCandidates()
-        Log.d(TAG, "Letter added: '$lowerChar' → Buffer: '$buffer', Candidates: ${allCandidates.joinToString(", ")}")
+        Log.d(TAG, "Letter added at position $insertPosition: '$lowerChar' → Buffer: '$buffer', Candidates: ${allCandidates.joinToString(", ")}")
         return true
     }
 

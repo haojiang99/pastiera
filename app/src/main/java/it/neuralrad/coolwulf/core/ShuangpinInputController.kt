@@ -148,6 +148,16 @@ class ShuangpinInputController(
      * @return true if the key was handled, false otherwise
      */
     fun handleLetterKey(char: Char): Boolean {
+        return handleLetterKeyAtPosition(char, -1)
+    }
+
+    /**
+     * Processes a letter key press in Shuangpin mode at a specific cursor position.
+     * @param char The character to add (a-z)
+     * @param cursorPosition The position to insert at (0 = before first char). If -1 or > buffer.length, appends at end.
+     * @return true if the key was handled, false otherwise
+     */
+    fun handleLetterKeyAtPosition(char: Char, cursorPosition: Int): Boolean {
         if (!isShuangpinModeActive) {
             return false
         }
@@ -176,9 +186,15 @@ class ShuangpinInputController(
             nextWordPredictor.onUserStartedTyping()
         }
 
-        buffer.append(lowerChar)
+        // Insert at position or append at end
+        val insertPosition = if (cursorPosition < 0 || cursorPosition > buffer.length) {
+            buffer.length
+        } else {
+            cursorPosition
+        }
+        buffer.insert(insertPosition, lowerChar)
         updateCandidates()
-        Log.d(TAG, "Letter added: '$lowerChar' → Buffer: '$buffer', Candidates: ${allCandidates.size}")
+        Log.d(TAG, "Letter added at position $insertPosition: '$lowerChar' → Buffer: '$buffer', Candidates: ${allCandidates.size}")
         return true
     }
 
