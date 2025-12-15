@@ -37,3 +37,4 @@ landingpage/public/coolwulfIMEv0.77.1420.apk
 *.data
 *.pth
 /tools/cache
+*.so

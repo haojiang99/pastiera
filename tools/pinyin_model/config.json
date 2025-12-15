@@ -1,0 +1,12 @@
+{
+  "model_type": "somiao_cbhg",
+  "embed_size": 256,
+  "prenet_size": 128,
+  "num_banks": 16,
+  "num_highways": 4,
+  "pinyin_vocab_size": 29,
+  "hanzi_vocab_size": 10184,
+  "max_len": 50,
+  "input_type": "character",
+  "toneless": true
+}

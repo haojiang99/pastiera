@@ -20,9 +20,8 @@ class LedStatusView(
 ) {
     companion object {
         private val LED_COLOR_GRAY_OFF = Color.argb(26, 255, 255, 255)
-        private val LED_COLOR_RED_LOCKED = Color.rgb(247, 99, 0)      // Orange
-        private val LED_COLOR_BLUE_ACTIVE = Color.rgb(100, 150, 255)  // Blue
-        private val LED_COLOR_AI_RED = Color.rgb(255, 50, 50)         // Bright red for AI/Neural mode
+        private val LED_COLOR_RED_LOCKED = Color.rgb(247, 99, 0)
+        private val LED_COLOR_BLUE_ACTIVE = Color.rgb(100, 150, 255)
     }
 
     private val ledHeight: Int by lazy {
@@ -105,8 +104,8 @@ class LedStatusView(
         val altActive = (snapshot.altPhysicallyPressed || snapshot.altOneShot) && !altLocked
         updateLed(altLed, altLocked, altActive)
 
-        // Update Pinyin LED - red for AI/Neural mode, orange for Pinyin mode, blue for Shuangpin/Ziranma mode
-        updatePinyinLed(pinyinLed, snapshot.pinyinModeActive, snapshot.shuangpinModeActive || snapshot.ziranmaModeActive, snapshot.isUsingNeuralPinyin)
+        // Update Pinyin LED - orange for Pinyin mode, blue for Shuangpin/Ziranma mode
+        updatePinyinLed(pinyinLed, snapshot.pinyinModeActive, snapshot.shuangpinModeActive || snapshot.ziranmaModeActive)
 
         // Update Wubi/Zhenma LED - orange for Wubi mode, blue for Zhenma mode
         updateWubiZhenmaLed(wubiLed, snapshot.wubiModeActive, snapshot.zhenmaModeActive)
@@ -148,9 +147,8 @@ class LedStatusView(
         animateLedColor(led, targetColor)
     }
 
-    private fun updatePinyinLed(led: View?, pinyinActive: Boolean, shuangpinActive: Boolean, isUsingNeuralPinyin: Boolean = false) {
+    private fun updatePinyinLed(led: View?, pinyinActive: Boolean, shuangpinActive: Boolean) {
         val targetColor = when {
-            pinyinActive && isUsingNeuralPinyin -> LED_COLOR_AI_RED  // Bright red for AI/Neural mode
             pinyinActive -> LED_COLOR_RED_LOCKED   // Orange for Pinyin
             shuangpinActive -> LED_COLOR_BLUE_ACTIVE // Blue for Shuangpin
             else -> LED_COLOR_GRAY_OFF

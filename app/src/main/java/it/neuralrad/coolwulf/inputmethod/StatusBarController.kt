@@ -171,7 +171,6 @@ class StatusBarController(
         val shouldDisableSmartFeatures: Boolean = false,
         val pinyinModeActive: Boolean = false,
         val pinyinBuffer: String = "",
-        val isUsingNeuralPinyin: Boolean = false,  // True when neural deep learning model is providing candidates
         val t9PinyinModeActive: Boolean = false,
         val t9PinyinBuffer: String = "",
         val shuangpinModeActive: Boolean = false,
@@ -1200,7 +1199,6 @@ class StatusBarController(
         variationBarView?.updateInputConnection(inputConnection)
         variationBarView?.setSymModeActive(snapshot.symPage > 0)
         variationBarView?.setPinyinModeActive(snapshot.pinyinModeActive)
-        variationBarView?.setUsingNeuralPinyin(snapshot.isUsingNeuralPinyin)
         variationBarView?.setT9PinyinModeActive(snapshot.t9PinyinModeActive)
         variationBarView?.setShuangpinModeActive(snapshot.shuangpinModeActive)
         variationBarView?.setZiranmaModeActive(snapshot.ziranmaModeActive)

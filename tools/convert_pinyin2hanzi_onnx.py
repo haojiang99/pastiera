@@ -43,17 +43,17 @@ except ImportError:
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, max_len=512):
         super().__init__()
-        # Original model uses shape (max_len, 1, d_model) for transformer (seq_first) format
-        pe = torch.zeros(max_len, 1, d_model)
+        pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-np.log(10000.0) / d_model))
-        pe[:, 0, 0::2] = torch.sin(position * div_term)
-        pe[:, 0, 1::2] = torch.cos(position * div_term)
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0)  # (1, max_len, d_model)
         self.register_buffer('pe', pe)
 
     def forward(self, x):
-        # x: (seq_len, batch_size, d_model) - transformer format
-        return x + self.pe[:x.size(0), :, :]
+        # x: (batch_size, seq_len, d_model)
+        return x + self.pe[:, :x.size(1), :]
 
 
 class TransformerModel(nn.Module):
@@ -83,13 +83,13 @@ class TransformerModel(nn.Module):
         pinyin_embedded = self.pinyin_embedding(pinyin) * np.sqrt(self.d_model)
         hanzi_embedded = self.hanzi_embedding(hanzi_input) * np.sqrt(self.d_model)
 
-        # Transpose for transformer FIRST (seq_len, batch_size, d_model)
-        pinyin_embedded = pinyin_embedded.permute(1, 0, 2)
-        hanzi_embedded = hanzi_embedded.permute(1, 0, 2)
-
-        # Add positional encoding (expects seq_first format)
+        # Add positional encoding
         pinyin_embedded = self.positional_encoding(pinyin_embedded)
         hanzi_embedded = self.positional_encoding(hanzi_embedded)
+
+        # Transpose for transformer (seq_len, batch_size, d_model)
+        pinyin_embedded = pinyin_embedded.permute(1, 0, 2)
+        hanzi_embedded = hanzi_embedded.permute(1, 0, 2)
 
         # Create masks
         tgt_seq_len = hanzi_embedded.size(0)
@@ -127,8 +127,8 @@ class EncoderWrapper(nn.Module):
     def forward(self, pinyin):
         # pinyin: (batch_size, src_seq_len)
         pinyin_embedded = self.pinyin_embedding(pinyin) * np.sqrt(self.d_model)
-        pinyin_embedded = pinyin_embedded.permute(1, 0, 2)  # (seq_len, batch, d_model)
         pinyin_embedded = self.positional_encoding(pinyin_embedded)
+        pinyin_embedded = pinyin_embedded.permute(1, 0, 2)  # (seq_len, batch, d_model)
 
         src_key_padding_mask = (pinyin == 0)
         memory = self.encoder(pinyin_embedded, src_key_padding_mask=src_key_padding_mask)
@@ -152,8 +152,8 @@ class DecoderWrapper(nn.Module):
         # src_key_padding_mask: (batch_size, src_seq_len)
 
         hanzi_embedded = self.hanzi_embedding(hanzi_input) * np.sqrt(self.d_model)
-        hanzi_embedded = hanzi_embedded.permute(1, 0, 2)  # (seq_len, batch, d_model)
         hanzi_embedded = self.positional_encoding(hanzi_embedded)
+        hanzi_embedded = hanzi_embedded.permute(1, 0, 2)  # (seq_len, batch, d_model)
 
         tgt_seq_len = hanzi_embedded.size(0)
         tgt_mask = torch.triu(torch.ones(tgt_seq_len, tgt_seq_len) * float('-inf'), diagonal=1)
@@ -233,10 +233,10 @@ def export_to_onnx(model, checkpoint, output_dir):
     encoder.eval()
     decoder.eval()
 
-    # Use fixed sequence lengths for export (will still work with shorter sequences)
+    # Dummy inputs
     batch_size = 1
-    src_seq_len = 30   # Fixed length for export
-    tgt_seq_len = 20   # Fixed length for export
+    src_seq_len = 20
+    tgt_seq_len = 15
     d_model = model.d_model
 
     dummy_pinyin = torch.randint(0, 100, (batch_size, src_seq_len))
@@ -244,35 +244,41 @@ def export_to_onnx(model, checkpoint, output_dir):
     dummy_memory = torch.randn(batch_size, src_seq_len, d_model)
     dummy_src_mask = torch.zeros(batch_size, src_seq_len, dtype=torch.bool)
 
-    # Export encoder using TorchScript-based exporter (more stable)
+    # Export encoder
     encoder_path = os.path.join(output_dir, "encoder.onnx")
     print(f"Exporting encoder to {encoder_path}...")
-    with torch.no_grad():
-        torch.onnx.export(
-            encoder,
-            (dummy_pinyin,),
-            encoder_path,
-            input_names=['pinyin'],
-            output_names=['memory'],
-            opset_version=17,
-            do_constant_folding=True,
-            dynamo=False  # Use legacy TorchScript exporter
-        )
+    torch.onnx.export(
+        encoder,
+        (dummy_pinyin,),
+        encoder_path,
+        input_names=['pinyin'],
+        output_names=['memory'],
+        dynamic_axes={
+            'pinyin': {0: 'batch_size', 1: 'src_seq_len'},
+            'memory': {0: 'batch_size', 1: 'src_seq_len'}
+        },
+        opset_version=14,
+        do_constant_folding=True
+    )
 
-    # Export decoder using TorchScript-based exporter
+    # Export decoder
     decoder_path = os.path.join(output_dir, "decoder.onnx")
     print(f"Exporting decoder to {decoder_path}...")
-    with torch.no_grad():
-        torch.onnx.export(
-            decoder,
-            (dummy_hanzi, dummy_memory, dummy_src_mask),
-            decoder_path,
-            input_names=['hanzi_input', 'memory', 'src_key_padding_mask'],
-            output_names=['logits'],
-            opset_version=17,
-            do_constant_folding=True,
-            dynamo=False  # Use legacy TorchScript exporter
-        )
+    torch.onnx.export(
+        decoder,
+        (dummy_hanzi, dummy_memory, dummy_src_mask),
+        decoder_path,
+        input_names=['hanzi_input', 'memory', 'src_key_padding_mask'],
+        output_names=['logits'],
+        dynamic_axes={
+            'hanzi_input': {0: 'batch_size', 1: 'tgt_seq_len'},
+            'memory': {0: 'batch_size', 1: 'src_seq_len'},
+            'src_key_padding_mask': {0: 'batch_size', 1: 'src_seq_len'},
+            'logits': {0: 'batch_size', 1: 'tgt_seq_len'}
+        },
+        opset_version=14,
+        do_constant_folding=True
+    )
 
     # Save vocabularies
     pinyin_vocab = checkpoint['pinyin_vocab']
@@ -330,27 +336,23 @@ def create_zip(output_dir, zip_path):
     """Create a zip file with all model files."""
     print(f"Creating {zip_path}...")
 
-    # Files to include (prioritize INT8 quantized models)
-    required_files = ['vocab_pinyin.txt', 'vocab_hanzi.txt', 'config.json']
-
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-        # Add INT8 quantized models (renamed without _int8 suffix)
-        for model_type in ['encoder', 'decoder']:
-            int8_file = f"{model_type}_int8.onnx"
-            int8_path = os.path.join(output_dir, int8_file)
-            if os.path.exists(int8_path):
-                arcname = f"{model_type}.onnx"
-                zf.write(int8_path, arcname)
-                size_mb = os.path.getsize(int8_path) / (1024 * 1024)
-                print(f"  Added: {int8_file} -> {arcname} ({size_mb:.2f} MB)")
-
-        # Add vocabulary and config files
-        for filename in required_files:
+        for filename in os.listdir(output_dir):
             filepath = os.path.join(output_dir, filename)
-            if os.path.exists(filepath):
-                zf.write(filepath, filename)
-                size_kb = os.path.getsize(filepath) / 1024
-                print(f"  Added: {filename} ({size_kb:.1f} KB)")
+            if os.path.isfile(filepath):
+                # Use INT8 models if available
+                if filename.endswith('_int8.onnx'):
+                    # Rename to remove _int8 suffix in archive
+                    arcname = filename.replace('_int8.onnx', '.onnx')
+                    zf.write(filepath, arcname)
+                    print(f"  Added: {filename} -> {arcname}")
+                elif filename.endswith('.onnx') and not filename.replace('.onnx', '_int8.onnx') in os.listdir(output_dir):
+                    # Only add non-quantized if quantized doesn't exist
+                    zf.write(filepath, filename)
+                    print(f"  Added: {filename}")
+                elif not filename.endswith('.onnx'):
+                    zf.write(filepath, filename)
+                    print(f"  Added: {filename}")
 
     zip_size = os.path.getsize(zip_path) / (1024 * 1024)
     print(f"Final zip size: {zip_size:.2f} MB")

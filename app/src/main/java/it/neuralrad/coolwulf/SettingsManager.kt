@@ -89,14 +89,12 @@ object SettingsManager {
     private const val KEY_3D_EFFECT_ENABLED = "3d_effect_enabled" // Enable 3D shadow effect for status bar buttons
     private const val KEY_OFFLINE_VOICE_INPUT = "offline_voice_input" // Use Sherpa-ONNX for offline Mandarin Chinese speech recognition
     private const val KEY_SHERPA_MODEL_PATH = "sherpa_model_path" // Path to Sherpa-ONNX model zip file
+    private const val KEY_NEURAL_PINYIN_MODEL_PATH = "neural_pinyin_model_path" // Path to Neural Pinyin ONNX model zip file
     private const val KEY_VOICE_AUTO_INSERT = "voice_auto_insert" // Auto-insert recognized text after silence
     private const val KEY_VOICE_CHINESE_PUNCTUATION = "voice_chinese_punctuation" // Use Chinese punctuation (。,) for voice input
     private const val KEY_VOICE_ADD_PUNCTUATION = "voice_add_punctuation" // Add punctuation to voice input text
     private const val KEY_HOLD_SPACE_FOR_VOICE = "hold_space_for_voice" // Hold space key to trigger voice input
     private const val KEY_HOLD_SPACE_DURATION = "hold_space_duration" // Duration to hold space key for voice input (ms)
-    private const val KEY_NEURAL_PINYIN_ENABLED = "neural_pinyin_enabled" // Enable neural network pinyin for long sentences
-    private const val KEY_NEURAL_PINYIN_MODEL_PATH = "neural_pinyin_model_path" // Path to neural pinyin model zip file
-    private const val KEY_NEURAL_PINYIN_MIN_LENGTH = "neural_pinyin_min_length" // Minimum pinyin length to use neural model (default: 4)
     private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
     private const val KEY_SUGGESTION_HEIGHT_PERCENT = "suggestion_height_percent" // Height of suggestion word background as percentage of status bar (50-100)
     private const val KEY_VIRTUAL_KEYBOARD_HEIGHT = "virtual_keyboard_height" // Height of virtual keyboard keys in DIP
@@ -2237,6 +2235,24 @@ object SettingsManager {
     }
 
     /**
+     * Gets the path to the Neural Pinyin ONNX model zip file.
+     * Returns null if not set.
+     */
+    fun getNeuralPinyinModelPath(context: Context): String? {
+        return getPreferences(context).getString(KEY_NEURAL_PINYIN_MODEL_PATH, null)
+    }
+
+    /**
+     * Sets the path to the Neural Pinyin ONNX model zip file.
+     * Pass null to clear the path.
+     */
+    fun setNeuralPinyinModelPath(context: Context, path: String?) {
+        getPreferences(context).edit()
+            .putString(KEY_NEURAL_PINYIN_MODEL_PATH, path)
+            .apply()
+    }
+
+    /**
      * Returns whether voice auto-insert is enabled.
      * When enabled, recognized text is automatically inserted after detecting silence.
      */
@@ -2329,61 +2345,6 @@ object SettingsManager {
      * Returns the maximum allowed value for hold space duration.
      */
     fun getMaxHoldSpaceDuration(): Long = MAX_HOLD_SPACE_DURATION
-
-    // ========== Neural Pinyin Settings ==========
-
-    /**
-     * Returns whether neural pinyin input is enabled.
-     * When enabled and model is loaded, uses neural network for long sentence conversion.
-     */
-    fun isNeuralPinyinEnabled(context: Context): Boolean {
-        return getPreferences(context).getBoolean(KEY_NEURAL_PINYIN_ENABLED, false)
-    }
-
-    /**
-     * Sets whether neural pinyin input is enabled.
-     */
-    fun setNeuralPinyinEnabled(context: Context, enabled: Boolean) {
-        getPreferences(context).edit()
-            .putBoolean(KEY_NEURAL_PINYIN_ENABLED, enabled)
-            .apply()
-    }
-
-    /**
-     * Gets the path to the neural pinyin model zip file.
-     * Returns null if not set.
-     */
-    fun getNeuralPinyinModelPath(context: Context): String? {
-        return getPreferences(context).getString(KEY_NEURAL_PINYIN_MODEL_PATH, null)
-    }
-
-    /**
-     * Sets the path to the neural pinyin model zip file.
-     * Pass null to clear the path.
-     */
-    fun setNeuralPinyinModelPath(context: Context, path: String?) {
-        getPreferences(context).edit()
-            .putString(KEY_NEURAL_PINYIN_MODEL_PATH, path)
-            .apply()
-    }
-
-    /**
-     * Gets the minimum pinyin length to use neural model.
-     * Below this length, traditional dictionary lookup is used.
-     */
-    fun getNeuralPinyinMinLength(context: Context): Int {
-        return getPreferences(context).getInt(KEY_NEURAL_PINYIN_MIN_LENGTH, 0)
-    }
-
-    /**
-     * Sets the minimum pinyin length to use neural model.
-     */
-    fun setNeuralPinyinMinLength(context: Context, length: Int) {
-        val clampedValue = length.coerceIn(0, 20)
-        getPreferences(context).edit()
-            .putInt(KEY_NEURAL_PINYIN_MIN_LENGTH, clampedValue)
-            .apply()
-    }
 
     /**
      * Returns whether the LED status indicator strip is shown.

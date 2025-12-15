@@ -70,7 +70,6 @@ class VariationBarView(
     private var punctuationToggleButtonView: TextView? = null
     private var traditionalChineseToggleButtonView: TextView? = null
     private var isPinyinModeActive: Boolean = false
-    private var isUsingNeuralPinyin: Boolean = false
     private var isT9PinyinModeActive: Boolean = false
     private var isShuangpinModeActive: Boolean = false
     private var isZiranmaModeActive: Boolean = false
@@ -203,13 +202,6 @@ class VariationBarView(
     fun setPinyinModeActive(active: Boolean) {
         if (isPinyinModeActive != active) {
             isPinyinModeActive = active
-            updateLanguageToggleButton()
-        }
-    }
-
-    fun setUsingNeuralPinyin(active: Boolean) {
-        if (isUsingNeuralPinyin != active) {
-            isUsingNeuralPinyin = active
             updateLanguageToggleButton()
         }
     }
@@ -2125,8 +2117,6 @@ class VariationBarView(
         }
         return TextView(context).apply {
             text = when {
-                // Show "AI" when neural pinyin model is providing candidates
-                isPinyinModeActive && isUsingNeuralPinyin -> "AI"
                 isPinyinModeActive -> "拼"
                 isT9PinyinModeActive -> "T9"
                 isShuangpinModeActive -> "双"
@@ -2137,7 +2127,6 @@ class VariationBarView(
             }
             textSize = 12f
             setTextColor(when {
-                isPinyinModeActive && isUsingNeuralPinyin -> theme.accentColor
                 isPinyinModeActive || isT9PinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive -> theme.accentColor
                 else -> theme.textColor
             })
@@ -2155,8 +2144,6 @@ class VariationBarView(
         val theme = getCurrentTheme()
         languageToggleButtonView?.apply {
             text = when {
-                // Show "AI" when neural pinyin model is providing candidates
-                isPinyinModeActive && isUsingNeuralPinyin -> "AI"
                 isPinyinModeActive -> "拼"
                 isT9PinyinModeActive -> "T9"
                 isShuangpinModeActive -> "双"
@@ -2166,8 +2153,6 @@ class VariationBarView(
                 else -> "EN"
             }
             setTextColor(when {
-                // Use a different color when using neural pinyin (highlight AI mode)
-                isPinyinModeActive && isUsingNeuralPinyin -> theme.accentColor
                 isPinyinModeActive || isT9PinyinModeActive || isShuangpinModeActive || isZiranmaModeActive || isWubiModeActive || isZhenmaModeActive -> theme.accentColor
                 else -> theme.textColor
             })

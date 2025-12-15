@@ -809,9 +809,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val fuzzyPinyinEnabled = SettingsManager.getPinyinFuzzyEnabled(this)
         pinyinInputController.setFuzzyPinyinEnabled(fuzzyPinyinEnabled)
 
-        // Initialize neural pinyin model if configured and enabled
-        pinyinInputController.initNeuralPinyinIfNeeded()
-
         // Start clipboard history listener if enabled
         if (SettingsManager.getClipboardHistoryEnabled(this)) {
             it.neuralrad.coolwulf.core.ClipboardHistoryManager.startListening(this)
@@ -2298,7 +2295,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             shouldDisableSmartFeatures = shouldDisableSmartFeatures,
             pinyinModeActive = pinyinSnapshot.isActive,
             pinyinBuffer = pinyinSnapshot.buffer,
-            isUsingNeuralPinyin = pinyinSnapshot.isUsingNeuralPinyin,
             t9PinyinModeActive = t9PinyinSnapshot.isActive,
             t9PinyinBuffer = t9PinyinSnapshot.buffer,
             shuangpinModeActive = shuangpinSnapshot.isActive,

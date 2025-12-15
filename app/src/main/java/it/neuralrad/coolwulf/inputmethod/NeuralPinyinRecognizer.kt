@@ -11,45 +11,32 @@ import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.zip.ZipInputStream
 
 /**
  * Neural network-based Pinyin to Chinese character conversion using ONNX Runtime.
- * Uses a Transformer encoder-decoder model for improved accuracy on long sentences.
- *
+ * Uses a Seq2Seq model with attention for improved accuracy on long sentences.
  * The model is loaded from a user-selected zip file containing:
- * - encoder.onnx (encoder model)
- * - decoder.onnx (decoder model)
+ * - model.onnx (or model_int8.onnx for quantized version)
  * - vocab_pinyin.txt (pinyin vocabulary)
  * - vocab_hanzi.txt (Chinese character vocabulary)
- * - config.json (optional model configuration)
  *
  * This is an optional enhancement for pinyin input when typing long sentences (>4 letters).
- *
- * Model source: Duyu/Pinyin2Hanzi-Transformer from HuggingFace
- * Converted using tools/convert_pinyin2hanzi_onnx.py
  */
 class NeuralPinyinRecognizer(private val context: Context) {
     companion object {
         private const val TAG = "NeuralPinyinRecognizer"
         private const val EXTRACTED_MODEL_DIR = "neural-pinyin-model"
-
-        // Model files
-        private const val ENCODER_FILE = "encoder.onnx"
-        private const val DECODER_FILE = "decoder.onnx"
+        private const val MODEL_FILE = "model.onnx"
+        private const val MODEL_INT8_FILE = "model_int8.onnx"
         private const val VOCAB_PINYIN_FILE = "vocab_pinyin.txt"
         private const val VOCAB_HANZI_FILE = "vocab_hanzi.txt"
-        private const val CONFIG_FILE = "config.json"
 
-        // Maximum sequence lengths
-        private const val MAX_INPUT_LENGTH = 30   // Max pinyin tokens
-        private const val MAX_OUTPUT_LENGTH = 20  // Max hanzi output
-
-        // Special token IDs (standard for this model)
-        private const val PAD_ID = 0
-        private const val UNK_ID = 1
-        private const val SOS_ID = 2  // <sos> start of sequence
-        private const val EOS_ID = 3  // <eos> end of sequence
+        // Maximum sequence length for inference
+        private const val MAX_INPUT_LENGTH = 50
+        private const val MAX_OUTPUT_LENGTH = 30
 
         @Volatile
         private var instance: NeuralPinyinRecognizer? = null
@@ -70,13 +57,13 @@ class NeuralPinyinRecognizer(private val context: Context) {
             if (onnxRuntimeAvailable != null) return onnxRuntimeAvailable!!
 
             return try {
-                // Try to load the OrtEnvironment class
-                Class.forName("ai.onnxruntime.OrtEnvironment")
+                // Try to load ONNX Runtime native library
+                System.loadLibrary("onnxruntime")
                 onnxRuntimeAvailable = true
-                Log.d(TAG, "ONNX Runtime library available")
+                Log.d(TAG, "ONNX Runtime library loaded successfully")
                 true
-            } catch (e: ClassNotFoundException) {
-                Log.w(TAG, "ONNX Runtime library not available")
+            } catch (e: UnsatisfiedLinkError) {
+                Log.w(TAG, "ONNX Runtime library not available: ${e.message}")
                 onnxRuntimeAvailable = false
                 false
             } catch (e: Exception) {
@@ -95,15 +82,13 @@ class NeuralPinyinRecognizer(private val context: Context) {
     // Vocabularies
     private var pinyinVocab: Map<String, Int> = emptyMap()
     private var hanziVocab: Map<Int, String> = emptyMap()
-    private var hanziToId: Map<String, Int> = emptyMap()
+    private var pinyinPadId: Int = 0
+    private var hanziStartId: Int = 1
+    private var hanziEndId: Int = 2
 
-    // ONNX Runtime sessions (encoder and decoder)
-    private var ortEnv: Any? = null           // ai.onnxruntime.OrtEnvironment
-    private var encoderSession: Any? = null   // ai.onnxruntime.OrtSession
-    private var decoderSession: Any? = null   // ai.onnxruntime.OrtSession
-
-    // Model dimension (from config or default)
-    private var dModel: Int = 512
+    // ONNX Runtime session (will be initialized when model is loaded)
+    private var ortSession: Any? = null  // ai.onnxruntime.OrtSession
+    private var ortEnv: Any? = null      // ai.onnxruntime.OrtEnvironment
 
     /**
      * Gets the extracted model directory in app's internal storage.
@@ -136,12 +121,12 @@ class NeuralPinyinRecognizer(private val context: Context) {
      */
     fun isModelExtracted(): Boolean {
         if (!extractedModelDir.exists()) return false
-        // Check for required model files (encoder + decoder format)
-        val hasEncoder = File(extractedModelDir, ENCODER_FILE).exists()
-        val hasDecoder = File(extractedModelDir, DECODER_FILE).exists()
+        // Check for required model files
+        val hasModel = File(extractedModelDir, MODEL_FILE).exists() ||
+                File(extractedModelDir, MODEL_INT8_FILE).exists()
         val hasPinyinVocab = File(extractedModelDir, VOCAB_PINYIN_FILE).exists()
         val hasHanziVocab = File(extractedModelDir, VOCAB_HANZI_FILE).exists()
-        return hasEncoder && hasDecoder && hasPinyinVocab && hasHanziVocab
+        return hasModel && hasPinyinVocab && hasHanziVocab
     }
 
     /**
@@ -172,44 +157,35 @@ class NeuralPinyinRecognizer(private val context: Context) {
 
     /**
      * Extracts the model archive (supports .zip and .tar.bz2) to internal storage.
+     * @param onProgress Callback with (progress percentage, status message)
+     * @param onComplete Callback when extraction completes (success, error message)
      */
     fun extractModel(
         onProgress: ((Int, String) -> Unit)? = null,
         onComplete: ((Boolean, String?) -> Unit)? = null
     ) {
-        Log.d(TAG, "extractModel called")
         val uriStr = getModelZipUri()
         if (uriStr == null) {
-            Log.e(TAG, "No model zip file configured")
             onComplete?.invoke(false, "No model zip file configured")
             return
         }
 
         if (isExtracting) {
-            Log.w(TAG, "Extraction already in progress")
             onComplete?.invoke(false, "Extraction already in progress")
             return
         }
 
         isExtracting = true
-        Log.d(TAG, "Starting extraction coroutine for: $uriStr")
-
         CoroutineScope(Dispatchers.IO).launch {
-            var success = false
-            var errorMessage: String? = null
-
             try {
                 val uri = Uri.parse(uriStr)
                 val fileName = getModelZipName() ?: "model"
-                Log.d(TAG, "Parsed URI: $uri, fileName: $fileName")
 
                 // Delete existing extracted model
                 deleteExtractedModel()
-                Log.d(TAG, "Deleted existing extracted model")
 
                 // Create extraction directory
                 extractedModelDir.mkdirs()
-                Log.d(TAG, "Created extraction directory: ${extractedModelDir.absolutePath}")
 
                 withContext(Dispatchers.Main) {
                     onProgress?.invoke(0, "Starting extraction...")
@@ -217,11 +193,9 @@ class NeuralPinyinRecognizer(private val context: Context) {
 
                 when {
                     fileName.endsWith(".tar.bz2") || fileName.endsWith(".tbz2") -> {
-                        Log.d(TAG, "Extracting tar.bz2 file")
                         extractTarBz2(uri, onProgress)
                     }
                     else -> {
-                        Log.d(TAG, "Extracting zip file")
                         extractZip(uri, onProgress)
                     }
                 }
@@ -231,31 +205,22 @@ class NeuralPinyinRecognizer(private val context: Context) {
                 }
 
                 // Verify extraction
-                val extracted = isModelExtracted()
-                Log.d(TAG, "Verification - isModelExtracted: $extracted")
-
-                // List extracted files for debugging
-                if (extractedModelDir.exists()) {
-                    val files = extractedModelDir.listFiles()
-                    Log.d(TAG, "Files in extraction directory: ${files?.map { it.name }}")
-                }
-
-                if (extracted) {
-                    success = true
+                if (isModelExtracted()) {
+                    withContext(Dispatchers.Main) {
+                        onComplete?.invoke(true, null)
+                    }
                 } else {
-                    errorMessage = "Model files not found after extraction. Required: encoder.onnx, decoder.onnx, vocab_pinyin.txt, vocab_hanzi.txt"
+                    withContext(Dispatchers.Main) {
+                        onComplete?.invoke(false, "Model files not found after extraction")
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error extracting model: ${e.message}", e)
-                errorMessage = e.message ?: "Unknown error"
+                withContext(Dispatchers.Main) {
+                    onComplete?.invoke(false, e.message ?: "Unknown error")
+                }
             } finally {
                 isExtracting = false
-                Log.d(TAG, "Extraction finished - success: $success, error: $errorMessage")
-
-                // Always call onComplete on main thread
-                withContext(Dispatchers.Main) {
-                    onComplete?.invoke(success, errorMessage)
-                }
             }
         }
     }
@@ -263,65 +228,44 @@ class NeuralPinyinRecognizer(private val context: Context) {
     /**
      * Extracts a .zip archive.
      */
-    private suspend fun extractZip(uri: Uri, onProgress: ((Int, String) -> Unit)?) {
-        Log.d(TAG, "Starting zip extraction from: $uri")
-
+    private fun extractZip(uri: Uri, onProgress: ((Int, String) -> Unit)?) {
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: throw IOException("Cannot open zip file")
 
         ZipInputStream(inputStream).use { zipIn ->
             var entry = zipIn.nextEntry
             var fileCount = 0
-            val extractedFiles = mutableListOf<String>()
 
             while (entry != null) {
-                // Handle both flat and nested directory structures
-                var entryName = entry.name
-                Log.d(TAG, "Processing zip entry: $entryName (isDirectory: ${entry.isDirectory})")
-
-                // Strip common prefixes
-                if (entryName.contains('/')) {
-                    entryName = entryName.substringAfterLast('/')
-                }
+                // Strip the first directory level if present (common in archives)
+                val entryName = entry.name.substringAfter('/', entry.name)
 
                 if (entryName.isNotEmpty() && !entry.isDirectory) {
                     val outFile = File(extractedModelDir, entryName)
                     outFile.parentFile?.mkdirs()
 
-                    Log.d(TAG, "Extracting: $entryName to ${outFile.absolutePath}")
-
                     FileOutputStream(outFile).use { fos ->
-                        val buffer = ByteArray(8192)
-                        var bytesRead: Int
-                        var totalBytes = 0L
-                        while (zipIn.read(buffer).also { bytesRead = it } != -1) {
-                            fos.write(buffer, 0, bytesRead)
-                            totalBytes += bytesRead
-                        }
-                        Log.d(TAG, "Extracted $entryName: $totalBytes bytes")
+                        zipIn.copyTo(fos)
                     }
 
-                    extractedFiles.add(entryName)
                     fileCount++
-
-                    // Calculate progress based on expected files (5 files total)
-                    val progress = minOf((fileCount * 100) / 5, 95)
-                    withContext(Dispatchers.Main) {
-                        onProgress?.invoke(progress, "Extracted: $entryName")
+                    CoroutineScope(Dispatchers.Main).launch {
+                        onProgress?.invoke(
+                            minOf(fileCount * 10, 90),
+                            "Extracting: $entryName"
+                        )
                     }
                 }
                 zipIn.closeEntry()
                 entry = zipIn.nextEntry
             }
-
-            Log.d(TAG, "Extraction complete. Files extracted: $extractedFiles")
         }
     }
 
     /**
      * Extracts a .tar.bz2 archive.
      */
-    private suspend fun extractTarBz2(uri: Uri, onProgress: ((Int, String) -> Unit)?) {
+    private fun extractTarBz2(uri: Uri, onProgress: ((Int, String) -> Unit)?) {
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: throw IOException("Cannot open tar.bz2 file")
 
@@ -333,10 +277,8 @@ class NeuralPinyinRecognizer(private val context: Context) {
         var fileCount = 0
 
         while (entry != null) {
-            var entryName = entry.name
-            if (entryName.contains('/')) {
-                entryName = entryName.substringAfterLast('/')
-            }
+            // Strip the first directory level
+            val entryName = entry.name.substringAfter('/', entry.name)
 
             if (entryName.isNotEmpty() && !entry.isDirectory && tarIn.canReadEntryData(entry)) {
                 val outFile = File(extractedModelDir, entryName)
@@ -347,9 +289,9 @@ class NeuralPinyinRecognizer(private val context: Context) {
                 }
 
                 fileCount++
-                withContext(Dispatchers.Main) {
+                CoroutineScope(Dispatchers.Main).launch {
                     onProgress?.invoke(
-                        minOf(fileCount * 20, 90),
+                        minOf(fileCount * 10, 90),
                         "Extracting: $entryName"
                     )
                 }
@@ -379,68 +321,52 @@ class NeuralPinyinRecognizer(private val context: Context) {
     }
 
     /**
-     * Clears the configuration and optionally deletes extracted model.
-     */
-    fun clearConfig(deleteExtracted: Boolean = false) {
-        SettingsManager.setNeuralPinyinModelPath(context, null)
-        if (deleteExtracted) {
-            deleteExtractedModel()
-        }
-    }
-
-    /**
      * Initializes the ONNX model for inference.
+     * @param onReady Callback when initialization completes (success, error message)
      */
     fun initModel(onReady: ((Boolean, String?) -> Unit)? = null) {
-        Log.d(TAG, "initModel called - isModelReady=$isModelReady, isModelLoading=$isModelLoading")
-
         if (isModelReady) {
-            Log.d(TAG, "Model already ready, returning")
             onReady?.invoke(true, null)
             return
         }
 
         if (isModelLoading) {
-            Log.d(TAG, "Model already loading, returning")
             onReady?.invoke(false, "Model is already loading")
             return
         }
 
-        val extracted = isModelExtracted()
-        Log.d(TAG, "isModelExtracted=$extracted")
-        if (!extracted) {
-            Log.e(TAG, "Model not extracted!")
+        if (!isModelExtracted()) {
             onReady?.invoke(false, "Model not extracted")
             return
         }
 
-        val onnxAvailable = isOnnxRuntimeAvailable()
-        Log.d(TAG, "isOnnxRuntimeAvailable=$onnxAvailable")
-        if (!onnxAvailable) {
-            Log.e(TAG, "ONNX Runtime not available!")
-            onReady?.invoke(false, "ONNX Runtime not available. Please ensure the ONNX Runtime AAR is included.")
+        if (!isOnnxRuntimeAvailable()) {
+            onReady?.invoke(false, "ONNX Runtime not available")
             return
         }
 
         isModelLoading = true
-        Log.d(TAG, "Starting model initialization in background...")
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                Log.d(TAG, "Loading vocabularies...")
+                // Load vocabularies
                 loadVocabularies()
-                Log.d(TAG, "Vocabularies loaded successfully")
 
-                Log.d(TAG, "Loading config...")
-                loadConfig()
-                Log.d(TAG, "Config loaded")
+                // Find model file (prefer int8 quantized version)
+                val modelFile = when {
+                    File(extractedModelDir, MODEL_INT8_FILE).exists() ->
+                        File(extractedModelDir, MODEL_INT8_FILE).absolutePath
+                    File(extractedModelDir, MODEL_FILE).exists() ->
+                        File(extractedModelDir, MODEL_FILE).absolutePath
+                    else -> throw IOException("Model file not found")
+                }
 
-                Log.d(TAG, "Initializing ONNX Runtime sessions...")
-                initOrtSessions()
-                Log.d(TAG, "ONNX sessions initialized")
+                // Initialize ONNX Runtime session using reflection
+                // This avoids compile-time dependency on ONNX Runtime
+                initOrtSession(modelFile)
 
                 isModelReady = true
-                Log.i(TAG, "Neural pinyin model initialized successfully! isModelReady=$isModelReady")
+                Log.i(TAG, "Neural pinyin model initialized successfully")
 
                 withContext(Dispatchers.Main) {
                     onReady?.invoke(true, null)
@@ -470,79 +396,51 @@ class NeuralPinyinRecognizer(private val context: Context) {
             }
         }
         pinyinVocab = pinyinMap
+        pinyinPadId = pinyinMap["<pad>"] ?: 0
 
-        // Load hanzi vocabulary (id -> token and token -> id)
+        // Load hanzi vocabulary (id -> token)
         val hanziVocabFile = File(extractedModelDir, VOCAB_HANZI_FILE)
-        val hanziIdToToken = mutableMapOf<Int, String>()
-        val hanziTokenToId = mutableMapOf<String, Int>()
+        val hanziMap = mutableMapOf<Int, String>()
         hanziVocabFile.readLines().forEachIndexed { index, line ->
             val token = line.trim()
             if (token.isNotEmpty()) {
-                hanziIdToToken[index] = token
-                hanziTokenToId[token] = index
+                hanziMap[index] = token
             }
         }
-        hanziVocab = hanziIdToToken
-        hanziToId = hanziTokenToId
+        hanziVocab = hanziMap
+        hanziStartId = hanziMap.entries.find { it.value == "<s>" }?.key ?: 1
+        hanziEndId = hanziMap.entries.find { it.value == "</s>" }?.key ?: 2
 
         Log.d(TAG, "Loaded vocabularies: ${pinyinVocab.size} pinyin, ${hanziVocab.size} hanzi")
     }
 
     /**
-     * Loads model configuration from config.json if available.
+     * Initializes the ONNX Runtime session using reflection.
      */
-    private fun loadConfig() {
-        val configFile = File(extractedModelDir, CONFIG_FILE)
-        if (configFile.exists()) {
-            try {
-                val configText = configFile.readText()
-                // Simple JSON parsing for d_model
-                val dModelMatch = """"d_model"\s*:\s*(\d+)""".toRegex().find(configText)
-                dModelMatch?.groupValues?.get(1)?.toIntOrNull()?.let {
-                    dModel = it
-                    Log.d(TAG, "Loaded d_model from config: $dModel")
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not load config: ${e.message}")
-            }
-        }
-    }
-
-    /**
-     * Initializes ONNX Runtime sessions for encoder and decoder.
-     */
-    private fun initOrtSessions() {
+    private fun initOrtSession(modelPath: String) {
         try {
-            // Get OrtEnvironment
+            // Get OrtEnvironment class
             val ortEnvClass = Class.forName("ai.onnxruntime.OrtEnvironment")
             val getEnvironmentMethod = ortEnvClass.getMethod("getEnvironment")
             ortEnv = getEnvironmentMethod.invoke(null)
 
-            // Create session options
+            // Get OrtSession.SessionOptions class
             val sessionOptionsClass = Class.forName("ai.onnxruntime.OrtSession\$SessionOptions")
             val sessionOptions = sessionOptionsClass.getDeclaredConstructor().newInstance()
 
-            // Set number of threads for efficiency
+            // Set number of threads
             val setIntraOpNumThreadsMethod = sessionOptionsClass.getMethod("setIntraOpNumThreads", Int::class.java)
             setIntraOpNumThreadsMethod.invoke(sessionOptions, 2)
 
-            // Create session method
+            // Create session
             val createSessionMethod = ortEnvClass.getMethod(
                 "createSession",
                 String::class.java,
                 sessionOptionsClass
             )
+            ortSession = createSessionMethod.invoke(ortEnv, modelPath, sessionOptions)
 
-            // Load encoder
-            val encoderPath = File(extractedModelDir, ENCODER_FILE).absolutePath
-            encoderSession = createSessionMethod.invoke(ortEnv, encoderPath, sessionOptions)
-            Log.d(TAG, "Encoder session created")
-
-            // Load decoder
-            val decoderPath = File(extractedModelDir, DECODER_FILE).absolutePath
-            decoderSession = createSessionMethod.invoke(ortEnv, decoderPath, sessionOptions)
-            Log.d(TAG, "Decoder session created")
-
+            Log.d(TAG, "ONNX Runtime session created successfully")
         } catch (e: ClassNotFoundException) {
             throw RuntimeException("ONNX Runtime classes not found. Make sure the library is included.", e)
         } catch (e: Exception) {
@@ -552,51 +450,27 @@ class NeuralPinyinRecognizer(private val context: Context) {
 
     /**
      * Converts pinyin string to Chinese characters using the neural model.
-     * Uses autoregressive decoding with greedy search.
-     *
      * @param pinyin The pinyin input (space-separated syllables, e.g., "ni hao")
-     * @return List of candidate Chinese strings
+     * @return List of candidate Chinese strings, sorted by probability
      */
     fun convert(pinyin: String): List<String> {
-        if (!isModelReady || encoderSession == null || decoderSession == null) {
+        if (!isModelReady || ortSession == null) {
             Log.w(TAG, "Model not ready for inference")
             return emptyList()
         }
 
         try {
-            // Tokenize pinyin input with <sos> and <eos>
+            // Tokenize pinyin input
             val pinyinTokens = tokenizePinyin(pinyin)
             if (pinyinTokens.isEmpty()) {
-                Log.w(TAG, "Empty pinyin tokens")
                 return emptyList()
             }
 
-            // Run encoder to get memory
-            val memory = runEncoder(pinyinTokens)
-            if (memory == null) {
-                Log.w(TAG, "Encoder returned null")
-                return emptyList()
-            }
+            // Run inference
+            val outputIds = runInference(pinyinTokens)
 
-            // Create source padding mask
-            val srcPaddingMask = BooleanArray(pinyinTokens.size) { i ->
-                pinyinTokens[i] == PAD_ID.toLong()
-            }
-
-            // Autoregressive decoding
-            val outputIds = mutableListOf<Int>()
-            outputIds.add(SOS_ID)  // Start with <sos>
-
-            for (step in 0 until MAX_OUTPUT_LENGTH) {
-                val nextToken = runDecoderStep(outputIds, memory, srcPaddingMask)
-                if (nextToken == EOS_ID) {
-                    break
-                }
-                outputIds.add(nextToken)
-            }
-
-            // Decode output to Chinese characters (skip <sos>)
-            val result = decodeOutput(outputIds.drop(1))
+            // Decode output to Chinese characters
+            val result = decodeOutput(outputIds)
 
             return if (result.isNotEmpty()) listOf(result) else emptyList()
         } catch (e: Exception) {
@@ -606,39 +480,29 @@ class NeuralPinyinRecognizer(private val context: Context) {
     }
 
     /**
-     * Tokenizes pinyin string into vocabulary IDs with <sos> and <eos>.
+     * Tokenizes pinyin string into vocabulary IDs.
      */
     private fun tokenizePinyin(pinyin: String): LongArray {
         val syllables = pinyin.lowercase().trim().split("\\s+".toRegex())
         val tokens = mutableListOf<Long>()
 
-        // Add <sos>
-        tokens.add(SOS_ID.toLong())
-
         for (syllable in syllables) {
-            // Try with tone number (e.g., "ni3")
-            var id = pinyinVocab[syllable]
-
-            // Try without tone if not found
-            if (id == null) {
-                val syllableNoTone = syllable.replace(Regex("[0-9]"), "")
-                id = pinyinVocab[syllableNoTone]
-            }
-
+            val id = pinyinVocab[syllable]
             if (id != null) {
                 tokens.add(id.toLong())
             } else {
-                // Use <unk> for unknown syllables
-                tokens.add(UNK_ID.toLong())
-                Log.d(TAG, "Unknown syllable: $syllable")
+                // Try character-by-character for unknown syllables
+                for (char in syllable) {
+                    val charId = pinyinVocab[char.toString()]
+                    if (charId != null) {
+                        tokens.add(charId.toLong())
+                    }
+                }
             }
         }
 
-        // Add <eos>
-        tokens.add(EOS_ID.toLong())
-
-        // Pad to MAX_INPUT_LENGTH
-        val paddedTokens = LongArray(MAX_INPUT_LENGTH) { PAD_ID.toLong() }
+        // Pad or truncate to MAX_INPUT_LENGTH
+        val paddedTokens = LongArray(MAX_INPUT_LENGTH) { pinyinPadId.toLong() }
         tokens.take(MAX_INPUT_LENGTH).forEachIndexed { index, token ->
             paddedTokens[index] = token
         }
@@ -647,165 +511,69 @@ class NeuralPinyinRecognizer(private val context: Context) {
     }
 
     /**
-     * Runs the encoder to produce memory.
-     * @return Float array of shape [1, seq_len, d_model] flattened
+     * Runs model inference using ONNX Runtime via reflection.
      */
-    private fun runEncoder(pinyinTokens: LongArray): FloatArray? {
+    private fun runInference(inputTokens: LongArray): LongArray {
         try {
-            val env = ortEnv ?: return null
-            val session = encoderSession ?: return null
+            val session = ortSession ?: throw RuntimeException("Session not initialized")
+            val env = ortEnv ?: throw RuntimeException("Environment not initialized")
 
+            // Create input tensor
             val ortTensorClass = Class.forName("ai.onnxruntime.OnnxTensor")
-            val sessionClass = Class.forName("ai.onnxruntime.OrtSession")
-            val resultClass = Class.forName("ai.onnxruntime.OrtSession\$Result")
-            val ortEnvClass = Class.forName("ai.onnxruntime.OrtEnvironment")
-
-            // Create input tensor [1, seq_len]
-            val createTensorLongMethod = ortTensorClass.getMethod(
+            val createTensorMethod = ortTensorClass.getMethod(
                 "createTensor",
-                ortEnvClass,
+                Class.forName("ai.onnxruntime.OrtEnvironment"),
                 LongArray::class.java,
                 LongArray::class.java
             )
-            val inputShape = longArrayOf(1, pinyinTokens.size.toLong())
-            val inputTensor = createTensorLongMethod.invoke(null, env, pinyinTokens, inputShape)
 
-            // Run encoder
+            val inputShape = longArrayOf(1, inputTokens.size.toLong())
+            val inputTensor = createTensorMethod.invoke(null, env, inputTokens, inputShape)
+
+            // Run inference
+            val sessionClass = Class.forName("ai.onnxruntime.OrtSession")
             val runMethod = sessionClass.getMethod("run", java.util.Map::class.java)
-            val inputMap = mapOf("pinyin" to inputTensor)
-            val result = runMethod.invoke(session, inputMap)
+            val inputMap = mapOf("input" to inputTensor)
+            val outputResult = runMethod.invoke(session, inputMap)
 
-            // Get output (memory)
+            // Get output tensor
+            val resultClass = Class.forName("ai.onnxruntime.OrtSession\$Result")
             val getMethod = resultClass.getMethod("get", Int::class.java)
-            val outputTensor = getMethod.invoke(result, 0)
+            val outputTensor = getMethod.invoke(outputResult, 0)
 
+            // Get output values
             val getValueMethod = ortTensorClass.getMethod("getValue")
             @Suppress("UNCHECKED_CAST")
-            val memoryArray = getValueMethod.invoke(outputTensor) as Array<Array<FloatArray>>
+            val outputArray = getValueMethod.invoke(outputTensor) as Array<LongArray>
 
-            // Flatten to 1D for easier handling
-            val seqLen = memoryArray[0].size
-            val flatMemory = FloatArray(seqLen * dModel)
-            for (i in 0 until seqLen) {
-                System.arraycopy(memoryArray[0][i], 0, flatMemory, i * dModel, dModel)
-            }
-
-            // Clean up
+            // Close tensors
             val closeMethod = ortTensorClass.getMethod("close")
             closeMethod.invoke(inputTensor)
+
             val resultCloseMethod = resultClass.getMethod("close")
-            resultCloseMethod.invoke(result)
+            resultCloseMethod.invoke(outputResult)
 
-            return flatMemory
+            return outputArray[0]
         } catch (e: Exception) {
-            Log.e(TAG, "Encoder error: ${e.message}", e)
-            return null
-        }
-    }
-
-    /**
-     * Runs one step of decoder to get the next token.
-     */
-    private fun runDecoderStep(currentTokens: List<Int>, memory: FloatArray, srcPaddingMask: BooleanArray): Int {
-        try {
-            val env = ortEnv ?: return EOS_ID
-            val session = decoderSession ?: return EOS_ID
-
-            val ortTensorClass = Class.forName("ai.onnxruntime.OnnxTensor")
-            val sessionClass = Class.forName("ai.onnxruntime.OrtSession")
-            val resultClass = Class.forName("ai.onnxruntime.OrtSession\$Result")
-            val ortEnvClass = Class.forName("ai.onnxruntime.OrtEnvironment")
-
-            // Create hanzi_input tensor [1, tgt_seq_len]
-            val hanziInput = LongArray(currentTokens.size) { currentTokens[it].toLong() }
-            val createTensorLongMethod = ortTensorClass.getMethod(
-                "createTensor",
-                ortEnvClass,
-                LongArray::class.java,
-                LongArray::class.java
-            )
-            val hanziShape = longArrayOf(1, hanziInput.size.toLong())
-            val hanziTensor = createTensorLongMethod.invoke(null, env, hanziInput, hanziShape)
-
-            // Create memory tensor [1, src_seq_len, d_model]
-            val srcSeqLen = memory.size / dModel
-            val memoryShape = longArrayOf(1, srcSeqLen.toLong(), dModel.toLong())
-            val createTensorFloatMethod = ortTensorClass.getMethod(
-                "createTensor",
-                ortEnvClass,
-                FloatArray::class.java,
-                LongArray::class.java
-            )
-            val memoryTensor = createTensorFloatMethod.invoke(null, env, memory, memoryShape)
-
-            // Create src_key_padding_mask tensor [1, src_seq_len]
-            val createTensorBoolMethod = ortTensorClass.getMethod(
-                "createTensor",
-                ortEnvClass,
-                BooleanArray::class.java,
-                LongArray::class.java
-            )
-            val maskShape = longArrayOf(1, srcPaddingMask.size.toLong())
-            val maskTensor = createTensorBoolMethod.invoke(null, env, srcPaddingMask, maskShape)
-
-            // Run decoder
-            val runMethod = sessionClass.getMethod("run", java.util.Map::class.java)
-            val inputMap = mapOf(
-                "hanzi_input" to hanziTensor,
-                "memory" to memoryTensor,
-                "src_key_padding_mask" to maskTensor
-            )
-            val result = runMethod.invoke(session, inputMap)
-
-            // Get output logits [1, tgt_seq_len, vocab_size]
-            val getMethod = resultClass.getMethod("get", Int::class.java)
-            val outputTensor = getMethod.invoke(result, 0)
-
-            val getValueMethod = ortTensorClass.getMethod("getValue")
-            @Suppress("UNCHECKED_CAST")
-            val logits = getValueMethod.invoke(outputTensor) as Array<Array<FloatArray>>
-
-            // Get logits for the last position (greedy decoding)
-            val lastLogits = logits[0][logits[0].size - 1]
-
-            // Find argmax (greedy selection)
-            var maxIdx = 0
-            var maxVal = lastLogits[0]
-            for (i in 1 until lastLogits.size) {
-                if (lastLogits[i] > maxVal) {
-                    maxVal = lastLogits[i]
-                    maxIdx = i
-                }
-            }
-
-            // Clean up
-            val closeMethod = ortTensorClass.getMethod("close")
-            closeMethod.invoke(hanziTensor)
-            closeMethod.invoke(memoryTensor)
-            closeMethod.invoke(maskTensor)
-            val resultCloseMethod = resultClass.getMethod("close")
-            resultCloseMethod.invoke(result)
-
-            return maxIdx
-        } catch (e: Exception) {
-            Log.e(TAG, "Decoder step error: ${e.message}", e)
-            return EOS_ID
+            Log.e(TAG, "Inference error: ${e.message}", e)
+            return LongArray(0)
         }
     }
 
     /**
      * Decodes output token IDs to Chinese string.
      */
-    private fun decodeOutput(outputIds: List<Int>): String {
+    private fun decodeOutput(outputIds: LongArray): String {
         val result = StringBuilder()
 
         for (id in outputIds) {
-            if (id == EOS_ID || id == PAD_ID) break
-            if (id == SOS_ID || id == UNK_ID) continue
+            val idInt = id.toInt()
+            if (idInt == hanziEndId) break
+            if (idInt == hanziStartId || idInt == 0) continue
 
-            val token = hanziVocab[id]
-            if (token != null && !token.startsWith("<")) {
-                result.append(token)
+            val char = hanziVocab[idInt]
+            if (char != null && char != "<pad>" && char != "<unk>") {
+                result.append(char)
             }
         }
 
@@ -817,26 +585,23 @@ class NeuralPinyinRecognizer(private val context: Context) {
      */
     fun releaseModel() {
         try {
-            val sessionClass = Class.forName("ai.onnxruntime.OrtSession")
-            val closeMethod = sessionClass.getMethod("close")
-
-            encoderSession?.let { closeMethod.invoke(it) }
-            decoderSession?.let { closeMethod.invoke(it) }
+            ortSession?.let { session ->
+                val sessionClass = Class.forName("ai.onnxruntime.OrtSession")
+                val closeMethod = sessionClass.getMethod("close")
+                closeMethod.invoke(session)
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Error closing sessions: ${e.message}")
+            Log.e(TAG, "Error closing session: ${e.message}")
         }
 
-        encoderSession = null
-        decoderSession = null
-        ortEnv = null
+        ortSession = null
         isModelReady = false
         pinyinVocab = emptyMap()
         hanziVocab = emptyMap()
-        hanziToId = emptyMap()
     }
 
     /**
-     * Model status enum.
+     * Model status enum (shared with SherpaSpeechRecognizer).
      */
     enum class ModelStatus {
         NOT_CONFIGURED,      // No zip file selected
