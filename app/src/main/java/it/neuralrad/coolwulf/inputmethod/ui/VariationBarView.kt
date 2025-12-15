@@ -568,22 +568,84 @@ class VariationBarView(
                 context.resources.displayMetrics
             ).toInt()
 
-            // Calculate space needed for arrows
-            val prevArrowSpace = if (snapshot.hasPrevPage) arrowButtonSize + arrowMargin else 0
-            val nextArrowSpace = if (snapshot.hasNextPage) arrowButtonSize + arrowMargin else 0
-            val arrowsSpace = prevArrowSpace + nextArrowSpace
+            // Check if fixed positions mode is enabled
+            val fixedPositions = SettingsManager.getJuyingFixedPositions(context)
 
-            val numSuggestions = suggestionLayouts.size
-            val totalSpacing = (numSuggestions - 1) * spacingBetweenButtons
-            // Use full screen width minus arrows for suggestion buttons
-            val adjustedWidth = fullScreenWidth - arrowsSpace
-            val widthPerButton = (adjustedWidth - totalSpacing) / numSuggestions
+            if (fixedPositions) {
+                // Fixed positions mode: always reserve space for both arrows and 5 slots
+                // Best suggestion (1st in suggestionLayouts) goes to position 2 (center, Space key)
+                // Other suggestions fill positions 0,1,3,4 in order (2nd,3rd,4th,5th suggestions)
+                val arrowsSpace = 2 * (arrowButtonSize + arrowMargin)  // Always reserve both arrows
+                val numSlots = 5  // Always 5 slots
+                val totalSpacing = (numSlots - 1) * spacingBetweenButtons
+                val adjustedWidth = fullScreenWidth - arrowsSpace
+                val widthPerButton = (adjustedWidth - totalSpacing) / numSlots
 
-            for (i in 0 until numSuggestions) {
-                limitedVariations.add(suggestionLayouts[i].text)
-                buttonWidths.add(widthPerButton)
+                // Create array with 5 slots, all empty initially
+                // Slots: [0]=Shift, [1]=Sym, [2]=Space, [3]=Ctrl, [4]=Alt
+                val fixedSlots = arrayOf("", "", "", "", "")
+                val numSuggestions = suggestionLayouts.size
+
+                // Fixed placement rules:
+                // 1 candidate:  Space(best)
+                // 2 candidates: Space(best), Sym
+                // 3 candidates: Space(best), Sym, Ctrl
+                // 4 candidates: Space(best), Shift, Sym, Ctrl
+                // 5 candidates: Space(best), Shift, Sym, Ctrl, Alt
+                when (numSuggestions) {
+                    1 -> {
+                        fixedSlots[2] = suggestionLayouts[0].text  // Space = best
+                    }
+                    2 -> {
+                        fixedSlots[2] = suggestionLayouts[0].text  // Space = best
+                        fixedSlots[1] = suggestionLayouts[1].text  // Sym = 2nd
+                    }
+                    3 -> {
+                        fixedSlots[2] = suggestionLayouts[0].text  // Space = best
+                        fixedSlots[1] = suggestionLayouts[1].text  // Sym = 2nd
+                        fixedSlots[3] = suggestionLayouts[2].text  // Ctrl = 3rd
+                    }
+                    4 -> {
+                        fixedSlots[2] = suggestionLayouts[0].text  // Space = best
+                        fixedSlots[0] = suggestionLayouts[1].text  // Shift = 2nd
+                        fixedSlots[1] = suggestionLayouts[2].text  // Sym = 3rd
+                        fixedSlots[3] = suggestionLayouts[3].text  // Ctrl = 4th
+                    }
+                    else -> {
+                        // 5 or more candidates
+                        fixedSlots[2] = suggestionLayouts[0].text  // Space = best
+                        fixedSlots[0] = suggestionLayouts[1].text  // Shift = 2nd
+                        fixedSlots[1] = suggestionLayouts[2].text  // Sym = 3rd
+                        fixedSlots[3] = suggestionLayouts[3].text  // Ctrl = 4th
+                        fixedSlots[4] = suggestionLayouts[4].text  // Alt = 5th
+                    }
+                }
+
+                // Add slots to limitedVariations
+                for (slot in fixedSlots) {
+                    limitedVariations.add(slot)
+                    buttonWidths.add(widthPerButton)
+                }
+                totalWidth = adjustedWidth
+            } else {
+                // Original dynamic layout
+                // Calculate space needed for arrows
+                val prevArrowSpace = if (snapshot.hasPrevPage) arrowButtonSize + arrowMargin else 0
+                val nextArrowSpace = if (snapshot.hasNextPage) arrowButtonSize + arrowMargin else 0
+                val arrowsSpace = prevArrowSpace + nextArrowSpace
+
+                val numSuggestions = suggestionLayouts.size
+                val totalSpacing = (numSuggestions - 1) * spacingBetweenButtons
+                // Use full screen width minus arrows for suggestion buttons
+                val adjustedWidth = fullScreenWidth - arrowsSpace
+                val widthPerButton = (adjustedWidth - totalSpacing) / numSuggestions
+
+                for (i in 0 until numSuggestions) {
+                    limitedVariations.add(suggestionLayouts[i].text)
+                    buttonWidths.add(widthPerButton)
+                }
+                totalWidth = adjustedWidth
             }
-            totalWidth = adjustedWidth
         } else if (isEnglishWordPrediction && suggestionLayouts.isNotEmpty()) {
             // For English word predictions, divide screen width evenly among suggestions
             // Reserve space for arrow buttons if pagination is needed
@@ -691,10 +753,29 @@ class VariationBarView(
 
         val wordPredictionPrefixLength = if (snapshot.wordPredictionActive) snapshot.wordPredictionPrefix.length else 0
         var buttonX = 0
+        // Count actual (non-empty) suggestions for best candidate calculation
+        val actualSuggestionsCount = limitedVariations.count { it.isNotEmpty() }
         for ((index, variation) in limitedVariations.withIndex()) {
             val individualButtonWidth = buttonWidths[index]
+
+            // Skip creating clickable button for empty placeholders (fixed position mode)
+            if (variation.isEmpty()) {
+                // Create invisible placeholder to maintain spacing
+                val placeholder = View(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(individualButtonWidth, buttonHeight)
+                }
+                variationsRow.addView(placeholder)
+                placeholder.layout(buttonX, 0, buttonX + individualButtonWidth, buttonHeight)
+                buttonX += individualButtonWidth + spacingBetweenButtons
+                continue
+            }
+
+            // Check if fixed positions mode is enabled
+            val fixedPositionsMode = SettingsManager.getJuyingFixedPositions(context)
+
             // In Juying mode, determine best candidate based on mode:
-            // - Chinese input: best candidate position depends on number of candidates
+            // - Fixed positions mode: best is always at position 2 (center, Space key)
+            // - Chinese input (non-fixed): best candidate position depends on number of candidates
             //   - 1 candidate: best is at position 0 (only one)
             //   - 2 candidates: [2nd, 1st] -> best is at position 1
             //   - 3 candidates: [2nd, 1st, 3rd] -> best is at position 1 (middle)
@@ -704,7 +785,8 @@ class VariationBarView(
             val isChineseMode = snapshot.pinyinModeActive || snapshot.t9PinyinModeActive || snapshot.shuangpinModeActive ||
                                 snapshot.wubiModeActive || snapshot.zhenmaModeActive
             val bestCandidatePosition = when {
-                isChineseMode -> when (limitedVariations.size) {
+                fixedPositionsMode && isChineseMode -> 2  // Fixed positions: best always at center (Space)
+                isChineseMode -> when (actualSuggestionsCount) {
                     1 -> 0  // 1 candidate: best at position 0
                     2 -> 1  // 2 candidates: best at position 1 (right)
                     3 -> 1  // 3 candidates: best at position 1 (middle)
@@ -759,9 +841,13 @@ class VariationBarView(
             (arrow.parent as? ViewGroup)?.removeView(arrow)
         }
 
-        if (showPagination) {
-            // Previous page arrow (left) - only show if there's a previous page
-            if (snapshot.hasPrevPage) {
+        // Check if fixed positions mode is enabled for Juying
+        val fixedPositions = SettingsManager.getJuyingFixedPositions(context)
+        val isJuyingFixedMode = snapshot.isJuyingMode && fixedPositions && snapshot.variations.isNotEmpty()
+
+        if (showPagination || isJuyingFixedMode) {
+            // Previous page arrow (left) - show if there's a previous page OR in fixed position mode
+            if (snapshot.hasPrevPage || isJuyingFixedMode) {
                 val prevArrow = prevArrowButton ?: createArrowButton(arrowButtonSize, isNext = false).also {
                     prevArrowButton = it
                 }
@@ -775,14 +861,20 @@ class VariationBarView(
                     gravity = Gravity.CENTER_VERTICAL
                 }
                 containerView.addView(prevArrow, 0, prevParams)
-                prevArrow.alpha = 1f
-                prevArrow.isClickable = true
-                prevArrow.setOnClickListener { onPrevPageListener?.invoke() }
+                // In fixed mode with no prev page, show invisible placeholder
+                if (isJuyingFixedMode && !snapshot.hasPrevPage) {
+                    prevArrow.alpha = 0f
+                    prevArrow.isClickable = false
+                } else {
+                    prevArrow.alpha = 1f
+                    prevArrow.isClickable = true
+                    prevArrow.setOnClickListener { onPrevPageListener?.invoke() }
+                }
                 prevArrow.visibility = View.VISIBLE
             }
 
-            // Next page arrow (right) - show if there's a next page
-            if (snapshot.hasNextPage) {
+            // Next page arrow (right) - show if there's a next page OR in fixed position mode
+            if (snapshot.hasNextPage || isJuyingFixedMode) {
                 val nextArrow = nextArrowButton ?: createArrowButton(arrowButtonSize, isNext = true).also {
                     nextArrowButton = it
                 }
@@ -796,11 +888,17 @@ class VariationBarView(
                     gravity = Gravity.CENTER_VERTICAL
                 }
                 // Insert right after variationsRow (index 0) and prevArrow (if exists)
-                val insertIndex = if (snapshot.hasPrevPage) 2 else 1
+                val insertIndex = if (snapshot.hasPrevPage || isJuyingFixedMode) 2 else 1
                 containerView.addView(nextArrow, insertIndex, nextParams)
-                nextArrow.alpha = 1f
-                nextArrow.isClickable = true
-                nextArrow.setOnClickListener { onNextPageListener?.invoke() }
+                // In fixed mode with no next page, show invisible placeholder
+                if (isJuyingFixedMode && !snapshot.hasNextPage) {
+                    nextArrow.alpha = 0f
+                    nextArrow.isClickable = false
+                } else {
+                    nextArrow.alpha = 1f
+                    nextArrow.isClickable = true
+                    nextArrow.setOnClickListener { onNextPageListener?.invoke() }
+                }
                 nextArrow.visibility = View.VISIBLE
                 // Force layout update
                 containerView.requestLayout()

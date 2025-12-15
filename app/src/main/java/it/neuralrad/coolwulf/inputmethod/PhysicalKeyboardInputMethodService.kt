@@ -2076,8 +2076,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // 2 candidates: [2nd, 1st] - best on right, Sym=left, Space=right(best)
         // 3 candidates: [2nd, 1st, 3rd] - best in middle, Sym=left, Space=middle(best), Ctrl=right
         // 4+ candidates: [2nd, 3rd, 1st, 4th, 5th] - best at position 2 (Space)
+        // In fixed position mode, don't reorder - VariationBarView handles fixed placement
         fun reorderForJuyingDisplay(candidates: List<String>): List<String> {
             if (!isJuyingMode || candidates.size < 2) return candidates
+            // In fixed position mode, keep original order - VariationBarView will place them at fixed slots
+            if (SettingsManager.getJuyingFixedPositions(this@PhysicalKeyboardInputMethodService)) {
+                return candidates
+            }
             return when (candidates.size) {
                 2 -> listOf(candidates[1], candidates[0]) // [2nd, 1st] - best at position 1
                 3 -> listOf(candidates[1], candidates[0], candidates[2]) // [2nd, 1st, 3rd] - best at position 1 (middle)

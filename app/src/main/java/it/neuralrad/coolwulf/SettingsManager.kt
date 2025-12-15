@@ -61,6 +61,7 @@ object SettingsManager {
     private const val KEY_CLIPBOARD_HISTORY_ENABLED = "clipboard_history_enabled" // Enable clipboard history
     private const val KEY_SHOW_CLIPBOARD_BUTTON = "show_clipboard_button" // Show clipboard button in status bar
     private const val KEY_JUYING_MODE_ENABLED = "juying_mode_enabled" // Enable Juying (巨硬) mode - 5 keys for candidate selection
+    private const val KEY_JUYING_FIXED_POSITIONS = "juying_fixed_positions" // Fixed suggestion positions with reserved arrow spaces
     private const val KEY_TOUCHPAD_PAGE_ENABLED = "touchpad_page_enabled" // Enable touchpad swipe up/down for candidate page navigation
     private const val KEY_ALT_DOUBLE_CLICK_DELAY = "alt_double_click_delay" // Delay in ms for Alt double-click next page detection
     private const val KEY_JUYING_KEY_1 = "juying_key_1" // First Juying key (default: Shift)
@@ -1577,6 +1578,23 @@ object SettingsManager {
     fun setJuyingModeEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_JUYING_MODE_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets whether Juying fixed positions mode is enabled.
+     * When enabled, 5 suggestion words are at fixed locations with reserved arrow spaces.
+     */
+    fun getJuyingFixedPositions(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_JUYING_FIXED_POSITIONS, false)
+    }
+
+    /**
+     * Sets whether Juying fixed positions mode is enabled.
+     */
+    fun setJuyingFixedPositions(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_JUYING_FIXED_POSITIONS, enabled)
             .apply()
     }
 
