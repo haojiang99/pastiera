@@ -93,6 +93,7 @@ object SettingsManager {
     private const val KEY_HOLD_SPACE_FOR_VOICE = "hold_space_for_voice" // Hold space key to trigger voice input
     private const val KEY_HOLD_SPACE_DURATION = "hold_space_duration" // Duration to hold space key for voice input (ms)
     private const val KEY_STATUS_BAR_HEIGHT = "status_bar_height" // Height of status bar / suggestion bar in DIP
+    private const val KEY_SUGGESTION_HEIGHT_PERCENT = "suggestion_height_percent" // Height of suggestion word background as percentage of status bar (50-100)
     private const val KEY_VIRTUAL_KEYBOARD_HEIGHT = "virtual_keyboard_height" // Height of virtual keyboard keys in DIP
     private const val KEY_KEYBOARD_SOUND = "virtual_keyboard_sound" // Enable sound effect for keyboard typing (both physical and virtual)
     private const val KEY_KEYBOARD_SOUND_TYPE = "keyboard_sound_type" // Sound type: "mechanical", "bucklespring", "video", "mario", "piano", "custom"
@@ -201,6 +202,9 @@ object SettingsManager {
     private const val DEFAULT_STATUS_BAR_HEIGHT = 55  // Default status bar height in DIP
     private const val MIN_STATUS_BAR_HEIGHT = 35
     private const val MAX_STATUS_BAR_HEIGHT = 80
+    private const val DEFAULT_SUGGESTION_HEIGHT_PERCENT = 100  // Default suggestion background height as percentage of status bar
+    private const val MIN_SUGGESTION_HEIGHT_PERCENT = 50
+    private const val MAX_SUGGESTION_HEIGHT_PERCENT = 100
     private const val DEFAULT_VIRTUAL_KEYBOARD_HEIGHT = 42  // Default virtual keyboard key height in DIP
     private const val MIN_VIRTUAL_KEYBOARD_HEIGHT = 32
     private const val MAX_VIRTUAL_KEYBOARD_HEIGHT = 60
@@ -1897,6 +1901,38 @@ object SettingsManager {
     fun getDefaultStatusBarHeight(): Int = DEFAULT_STATUS_BAR_HEIGHT
 
     /**
+     * Gets the suggestion background height as percentage of status bar (50-100).
+     */
+    fun getSuggestionHeightPercent(context: Context): Int {
+        return getPreferences(context).getInt(KEY_SUGGESTION_HEIGHT_PERCENT, DEFAULT_SUGGESTION_HEIGHT_PERCENT)
+    }
+
+    /**
+     * Sets the suggestion background height as percentage of status bar (50-100).
+     */
+    fun setSuggestionHeightPercent(context: Context, percent: Int) {
+        val clampedPercent = percent.coerceIn(MIN_SUGGESTION_HEIGHT_PERCENT, MAX_SUGGESTION_HEIGHT_PERCENT)
+        getPreferences(context).edit()
+            .putInt(KEY_SUGGESTION_HEIGHT_PERCENT, clampedPercent)
+            .apply()
+    }
+
+    /**
+     * Gets the minimum suggestion height percentage.
+     */
+    fun getMinSuggestionHeightPercent(): Int = MIN_SUGGESTION_HEIGHT_PERCENT
+
+    /**
+     * Gets the maximum suggestion height percentage.
+     */
+    fun getMaxSuggestionHeightPercent(): Int = MAX_SUGGESTION_HEIGHT_PERCENT
+
+    /**
+     * Gets the default suggestion height percentage.
+     */
+    fun getDefaultSuggestionHeightPercent(): Int = DEFAULT_SUGGESTION_HEIGHT_PERCENT
+
+    /**
      * Gets the virtual keyboard key height in DIP.
      */
     fun getVirtualKeyboardHeight(context: Context): Int {
@@ -2402,31 +2438,24 @@ object SettingsManager {
     }
 
     /**
-     * Checks if it's currently daytime based on the configured hours.
+     * Checks if the system is currently in light mode (not dark mode).
+     * Uses Android's UI_MODE_NIGHT configuration.
      */
-    fun isDaytime(context: Context): Boolean {
-        val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-        val dayStart = getDayStartHour(context)
-        val nightStart = getNightStartHour(context)
-
-        return if (dayStart < nightStart) {
-            // Normal case: day is 6-18, night is 18-6
-            currentHour >= dayStart && currentHour < nightStart
-        } else {
-            // Inverted case: night spans midnight (e.g., day 18-6, night 6-18)
-            currentHour >= dayStart || currentHour < nightStart
-        }
+    fun isSystemLightMode(context: Context): Boolean {
+        val nightModeFlags = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        return nightModeFlags != android.content.res.Configuration.UI_MODE_NIGHT_YES
     }
 
     /**
-     * Gets the appropriate theme ID based on day/night setting and current time.
+     * Gets the appropriate theme ID based on day/night setting and system theme.
      * If day/night mode is disabled, returns the regular status bar theme.
-     * If day/night mode is enabled, returns the day theme (light) during daytime
-     * and night theme (dark) during nighttime.
+     * If day/night mode is enabled, follows the system dark/light theme:
+     * - System light mode → uses day theme (light)
+     * - System dark mode → uses night theme (dark)
      */
     fun getEffectiveTheme(context: Context): String {
         return if (isDayNightThemeEnabled(context)) {
-            if (isDaytime(context)) getDayTheme(context) else getNightTheme(context)
+            if (isSystemLightMode(context)) getDayTheme(context) else getNightTheme(context)
         } else {
             getStatusBarTheme(context)
         }

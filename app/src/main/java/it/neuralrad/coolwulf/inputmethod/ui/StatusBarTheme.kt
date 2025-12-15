@@ -256,6 +256,72 @@ data class StatusBarTheme(
             ledInactiveColor = Color.argb(40, 80, 70, 50)
         )
 
+        // Sky Blue Light - Fresh blue light theme
+        val SKY_BLUE_LIGHT = StatusBarTheme(
+            id = "sky_blue_light",
+            nameResId = 0,
+            themeType = ThemeType.LIGHT,
+            backgroundColor = Color.parseColor("#E3F2FD"),
+            textColor = Color.parseColor("#0D47A1"),
+            textColorSecondary = Color.argb(180, 30, 80, 150),
+            accentColor = Color.parseColor("#1976D2"),
+            buttonBackgroundColor = Color.argb(40, 25, 118, 210),
+            buttonPressedColor = Color.argb(80, 25, 118, 210),
+            candidateBackgroundColor = Color.parseColor("#BBDEFB"),
+            candidateBestBackgroundColor = Color.parseColor("#90CAF9"),
+            candidateTextColor = Color.parseColor("#0D47A1"),
+            candidateBestTextColor = Color.parseColor("#1565C0"),
+            iconColor = Color.parseColor("#1565C0"),
+            iconInactiveColor = Color.parseColor("#90CAF9"),
+            ledActiveColor = Color.parseColor("#2196F3"),
+            ledLockedColor = Color.parseColor("#FF5722"),
+            ledInactiveColor = Color.argb(40, 25, 118, 210)
+        )
+
+        // Mint Fresh - Cool mint green light theme
+        val MINT_FRESH = StatusBarTheme(
+            id = "mint_fresh",
+            nameResId = 0,
+            themeType = ThemeType.LIGHT,
+            backgroundColor = Color.parseColor("#E8F5E9"),
+            textColor = Color.parseColor("#1B5E20"),
+            textColorSecondary = Color.argb(180, 40, 100, 50),
+            accentColor = Color.parseColor("#43A047"),
+            buttonBackgroundColor = Color.argb(40, 67, 160, 71),
+            buttonPressedColor = Color.argb(80, 67, 160, 71),
+            candidateBackgroundColor = Color.parseColor("#C8E6C9"),
+            candidateBestBackgroundColor = Color.parseColor("#A5D6A7"),
+            candidateTextColor = Color.parseColor("#1B5E20"),
+            candidateBestTextColor = Color.parseColor("#2E7D32"),
+            iconColor = Color.parseColor("#2E7D32"),
+            iconInactiveColor = Color.parseColor("#A5D6A7"),
+            ledActiveColor = Color.parseColor("#4CAF50"),
+            ledLockedColor = Color.parseColor("#FF9800"),
+            ledInactiveColor = Color.argb(40, 67, 160, 71)
+        )
+
+        // Lavender Mist - Soft purple light theme
+        val LAVENDER_MIST = StatusBarTheme(
+            id = "lavender_mist",
+            nameResId = 0,
+            themeType = ThemeType.LIGHT,
+            backgroundColor = Color.parseColor("#F3E5F5"),
+            textColor = Color.parseColor("#4A148C"),
+            textColorSecondary = Color.argb(180, 90, 40, 140),
+            accentColor = Color.parseColor("#7B1FA2"),
+            buttonBackgroundColor = Color.argb(40, 123, 31, 162),
+            buttonPressedColor = Color.argb(80, 123, 31, 162),
+            candidateBackgroundColor = Color.parseColor("#E1BEE7"),
+            candidateBestBackgroundColor = Color.parseColor("#CE93D8"),
+            candidateTextColor = Color.parseColor("#4A148C"),
+            candidateBestTextColor = Color.parseColor("#6A1B9A"),
+            iconColor = Color.parseColor("#6A1B9A"),
+            iconInactiveColor = Color.parseColor("#CE93D8"),
+            ledActiveColor = Color.parseColor("#9C27B0"),
+            ledLockedColor = Color.parseColor("#E91E63"),
+            ledInactiveColor = Color.argb(40, 123, 31, 162)
+        )
+
         val ALL_THEMES = listOf(
             CLASSIC_DARK,
             OCEAN_BLUE,
@@ -266,7 +332,10 @@ data class StatusBarTheme(
             CHARCOAL_GRAY,
             CYBER_NEON,
             SILVER_LIGHT,
-            WARM_CREAM
+            WARM_CREAM,
+            SKY_BLUE_LIGHT,
+            MINT_FRESH,
+            LAVENDER_MIST
         )
 
         const val CUSTOM_THEME_ID = "custom"

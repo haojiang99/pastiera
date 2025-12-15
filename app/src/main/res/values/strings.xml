@@ -637,6 +637,10 @@
     <string name="status_bar_height_title">Status Bar Height</string>
     <string name="status_bar_height_description">Current: %1$d DIP</string>
 
+    <!-- Suggestion Height -->
+    <string name="suggestion_height_title">Suggestion Background Height</string>
+    <string name="suggestion_height_description">Current: %1$d%% of status bar</string>
+
     <!-- Virtual Keyboard Height -->
     <string name="virtual_keyboard_height_title">Virtual Keyboard Height</string>
     <string name="virtual_keyboard_height_description">Current: %1$d DIP</string>
@@ -713,14 +717,17 @@
     <string name="theme_custom_slot_3">Custom 3</string>
     <string name="theme_silver_light">Silver Light</string>
     <string name="theme_warm_cream">Warm Cream</string>
+    <string name="theme_sky_blue_light">Sky Blue</string>
+    <string name="theme_mint_fresh">Mint Fresh</string>
+    <string name="theme_lavender_mist">Lavender Mist</string>
     <string name="theme_type_light">Light</string>
     <string name="theme_type_dark">Dark</string>
     <string name="theme_type_selector_title">Theme Type</string>
     <string name="theme_type_selector_description">Set whether this theme is light or dark for day/night switching</string>
 
     <!-- Day/Night Theme -->
-    <string name="day_night_theme_title">Day/Night Theme</string>
-    <string name="day_night_theme_description">Auto-switch between light and dark themes based on time of day</string>
+    <string name="day_night_theme_title">Follow System Theme</string>
+    <string name="day_night_theme_description">Auto-switch between light and dark themes based on system dark mode setting</string>
     <string name="day_theme_title">Day Theme</string>
     <string name="night_theme_title">Night Theme</string>
 

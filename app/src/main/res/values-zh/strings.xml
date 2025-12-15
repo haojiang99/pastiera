@@ -638,6 +638,10 @@
     <string name="status_bar_height_title">状态栏高度</string>
     <string name="status_bar_height_description">当前：%1$d DIP</string>
 
+    <!-- Suggestion Height -->
+    <string name="suggestion_height_title">候选词背景高度</string>
+    <string name="suggestion_height_description">当前：状态栏的%1$d%%</string>
+
     <!-- Virtual Keyboard Height -->
     <string name="virtual_keyboard_height_title">虚拟键盘高度</string>
     <string name="virtual_keyboard_height_description">当前：%1$d DIP</string>
@@ -714,14 +718,17 @@
     <string name="theme_custom_slot_3">自定义 3</string>
     <string name="theme_silver_light">银色浅色</string>
     <string name="theme_warm_cream">暖奶油色</string>
+    <string name="theme_sky_blue_light">天蓝色</string>
+    <string name="theme_mint_fresh">清新薄荷</string>
+    <string name="theme_lavender_mist">薰衣草紫</string>
     <string name="theme_type_light">浅色</string>
     <string name="theme_type_dark">深色</string>
     <string name="theme_type_selector_title">主题类型</string>
     <string name="theme_type_selector_description">设置此主题为浅色或深色，用于日夜自动切换</string>
 
     <!-- Day/Night Theme -->
-    <string name="day_night_theme_title">日夜主题</string>
-    <string name="day_night_theme_description">根据时间自动切换浅色和深色主题</string>
+    <string name="day_night_theme_title">跟随系统主题</string>
+    <string name="day_night_theme_description">根据系统深色模式设置自动切换浅色和深色主题</string>
     <string name="day_theme_title">日间主题</string>
     <string name="night_theme_title">夜间主题</string>
 

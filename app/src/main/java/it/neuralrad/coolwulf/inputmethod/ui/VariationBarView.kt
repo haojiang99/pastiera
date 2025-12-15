@@ -633,11 +633,23 @@ class VariationBarView(
 
         // Calculate explicit width for variationsRow (total width used)
         val variationsRowWidth = totalWidth
+
+        // Calculate button height based on suggestion height percentage setting
+        val statusBarHeightDip = SettingsManager.getStatusBarHeight(context).toFloat()
+        val statusBarHeightPx = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            statusBarHeightDip,
+            context.resources.displayMetrics
+        ).toInt()
+        val suggestionHeightPercent = SettingsManager.getSuggestionHeightPercent(context)
+        val maxButtonHeight = (statusBarHeightPx * suggestionHeightPercent / 100)
+
         val buttonHeight = if (isEnglishWordPrediction) {
-            // For English word predictions, use a fixed height (similar to minButtonWidth)
-            minButtonWidth
+            // For English word predictions, use percentage-based height
+            maxButtonHeight
         } else {
-            buttonWidth // Use first button's width as height for square buttons
+            // For Chinese candidates, use smaller of button width or percentage-based height
+            minOf(buttonWidth, maxButtonHeight)
         }
 
         // Reuse existing row if available, otherwise create new one

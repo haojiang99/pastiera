@@ -1746,20 +1746,74 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
             KeyEvent.KEYCODE_DEL -> {
-                // Handle backspace
+                // Handle backspace with cursor-aware deletion
                 if (pinyinInputController.getBuffer().isNotEmpty()) {
-                    pinyinInputController.handleBackspace()
+                    // Get cursor position within composing text
+                    val bufferLength = pinyinInputController.getBufferLength()
+                    var cursorPositionInBuffer = bufferLength
+                    if (bufferLength > 0) {
+                        val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                        if (extractedText != null) {
+                            val composingStart = extractedText.text.length - bufferLength
+                            if (composingStart >= 0 && extractedText.selectionStart >= composingStart) {
+                                cursorPositionInBuffer = extractedText.selectionStart - composingStart
+                            }
+                        }
+                    }
+                    pinyinInputController.handleBackspaceAtPosition(cursorPositionInBuffer)
                     val buffer = pinyinInputController.getBuffer()
                     if (buffer.isNotEmpty()) {
                         ic.setComposingText(buffer, 1)
+                        // Restore cursor position after deletion
+                        val newCursorPos = if (cursorPositionInBuffer > 0 && cursorPositionInBuffer <= bufferLength) {
+                            cursorPositionInBuffer - 1
+                        } else {
+                            buffer.length
+                        }
+                        if (newCursorPos < buffer.length) {
+                            val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                            if (extractedText != null) {
+                                val composingStart = extractedText.text.length - buffer.length
+                                if (composingStart >= 0) {
+                                    ic.setSelection(composingStart + newCursorPos, composingStart + newCursorPos)
+                                }
+                            }
+                        }
                     } else {
                         ic.setComposingText("", 1)
                     }
                 } else if (shuangpinInputController.getBuffer().isNotEmpty()) {
-                    shuangpinInputController.handleBackspace()
+                    // Get cursor position within composing text
+                    val bufferLength = shuangpinInputController.getBufferLength()
+                    var cursorPositionInBuffer = bufferLength
+                    if (bufferLength > 0) {
+                        val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                        if (extractedText != null) {
+                            val composingStart = extractedText.text.length - bufferLength
+                            if (composingStart >= 0 && extractedText.selectionStart >= composingStart) {
+                                cursorPositionInBuffer = extractedText.selectionStart - composingStart
+                            }
+                        }
+                    }
+                    shuangpinInputController.handleBackspaceAtPosition(cursorPositionInBuffer)
                     val buffer = shuangpinInputController.getBuffer()
                     if (buffer.isNotEmpty()) {
                         ic.setComposingText(buffer, 1)
+                        // Restore cursor position after deletion
+                        val newCursorPos = if (cursorPositionInBuffer > 0 && cursorPositionInBuffer <= bufferLength) {
+                            cursorPositionInBuffer - 1
+                        } else {
+                            buffer.length
+                        }
+                        if (newCursorPos < buffer.length) {
+                            val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                            if (extractedText != null) {
+                                val composingStart = extractedText.text.length - buffer.length
+                                if (composingStart >= 0) {
+                                    ic.setSelection(composingStart + newCursorPos, composingStart + newCursorPos)
+                                }
+                            }
+                        }
                     } else {
                         ic.setComposingText("", 1)
                     }
@@ -1866,13 +1920,59 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Check if we're in a Chinese input mode that handles this character
         if (pinyinInputController.isPinyinMode() && char.isLetter()) {
-            pinyinInputController.handleLetterKey(char.lowercaseChar())
+            // Get cursor position within composing text for cursor-aware insertion
+            val bufferLength = pinyinInputController.getBufferLength()
+            var cursorPositionInBuffer = bufferLength
+            if (bufferLength > 0) {
+                val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                if (extractedText != null) {
+                    val composingStart = extractedText.text.length - bufferLength
+                    if (composingStart >= 0 && extractedText.selectionStart >= composingStart) {
+                        cursorPositionInBuffer = extractedText.selectionStart - composingStart
+                    }
+                }
+            }
+            pinyinInputController.handleLetterKeyAtPosition(char.lowercaseChar(), cursorPositionInBuffer)
             val buffer = pinyinInputController.getBuffer()
             ic.setComposingText(buffer, 1)
+            // Restore cursor position after insertion (one position forward)
+            val newCursorPos = cursorPositionInBuffer + 1
+            if (newCursorPos < buffer.length) {
+                val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                if (extractedText != null) {
+                    val composingStart = extractedText.text.length - buffer.length
+                    if (composingStart >= 0) {
+                        ic.setSelection(composingStart + newCursorPos, composingStart + newCursorPos)
+                    }
+                }
+            }
         } else if (shuangpinInputController.isShuangpinMode() && char.isLetter()) {
-            shuangpinInputController.handleLetterKey(char.lowercaseChar())
+            // Get cursor position within composing text for cursor-aware insertion
+            val bufferLength = shuangpinInputController.getBufferLength()
+            var cursorPositionInBuffer = bufferLength
+            if (bufferLength > 0) {
+                val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                if (extractedText != null) {
+                    val composingStart = extractedText.text.length - bufferLength
+                    if (composingStart >= 0 && extractedText.selectionStart >= composingStart) {
+                        cursorPositionInBuffer = extractedText.selectionStart - composingStart
+                    }
+                }
+            }
+            shuangpinInputController.handleLetterKeyAtPosition(char.lowercaseChar(), cursorPositionInBuffer)
             val buffer = shuangpinInputController.getBuffer()
             ic.setComposingText(buffer, 1)
+            // Restore cursor position after insertion (one position forward)
+            val newCursorPos = cursorPositionInBuffer + 1
+            if (newCursorPos < buffer.length) {
+                val extractedText = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                if (extractedText != null) {
+                    val composingStart = extractedText.text.length - buffer.length
+                    if (composingStart >= 0) {
+                        ic.setSelection(composingStart + newCursorPos, composingStart + newCursorPos)
+                    }
+                }
+            }
         } else if (ziranmaInputController.isZiranmaMode() && char.isLetter()) {
             ziranmaInputController.handleLetterKey(char.lowercaseChar())
             val buffer = ziranmaInputController.getBuffer()

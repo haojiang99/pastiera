@@ -255,6 +255,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getStatusBarHeight(context))
     }
 
+    var suggestionHeightPercent by remember {
+        mutableStateOf(SettingsManager.getSuggestionHeightPercent(context))
+    }
+
     var showLedStatus by remember {
         mutableStateOf(SettingsManager.isShowLedStatus(context))
     }
@@ -2334,6 +2338,54 @@ fun TextInputSettingsScreen(
                         },
                         valueRange = SettingsManager.getMinStatusBarHeight().toFloat()..SettingsManager.getMaxStatusBarHeight().toFloat(),
                         steps = SettingsManager.getMaxStatusBarHeight() - SettingsManager.getMinStatusBarHeight() - 1,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+
+            // Suggestion Background Height slider
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.TextFields,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.suggestion_height_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = stringResource(R.string.suggestion_height_description, suggestionHeightPercent),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Slider(
+                        value = suggestionHeightPercent.toFloat(),
+                        onValueChange = { newValue ->
+                            suggestionHeightPercent = newValue.toInt()
+                            SettingsManager.setSuggestionHeightPercent(context, newValue.toInt())
+                        },
+                        valueRange = SettingsManager.getMinSuggestionHeightPercent().toFloat()..SettingsManager.getMaxSuggestionHeightPercent().toFloat(),
+                        steps = (SettingsManager.getMaxSuggestionHeightPercent() - SettingsManager.getMinSuggestionHeightPercent()) / 10 - 1,
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
