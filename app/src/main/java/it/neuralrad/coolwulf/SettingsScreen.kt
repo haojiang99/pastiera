@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -71,6 +72,14 @@ fun SettingsScreen(
         derivedStateOf { navigationStack.last() }
     }
 
+    // Remember scroll states for screens so they persist across navigation
+    val mainScreenScrollState = rememberScrollState()
+    val textInputScrollState = rememberScrollState()
+    val keyboardTimingScrollState = rememberScrollState()
+    val autoCorrectionScrollState = rememberScrollState()
+    val customizationScrollState = rememberScrollState()
+    val advancedScrollState = rememberScrollState()
+
     fun navigateTo(destination: SettingsDestination) {
         if (currentDestination == destination) return
         navigationDirection = NavigationDirection.Push
@@ -120,6 +129,7 @@ fun SettingsScreen(
                 SettingsMainScreen(
                     modifier = modifier,
                     context = context,
+                    scrollState = mainScreenScrollState,
                     onKeyboardTimingClick = { navigateTo(SettingsDestination.KeyboardTiming) },
                     onTextInputClick = { navigateTo(SettingsDestination.TextInput) },
                     onAutoCorrectionClick = { navigateTo(SettingsDestination.AutoCorrection) },
@@ -137,6 +147,7 @@ fun SettingsScreen(
             is SettingsDestination.TextInput -> {
                 TextInputSettingsScreen(
                     modifier = modifier,
+                    scrollState = textInputScrollState,
                     onBack = { navigateBack() },
                     onNavigateToLearnedPhrases = { navigateTo(SettingsDestination.LearnedPhrases) }
                 )
@@ -178,6 +189,7 @@ private enum class NavigationDirection {
 private fun SettingsMainScreen(
     modifier: Modifier,
     context: Context,
+    scrollState: ScrollState,
     onKeyboardTimingClick: () -> Unit,
     onTextInputClick: () -> Unit,
     onAutoCorrectionClick: () -> Unit,
@@ -219,7 +231,7 @@ private fun SettingsMainScreen(
             modifier = modifier
                 .fillMaxWidth()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
         ) {
             // App Language Selector
             var expanded by remember { mutableStateOf(false) }

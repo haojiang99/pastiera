@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -54,6 +55,7 @@ import java.io.File
 @Composable
 fun TextInputSettingsScreen(
     modifier: Modifier = Modifier,
+    scrollState: ScrollState = rememberScrollState(),
     onBack: () -> Unit,
     onNavigateToLearnedPhrases: () -> Unit = {}
 ) {
@@ -308,7 +310,7 @@ fun TextInputSettingsScreen(
             modifier = modifier
                 .fillMaxWidth()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
         ) {
             // Auto Capitalize
             Surface(

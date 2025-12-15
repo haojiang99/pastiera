@@ -3,9 +3,11 @@ package it.neuralrad.coolwulf.core
 import android.content.Context
 import android.util.Log
 import android.view.KeyEvent
+import it.neuralrad.coolwulf.data.pinyin.AutoPhraseMemory
 import it.neuralrad.coolwulf.data.pinyin.ChineseCharacterConverter
 import it.neuralrad.coolwulf.data.pinyin.PinyinDictionary
 import it.neuralrad.coolwulf.data.pinyin.UserPinyinMemory
+import it.neuralrad.coolwulf.data.UserCustomDictionary
 import it.neuralrad.coolwulf.SettingsManager
 
 /**
@@ -114,6 +116,23 @@ class T9PinyinInputController(
     // User memory for frequency sorting
     private val userMemory: UserPinyinMemory = UserPinyinMemory.getInstance(context)
 
+    // Custom dictionary for user-defined phrases
+    private val customDictionary: UserCustomDictionary = UserCustomDictionary.getInstance(context)
+
+    // Auto phrase memory for learned phrases
+    private val autoPhraseMemory: AutoPhraseMemory = AutoPhraseMemory.getInstance(context)
+
+    // Session selections for phrase learning (pinyin -> selected character)
+    private val sessionSelections = mutableListOf<Pair<String, String>>()
+
+    /**
+     * Checks if auto phrase memory is enabled.
+     */
+    private fun isAutoPhraseMemoryEnabled(): Boolean {
+        return SettingsManager.getMemoryFunctionEnabled(context) &&
+               SettingsManager.isAutoPhrasMemoryEnabled(context)
+    }
+
     data class Snapshot(
         val isActive: Boolean,
         val buffer: String,           // Display buffer (e.g., "64426" or "DDRCD")
@@ -153,7 +172,12 @@ class T9PinyinInputController(
         if (isT9ModeActive != active) {
             isT9ModeActive = active
             if (!active) {
+                // Try to finalize any pending phrase learning before clearing
+                if (sessionSelections.size >= 2) {
+                    finalizeSession()
+                }
                 clearBuffer()
+                clearSession()
             }
             Log.d(TAG, "T9 mode: ${if (active) "ENABLED" else "DISABLED"}")
         }
@@ -255,11 +279,21 @@ class T9PinyinInputController(
         }
 
         val selected = pageCandidates[index]
+        val currentPinyin = if (possiblePinyins.isNotEmpty()) possiblePinyins.first() else ""
 
         // Record selection for learning
-        if (SettingsManager.getMemoryFunctionEnabled(context) && possiblePinyins.isNotEmpty()) {
+        if (SettingsManager.getMemoryFunctionEnabled(context) && currentPinyin.isNotEmpty()) {
             // Record for the most likely pinyin
-            userMemory.recordSelection(possiblePinyins.first(), selected)
+            userMemory.recordSelection(currentPinyin, selected)
+
+            // Track for phrase learning
+            if (isAutoPhraseMemoryEnabled()) {
+                sessionSelections.add(Pair(currentPinyin, selected))
+                // Try to finalize session if we have enough selections
+                if (sessionSelections.size >= 2) {
+                    finalizeSession()
+                }
+            }
         }
 
         // Clear buffer after selection
@@ -275,6 +309,28 @@ class T9PinyinInputController(
     }
 
     /**
+     * Finalizes the current session and learns phrases from selections.
+     */
+    private fun finalizeSession() {
+        if (!isAutoPhraseMemoryEnabled() || sessionSelections.size < 2) {
+            sessionSelections.clear()
+            return
+        }
+
+        // Combine consecutive selections into a phrase
+        val combinedPinyin = sessionSelections.joinToString("") { it.first }
+        val combinedPhrase = sessionSelections.joinToString("") { it.second }
+
+        // Only learn phrases of reasonable length (2-6 characters)
+        if (combinedPhrase.length in 2..6) {
+            autoPhraseMemory.recordPhrase(combinedPinyin, combinedPhrase)
+            Log.d(TAG, "Learned phrase: $combinedPinyin -> $combinedPhrase")
+        }
+
+        sessionSelections.clear()
+    }
+
+    /**
      * Selects the first candidate (for space key).
      */
     fun selectFirstCandidate(): String? = selectCandidate(0)
@@ -287,6 +343,15 @@ class T9PinyinInputController(
         allCandidates = emptyList()
         possiblePinyins = emptyList()
         currentPage = 0
+        // Note: sessionSelections is NOT cleared here to allow phrase learning across multiple inputs
+    }
+
+    /**
+     * Clears the session selections (for phrase learning).
+     * Call this when user switches away from T9 mode or starts a new context.
+     */
+    fun clearSession() {
+        sessionSelections.clear()
     }
 
     /**
@@ -314,29 +379,64 @@ class T9PinyinInputController(
         val allPossiblePinyins = generatePossiblePinyins(segments)
         possiblePinyins = allPossiblePinyins.take(5)  // Show top 5 interpretations
 
-        // Get candidates for all valid pinyins
+        // Collect candidates from all sources
         val candidateSet = mutableSetOf<String>()
-        val candidateList = mutableListOf<String>()
+        val priorityCandidates = mutableListOf<String>()  // Custom and learned phrases (higher priority)
+        val normalCandidates = mutableListOf<String>()    // Dictionary candidates
 
         for (pinyin in allPossiblePinyins) {
-            // Get single character candidates
-            val charCandidates = PinyinDictionary.getCandidates(pinyin)
-            for (c in charCandidates) {
-                if (c !in candidateSet) {
-                    candidateSet.add(c)
-                    candidateList.add(c)
+            // 1. Get custom dictionary phrases (highest priority)
+            val customPhrases = customDictionary.getPinyinPhrases(pinyin)
+            for (phrase in customPhrases) {
+                if (phrase !in candidateSet) {
+                    candidateSet.add(phrase)
+                    priorityCandidates.add(phrase)
                 }
             }
 
-            // Get phrase candidates
+            // 2. Get auto-learned phrases
+            if (isAutoPhraseMemoryEnabled()) {
+                val learnedPhrases = autoPhraseMemory.getLearnedPhrases(pinyin)
+                for (phrase in learnedPhrases) {
+                    if (phrase !in candidateSet) {
+                        candidateSet.add(phrase)
+                        priorityCandidates.add(phrase)
+                    }
+                }
+
+                // Also get partial matches (phrases starting with this pinyin)
+                val partialPhrases = autoPhraseMemory.getLearnedPhrasesWithPrefix(pinyin)
+                for (phrase in partialPhrases) {
+                    if (phrase !in candidateSet) {
+                        candidateSet.add(phrase)
+                        priorityCandidates.add(phrase)
+                    }
+                }
+            }
+
+            // 3. Get phrase candidates from dictionary
             val phraseCandidates = PinyinDictionary.getPhraseCandidates(pinyin)
             for (p in phraseCandidates) {
                 if (p !in candidateSet) {
                     candidateSet.add(p)
-                    candidateList.add(p)
+                    normalCandidates.add(p)
+                }
+            }
+
+            // 4. Get single character candidates
+            val charCandidates = PinyinDictionary.getCandidates(pinyin)
+            for (c in charCandidates) {
+                if (c !in candidateSet) {
+                    candidateSet.add(c)
+                    normalCandidates.add(c)
                 }
             }
         }
+
+        // Combine: priority candidates first, then normal candidates
+        val candidateList = mutableListOf<String>()
+        candidateList.addAll(priorityCandidates)
+        candidateList.addAll(normalCandidates)
 
         // Sort by user frequency if enabled
         allCandidates = if (SettingsManager.getMemoryFunctionEnabled(context) && allPossiblePinyins.isNotEmpty()) {
@@ -345,7 +445,7 @@ class T9PinyinInputController(
             candidateList
         }
 
-        Log.d(TAG, "T9 candidates: ${allCandidates.size}, possible pinyins: $possiblePinyins")
+        Log.d(TAG, "T9 candidates: ${allCandidates.size} (${priorityCandidates.size} priority), possible pinyins: $possiblePinyins")
     }
 
     /**

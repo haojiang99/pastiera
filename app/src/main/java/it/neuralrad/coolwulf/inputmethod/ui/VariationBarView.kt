@@ -422,9 +422,15 @@ class VariationBarView(
 
         // In Juying mode with suggestions, remove container padding to allow full-width buttons
         val isJuyingWithSuggestions = snapshot.isJuyingMode && snapshot.variations.isNotEmpty()
+        // Calculate vertical padding based on suggestion height percentage
+        // At 100%, no padding (full height). At 50%, use 8.8dp padding (original behavior)
+        val heightPercent = SettingsManager.getSuggestionHeightPercent(context)
+        val maxVerticalPaddingDp = 8.8f
+        // Scale padding inversely with height percentage: 100% -> 0 padding, 50% -> full padding
+        val scaledPaddingDp = maxVerticalPaddingDp * (100 - heightPercent) / 50f
         val verticalPadding = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
-            8.8f,
+            scaledPaddingDp.coerceAtLeast(0f),
             context.resources.displayMetrics
         ).toInt()
         if (isJuyingWithSuggestions) {

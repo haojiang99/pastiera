@@ -314,6 +314,11 @@ fun CustomizationSettingsScreen(
                                             "rose_gold" -> stringResource(R.string.theme_rose_gold)
                                             "charcoal_gray" -> stringResource(R.string.theme_charcoal_gray)
                                             "cyber_neon" -> stringResource(R.string.theme_cyber_neon)
+                                            "silver_light" -> stringResource(R.string.theme_silver_light)
+                                            "warm_cream" -> stringResource(R.string.theme_warm_cream)
+                                            "sky_blue_light" -> stringResource(R.string.theme_sky_blue_light)
+                                            "mint_fresh" -> stringResource(R.string.theme_mint_fresh)
+                                            "lavender_mist" -> stringResource(R.string.theme_lavender_mist)
                                             StatusBarTheme.CUSTOM_THEME_ID -> stringResource(R.string.theme_custom)
                                             StatusBarTheme.CUSTOM_THEME_1_ID -> {
                                                 val name = SettingsManager.getCustomThemeSlotName(context, 1)
@@ -365,6 +370,11 @@ fun CustomizationSettingsScreen(
                                                 "rose_gold" -> stringResource(R.string.theme_rose_gold)
                                                 "charcoal_gray" -> stringResource(R.string.theme_charcoal_gray)
                                                 "cyber_neon" -> stringResource(R.string.theme_cyber_neon)
+                                                "silver_light" -> stringResource(R.string.theme_silver_light)
+                                                "warm_cream" -> stringResource(R.string.theme_warm_cream)
+                                                "sky_blue_light" -> stringResource(R.string.theme_sky_blue_light)
+                                                "mint_fresh" -> stringResource(R.string.theme_mint_fresh)
+                                                "lavender_mist" -> stringResource(R.string.theme_lavender_mist)
                                                 else -> theme.id
                                             }
                                             Row(
