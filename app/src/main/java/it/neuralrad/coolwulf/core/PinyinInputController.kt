@@ -1010,39 +1010,9 @@ class PinyinInputController(
         // Get HMM pinyin suggestion
         val neuralSuggestion = getHmmPinyinSuggestion(bufferWithoutSep)
 
-        // Priority order for candidates:
-        // 1. Custom phrases (user-defined, highest priority)
-        // 2. Auto-learned phrases (from user typing history)
-        // 3. Dictionary exact match
-        // 4. HMM neural suggestion
-
-        // Add custom phrases first (highest priority)
-        for (phrase in customPhrases) {
-            if (phrase !in resultCandidates) {
-                resultCandidates.add(phrase)
-                Log.d(TAG, "Custom phrase (priority): '$phrase'")
-            }
-        }
-
-        // Add auto-learned phrases second (second highest priority)
-        for (phrase in autoLearnedPhrases) {
-            if (phrase !in resultCandidates) {
-                resultCandidates.add(phrase)
-                Log.d(TAG, "Auto-learned phrase (priority): '$phrase'")
-            }
-        }
-
-        // Add dictionary exact match third
-        if (dictExactMatch != null && dictExactMatch !in resultCandidates) {
-            resultCandidates.add(dictExactMatch)
-            Log.d(TAG, "Dictionary exact match (priority): '$dictExactMatch'")
-        }
-
-        // Add HMM suggestion fourth (only if different from above)
-        if (neuralSuggestion != null && neuralSuggestion !in resultCandidates) {
-            resultCandidates.add(neuralSuggestion)
-            Log.d(TAG, "Neural pinyin suggestion: '$neuralSuggestion'")
-        }
+        // NOTE: Custom phrases, auto-learned phrases, dict exact match, and HMM suggestion
+        // are ALL added to frequency-based sorting below (not in fixed priority order)
+        // This ensures the most-used candidate appears first, regardless of source.
 
         // Add partial/prefix matching phrases (e.g., "wos" matches "woshi" → "我是")
         // Only activate AFTER at least one character has been selected in the current session
@@ -1068,11 +1038,7 @@ class PinyinInputController(
                     null  // Skip phrases that don't start with committed chars
                 }
             }
-            for (phrase in partialMatchPhrases) {
-                if (phrase !in resultCandidates) {
-                    resultCandidates.add(phrase)
-                }
-            }
+            // Note: partialMatchPhrases are added to frequency sorting below
 
             // Add dictionary partial matches (common phrases sorted by frequency)
             val rawDictPhrases = PinyinDictionary.getPhraseCandidatesWithPrefix(fullPinyin)
@@ -1083,23 +1049,71 @@ class PinyinInputController(
                     null
                 }
             }
-            for (phrase in dictPartialPhrases) {
-                if (phrase !in resultCandidates) {
-                    resultCandidates.add(phrase)
-                }
-            }
+            // Note: dictPartialPhrases are added to frequency sorting below
         } else {
             partialMatchPhrases = emptyList()
             dictPartialPhrases = emptyList()
         }
 
-        // If no regular candidates but we have abbreviation/custom matches, use them
+        // If no regular candidates but we have abbreviation/custom/auto-learned/neural matches, use them
         if (!allHaveCandidates && firstSyllableCharCandidates.isEmpty()) {
-            if (resultCandidates.isNotEmpty()) {
-                // We have abbreviation or custom phrases, use them
-                allCandidates = resultCandidates
-                phraseCandidateCount = resultCandidates.size
-                phraseCandidateSet = resultCandidates.toSet()  // All are phrases
+            val hasPhraseSourceCandidates = abbreviationCandidates.isNotEmpty() ||
+                customPhrases.isNotEmpty() ||
+                autoLearnedPhrases.isNotEmpty() ||
+                neuralSuggestion != null ||
+                partialMatchPhrases.isNotEmpty() ||
+                dictPartialPhrases.isNotEmpty()
+
+            if (hasPhraseSourceCandidates) {
+                // Build candidates sorted by frequency for this fallback case
+                val userFreqMap = if (isMemoryEnabled()) userMemory.getFrequencyMap(bufferWithoutSep) else emptyMap()
+                val fallbackCandidates = mutableListOf<Pair<String, Int>>()
+                val addedToFallback = mutableSetOf<String>()
+
+                // Add all phrase sources with appropriate boosts
+                for (phrase in customPhrases) {
+                    val freq = userFreqMap[phrase] ?: 0
+                    fallbackCandidates.add(phrase to (freq + 2))
+                    addedToFallback.add(phrase)
+                }
+                for (phrase in abbreviationCandidates) {
+                    if (phrase !in addedToFallback) {
+                        val freq = userFreqMap[phrase] ?: 0
+                        fallbackCandidates.add(phrase to (freq + if (freq == 0) 2 else 0))
+                        addedToFallback.add(phrase)
+                    }
+                }
+                for (phrase in autoLearnedPhrases) {
+                    if (phrase !in addedToFallback) {
+                        val freq = userFreqMap[phrase] ?: 0
+                        fallbackCandidates.add(phrase to (freq + if (freq == 0) 2 else 0))
+                        addedToFallback.add(phrase)
+                    }
+                }
+                for (phrase in partialMatchPhrases) {
+                    if (phrase !in addedToFallback) {
+                        val freq = userFreqMap[phrase] ?: 0
+                        fallbackCandidates.add(phrase to (freq + if (freq == 0) 2 else 0))
+                        addedToFallback.add(phrase)
+                    }
+                }
+                for (phrase in dictPartialPhrases) {
+                    if (phrase !in addedToFallback) {
+                        val freq = userFreqMap[phrase] ?: 0
+                        fallbackCandidates.add(phrase to (freq + if (freq == 0) 2 else 0))
+                        addedToFallback.add(phrase)
+                    }
+                }
+                if (neuralSuggestion != null && neuralSuggestion !in addedToFallback) {
+                    val freq = userFreqMap[neuralSuggestion] ?: 0
+                    fallbackCandidates.add(neuralSuggestion to (freq + if (freq == 0) 1 else 0))
+                    addedToFallback.add(neuralSuggestion)
+                }
+
+                // Sort by frequency and set as candidates
+                allCandidates = fallbackCandidates.sortedByDescending { it.second }.map { it.first }
+                phraseCandidateCount = allCandidates.size
+                phraseCandidateSet = allCandidates.toSet()  // All are phrases
                 matchedPinyin = bufferWithoutSep
                 return
             }
@@ -1125,11 +1139,10 @@ class PinyinInputController(
             matchedPinyin = if (dictPhraseCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty()) bufferWithoutSep else actualFirstSyllable
         }
 
-        // Now combine phrases and single characters by merging frequency-sorted lists
-        // Both lists are already sorted by user frequency (with +2 boost for unselected phrases in UserPinyinMemory)
-        // We need to merge them while preserving the frequency-based order from BOTH lists
-        // Custom dictionary phrases are also included with +2 frequency boost
-        val seenInCombined = resultCandidates.toMutableSet()  // Already have abbreviations
+        // Now combine ALL candidate sources (custom, abbreviation, auto-learned, dictionary, partial, neural)
+        // and single characters into a single frequency-sorted list.
+        // This ensures the most-used candidates appear first, regardless of source.
+        val seenInCombined = mutableSetOf<String>()
 
         // Sort phrases by frequency first (user memory + dictionary)
         val sortedPhrases = sortByFrequencyIfEnabled(bufferWithoutSep, phraseCandidatesRaw)
@@ -1143,8 +1156,10 @@ class PinyinInputController(
         val AUTO_LEARNED_PHRASE_BOOST = 2
         // Abbreviation candidates get +2 boost when frequency is 0
         val ABBREVIATION_PHRASE_BOOST = 2
+        // Partial match phrases get +2 boost when frequency is 0
+        val PARTIAL_MATCH_PHRASE_BOOST = 2
 
-        // Merge ALL candidates (abbreviation, custom, auto-learned, dictionary phrases, and single chars)
+        // Merge ALL candidates (abbreviation, custom, auto-learned, dictionary phrases, partial matches, and single chars)
         // sorted by effective user frequency. This ensures fair competition based on actual usage.
         // Phrases get +2 boost when frequency is 0
         // Custom phrases get +2 boost always (on top of any user frequency)
@@ -1187,6 +1202,36 @@ class PinyinInputController(
                 allCandidatesWithFreq.add(phrase to (freq + boost))
                 addedPhrases.add(phrase)
             }
+        }
+
+        // Add partial match phrases (with +2 boost when freq is 0)
+        for (phrase in partialMatchPhrases) {
+            if (phrase !in addedPhrases) {
+                val freq = userFreqMap[phrase] ?: 0
+                val boost = if (freq == 0) PARTIAL_MATCH_PHRASE_BOOST else 0
+                allCandidatesWithFreq.add(phrase to (freq + boost))
+                addedPhrases.add(phrase)
+            }
+        }
+
+        // Add dict partial phrases (with +2 boost when freq is 0)
+        for (phrase in dictPartialPhrases) {
+            if (phrase !in addedPhrases) {
+                val freq = userFreqMap[phrase] ?: 0
+                val boost = if (freq == 0) PARTIAL_MATCH_PHRASE_BOOST else 0
+                allCandidatesWithFreq.add(phrase to (freq + boost))
+                addedPhrases.add(phrase)
+            }
+        }
+
+        // Add HMM neural suggestion (with +1 boost when freq is 0 - slightly lower than learned phrases)
+        // HMM suggestions get lower boost because they're statistical predictions, not user preferences
+        if (neuralSuggestion != null && neuralSuggestion !in addedPhrases) {
+            val freq = userFreqMap[neuralSuggestion] ?: 0
+            val boost = if (freq == 0) 1 else 0  // +1 boost (lower than custom/learned +2)
+            allCandidatesWithFreq.add(neuralSuggestion to (freq + boost))
+            addedPhrases.add(neuralSuggestion)
+            Log.d(TAG, "Neural pinyin suggestion (freq-sorted): '$neuralSuggestion' with effective freq ${freq + boost}")
         }
 
         // Add single-character candidates (no boost - raw frequency)
@@ -1291,12 +1336,8 @@ class PinyinInputController(
 
         val resultCandidates = mutableListOf<String>()
 
-        // Add HMM pinyin suggestion as the first candidate (highest priority for long input)
+        // Get HMM pinyin suggestion (will be added to frequency-based sorting below)
         val neuralSuggestion = getHmmPinyinSuggestion(cleanBuffer)
-        if (neuralSuggestion != null && neuralSuggestion !in resultCandidates) {
-            resultCandidates.add(neuralSuggestion)
-            Log.d(TAG, "Neural pinyin suggestion (unparsable): '$neuralSuggestion'")
-        }
 
         val abbreviationCandidates = if (isMemoryEnabled() && isAbbreviationInputEnabled()) userMemory.getAbbreviationCandidates(cleanBuffer) else emptyList()
 
@@ -1325,11 +1366,7 @@ class PinyinInputController(
                     null
                 }
             }
-            for (phrase in partialMatchPhrases) {
-                if (phrase !in resultCandidates) {
-                    resultCandidates.add(phrase)
-                }
-            }
+            // Note: partialMatchPhrases are added to frequency sorting below
 
             val rawDictPhrases = PinyinDictionary.getPhraseCandidatesWithPrefix(fullPinyin)
             dictPartialPhrases = rawDictPhrases.mapNotNull { phrase ->
@@ -1339,11 +1376,7 @@ class PinyinInputController(
                     null
                 }
             }
-            for (phrase in dictPartialPhrases) {
-                if (phrase !in resultCandidates) {
-                    resultCandidates.add(phrase)
-                }
-            }
+            // Note: dictPartialPhrases are added to frequency sorting below
         } else {
             partialMatchPhrases = emptyList()
             dictPartialPhrases = emptyList()
@@ -1351,7 +1384,7 @@ class PinyinInputController(
 
         val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(cleanBuffer)
 
-        if (prefixCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty() || abbreviationCandidates.isNotEmpty()) {
+        if (prefixCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty() || abbreviationCandidates.isNotEmpty() || neuralSuggestion != null || partialMatchPhrases.isNotEmpty() || dictPartialPhrases.isNotEmpty()) {
             // Get user frequency for accurate merging
             val userFreqMap = if (isMemoryEnabled()) userMemory.getFrequencyMap(cleanBuffer) else emptyMap()
 
@@ -1361,24 +1394,23 @@ class PinyinInputController(
             val AUTO_LEARNED_PHRASE_BOOST = 2
             // Abbreviation candidates get +2 boost when frequency is 0
             val ABBREVIATION_PHRASE_BOOST = 2
+            // Partial match phrases get +2 boost when frequency is 0
+            val PARTIAL_MATCH_PHRASE_BOOST = 2
 
             // Merge ALL candidates sorted by effective user frequency
             val allCandidatesWithFreq = mutableListOf<Pair<String, Int>>()
-            val seenInMerge = resultCandidates.toMutableSet()
             val addedToMerge = mutableSetOf<String>()
 
             // Add custom phrases (they'll be sorted by frequency with +2 boost always)
             for (phrase in customPhrases) {
-                if (phrase !in seenInMerge) {
-                    val freq = userFreqMap[phrase] ?: 0
-                    allCandidatesWithFreq.add(phrase to (freq + CUSTOM_PHRASE_FREQUENCY_BOOST))
-                    addedToMerge.add(phrase)
-                }
+                val freq = userFreqMap[phrase] ?: 0
+                allCandidatesWithFreq.add(phrase to (freq + CUSTOM_PHRASE_FREQUENCY_BOOST))
+                addedToMerge.add(phrase)
             }
 
             // Add abbreviation candidates (with +2 boost when freq is 0)
             for (phrase in abbreviationCandidates) {
-                if (phrase !in seenInMerge && phrase !in addedToMerge) {
+                if (phrase !in addedToMerge) {
                     val freq = userFreqMap[phrase] ?: 0
                     val boost = if (freq == 0) ABBREVIATION_PHRASE_BOOST else 0
                     allCandidatesWithFreq.add(phrase to (freq + boost))
@@ -1388,7 +1420,7 @@ class PinyinInputController(
 
             // Add auto-learned phrases (with +2 boost when freq is 0)
             for (phrase in autoLearnedPhrases) {
-                if (phrase !in seenInMerge && phrase !in addedToMerge) {
+                if (phrase !in addedToMerge) {
                     val freq = userFreqMap[phrase] ?: 0
                     val boost = if (freq == 0) AUTO_LEARNED_PHRASE_BOOST else 0
                     allCandidatesWithFreq.add(phrase to (freq + boost))
@@ -1396,12 +1428,42 @@ class PinyinInputController(
                 }
             }
 
+            // Add partial match phrases (with +2 boost when freq is 0)
+            for (phrase in partialMatchPhrases) {
+                if (phrase !in addedToMerge) {
+                    val freq = userFreqMap[phrase] ?: 0
+                    val boost = if (freq == 0) PARTIAL_MATCH_PHRASE_BOOST else 0
+                    allCandidatesWithFreq.add(phrase to (freq + boost))
+                    addedToMerge.add(phrase)
+                }
+            }
+
+            // Add dict partial phrases (with +2 boost when freq is 0)
+            for (phrase in dictPartialPhrases) {
+                if (phrase !in addedToMerge) {
+                    val freq = userFreqMap[phrase] ?: 0
+                    val boost = if (freq == 0) PARTIAL_MATCH_PHRASE_BOOST else 0
+                    allCandidatesWithFreq.add(phrase to (freq + boost))
+                    addedToMerge.add(phrase)
+                }
+            }
+
             // Add prefix candidates (single characters from prefix matching - no boost)
             for (candidate in prefixCandidates) {
-                if (candidate !in seenInMerge && candidate !in addedToMerge) {
+                if (candidate !in addedToMerge) {
                     val freq = userFreqMap[candidate] ?: 0
                     allCandidatesWithFreq.add(candidate to freq)
+                    addedToMerge.add(candidate)
                 }
+            }
+
+            // Add HMM neural suggestion (with +1 boost when freq is 0 - slightly lower than learned phrases)
+            if (neuralSuggestion != null && neuralSuggestion !in addedToMerge) {
+                val freq = userFreqMap[neuralSuggestion] ?: 0
+                val boost = if (freq == 0) 1 else 0  // +1 boost (lower than custom/learned +2)
+                allCandidatesWithFreq.add(neuralSuggestion to (freq + boost))
+                addedToMerge.add(neuralSuggestion)
+                Log.d(TAG, "Neural pinyin suggestion (unparsable, freq-sorted): '$neuralSuggestion' with effective freq ${freq + boost}")
             }
 
             // Sort by effective frequency (descending)
@@ -1409,10 +1471,7 @@ class PinyinInputController(
 
             // Add to result
             for (candidate in mergedSorted) {
-                if (candidate !in seenInMerge) {
-                    resultCandidates.add(candidate)
-                    seenInMerge.add(candidate)
-                }
+                resultCandidates.add(candidate)
             }
 
             allCandidates = resultCandidates
@@ -1802,29 +1861,32 @@ class PinyinInputController(
      * @return The longest matching syllable, or null if none found
      */
     private fun findLongestSyllableWithFuzzy(input: String): String? {
-        // First try exact match
-        val exactMatch = PinyinDictionary.findLongestSyllable(input)
-        if (exactMatch != null) {
-            return exactMatch
-        }
+        // When fuzzy is enabled, try fuzzy matching FIRST for longer prefixes
+        // This prevents issues like "zang" being split as "zan" + "g" instead of matching "zhang" via fuzzy
+        if (fuzzyPinyinEnabled) {
+            // Try fuzzy matching for progressively shorter prefixes (longest first)
+            for (len in minOf(6, input.length) downTo 1) {
+                val prefix = input.substring(0, len)
 
-        if (!fuzzyPinyinEnabled) {
+                // First check if this prefix has an exact match
+                if (PinyinDictionary.contains(prefix)) {
+                    return prefix
+                }
+
+                // Then try fuzzy variants
+                val variants = getFuzzyVariants(prefix)
+                for (variant in variants) {
+                    if (variant != prefix && PinyinDictionary.getCandidates(variant).isNotEmpty()) {
+                        Log.d(TAG, "Fuzzy match: '$prefix' → '$variant'")
+                        return prefix // Return original prefix, candidates will use variant
+                    }
+                }
+            }
             return null
         }
 
-        // Try fuzzy matching for progressively shorter prefixes
-        for (len in minOf(6, input.length) downTo 1) {
-            val prefix = input.substring(0, len)
-            val variants = getFuzzyVariants(prefix)
-            for (variant in variants) {
-                if (variant != prefix && PinyinDictionary.getCandidates(variant).isNotEmpty()) {
-                    Log.d(TAG, "Fuzzy match: '$prefix' → '$variant'")
-                    return prefix // Return original prefix, candidates will use variant
-                }
-            }
-        }
-
-        return null
+        // When fuzzy is disabled, just use exact match
+        return PinyinDictionary.findLongestSyllable(input)
     }
 
     /**
