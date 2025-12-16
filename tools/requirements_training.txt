@@ -1,0 +1,24 @@
+# Requirements for BiLSTM Pinyin Training (CUDA)
+# Install with: pip install -r requirements_training.txt
+
+# Core PyTorch (CUDA 12.1 for RTX 4090)
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch>=2.1.0
+torchvision>=0.16.0
+torchaudio>=2.1.0
+
+# Training utilities
+numpy>=1.24.0
+tqdm>=4.65.0
+tensorboard>=2.14.0
+
+# ONNX export (optional)
+onnx>=1.14.0
+onnxruntime>=1.16.0
+onnxruntime-gpu>=1.16.0  # For GPU inference
+
+# Data processing
+jsonlines>=3.1.0
+
+# Optional: for quantization
+# onnxruntime-tools>=1.7.0
