@@ -47,7 +47,6 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.activity.compose.BackHandler
 import it.neuralrad.coolwulf.R
-import it.neuralrad.coolwulf.inputmethod.NeuralPinyinRecognizer
 import it.neuralrad.coolwulf.inputmethod.SherpaSpeechRecognizer
 import java.io.File
 
@@ -245,10 +244,6 @@ fun TextInputSettingsScreen(
 
     var neuralPinyinMinLetters by remember {
         mutableStateOf(SettingsManager.getNeuralPinyinMinLetters(context))
-    }
-
-    var neuralPinyinModelPath by remember {
-        mutableStateOf(SettingsManager.getNeuralPinyinModelPath(context))
     }
 
     var abbreviationInputEnabled by remember {
@@ -2882,7 +2877,8 @@ fun TextInputSettingsScreen(
                 }
             }
 
-            // Neural Pinyin Toggle (only show if Pinyin is enabled)
+            // HMM Pinyin Toggle (only show if Pinyin is enabled)
+            // Uses embedded HMM model for long sentence conversion (91% accuracy)
             if (pinyinEnabled) {
                 Surface(
                     modifier = Modifier
@@ -2926,7 +2922,7 @@ fun TextInputSettingsScreen(
                     }
                 }
 
-                // Neural Pinyin Min Letters Slider (only show if Neural Pinyin is enabled)
+                // HMM Pinyin Min Letters Slider (only show if HMM Pinyin is enabled)
                 if (neuralPinyinEnabled) {
                     Surface(
                         modifier = Modifier
@@ -2964,167 +2960,6 @@ fun TextInputSettingsScreen(
                                     steps = 15,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
-                            }
-                        }
-                    }
-
-                    // Neural Pinyin Model Selector
-                    var neuralPinyinModelStatus by remember {
-                        mutableStateOf(NeuralPinyinRecognizer.getInstance(context).getModelStatus())
-                    }
-
-                    val neuralPinyinZipFileLauncher = rememberLauncherForActivityResult(
-                        contract = ActivityResultContracts.OpenDocument()
-                    ) { uri ->
-                        uri?.let {
-                            try {
-                                context.contentResolver.takePersistableUriPermission(
-                                    it,
-                                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                                )
-                            } catch (e: Exception) {
-                                // Permission may already be granted
-                            }
-                            SettingsManager.setNeuralPinyinModelPath(context, it.toString())
-                            neuralPinyinModelPath = it.toString()
-                            // Delete old extracted model when new file is selected
-                            NeuralPinyinRecognizer.getInstance(context).deleteExtractedModel()
-                            neuralPinyinModelStatus = NeuralPinyinRecognizer.getInstance(context).getModelStatus()
-                        }
-                    }
-
-                    var neuralPinyinExtractionProgress by remember { mutableStateOf(0) }
-                    var neuralPinyinExtractionMessage by remember { mutableStateOf("") }
-                    var isExtractingNeuralPinyinModel by remember { mutableStateOf(false) }
-
-                    val neuralPinyinStatusText = when (neuralPinyinModelStatus) {
-                        NeuralPinyinRecognizer.ModelStatus.NOT_CONFIGURED -> stringResource(R.string.neural_pinyin_model_status_not_configured)
-                        NeuralPinyinRecognizer.ModelStatus.ZIP_CONFIGURED -> stringResource(R.string.neural_pinyin_model_status_zip_configured)
-                        NeuralPinyinRecognizer.ModelStatus.EXTRACTING -> stringResource(R.string.neural_pinyin_model_status_extracting)
-                        NeuralPinyinRecognizer.ModelStatus.AVAILABLE -> stringResource(R.string.neural_pinyin_model_status_available)
-                        NeuralPinyinRecognizer.ModelStatus.LOADING -> stringResource(R.string.neural_pinyin_model_status_loading)
-                        NeuralPinyinRecognizer.ModelStatus.READY -> stringResource(R.string.neural_pinyin_model_status_ready)
-                    }
-
-                    val neuralPinyinDisplayName = NeuralPinyinRecognizer.getInstance(context).getModelZipName()
-                    val neuralPinyinDisplayText = neuralPinyinDisplayName ?: stringResource(R.string.neural_pinyin_model_not_selected)
-
-                    Surface(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Spacer(modifier = Modifier.width(24.dp)) // Indent to align with parent
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = stringResource(R.string.neural_pinyin_model_title),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1
-                                    )
-                                    Text(
-                                        text = neuralPinyinDisplayText,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1
-                                    )
-                                    Text(
-                                        text = if (isExtractingNeuralPinyinModel) neuralPinyinExtractionMessage else neuralPinyinStatusText,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = when (neuralPinyinModelStatus) {
-                                            NeuralPinyinRecognizer.ModelStatus.READY,
-                                            NeuralPinyinRecognizer.ModelStatus.AVAILABLE -> MaterialTheme.colorScheme.secondary
-                                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-
-                            if (isExtractingNeuralPinyinModel) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                LinearProgressIndicator(
-                                    progress = { neuralPinyinExtractionProgress / 100f },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = 36.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = 36.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                OutlinedButton(
-                                    onClick = {
-                                        neuralPinyinZipFileLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "*/*"))
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    enabled = !isExtractingNeuralPinyinModel
-                                ) {
-                                    Text(stringResource(R.string.neural_pinyin_model_select_button))
-                                }
-
-                                if (neuralPinyinModelStatus == NeuralPinyinRecognizer.ModelStatus.ZIP_CONFIGURED ||
-                                    neuralPinyinModelStatus == NeuralPinyinRecognizer.ModelStatus.EXTRACTING) {
-                                    Button(
-                                        onClick = {
-                                            isExtractingNeuralPinyinModel = true
-                                            neuralPinyinExtractionMessage = "Starting extraction..."
-                                            NeuralPinyinRecognizer.getInstance(context).extractModel(
-                                                onProgress = { progress, message ->
-                                                    neuralPinyinExtractionProgress = progress
-                                                    neuralPinyinExtractionMessage = message
-                                                },
-                                                onComplete = { success, error ->
-                                                    android.util.Log.e("TextInputSettings", "onComplete called: success=$success, error=$error")
-                                                    isExtractingNeuralPinyinModel = false
-                                                    val newStatus = NeuralPinyinRecognizer.getInstance(context).getModelStatus()
-                                                    android.util.Log.e("TextInputSettings", "New status: $newStatus")
-                                                    neuralPinyinModelStatus = newStatus
-                                                    if (!success) {
-                                                        neuralPinyinExtractionMessage = error ?: "Extraction failed"
-                                                    }
-                                                }
-                                            )
-                                        },
-                                        enabled = !isExtractingNeuralPinyinModel
-                                    ) {
-                                        Text(stringResource(R.string.neural_pinyin_model_extract_button))
-                                    }
-                                }
-
-                                if (neuralPinyinModelPath != null) {
-                                    OutlinedButton(
-                                        onClick = {
-                                            NeuralPinyinRecognizer.getInstance(context).clearModelConfig()
-                                            neuralPinyinModelStatus = NeuralPinyinRecognizer.getInstance(context).getModelStatus()
-                                            neuralPinyinModelPath = null
-                                        },
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            contentColor = MaterialTheme.colorScheme.error
-                                        ),
-                                        enabled = !isExtractingNeuralPinyinModel
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Clear,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
                             }
                         }
                     }

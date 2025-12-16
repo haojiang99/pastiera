@@ -9,7 +9,7 @@ import it.neuralrad.coolwulf.data.pinyin.PinyinDictionary
 import it.neuralrad.coolwulf.data.pinyin.UserPinyinMemory
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
-import it.neuralrad.coolwulf.inputmethod.NeuralPinyinRecognizer
+import it.neuralrad.coolwulf.inputmethod.HmmPinyinRecognizer
 import it.neuralrad.coolwulf.SettingsManager
 
 /**
@@ -84,10 +84,10 @@ class PinyinInputController(
     // Whether fuzzy pinyin (模糊音) is enabled
     private var fuzzyPinyinEnabled: Boolean = false
 
-    // Neural pinyin recognizer for deep learning based conversion
-    private var neuralPinyinRecognizer: NeuralPinyinRecognizer? = null
-    private var neuralPinyinEnabled: Boolean = false
-    private var neuralPinyinMinLetters: Int = 6
+    // HMM pinyin recognizer for statistical model based conversion
+    private var hmmPinyinRecognizer: HmmPinyinRecognizer? = null
+    private var hmmPinyinEnabled: Boolean = true  // Enabled by default
+    private var hmmPinyinMinLetters: Int = 6
 
     // Fuzzy pinyin substitution rules
     // z↔zh, c↔ch, s↔sh, l↔n, en↔eng, in↔ing
@@ -993,8 +993,8 @@ class PinyinInputController(
         val resultCandidates = mutableListOf<String>()
         val customPhraseSet = customPhrases.toSet()  // For quick lookup
 
-        // Add neural pinyin suggestion as the first candidate (highest priority for long input)
-        val neuralSuggestion = getNeuralPinyinSuggestion(bufferWithoutSep)
+        // Add HMM pinyin suggestion as the first candidate (highest priority for long input)
+        val neuralSuggestion = getHmmPinyinSuggestion(bufferWithoutSep)
         if (neuralSuggestion != null && neuralSuggestion !in resultCandidates) {
             resultCandidates.add(neuralSuggestion)
             Log.d(TAG, "Neural pinyin suggestion: '$neuralSuggestion'")
@@ -1251,8 +1251,8 @@ class PinyinInputController(
 
         val resultCandidates = mutableListOf<String>()
 
-        // Add neural pinyin suggestion as the first candidate (highest priority for long input)
-        val neuralSuggestion = getNeuralPinyinSuggestion(cleanBuffer)
+        // Add HMM pinyin suggestion as the first candidate (highest priority for long input)
+        val neuralSuggestion = getHmmPinyinSuggestion(cleanBuffer)
         if (neuralSuggestion != null && neuralSuggestion !in resultCandidates) {
             resultCandidates.add(neuralSuggestion)
             Log.d(TAG, "Neural pinyin suggestion (unparsable): '$neuralSuggestion'")
@@ -1788,58 +1788,99 @@ class PinyinInputController(
     }
 
     /**
-     * Sets whether neural pinyin is enabled.
+     * Sets whether HMM pinyin is enabled.
      */
-    fun setNeuralPinyinEnabled(enabled: Boolean) {
-        neuralPinyinEnabled = enabled
-        if (enabled && neuralPinyinRecognizer == null) {
-            neuralPinyinRecognizer = NeuralPinyinRecognizer.getInstance(context)
+    fun setHmmPinyinEnabled(enabled: Boolean) {
+        hmmPinyinEnabled = enabled
+        if (enabled && hmmPinyinRecognizer == null) {
+            hmmPinyinRecognizer = HmmPinyinRecognizer.getInstance(context)
+            // Initialize the model automatically
+            hmmPinyinRecognizer?.initModel()
         }
-        Log.d(TAG, "Neural pinyin ${if (enabled) "enabled" else "disabled"}")
     }
 
     /**
-     * Returns whether neural pinyin is enabled.
+     * Returns whether HMM pinyin is enabled.
      */
-    fun isNeuralPinyinEnabled(): Boolean = neuralPinyinEnabled
+    fun isHmmPinyinEnabled(): Boolean = hmmPinyinEnabled
 
     /**
-     * Sets the minimum number of letters required for neural pinyin.
+     * Sets the minimum number of letters required for HMM pinyin.
      */
-    fun setNeuralPinyinMinLetters(minLetters: Int) {
-        neuralPinyinMinLetters = minLetters
-        Log.d(TAG, "Neural pinyin min letters: $minLetters")
+    fun setHmmPinyinMinLetters(minLetters: Int) {
+        hmmPinyinMinLetters = minLetters
     }
 
     /**
-     * Returns the minimum number of letters for neural pinyin.
+     * Returns the minimum number of letters for HMM pinyin.
      */
-    fun getNeuralPinyinMinLetters(): Int = neuralPinyinMinLetters
+    fun getHmmPinyinMinLetters(): Int = hmmPinyinMinLetters
 
     /**
-     * Gets neural pinyin suggestion if conditions are met.
-     * Returns a single suggestion from the neural network model, or null if not available.
+     * Gets HMM pinyin suggestion if conditions are met.
+     * Returns a single suggestion from the HMM model, or null if not available.
      */
-    private fun getNeuralPinyinSuggestion(pinyinInput: String): String? {
-        if (!neuralPinyinEnabled) return null
-        if (pinyinInput.length < neuralPinyinMinLetters) return null
+    private fun getHmmPinyinSuggestion(pinyinInput: String): String? {
+        if (!hmmPinyinEnabled) return null
+        if (pinyinInput.length < hmmPinyinMinLetters) return null
 
-        val recognizer = neuralPinyinRecognizer ?: return null
+        val recognizer = hmmPinyinRecognizer
+        if (recognizer == null) {
+            // Initialize on first use
+            hmmPinyinRecognizer = HmmPinyinRecognizer.getInstance(context)
+            hmmPinyinRecognizer?.initModel()
+            return null
+        }
+
         if (!recognizer.isReady()) {
-            // Try to initialize if model is available but not yet loaded
-            if (recognizer.isModelExtracted()) {
-                recognizer.initModel { success, _ ->
-                    if (success) {
-                        Log.d(TAG, "Neural pinyin model initialized on-demand")
-                    }
-                }
+            // Model not ready yet
+            if (!recognizer.isLoading()) {
+                recognizer.initModel()
             }
             return null
         }
 
-        // Run inference - the model expects space-separated pinyin for long sentences
-        // For our character-level model, we can pass the input as-is (it handles character tokenization)
-        val result = recognizer.convert(pinyinInput)
-        return result.firstOrNull()?.takeIf { it.isNotEmpty() }
+        // Parse the pinyin input into space-separated syllables for the HMM model
+        val spacedPinyin = parseToSpacedPinyin(pinyinInput)
+        if (spacedPinyin.isEmpty()) return null
+
+        // Run inference
+        val result = recognizer.convert(spacedPinyin)
+        return result.takeIf { it.isNotEmpty() }
     }
+
+    /**
+     * Parses concatenated pinyin into space-separated syllables.
+     * E.g., "nihao" -> "ni hao", "woaini" -> "wo ai ni"
+     */
+    private fun parseToSpacedPinyin(input: String): String {
+        val syllables = mutableListOf<String>()
+        var remaining = input.lowercase()
+
+        while (remaining.isNotEmpty()) {
+            val syllable = PinyinDictionary.findLongestSyllable(remaining)
+            if (syllable != null) {
+                syllables.add(syllable)
+                remaining = remaining.substring(syllable.length)
+            } else {
+                // Unknown syllable - skip one character
+                remaining = remaining.substring(1)
+            }
+        }
+
+        return syllables.joinToString(" ")
+    }
+
+    // Keep old method names for compatibility (deprecated)
+    @Deprecated("Use setHmmPinyinEnabled instead", ReplaceWith("setHmmPinyinEnabled(enabled)"))
+    fun setNeuralPinyinEnabled(enabled: Boolean) = setHmmPinyinEnabled(enabled)
+
+    @Deprecated("Use isHmmPinyinEnabled instead", ReplaceWith("isHmmPinyinEnabled()"))
+    fun isNeuralPinyinEnabled(): Boolean = isHmmPinyinEnabled()
+
+    @Deprecated("Use setHmmPinyinMinLetters instead", ReplaceWith("setHmmPinyinMinLetters(minLetters)"))
+    fun setNeuralPinyinMinLetters(minLetters: Int) = setHmmPinyinMinLetters(minLetters)
+
+    @Deprecated("Use getHmmPinyinMinLetters instead", ReplaceWith("getHmmPinyinMinLetters()"))
+    fun getNeuralPinyinMinLetters(): Int = getHmmPinyinMinLetters()
 }

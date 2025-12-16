@@ -1,0 +1,19 @@
+{
+  "max_length": 14,
+  "model_config": {
+    "d_model": 512,
+    "nhead": 16,
+    "num_encoder_layers": 8,
+    "num_decoder_layers": 6,
+    "dim_feedforward": 1024,
+    "dropout": 0.07
+  },
+  "pinyin_vocab_size": 4781,
+  "hanzi_vocab_size": 23416,
+  "special_tokens": {
+    "pad": 0,
+    "unk": 1,
+    "sos": 2,
+    "eos": 3
+  }
+}

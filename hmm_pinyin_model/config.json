@@ -1,0 +1,6 @@
+{
+  "model_type": "hmm",
+  "hanzi_vocab_size": 6939,
+  "pinyin_vocab_size": 403,
+  "compressed": true
+}
