@@ -993,7 +993,11 @@ class PinyinInputController(
         val resultCandidates = mutableListOf<String>()
         val customPhraseSet = customPhrases.toSet()  // For quick lookup
 
-        // Check for dictionary exact phrase match FIRST (higher priority than HMM)
+        // Skip if input is abbreviation-style and abbreviation input is disabled
+        val skipAutoLearnedForAbbrev = isAbbreviationInput(bufferWithoutSep) && !isAbbreviationInputEnabled()
+        val autoLearnedPhrases = if (isAutoPhraseMemoryEnabled() && !skipAutoLearnedForAbbrev) autoPhraseMemory.getLearnedPhrases(bufferWithoutSep) else emptyList()
+
+        // Check for dictionary exact phrase match
         // Only for single-segment input where dictionary might have the exact phrase
         val dictExactMatch = if (segments.size == 1) {
             val exactPhrases = PinyinDictionary.getPhraseCandidates(bufferWithoutSep)
@@ -1006,21 +1010,39 @@ class PinyinInputController(
         // Get HMM pinyin suggestion
         val neuralSuggestion = getHmmPinyinSuggestion(bufferWithoutSep)
 
-        // Add dictionary exact match first if available (higher priority)
+        // Priority order for candidates:
+        // 1. Custom phrases (user-defined, highest priority)
+        // 2. Auto-learned phrases (from user typing history)
+        // 3. Dictionary exact match
+        // 4. HMM neural suggestion
+
+        // Add custom phrases first (highest priority)
+        for (phrase in customPhrases) {
+            if (phrase !in resultCandidates) {
+                resultCandidates.add(phrase)
+                Log.d(TAG, "Custom phrase (priority): '$phrase'")
+            }
+        }
+
+        // Add auto-learned phrases second (second highest priority)
+        for (phrase in autoLearnedPhrases) {
+            if (phrase !in resultCandidates) {
+                resultCandidates.add(phrase)
+                Log.d(TAG, "Auto-learned phrase (priority): '$phrase'")
+            }
+        }
+
+        // Add dictionary exact match third
         if (dictExactMatch != null && dictExactMatch !in resultCandidates) {
             resultCandidates.add(dictExactMatch)
             Log.d(TAG, "Dictionary exact match (priority): '$dictExactMatch'")
         }
 
-        // Add HMM suggestion second (only if different from dictionary match)
+        // Add HMM suggestion fourth (only if different from above)
         if (neuralSuggestion != null && neuralSuggestion !in resultCandidates) {
             resultCandidates.add(neuralSuggestion)
             Log.d(TAG, "Neural pinyin suggestion: '$neuralSuggestion'")
         }
-
-        // Skip if input is abbreviation-style and abbreviation input is disabled
-        val skipAutoLearnedForAbbrev = isAbbreviationInput(bufferWithoutSep) && !isAbbreviationInputEnabled()
-        val autoLearnedPhrases = if (isAutoPhraseMemoryEnabled() && !skipAutoLearnedForAbbrev) autoPhraseMemory.getLearnedPhrases(bufferWithoutSep) else emptyList()
 
         // Add partial/prefix matching phrases (e.g., "wos" matches "woshi" → "我是")
         // Only activate AFTER at least one character has been selected in the current session
