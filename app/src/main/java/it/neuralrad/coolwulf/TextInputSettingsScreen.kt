@@ -246,6 +246,11 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getNeuralPinyinMinLetters(context))
     }
 
+    var hmmModelSize by remember {
+        mutableStateOf(SettingsManager.getHmmModelSize(context))
+    }
+    var showHmmModelSizeDialog by remember { mutableStateOf(false) }
+
     var abbreviationInputEnabled by remember {
         mutableStateOf(SettingsManager.isAbbreviationInputEnabled(context))
     }
@@ -2966,6 +2971,53 @@ fun TextInputSettingsScreen(
                 }
             }
 
+            // HMM Model Size selector (only show if Pinyin is enabled)
+            if (pinyinEnabled) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showHmmModelSizeDialog = true }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Memory,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.hmm_model_size_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = stringResource(R.string.hmm_model_size_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                        }
+                        Text(
+                            text = when (hmmModelSize) {
+                                "small" -> stringResource(R.string.hmm_model_small)
+                                "large" -> stringResource(R.string.hmm_model_large)
+                                else -> stringResource(R.string.hmm_model_standard)
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
             // Abbreviation Input Toggle (only show if Pinyin is enabled)
             if (pinyinEnabled) {
                 Surface(
@@ -3012,6 +3064,53 @@ fun TextInputSettingsScreen(
             }
 
         }
+    }
+
+    // HMM Model Size Selection Dialog
+    if (showHmmModelSizeDialog) {
+        AlertDialog(
+            onDismissRequest = { showHmmModelSizeDialog = false },
+            title = { Text(stringResource(R.string.hmm_model_size_title)) },
+            text = {
+                Column {
+                    listOf(
+                        "small" to stringResource(R.string.hmm_model_small_detail),
+                        "standard" to stringResource(R.string.hmm_model_standard_detail),
+                        "large" to stringResource(R.string.hmm_model_large_detail)
+                    ).forEach { (size, description) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    hmmModelSize = size
+                                    SettingsManager.setHmmModelSize(context, size)
+                                    showHmmModelSizeDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = hmmModelSize == size,
+                                onClick = {
+                                    hmmModelSize = size
+                                    SettingsManager.setHmmModelSize(context, size)
+                                    showHmmModelSizeDialog = false
+                                }
+                            )
+                            Text(
+                                text = description,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showHmmModelSizeDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
     }
 
     // Default Input Mode Selection Dialog

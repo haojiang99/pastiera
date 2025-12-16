@@ -122,6 +122,17 @@
     <string name="neural_pinyin_description">使用深度学习模型处理长句</string>
     <string name="neural_pinyin_min_letters_title">最少字母数</string>
     <string name="neural_pinyin_min_letters_description">输入 %d 个以上字母时使用神经网络</string>
+
+    <!-- HMM Model Size -->
+    <string name="hmm_model_size_title">HMM 模型大小</string>
+    <string name="hmm_model_size_description">模型越大准确率越高，但占用更多内存</string>
+    <string name="hmm_model_small">小</string>
+    <string name="hmm_model_standard">标准</string>
+    <string name="hmm_model_large">大</string>
+    <string name="hmm_model_small_detail">小 (1.9MB) - 加载最快</string>
+    <string name="hmm_model_standard_detail">标准 (2.3MB) - 均衡</string>
+    <string name="hmm_model_large_detail">大 (3.2MB) - 最准确</string>
+
     <string name="neural_pinyin_model_title">深度学习拼音模型</string>
     <string name="neural_pinyin_model_not_selected">未选择 zip 文件</string>
     <string name="neural_pinyin_model_status_not_configured">未配置</string>

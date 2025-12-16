@@ -92,6 +92,7 @@ object SettingsManager {
     private const val KEY_NEURAL_PINYIN_MODEL_PATH = "neural_pinyin_model_path" // Path to Neural Pinyin ONNX model zip file
     private const val KEY_NEURAL_PINYIN_ENABLED = "neural_pinyin_enabled" // Enable neural network for long pinyin sentences
     private const val KEY_NEURAL_PINYIN_MIN_LETTERS = "neural_pinyin_min_letters" // Minimum letters to trigger neural pinyin (default 6)
+    private const val KEY_HMM_MODEL_SIZE = "hmm_model_size" // HMM model size: "small" (1.9MB), "standard" (2.3MB), "large" (3.2MB)
     private const val KEY_VOICE_AUTO_INSERT = "voice_auto_insert" // Auto-insert recognized text after silence
     private const val KEY_VOICE_CHINESE_PUNCTUATION = "voice_chinese_punctuation" // Use Chinese punctuation (。,) for voice input
     private const val KEY_VOICE_ADD_PUNCTUATION = "voice_add_punctuation" // Add punctuation to voice input text
@@ -2286,6 +2287,35 @@ object SettingsManager {
         getPreferences(context).edit()
             .putInt(KEY_NEURAL_PINYIN_MIN_LETTERS, minLetters)
             .apply()
+    }
+
+    /**
+     * Gets the HMM model size setting.
+     * @return "small" (1.9MB, fastest), "standard" (2.3MB, default), or "large" (3.2MB, most accurate)
+     */
+    fun getHmmModelSize(context: Context): String {
+        return getPreferences(context).getString(KEY_HMM_MODEL_SIZE, "standard") ?: "standard"
+    }
+
+    /**
+     * Sets the HMM model size.
+     * @param size "small", "standard", or "large"
+     */
+    fun setHmmModelSize(context: Context, size: String) {
+        getPreferences(context).edit()
+            .putString(KEY_HMM_MODEL_SIZE, size)
+            .apply()
+    }
+
+    /**
+     * Gets the HMM model file name based on the current setting.
+     */
+    fun getHmmModelFileName(context: Context): String {
+        return when (getHmmModelSize(context)) {
+            "small" -> "common/pinyin/hmm_model_small.dat"
+            "large" -> "common/pinyin/hmm_model_large.dat"
+            else -> "common/pinyin/hmm_model_standard.dat"
+        }
     }
 
     /**

@@ -1,6 +1,7 @@
 package it.neuralrad.coolwulf.inputmethod
 
 import android.content.Context
+import it.neuralrad.coolwulf.SettingsManager
 import kotlinx.coroutines.*
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -12,23 +13,36 @@ import java.util.zip.GZIPInputStream
  * Uses a Hidden Markov Model with Viterbi decoding for toneless pinyin input.
  *
  * Model specifications:
- * - 6,939 Chinese characters
- * - 403 pinyin syllables
- * - 91.1% character accuracy
+ * - 7,756 Chinese characters
+ * - 411 pinyin syllables
+ * - ~36% character accuracy on test set
  * - ~1ms inference time
  *
- * The model is loaded from assets/common/pinyin/hmm_model.dat (gzip-compressed)
+ * Available model sizes:
+ * - small (1.9MB): TOP_K=75, fastest loading
+ * - standard (2.3MB): TOP_K=100, balanced (default)
+ * - large (3.2MB): TOP_K=150, most accurate
  */
 class HmmPinyinRecognizer private constructor(private val context: Context) {
     companion object {
-        private const val MODEL_FILE = "common/pinyin/hmm_model.dat"
-
         @Volatile
         private var instance: HmmPinyinRecognizer? = null
 
+        @Volatile
+        private var currentModelSize: String? = null
+
         fun getInstance(context: Context): HmmPinyinRecognizer {
-            return instance ?: synchronized(this) {
-                instance ?: HmmPinyinRecognizer(context.applicationContext).also { instance = it }
+            val requestedSize = SettingsManager.getHmmModelSize(context)
+            return synchronized(this) {
+                // If model size changed, invalidate the instance
+                if (currentModelSize != null && currentModelSize != requestedSize) {
+                    instance?.releaseModel()
+                    instance = null
+                }
+                instance ?: HmmPinyinRecognizer(context.applicationContext).also {
+                    instance = it
+                    currentModelSize = requestedSize
+                }
             }
         }
     }
@@ -104,7 +118,8 @@ class HmmPinyinRecognizer private constructor(private val context: Context) {
      * Loads the HMM model from compressed JSON in assets.
      */
     private fun loadModelFromAssets() {
-        val inputStream = context.assets.open(MODEL_FILE)
+        val modelFile = SettingsManager.getHmmModelFileName(context)
+        val inputStream = context.assets.open(modelFile)
         val gzipStream = GZIPInputStream(inputStream)
         val reader = BufferedReader(InputStreamReader(gzipStream, Charsets.UTF_8))
         val jsonStr = reader.readText()

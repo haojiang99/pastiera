@@ -133,6 +133,17 @@
     <string name="neural_pinyin_description">Use deep learning model for long sentences</string>
     <string name="neural_pinyin_min_letters_title">Minimum Letters</string>
     <string name="neural_pinyin_min_letters_description">Use neural network when typing %d+ letters</string>
+
+    <!-- HMM Model Size -->
+    <string name="hmm_model_size_title">HMM Model Size</string>
+    <string name="hmm_model_size_description">Larger models are more accurate but use more memory</string>
+    <string name="hmm_model_small">Small</string>
+    <string name="hmm_model_standard">Standard</string>
+    <string name="hmm_model_large">Large</string>
+    <string name="hmm_model_small_detail">Small (1.9MB) - Fastest loading</string>
+    <string name="hmm_model_standard_detail">Standard (2.3MB) - Balanced</string>
+    <string name="hmm_model_large_detail">Large (3.2MB) - Most accurate</string>
+
     <string name="neural_pinyin_model_title">Deep Learning Pinyin Model</string>
     <string name="neural_pinyin_model_not_selected">No zip file selected</string>
     <string name="neural_pinyin_model_status_not_configured">Not configured</string>
