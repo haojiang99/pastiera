@@ -2143,9 +2143,22 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         var hasNextPage = false
         var hasPrevPage = false
 
-        // In Juying mode, limit to 5 candidates for the 5 selection keys (Chinese)
+        // In Juying mode, limit candidates based on suggestion length
         val isJuyingMode = SettingsManager.getJuyingModeEnabled(this)
-        val candidateLimit = if (isJuyingMode) 5 else 9
+
+        // Helper to calculate dynamic candidate limit based on max candidate length
+        // When candidates are long (multi-character phrases), reduce count to avoid cramming
+        fun calculateJuyingCandidateLimit(candidates: List<String>): Int {
+            if (candidates.isEmpty()) return 5
+            val maxLen = candidates.take(5).maxOfOrNull { it.length } ?: 1
+            return when {
+                maxLen >= 10 -> 1  // Very long phrases (10+ chars): show only 1
+                maxLen >= 6 -> 3   // Long phrases (6-9 chars): show 3
+                else -> 5          // Short candidates (1-5 chars): show 5
+            }
+        }
+
+        val defaultCandidateLimit = if (isJuyingMode) 5 else 9
 
         // Helper to reorder candidates for Juying+Chinese mode display:
         // 1 candidate: [1st] - Space picks it
@@ -2169,6 +2182,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         if (pinyinSnapshot.isActive) {
             // Pinyin mode takes priority
+            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(pinyinSnapshot.candidates) else defaultCandidateLimit
             val rawCandidates = pinyinSnapshot.candidates.take(candidateLimit)
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
@@ -2182,6 +2196,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             hasPrevPage = pinyinSnapshot.hasPrevPage
         } else if (t9PinyinSnapshot.isActive) {
             // T9 Pinyin mode
+            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(t9PinyinSnapshot.candidates) else defaultCandidateLimit
             val rawCandidates = t9PinyinSnapshot.candidates.take(candidateLimit)
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
@@ -2195,6 +2210,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             hasPrevPage = t9PinyinSnapshot.hasPrevPage
         } else if (shuangpinSnapshot.isActive) {
             // Shuangpin mode
+            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(shuangpinSnapshot.candidates) else defaultCandidateLimit
             val rawCandidates = shuangpinSnapshot.candidates.take(candidateLimit)
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
@@ -2208,6 +2224,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             hasPrevPage = shuangpinSnapshot.hasPrevPage
         } else if (ziranmaSnapshot.isActive) {
             // Ziranma mode
+            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(ziranmaSnapshot.candidates) else defaultCandidateLimit
             val rawCandidates = ziranmaSnapshot.candidates.take(candidateLimit)
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
@@ -2221,6 +2238,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             hasPrevPage = ziranmaSnapshot.hasPrevPage
         } else if (wubiSnapshot.isActive) {
             // Wubi mode
+            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(wubiSnapshot.candidates) else defaultCandidateLimit
             val rawCandidates = wubiSnapshot.candidates.take(candidateLimit)
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
@@ -2234,6 +2252,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             hasPrevPage = wubiSnapshot.hasPrevPage
         } else if (zhenmaSnapshot.isActive) {
             // Zhenma mode
+            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(zhenmaSnapshot.candidates) else defaultCandidateLimit
             val rawCandidates = zhenmaSnapshot.candidates.take(candidateLimit)
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
