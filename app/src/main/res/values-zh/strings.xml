@@ -131,7 +131,7 @@
     <string name="hmm_model_large">大</string>
     <string name="hmm_model_small_detail">小 (1.9MB) - 加载最快</string>
     <string name="hmm_model_standard_detail">标准 (2.3MB) - 均衡</string>
-    <string name="hmm_model_large_detail">大 (3.2MB) - 最准确</string>
+    <string name="hmm_model_large_detail">大 (2.6MB) - 最准确</string>
 
     <string name="neural_pinyin_model_title">深度学习拼音模型</string>
     <string name="neural_pinyin_model_not_selected">未选择 zip 文件</string>

@@ -2274,10 +2274,10 @@ object SettingsManager {
 
     /**
      * Gets the minimum number of letters required to trigger neural pinyin.
-     * Default is 6 letters.
+     * Default is 8 letters.
      */
     fun getNeuralPinyinMinLetters(context: Context): Int {
-        return getPreferences(context).getInt(KEY_NEURAL_PINYIN_MIN_LETTERS, 6)
+        return getPreferences(context).getInt(KEY_NEURAL_PINYIN_MIN_LETTERS, 8)
     }
 
     /**

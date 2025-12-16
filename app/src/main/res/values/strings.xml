@@ -142,7 +142,7 @@
     <string name="hmm_model_large">Large</string>
     <string name="hmm_model_small_detail">Small (1.9MB) - Fastest loading</string>
     <string name="hmm_model_standard_detail">Standard (2.3MB) - Balanced</string>
-    <string name="hmm_model_large_detail">Large (3.2MB) - Most accurate</string>
+    <string name="hmm_model_large_detail">Large (2.6MB) - Most accurate</string>
 
     <string name="neural_pinyin_model_title">Deep Learning Pinyin Model</string>
     <string name="neural_pinyin_model_not_selected">No zip file selected</string>

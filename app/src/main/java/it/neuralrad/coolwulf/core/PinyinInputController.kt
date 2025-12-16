@@ -993,8 +993,26 @@ class PinyinInputController(
         val resultCandidates = mutableListOf<String>()
         val customPhraseSet = customPhrases.toSet()  // For quick lookup
 
-        // Add HMM pinyin suggestion as the first candidate (highest priority for long input)
+        // Check for dictionary exact phrase match FIRST (higher priority than HMM)
+        // Only for single-segment input where dictionary might have the exact phrase
+        val dictExactMatch = if (segments.size == 1) {
+            val exactPhrases = PinyinDictionary.getPhraseCandidates(bufferWithoutSep)
+            // Take the first (highest frequency) exact match from dictionary
+            exactPhrases.firstOrNull()
+        } else {
+            null
+        }
+
+        // Get HMM pinyin suggestion
         val neuralSuggestion = getHmmPinyinSuggestion(bufferWithoutSep)
+
+        // Add dictionary exact match first if available (higher priority)
+        if (dictExactMatch != null && dictExactMatch !in resultCandidates) {
+            resultCandidates.add(dictExactMatch)
+            Log.d(TAG, "Dictionary exact match (priority): '$dictExactMatch'")
+        }
+
+        // Add HMM suggestion second (only if different from dictionary match)
         if (neuralSuggestion != null && neuralSuggestion !in resultCandidates) {
             resultCandidates.add(neuralSuggestion)
             Log.d(TAG, "Neural pinyin suggestion: '$neuralSuggestion'")

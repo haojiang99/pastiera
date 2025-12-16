@@ -3340,19 +3340,33 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // In this case, use word prediction display logic instead of Chinese candidate logic
                         val chineseModeWithWordPredictions = isChineseInputActive && !hasChineseCandidates && hasWordPredictions
 
-                        // Get current candidate count - use word prediction count if in Chinese mode with word predictions
-                        val candidateCount = if (chineseModeWithWordPredictions) {
-                            englishWordPredictionController.getSnapshot().suggestions.size
+                        // Get current candidate count - use DISPLAYED count (after dynamic limit) not raw page count
+                        // This is critical for correct key mapping when candidates are reduced from 5 to 3
+                        val rawCandidates = if (chineseModeWithWordPredictions) {
+                            englishWordPredictionController.getSnapshot().suggestions
                         } else {
                             when {
-                                isPinyinMode -> pinyinInputController.getCurrentPageCandidates().size
-                                isT9PinyinMode -> t9PinyinInputController.getCurrentPageCandidates().size
-                                isShuangpinMode -> shuangpinInputController.getCurrentPageCandidates().size
-                                isWubiMode -> wubiInputController.getCurrentPageCandidates().size
-                                isZhenmaMode -> zhenmaInputController.getCurrentPageCandidates().size
-                                else -> 5
+                                isPinyinMode -> pinyinInputController.getCurrentPageCandidates()
+                                isT9PinyinMode -> t9PinyinInputController.getCurrentPageCandidates()
+                                isShuangpinMode -> shuangpinInputController.getCurrentPageCandidates()
+                                isWubiMode -> wubiInputController.getCurrentPageCandidates()
+                                isZhenmaMode -> zhenmaInputController.getCurrentPageCandidates()
+                                else -> emptyList()
                             }
                         }
+                        // Apply the same dynamic limit used in display (based on candidate length)
+                        // When candidates are long (multi-character phrases), reduce count to avoid cramming
+                        val displayedCandidateLimit = if (juyingModeEnabled && hasChineseCandidates && rawCandidates.isNotEmpty()) {
+                            val maxLen = rawCandidates.take(5).maxOfOrNull { it.length } ?: 1
+                            when {
+                                maxLen >= 10 -> 1  // Very long phrases (10+ chars): show only 1
+                                maxLen >= 6 -> 3   // Long phrases (6-9 chars): show 3
+                                else -> 5          // Short candidates (1-5 chars): show 5
+                            }
+                        } else {
+                            rawCandidates.size
+                        }
+                        val candidateCount = minOf(rawCandidates.size, displayedCandidateLimit)
 
                         // For Chinese input in Juying mode (with actual Chinese candidates), map key index to original candidate index
                         // Mapping depends on number of candidates:
