@@ -2222,8 +2222,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Helper to calculate dynamic candidate limit based on max candidate length in a list
         fun calculateLimitFromCandidates(candidates: List<String>): Int {
-            // If dynamic candidate count is disabled, always return 5
-            if (!isDynamicCandidateCount) return 5
+            // If dynamic candidate count is disabled, return 0 to signal fixed mode
+            if (!isDynamicCandidateCount) return 0
             if (candidates.isEmpty()) return 5
             val maxLen = candidates.maxOfOrNull { it.length } ?: 1
             return when {
@@ -2236,8 +2236,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Helper to calculate dynamic candidate limit for a specific page
         // This iterates through pages with variable page sizes to find the correct start index
         fun calculateJuyingCandidateLimit(allCandidates: List<String>, targetPage: Int): Int {
-            // If dynamic candidate count is disabled, always return 5
-            if (!isDynamicCandidateCount) return 5
+            // If dynamic candidate count is disabled, return 0 to signal fixed mode
+            // This prevents the controller from using dynamic page sizes
+            if (!isDynamicCandidateCount) return 0
             if (allCandidates.isEmpty()) return 5
 
             var startIndex = 0
