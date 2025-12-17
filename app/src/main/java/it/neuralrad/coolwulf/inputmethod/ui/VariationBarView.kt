@@ -418,8 +418,8 @@ class VariationBarView(
         val containerView = container ?: return
         val wrapperView = wrapper ?: return
 
-        // Refresh height in case setting changed
-        refreshHeight()
+        // Note: Don't call refreshHeight() here - it causes jumping during typing
+        // Height is managed by the stable height logic below based on content
 
         currentInputConnection = inputConnection
         wrapperView.visibility = View.VISIBLE
@@ -779,10 +779,6 @@ class VariationBarView(
             baseButtonHeight
         }
 
-        // Update wrapper height if needed for multi-line display
-        // Reuse statusBarHeightPx calculated earlier as the default wrapper height
-        val neededWrapperHeight = maxOf(statusBarHeightPx, buttonHeight + dp4ForCalc * 2)
-
         // Get current buffer length to detect when input is cleared
         val currentBufferLength = when {
             snapshot.pinyinModeActive -> snapshot.pinyinBuffer.length
@@ -794,29 +790,34 @@ class VariationBarView(
             else -> 0
         }
 
-        // Reset expanded height when buffer is cleared (user committed or deleted all input)
-        // or when switching out of Chinese input mode
+        // Check if Chinese input mode is active
         val isChineseInputActive = snapshot.pinyinModeActive || snapshot.t9PinyinModeActive ||
             snapshot.shuangpinModeActive || snapshot.ziranmaModeActive ||
             snapshot.wubiModeActive || snapshot.zhenmaModeActive
 
+        // Reset expanded height when buffer is cleared (user committed or deleted all input)
+        // or when switching out of Chinese input mode
         if (currentBufferLength == 0 || !isChineseInputActive) {
             // Reset to default height when buffer is empty or not in Chinese mode
-            currentExpandedHeight = statusBarHeightPx
-        } else if (currentBufferLength < lastBufferLength) {
-            // User deleted characters - allow height to decrease but not below needed height
-            currentExpandedHeight = maxOf(neededWrapperHeight, statusBarHeightPx)
+            currentExpandedHeight = baseButtonHeight
         }
         lastBufferLength = currentBufferLength
 
-        // Height can only increase while typing, never decrease (prevents jumping)
-        // Use the maximum of current expanded height and newly calculated needed height
-        val finalWrapperHeight = if (isChineseInputActive && currentBufferLength > 0) {
-            maxOf(currentExpandedHeight, neededWrapperHeight)
+        // Stable button height: only increases during typing session, never decreases
+        // This prevents the jumping behavior when suggestions change
+        val stableButtonHeight = if (isChineseInputActive && currentBufferLength > 0) {
+            // During active typing, height can only increase
+            val newHeight = maxOf(currentExpandedHeight, buttonHeight)
+            currentExpandedHeight = newHeight
+            newHeight
         } else {
-            neededWrapperHeight
+            // Not in Chinese mode or buffer empty - use calculated height directly
+            currentExpandedHeight = buttonHeight
+            buttonHeight
         }
-        currentExpandedHeight = finalWrapperHeight
+
+        // Update wrapper height based on stable button height
+        val finalWrapperHeight = maxOf(statusBarHeightPx, stableButtonHeight + dp4ForCalc * 2)
 
         wrapper?.let { w ->
             val currentParams = w.layoutParams as? LinearLayout.LayoutParams
@@ -832,9 +833,9 @@ class VariationBarView(
             currentVariationsRow!!.apply {
                 // Update layout params if size changed
                 val lp = layoutParams as? LinearLayout.LayoutParams
-                if (lp != null && (lp.width != variationsRowWidth || lp.height != buttonHeight)) {
+                if (lp != null && (lp.width != variationsRowWidth || lp.height != stableButtonHeight)) {
                     lp.width = variationsRowWidth
-                    lp.height = buttonHeight
+                    lp.height = stableButtonHeight
                     layoutParams = lp
                 }
             }
@@ -843,7 +844,7 @@ class VariationBarView(
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
                 setBackgroundColor(Color.TRANSPARENT)
-                layoutParams = LinearLayout.LayoutParams(variationsRowWidth, buttonHeight)
+                layoutParams = LinearLayout.LayoutParams(variationsRowWidth, stableButtonHeight)
                 clipChildren = false
                 clipToPadding = false
             }.also {
@@ -854,9 +855,9 @@ class VariationBarView(
 
         // Measure and layout the variationsRow
         val widthMeasureSpec = View.MeasureSpec.makeMeasureSpec(variationsRowWidth, View.MeasureSpec.EXACTLY)
-        val heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(buttonHeight, View.MeasureSpec.EXACTLY)
+        val heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(stableButtonHeight, View.MeasureSpec.EXACTLY)
         variationsRow.measure(widthMeasureSpec, heightMeasureSpec)
-        variationsRow.layout(0, 0, variationsRowWidth, buttonHeight)
+        variationsRow.layout(0, 0, variationsRowWidth, stableButtonHeight)
 
         lastDisplayedVariations = limitedVariations.toList()
 
@@ -871,10 +872,10 @@ class VariationBarView(
             if (variation.isEmpty()) {
                 // Create invisible placeholder to maintain spacing
                 val placeholder = View(context).apply {
-                    layoutParams = LinearLayout.LayoutParams(individualButtonWidth, buttonHeight)
+                    layoutParams = LinearLayout.LayoutParams(individualButtonWidth, stableButtonHeight)
                 }
                 variationsRow.addView(placeholder)
-                placeholder.layout(buttonX, 0, buttonX + individualButtonWidth, buttonHeight)
+                placeholder.layout(buttonX, 0, buttonX + individualButtonWidth, stableButtonHeight)
                 buttonX += individualButtonWidth + spacingBetweenButtons
                 continue
             }
@@ -912,7 +913,7 @@ class VariationBarView(
                 index == 0  // First candidate is always the best in non-Juying mode
             }
             val button = createVariationButton(
-                variation, inputConnection, individualButtonWidth, buttonHeight, showNumberedButtons, index + 1,
+                variation, inputConnection, individualButtonWidth, stableButtonHeight, showNumberedButtons, index + 1,
                 snapshot.wordPredictionActive, wordPredictionPrefixLength, snapshot.pinyinModeActive,
                 snapshot.shuangpinModeActive, snapshot.ziranmaModeActive, snapshot.wubiModeActive, snapshot.zhenmaModeActive, candidateIndex = index,
                 isJuyingMode = snapshot.isJuyingMode, isBestCandidate = isBestCandidate
@@ -922,9 +923,9 @@ class VariationBarView(
 
             // Force measure and layout the button
             val buttonWidthSpec = View.MeasureSpec.makeMeasureSpec(individualButtonWidth, View.MeasureSpec.EXACTLY)
-            val buttonHeightSpec = View.MeasureSpec.makeMeasureSpec(buttonHeight, View.MeasureSpec.EXACTLY)
+            val buttonHeightSpec = View.MeasureSpec.makeMeasureSpec(stableButtonHeight, View.MeasureSpec.EXACTLY)
             button.measure(buttonWidthSpec, buttonHeightSpec)
-            button.layout(buttonX, 0, buttonX + individualButtonWidth, buttonHeight)
+            button.layout(buttonX, 0, buttonX + individualButtonWidth, stableButtonHeight)
             buttonX += individualButtonWidth + spacingBetweenButtons
         }
 
