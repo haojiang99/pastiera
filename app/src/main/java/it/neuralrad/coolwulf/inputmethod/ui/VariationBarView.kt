@@ -961,8 +961,8 @@ class VariationBarView(
                 val prevArrow = prevArrowButton ?: createArrowButton(arrowButtonSize, isNext = false).also {
                     prevArrowButton = it
                 }
-                // Use buttonHeight to match suggestion button heights
-                val prevParams = LinearLayout.LayoutParams(arrowButtonSize, buttonHeight).apply {
+                // Use stableButtonHeight to match suggestion button heights
+                val prevParams = LinearLayout.LayoutParams(arrowButtonSize, stableButtonHeight).apply {
                     marginStart = TypedValue.applyDimension(
                         TypedValue.COMPLEX_UNIT_DIP,
                         2f,
@@ -988,8 +988,8 @@ class VariationBarView(
                 val nextArrow = nextArrowButton ?: createArrowButton(arrowButtonSize, isNext = true).also {
                     nextArrowButton = it
                 }
-                // Use buttonHeight to match suggestion button heights
-                val nextParams = LinearLayout.LayoutParams(arrowButtonSize, buttonHeight).apply {
+                // Use stableButtonHeight to match suggestion button heights
+                val nextParams = LinearLayout.LayoutParams(arrowButtonSize, stableButtonHeight).apply {
                     marginStart = TypedValue.applyDimension(
                         TypedValue.COMPLEX_UNIT_DIP,
                         4f,
@@ -2048,17 +2048,16 @@ class VariationBarView(
                 // Number of lines = ceil(textWidth / availableWidth)
                 val numLinesNeeded = kotlin.math.ceil(textWidthAtMinFont / availableTextWidth.toFloat()).toInt().coerceIn(1, 10)
 
-                // Adjust button height for multiple lines
-                val lineHeightPx = minFontSizePx * 1.3f  // Line height with some spacing
-                val adjustedButtonHeight = (lineHeightPx * numLinesNeeded + dp4 * 2).toInt().coerceAtLeast(buttonHeight)
-
-                layoutParams = LinearLayout.LayoutParams(buttonWidth, adjustedButtonHeight).apply {
+                // Always use the passed buttonHeight (which is stableButtonHeight) to prevent jumping
+                // The stable height is pre-calculated in showVariations() to accommodate all buttons
+                layoutParams = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
                     marginEnd = dp3
                 }
                 maxLines = numLinesNeeded
                 textSize = minReadableFontSizeSp
                 // No ellipsize - we want to show all text across multiple lines
             } else {
+                // Always use the passed buttonHeight (which is stableButtonHeight) to prevent jumping
                 layoutParams = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
                     marginEnd = dp3
                 }
