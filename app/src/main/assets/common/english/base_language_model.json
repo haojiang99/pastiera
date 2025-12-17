@@ -1,0 +1,1255 @@
+{
+  "__description": "Pre-trained English n-gram language model for next word prediction. Probabilities are normalized (0-1). Generated from common English text patterns.",
+  "unigrams": {
+    "time": 0.015,
+    "year": 0.012,
+    "people": 0.011,
+    "way": 0.010,
+    "day": 0.009,
+    "man": 0.008,
+    "thing": 0.008,
+    "woman": 0.007,
+    "life": 0.007,
+    "child": 0.006,
+    "world": 0.006,
+    "school": 0.006,
+    "state": 0.006,
+    "family": 0.005,
+    "student": 0.005,
+    "group": 0.005,
+    "country": 0.005,
+    "problem": 0.005,
+    "hand": 0.005,
+    "part": 0.005,
+    "place": 0.005,
+    "case": 0.004,
+    "week": 0.004,
+    "company": 0.004,
+    "system": 0.004,
+    "program": 0.004,
+    "question": 0.004,
+    "work": 0.004,
+    "government": 0.004,
+    "number": 0.004,
+    "night": 0.004,
+    "point": 0.004,
+    "home": 0.004,
+    "water": 0.003,
+    "room": 0.003,
+    "mother": 0.003,
+    "area": 0.003,
+    "money": 0.003,
+    "story": 0.003,
+    "fact": 0.003,
+    "month": 0.003,
+    "lot": 0.003,
+    "right": 0.003,
+    "study": 0.003,
+    "book": 0.003,
+    "eye": 0.003,
+    "job": 0.003,
+    "word": 0.003,
+    "business": 0.003,
+    "issue": 0.003,
+    "side": 0.003,
+    "kind": 0.003,
+    "head": 0.003,
+    "house": 0.003,
+    "service": 0.003,
+    "friend": 0.003,
+    "father": 0.003,
+    "power": 0.003,
+    "hour": 0.003,
+    "game": 0.003,
+    "line": 0.003,
+    "end": 0.003,
+    "member": 0.003,
+    "law": 0.003,
+    "car": 0.003,
+    "city": 0.003,
+    "community": 0.003,
+    "name": 0.003,
+    "president": 0.002,
+    "team": 0.002,
+    "minute": 0.002,
+    "idea": 0.002,
+    "kid": 0.002,
+    "body": 0.002,
+    "information": 0.002,
+    "back": 0.002,
+    "parent": 0.002,
+    "face": 0.002,
+    "others": 0.002,
+    "level": 0.002,
+    "office": 0.002,
+    "door": 0.002,
+    "health": 0.002,
+    "person": 0.002,
+    "art": 0.002,
+    "war": 0.002,
+    "history": 0.002,
+    "party": 0.002,
+    "result": 0.002,
+    "change": 0.002,
+    "morning": 0.002,
+    "reason": 0.002,
+    "research": 0.002,
+    "girl": 0.002,
+    "guy": 0.002,
+    "moment": 0.002,
+    "air": 0.002,
+    "teacher": 0.002,
+    "force": 0.002,
+    "education": 0.002,
+    "good": 0.008,
+    "new": 0.007,
+    "first": 0.006,
+    "last": 0.005,
+    "long": 0.005,
+    "great": 0.005,
+    "little": 0.004,
+    "own": 0.004,
+    "other": 0.004,
+    "old": 0.004,
+    "right": 0.004,
+    "big": 0.004,
+    "high": 0.004,
+    "different": 0.003,
+    "small": 0.003,
+    "large": 0.003,
+    "next": 0.003,
+    "early": 0.003,
+    "young": 0.003,
+    "important": 0.003,
+    "few": 0.003,
+    "public": 0.003,
+    "bad": 0.003,
+    "same": 0.003,
+    "able": 0.002,
+    "know": 0.012,
+    "think": 0.010,
+    "take": 0.008,
+    "come": 0.008,
+    "make": 0.008,
+    "want": 0.007,
+    "look": 0.006,
+    "use": 0.006,
+    "find": 0.005,
+    "give": 0.005,
+    "tell": 0.005,
+    "work": 0.005,
+    "call": 0.005,
+    "try": 0.005,
+    "ask": 0.004,
+    "need": 0.004,
+    "feel": 0.004,
+    "become": 0.004,
+    "leave": 0.004,
+    "put": 0.004,
+    "mean": 0.004,
+    "keep": 0.004,
+    "let": 0.004,
+    "begin": 0.003,
+    "seem": 0.003,
+    "help": 0.003,
+    "show": 0.003,
+    "hear": 0.003,
+    "play": 0.003,
+    "run": 0.003,
+    "move": 0.003,
+    "like": 0.003,
+    "live": 0.003,
+    "believe": 0.003,
+    "hold": 0.003,
+    "bring": 0.003,
+    "happen": 0.003,
+    "write": 0.003,
+    "provide": 0.003,
+    "sit": 0.003,
+    "stand": 0.003,
+    "lose": 0.003,
+    "pay": 0.003,
+    "meet": 0.003,
+    "include": 0.003,
+    "continue": 0.002,
+    "set": 0.002,
+    "learn": 0.002,
+    "change": 0.002,
+    "lead": 0.002,
+    "understand": 0.002,
+    "watch": 0.002,
+    "follow": 0.002,
+    "stop": 0.002,
+    "create": 0.002,
+    "speak": 0.002,
+    "read": 0.002,
+    "allow": 0.002,
+    "add": 0.002,
+    "spend": 0.002,
+    "grow": 0.002,
+    "open": 0.002,
+    "walk": 0.002,
+    "win": 0.002,
+    "offer": 0.002,
+    "remember": 0.002,
+    "love": 0.002,
+    "consider": 0.002,
+    "appear": 0.002,
+    "buy": 0.002,
+    "wait": 0.002,
+    "serve": 0.002,
+    "die": 0.002,
+    "send": 0.002,
+    "expect": 0.002,
+    "build": 0.002,
+    "stay": 0.002,
+    "fall": 0.002,
+    "cut": 0.002,
+    "reach": 0.002,
+    "kill": 0.002,
+    "remain": 0.002,
+    "today": 0.004,
+    "tomorrow": 0.003,
+    "yesterday": 0.002,
+    "now": 0.006,
+    "here": 0.005,
+    "there": 0.005,
+    "always": 0.004,
+    "never": 0.004,
+    "still": 0.004,
+    "even": 0.004,
+    "also": 0.004,
+    "just": 0.006,
+    "only": 0.005,
+    "really": 0.004,
+    "very": 0.004,
+    "well": 0.004,
+    "back": 0.004,
+    "much": 0.004,
+    "more": 0.005,
+    "most": 0.004,
+    "ago": 0.003,
+    "already": 0.003,
+    "yet": 0.003,
+    "soon": 0.003,
+    "later": 0.003,
+    "together": 0.003,
+    "however": 0.003,
+    "please": 0.003,
+    "thanks": 0.003,
+    "sorry": 0.003,
+    "sure": 0.003,
+    "okay": 0.003,
+    "hello": 0.002,
+    "goodbye": 0.002,
+    "yes": 0.003,
+    "no": 0.004,
+    "maybe": 0.002,
+    "probably": 0.002,
+    "actually": 0.003,
+    "definitely": 0.002,
+    "absolutely": 0.002,
+    "exactly": 0.002,
+    "especially": 0.002,
+    "finally": 0.002,
+    "perhaps": 0.002,
+    "certainly": 0.002
+  },
+  "bigrams": {
+    "i": {
+      "think": 0.15,
+      "know": 0.12,
+      "want": 0.10,
+      "have": 0.08,
+      "am": 0.08,
+      "would": 0.07,
+      "can": 0.06,
+      "will": 0.05,
+      "need": 0.05,
+      "love": 0.04,
+      "like": 0.04,
+      "believe": 0.03,
+      "hope": 0.03,
+      "feel": 0.03,
+      "see": 0.02,
+      "understand": 0.02,
+      "mean": 0.02
+    },
+    "you": {
+      "can": 0.12,
+      "know": 0.10,
+      "have": 0.09,
+      "want": 0.08,
+      "are": 0.08,
+      "will": 0.06,
+      "need": 0.05,
+      "think": 0.05,
+      "should": 0.05,
+      "could": 0.04,
+      "like": 0.04,
+      "see": 0.03,
+      "get": 0.03,
+      "would": 0.03
+    },
+    "we": {
+      "have": 0.15,
+      "are": 0.12,
+      "can": 0.10,
+      "will": 0.08,
+      "need": 0.07,
+      "should": 0.06,
+      "would": 0.05,
+      "were": 0.05,
+      "want": 0.04,
+      "could": 0.04,
+      "must": 0.03
+    },
+    "it": {
+      "is": 0.25,
+      "was": 0.15,
+      "would": 0.08,
+      "will": 0.07,
+      "can": 0.06,
+      "has": 0.05,
+      "could": 0.04,
+      "should": 0.03,
+      "seems": 0.03,
+      "looks": 0.02
+    },
+    "this": {
+      "is": 0.30,
+      "was": 0.12,
+      "will": 0.08,
+      "would": 0.06,
+      "year": 0.05,
+      "week": 0.04,
+      "time": 0.04,
+      "morning": 0.03,
+      "one": 0.03
+    },
+    "that": {
+      "is": 0.20,
+      "was": 0.12,
+      "would": 0.08,
+      "will": 0.06,
+      "he": 0.05,
+      "she": 0.04,
+      "they": 0.04,
+      "you": 0.04,
+      "it": 0.04
+    },
+    "what": {
+      "is": 0.20,
+      "do": 0.15,
+      "are": 0.10,
+      "was": 0.08,
+      "did": 0.06,
+      "happened": 0.05,
+      "about": 0.04,
+      "kind": 0.03
+    },
+    "how": {
+      "are": 0.20,
+      "do": 0.15,
+      "is": 0.12,
+      "did": 0.08,
+      "can": 0.07,
+      "much": 0.06,
+      "many": 0.05,
+      "long": 0.04,
+      "about": 0.03
+    },
+    "when": {
+      "i": 0.15,
+      "you": 0.12,
+      "we": 0.08,
+      "they": 0.07,
+      "he": 0.06,
+      "she": 0.05,
+      "it": 0.05,
+      "will": 0.04
+    },
+    "where": {
+      "is": 0.20,
+      "are": 0.15,
+      "do": 0.10,
+      "did": 0.08,
+      "can": 0.06,
+      "i": 0.05,
+      "you": 0.05,
+      "we": 0.04
+    },
+    "who": {
+      "is": 0.20,
+      "are": 0.12,
+      "was": 0.10,
+      "will": 0.06,
+      "would": 0.05,
+      "can": 0.05,
+      "has": 0.04
+    },
+    "why": {
+      "do": 0.18,
+      "is": 0.15,
+      "are": 0.12,
+      "did": 0.10,
+      "would": 0.08,
+      "not": 0.06
+    },
+    "there": {
+      "is": 0.25,
+      "are": 0.20,
+      "was": 0.12,
+      "were": 0.10,
+      "will": 0.05
+    },
+    "have": {
+      "been": 0.15,
+      "to": 0.12,
+      "a": 0.10,
+      "no": 0.05,
+      "the": 0.05,
+      "any": 0.04,
+      "some": 0.04,
+      "never": 0.03
+    },
+    "has": {
+      "been": 0.25,
+      "to": 0.10,
+      "a": 0.08,
+      "no": 0.05,
+      "the": 0.05,
+      "not": 0.04
+    },
+    "had": {
+      "been": 0.18,
+      "to": 0.12,
+      "a": 0.10,
+      "no": 0.05,
+      "the": 0.05,
+      "never": 0.04
+    },
+    "will": {
+      "be": 0.25,
+      "have": 0.10,
+      "not": 0.08,
+      "take": 0.05,
+      "get": 0.04,
+      "make": 0.04,
+      "never": 0.03
+    },
+    "would": {
+      "be": 0.20,
+      "like": 0.15,
+      "have": 0.10,
+      "not": 0.08,
+      "you": 0.05,
+      "love": 0.04,
+      "rather": 0.03
+    },
+    "could": {
+      "be": 0.18,
+      "have": 0.12,
+      "not": 0.10,
+      "you": 0.06,
+      "see": 0.04,
+      "get": 0.04
+    },
+    "should": {
+      "be": 0.20,
+      "have": 0.12,
+      "not": 0.10,
+      "i": 0.05,
+      "we": 0.05,
+      "you": 0.05
+    },
+    "can": {
+      "be": 0.15,
+      "you": 0.12,
+      "i": 0.10,
+      "we": 0.08,
+      "not": 0.06,
+      "help": 0.05,
+      "see": 0.04,
+      "get": 0.04
+    },
+    "do": {
+      "you": 0.20,
+      "not": 0.15,
+      "it": 0.10,
+      "that": 0.06,
+      "this": 0.05,
+      "we": 0.04
+    },
+    "does": {
+      "not": 0.20,
+      "it": 0.12,
+      "that": 0.08,
+      "this": 0.06,
+      "he": 0.05
+    },
+    "did": {
+      "not": 0.20,
+      "you": 0.15,
+      "he": 0.08,
+      "she": 0.07,
+      "it": 0.06,
+      "they": 0.05
+    },
+    "is": {
+      "a": 0.12,
+      "the": 0.10,
+      "not": 0.08,
+      "it": 0.06,
+      "that": 0.05,
+      "this": 0.04,
+      "there": 0.04,
+      "very": 0.03,
+      "going": 0.03
+    },
+    "are": {
+      "you": 0.12,
+      "not": 0.08,
+      "the": 0.06,
+      "there": 0.05,
+      "we": 0.05,
+      "they": 0.04,
+      "going": 0.03,
+      "some": 0.03
+    },
+    "was": {
+      "a": 0.12,
+      "the": 0.10,
+      "not": 0.08,
+      "it": 0.06,
+      "going": 0.04,
+      "there": 0.04,
+      "very": 0.03
+    },
+    "were": {
+      "not": 0.10,
+      "the": 0.08,
+      "there": 0.06,
+      "going": 0.05,
+      "you": 0.05,
+      "they": 0.04
+    },
+    "been": {
+      "a": 0.12,
+      "to": 0.10,
+      "there": 0.08,
+      "doing": 0.05,
+      "working": 0.04,
+      "able": 0.04
+    },
+    "going": {
+      "to": 0.50,
+      "on": 0.10,
+      "well": 0.05,
+      "home": 0.04,
+      "back": 0.04
+    },
+    "want": {
+      "to": 0.60,
+      "you": 0.08,
+      "it": 0.05,
+      "that": 0.04
+    },
+    "need": {
+      "to": 0.55,
+      "a": 0.10,
+      "help": 0.05,
+      "more": 0.04,
+      "some": 0.03
+    },
+    "like": {
+      "to": 0.30,
+      "a": 0.12,
+      "that": 0.10,
+      "this": 0.08,
+      "it": 0.06
+    },
+    "think": {
+      "that": 0.20,
+      "about": 0.15,
+      "of": 0.10,
+      "so": 0.08,
+      "it": 0.06,
+      "you": 0.05
+    },
+    "know": {
+      "that": 0.18,
+      "what": 0.15,
+      "how": 0.12,
+      "if": 0.08,
+      "about": 0.06
+    },
+    "see": {
+      "you": 0.15,
+      "if": 0.12,
+      "what": 0.10,
+      "that": 0.08,
+      "the": 0.06
+    },
+    "get": {
+      "a": 0.12,
+      "the": 0.10,
+      "to": 0.08,
+      "it": 0.06,
+      "out": 0.05,
+      "back": 0.04
+    },
+    "make": {
+      "a": 0.15,
+      "it": 0.12,
+      "sure": 0.10,
+      "the": 0.08,
+      "up": 0.04
+    },
+    "take": {
+      "a": 0.15,
+      "care": 0.12,
+      "the": 0.10,
+      "it": 0.06,
+      "time": 0.05
+    },
+    "come": {
+      "back": 0.15,
+      "to": 0.12,
+      "in": 0.10,
+      "on": 0.08,
+      "here": 0.06
+    },
+    "go": {
+      "to": 0.25,
+      "back": 0.10,
+      "out": 0.08,
+      "home": 0.06,
+      "on": 0.05
+    },
+    "look": {
+      "at": 0.25,
+      "like": 0.15,
+      "for": 0.12,
+      "forward": 0.08,
+      "good": 0.05
+    },
+    "thank": {
+      "you": 0.70,
+      "god": 0.08,
+      "goodness": 0.04
+    },
+    "very": {
+      "much": 0.20,
+      "good": 0.12,
+      "well": 0.10,
+      "important": 0.06,
+      "happy": 0.05
+    },
+    "too": {
+      "much": 0.20,
+      "many": 0.12,
+      "late": 0.08,
+      "bad": 0.06,
+      "long": 0.05
+    },
+    "so": {
+      "much": 0.15,
+      "many": 0.08,
+      "that": 0.08,
+      "i": 0.06,
+      "far": 0.05
+    },
+    "as": {
+      "a": 0.15,
+      "well": 0.12,
+      "much": 0.08,
+      "soon": 0.06,
+      "long": 0.05
+    },
+    "one": {
+      "of": 0.25,
+      "day": 0.08,
+      "more": 0.06,
+      "thing": 0.05
+    },
+    "all": {
+      "the": 0.25,
+      "of": 0.12,
+      "right": 0.08,
+      "day": 0.05
+    },
+    "at": {
+      "the": 0.20,
+      "all": 0.10,
+      "least": 0.08,
+      "home": 0.06
+    },
+    "for": {
+      "the": 0.15,
+      "a": 0.12,
+      "you": 0.08,
+      "me": 0.06
+    },
+    "with": {
+      "the": 0.15,
+      "a": 0.12,
+      "you": 0.08,
+      "me": 0.06
+    },
+    "on": {
+      "the": 0.20,
+      "a": 0.08,
+      "my": 0.05,
+      "time": 0.04
+    },
+    "not": {
+      "only": 0.12,
+      "be": 0.10,
+      "have": 0.08,
+      "want": 0.06,
+      "sure": 0.05
+    },
+    "more": {
+      "than": 0.30,
+      "about": 0.08,
+      "information": 0.05,
+      "time": 0.04
+    },
+    "no": {
+      "one": 0.15,
+      "matter": 0.10,
+      "problem": 0.08,
+      "more": 0.06,
+      "way": 0.05
+    },
+    "just": {
+      "a": 0.12,
+      "like": 0.10,
+      "to": 0.08,
+      "want": 0.06,
+      "one": 0.05
+    },
+    "now": {
+      "i": 0.10,
+      "that": 0.08,
+      "we": 0.06,
+      "you": 0.05
+    },
+    "only": {
+      "one": 0.15,
+      "a": 0.10,
+      "the": 0.08,
+      "way": 0.05
+    },
+    "new": {
+      "york": 0.12,
+      "year": 0.10,
+      "one": 0.06,
+      "way": 0.05
+    },
+    "first": {
+      "time": 0.15,
+      "place": 0.08,
+      "thing": 0.06,
+      "one": 0.05
+    },
+    "last": {
+      "year": 0.15,
+      "time": 0.12,
+      "night": 0.10,
+      "week": 0.08
+    },
+    "next": {
+      "time": 0.15,
+      "year": 0.12,
+      "week": 0.10,
+      "day": 0.08
+    },
+    "good": {
+      "morning": 0.15,
+      "luck": 0.12,
+      "news": 0.08,
+      "idea": 0.06,
+      "night": 0.05
+    },
+    "great": {
+      "deal": 0.12,
+      "job": 0.10,
+      "work": 0.08,
+      "time": 0.06
+    },
+    "right": {
+      "now": 0.20,
+      "here": 0.10,
+      "thing": 0.06,
+      "way": 0.05
+    },
+    "long": {
+      "time": 0.25,
+      "way": 0.10,
+      "ago": 0.08
+    },
+    "each": {
+      "other": 0.35,
+      "day": 0.10,
+      "year": 0.08
+    }
+  },
+  "trigrams": {
+    "i|want": {
+      "to": 0.70,
+      "you": 0.08,
+      "it": 0.05
+    },
+    "i|need": {
+      "to": 0.65,
+      "a": 0.10,
+      "help": 0.05
+    },
+    "i|would": {
+      "like": 0.40,
+      "be": 0.12,
+      "have": 0.10,
+      "love": 0.08
+    },
+    "i|have": {
+      "to": 0.25,
+      "been": 0.15,
+      "a": 0.12,
+      "no": 0.06,
+      "never": 0.05
+    },
+    "i|think": {
+      "that": 0.25,
+      "it": 0.15,
+      "we": 0.10,
+      "so": 0.08,
+      "you": 0.06
+    },
+    "i|know": {
+      "that": 0.20,
+      "what": 0.15,
+      "how": 0.12,
+      "you": 0.08
+    },
+    "i|am": {
+      "going": 0.15,
+      "not": 0.12,
+      "a": 0.10,
+      "so": 0.08,
+      "sorry": 0.06,
+      "sure": 0.05
+    },
+    "i|will": {
+      "be": 0.25,
+      "have": 0.10,
+      "not": 0.08,
+      "take": 0.05,
+      "get": 0.04
+    },
+    "i|can": {
+      "not": 0.15,
+      "see": 0.10,
+      "help": 0.08,
+      "do": 0.07,
+      "get": 0.05
+    },
+    "i|don't": {
+      "know": 0.25,
+      "think": 0.20,
+      "want": 0.12,
+      "have": 0.08,
+      "understand": 0.06
+    },
+    "you|want": {
+      "to": 0.65,
+      "me": 0.10,
+      "it": 0.05
+    },
+    "you|need": {
+      "to": 0.60,
+      "a": 0.10,
+      "help": 0.05
+    },
+    "you|have": {
+      "to": 0.25,
+      "a": 0.15,
+      "been": 0.10,
+      "any": 0.06,
+      "no": 0.05
+    },
+    "you|can": {
+      "see": 0.12,
+      "do": 0.10,
+      "get": 0.08,
+      "find": 0.06,
+      "use": 0.05
+    },
+    "you|are": {
+      "going": 0.15,
+      "not": 0.10,
+      "right": 0.08,
+      "welcome": 0.06,
+      "a": 0.05
+    },
+    "we|have": {
+      "to": 0.25,
+      "been": 0.15,
+      "a": 0.12,
+      "no": 0.05
+    },
+    "we|are": {
+      "going": 0.18,
+      "not": 0.10,
+      "here": 0.06,
+      "all": 0.05
+    },
+    "we|need": {
+      "to": 0.55,
+      "a": 0.12,
+      "more": 0.06
+    },
+    "we|will": {
+      "be": 0.25,
+      "have": 0.12,
+      "see": 0.08,
+      "not": 0.06
+    },
+    "it|is": {
+      "a": 0.18,
+      "not": 0.12,
+      "the": 0.10,
+      "going": 0.08,
+      "very": 0.06
+    },
+    "it|was": {
+      "a": 0.18,
+      "not": 0.10,
+      "the": 0.08,
+      "very": 0.06
+    },
+    "it|will": {
+      "be": 0.35,
+      "take": 0.10,
+      "not": 0.08
+    },
+    "it|would": {
+      "be": 0.40,
+      "have": 0.10,
+      "not": 0.08
+    },
+    "there|is": {
+      "a": 0.25,
+      "no": 0.15,
+      "nothing": 0.08,
+      "something": 0.06
+    },
+    "there|are": {
+      "many": 0.15,
+      "some": 0.12,
+      "no": 0.10,
+      "a": 0.08
+    },
+    "this|is": {
+      "a": 0.20,
+      "the": 0.15,
+      "not": 0.08,
+      "my": 0.06
+    },
+    "that|is": {
+      "a": 0.15,
+      "the": 0.12,
+      "not": 0.10,
+      "why": 0.08
+    },
+    "what|is": {
+      "the": 0.18,
+      "your": 0.12,
+      "it": 0.10,
+      "going": 0.06
+    },
+    "what|do": {
+      "you": 0.50,
+      "we": 0.15,
+      "i": 0.10
+    },
+    "what|are": {
+      "you": 0.40,
+      "we": 0.12,
+      "the": 0.08
+    },
+    "how|do": {
+      "you": 0.45,
+      "we": 0.15,
+      "i": 0.12
+    },
+    "how|are": {
+      "you": 0.50,
+      "we": 0.10,
+      "things": 0.06
+    },
+    "how|is": {
+      "it": 0.20,
+      "the": 0.15,
+      "that": 0.10
+    },
+    "how|can": {
+      "i": 0.30,
+      "we": 0.20,
+      "you": 0.15
+    },
+    "how|much": {
+      "does": 0.20,
+      "is": 0.15,
+      "do": 0.12
+    },
+    "how|many": {
+      "times": 0.15,
+      "people": 0.12,
+      "years": 0.10
+    },
+    "do|you": {
+      "want": 0.15,
+      "have": 0.12,
+      "think": 0.10,
+      "know": 0.10,
+      "need": 0.08,
+      "like": 0.06
+    },
+    "don't|you": {
+      "think": 0.25,
+      "know": 0.15,
+      "want": 0.10,
+      "have": 0.08
+    },
+    "going|to": {
+      "be": 0.25,
+      "have": 0.10,
+      "do": 0.08,
+      "get": 0.06,
+      "make": 0.05
+    },
+    "want|to": {
+      "be": 0.15,
+      "go": 0.10,
+      "know": 0.08,
+      "see": 0.08,
+      "get": 0.06,
+      "make": 0.05
+    },
+    "need|to": {
+      "be": 0.15,
+      "get": 0.10,
+      "know": 0.08,
+      "do": 0.08,
+      "find": 0.06
+    },
+    "have|to": {
+      "be": 0.15,
+      "do": 0.12,
+      "go": 0.10,
+      "get": 0.08,
+      "say": 0.05
+    },
+    "like|to": {
+      "be": 0.12,
+      "know": 0.10,
+      "see": 0.08,
+      "go": 0.08,
+      "thank": 0.06
+    },
+    "able|to": {
+      "do": 0.15,
+      "get": 0.12,
+      "see": 0.10,
+      "find": 0.08,
+      "make": 0.06
+    },
+    "would|like": {
+      "to": 0.60,
+      "a": 0.10
+    },
+    "would|be": {
+      "a": 0.15,
+      "great": 0.10,
+      "nice": 0.08,
+      "good": 0.08
+    },
+    "could|be": {
+      "a": 0.15,
+      "the": 0.10,
+      "done": 0.06
+    },
+    "should|be": {
+      "a": 0.12,
+      "able": 0.10,
+      "done": 0.08
+    },
+    "will|be": {
+      "a": 0.12,
+      "the": 0.10,
+      "able": 0.08,
+      "there": 0.06
+    },
+    "has|been": {
+      "a": 0.18,
+      "doing": 0.08,
+      "working": 0.06
+    },
+    "have|been": {
+      "a": 0.12,
+      "doing": 0.10,
+      "working": 0.08,
+      "able": 0.06,
+      "there": 0.05
+    },
+    "had|been": {
+      "a": 0.15,
+      "doing": 0.08,
+      "there": 0.06
+    },
+    "is|a": {
+      "good": 0.12,
+      "great": 0.10,
+      "lot": 0.08,
+      "very": 0.06
+    },
+    "is|the": {
+      "best": 0.12,
+      "most": 0.10,
+      "first": 0.08,
+      "only": 0.06
+    },
+    "was|a": {
+      "good": 0.10,
+      "great": 0.08,
+      "lot": 0.06
+    },
+    "for|a": {
+      "long": 0.15,
+      "while": 0.10,
+      "moment": 0.08,
+      "few": 0.06
+    },
+    "in|the": {
+      "world": 0.08,
+      "morning": 0.06,
+      "future": 0.05,
+      "past": 0.05
+    },
+    "at|the": {
+      "same": 0.15,
+      "end": 0.10,
+      "time": 0.08,
+      "moment": 0.06
+    },
+    "on|the": {
+      "other": 0.15,
+      "way": 0.08,
+      "same": 0.06
+    },
+    "one|of": {
+      "the": 0.50,
+      "those": 0.10,
+      "my": 0.08
+    },
+    "all|of": {
+      "the": 0.30,
+      "us": 0.12,
+      "them": 0.10,
+      "you": 0.08
+    },
+    "some|of": {
+      "the": 0.35,
+      "them": 0.12,
+      "us": 0.08
+    },
+    "most|of": {
+      "the": 0.40,
+      "them": 0.12,
+      "us": 0.08
+    },
+    "each|other": {
+      "and": 0.15,
+      "for": 0.10,
+      "in": 0.08
+    },
+    "thank|you": {
+      "for": 0.35,
+      "so": 0.20,
+      "very": 0.15
+    },
+    "as|well": {
+      "as": 0.40
+    },
+    "as|soon": {
+      "as": 0.50,
+      "possible": 0.15
+    },
+    "as|long": {
+      "as": 0.50
+    },
+    "as|much": {
+      "as": 0.40
+    },
+    "more|than": {
+      "one": 0.12,
+      "a": 0.10,
+      "ever": 0.08
+    },
+    "a|lot": {
+      "of": 0.60,
+      "more": 0.10
+    },
+    "a|few": {
+      "days": 0.15,
+      "years": 0.12,
+      "minutes": 0.10,
+      "weeks": 0.08
+    },
+    "a|little": {
+      "bit": 0.25,
+      "more": 0.15
+    },
+    "a|long": {
+      "time": 0.40,
+      "way": 0.15
+    },
+    "the|same": {
+      "time": 0.25,
+      "thing": 0.15,
+      "way": 0.12
+    },
+    "the|other": {
+      "hand": 0.20,
+      "side": 0.15,
+      "day": 0.10
+    },
+    "the|first": {
+      "time": 0.25,
+      "place": 0.10,
+      "thing": 0.08
+    },
+    "the|last": {
+      "time": 0.20,
+      "thing": 0.10,
+      "few": 0.08
+    },
+    "the|next": {
+      "time": 0.15,
+      "day": 0.12,
+      "step": 0.08
+    },
+    "good|morning": {
+      "everyone": 0.15,
+      "and": 0.10
+    },
+    "look|forward": {
+      "to": 0.70
+    },
+    "take|care": {
+      "of": 0.50
+    }
+  }
+}
