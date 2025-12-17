@@ -2150,16 +2150,39 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // In Juying mode, limit candidates based on suggestion length
         val isJuyingMode = SettingsManager.getJuyingModeEnabled(this)
 
-        // Helper to calculate dynamic candidate limit based on max candidate length
-        // When candidates are long (multi-character phrases), reduce count to avoid cramming
-        fun calculateJuyingCandidateLimit(candidates: List<String>): Int {
+        // Helper to calculate dynamic candidate limit based on max candidate length in a list
+        fun calculateLimitFromCandidates(candidates: List<String>): Int {
             if (candidates.isEmpty()) return 5
-            val maxLen = candidates.take(5).maxOfOrNull { it.length } ?: 1
+            val maxLen = candidates.maxOfOrNull { it.length } ?: 1
             return when {
                 maxLen >= 10 -> 1  // Very long phrases (10+ chars): show only 1
                 maxLen >= 6 -> 3   // Long phrases (6-9 chars): show 3
                 else -> 5          // Short candidates (1-5 chars): show 5
             }
+        }
+
+        // Helper to calculate dynamic candidate limit for a specific page
+        // This iterates through pages with variable page sizes to find the correct start index
+        fun calculateJuyingCandidateLimit(allCandidates: List<String>, targetPage: Int): Int {
+            if (allCandidates.isEmpty()) return 5
+
+            var startIndex = 0
+            for (page in 0..targetPage) {
+                // Get candidates for this page
+                val pageEndIndex = minOf(startIndex + 5, allCandidates.size)  // Max 5 candidates to consider
+                if (startIndex >= allCandidates.size) return 5
+
+                val pageCandidates = allCandidates.subList(startIndex, pageEndIndex)
+                val pageLimit = calculateLimitFromCandidates(pageCandidates)
+
+                if (page == targetPage) {
+                    return pageLimit
+                }
+
+                // Move to next page - advance by the ACTUAL page limit (not 5)
+                startIndex += pageLimit
+            }
+            return 5
         }
 
         val defaultCandidateLimit = if (isJuyingMode) 5 else 9
@@ -2186,130 +2209,126 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         if (pinyinSnapshot.isActive) {
             // Pinyin mode takes priority
-            // In Juying mode, dynamically adjust page size based on candidate length
-            var effectiveSnapshot = pinyinSnapshot
+            // Calculate dynamic limit based on candidate lengths and set on controller for proper pagination
+            // Use getAllCandidates() and current page to calculate limit based on what WOULD be shown with max page size
+            val allCandidates = pinyinInputController.getAllCandidates()
+            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(allCandidates, pinyinSnapshot.currentPage) else defaultCandidateLimit
             if (isJuyingMode) {
-                val candidateLimit = calculateJuyingCandidateLimit(pinyinSnapshot.candidates)
-                // Update controller's page size and get fresh snapshot if limit changed
-                pinyinInputController.updateJuyingPageSize(candidateLimit)
-                effectiveSnapshot = pinyinInputController.getSnapshot()
+                pinyinInputController.setDynamicDisplayLimit(candidateLimit)
             }
-            val rawCandidates = effectiveSnapshot.candidates
+            // Get fresh snapshot with updated pagination
+            val updatedSnapshot = pinyinInputController.getSnapshot()
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
-                lastInsertedChar = if (effectiveSnapshot.buffer.isNotEmpty()) effectiveSnapshot.buffer.last() else null,
-                variations = reorderForJuyingDisplay(rawCandidates)
+                lastInsertedChar = if (updatedSnapshot.buffer.isNotEmpty()) updatedSnapshot.buffer.last() else null,
+                variations = reorderForJuyingDisplay(updatedSnapshot.candidates)
             )
             // Pagination info from Pinyin
-            currentPage = effectiveSnapshot.currentPage
-            totalPages = effectiveSnapshot.totalPages
-            hasNextPage = effectiveSnapshot.hasNextPage
-            hasPrevPage = effectiveSnapshot.hasPrevPage
+            currentPage = updatedSnapshot.currentPage
+            totalPages = updatedSnapshot.totalPages
+            hasNextPage = updatedSnapshot.hasNextPage
+            hasPrevPage = updatedSnapshot.hasPrevPage
         } else if (t9PinyinSnapshot.isActive) {
             // T9 Pinyin mode
-            // In Juying mode, dynamically adjust page size based on candidate length
-            var effectiveT9Snapshot = t9PinyinSnapshot
+            // Calculate dynamic limit based on candidate lengths and set on controller for proper pagination
+            val allCandidates = t9PinyinInputController.getAllCandidates()
+            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(allCandidates, t9PinyinSnapshot.currentPage) else defaultCandidateLimit
             if (isJuyingMode) {
-                val candidateLimit = calculateJuyingCandidateLimit(t9PinyinSnapshot.candidates)
-                // Update controller's page size and get fresh snapshot if limit changed
-                t9PinyinInputController.updateJuyingPageSize(candidateLimit)
-                effectiveT9Snapshot = t9PinyinInputController.getSnapshot()
+                t9PinyinInputController.setJuyingModeEnabled(true)
+                t9PinyinInputController.setDynamicDisplayLimit(candidateLimit)
             }
-            val rawCandidates = effectiveT9Snapshot.candidates
+            // Get fresh snapshot with updated pagination
+            val updatedSnapshot = t9PinyinInputController.getSnapshot()
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
-                lastInsertedChar = if (effectiveT9Snapshot.buffer.isNotEmpty()) effectiveT9Snapshot.buffer.last() else null,
-                variations = reorderForJuyingDisplay(rawCandidates)
+                lastInsertedChar = if (updatedSnapshot.buffer.isNotEmpty()) updatedSnapshot.buffer.last() else null,
+                variations = reorderForJuyingDisplay(updatedSnapshot.candidates)
             )
             // Pagination info from T9 Pinyin
-            currentPage = effectiveT9Snapshot.currentPage
-            totalPages = effectiveT9Snapshot.totalPages
-            hasNextPage = effectiveT9Snapshot.hasNextPage
-            hasPrevPage = effectiveT9Snapshot.hasPrevPage
+            currentPage = updatedSnapshot.currentPage
+            totalPages = updatedSnapshot.totalPages
+            hasNextPage = updatedSnapshot.hasNextPage
+            hasPrevPage = updatedSnapshot.hasPrevPage
         } else if (shuangpinSnapshot.isActive) {
             // Shuangpin mode
-            // In Juying mode, dynamically adjust page size based on candidate length
-            var effectiveShuangpinSnapshot = shuangpinSnapshot
+            // Calculate dynamic limit based on candidate lengths and set on controller for proper pagination
+            val allCandidates = shuangpinInputController.getAllCandidates()
+            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(allCandidates, shuangpinSnapshot.currentPage) else defaultCandidateLimit
             if (isJuyingMode) {
-                val candidateLimit = calculateJuyingCandidateLimit(shuangpinSnapshot.candidates)
-                // Update controller's page size and get fresh snapshot if limit changed
-                shuangpinInputController.updateJuyingPageSize(candidateLimit)
-                effectiveShuangpinSnapshot = shuangpinInputController.getSnapshot()
+                shuangpinInputController.setDynamicDisplayLimit(candidateLimit)
             }
-            val rawCandidates = effectiveShuangpinSnapshot.candidates
+            // Get fresh snapshot with updated pagination
+            val updatedSnapshot = shuangpinInputController.getSnapshot()
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
-                lastInsertedChar = if (effectiveShuangpinSnapshot.buffer.isNotEmpty()) effectiveShuangpinSnapshot.buffer.last() else null,
-                variations = reorderForJuyingDisplay(rawCandidates)
+                lastInsertedChar = if (updatedSnapshot.buffer.isNotEmpty()) updatedSnapshot.buffer.last() else null,
+                variations = reorderForJuyingDisplay(updatedSnapshot.candidates)
             )
             // Pagination info from Shuangpin
-            currentPage = effectiveShuangpinSnapshot.currentPage
-            totalPages = effectiveShuangpinSnapshot.totalPages
-            hasNextPage = effectiveShuangpinSnapshot.hasNextPage
-            hasPrevPage = effectiveShuangpinSnapshot.hasPrevPage
+            currentPage = updatedSnapshot.currentPage
+            totalPages = updatedSnapshot.totalPages
+            hasNextPage = updatedSnapshot.hasNextPage
+            hasPrevPage = updatedSnapshot.hasPrevPage
         } else if (ziranmaSnapshot.isActive) {
             // Ziranma mode
-            // In Juying mode, dynamically adjust page size based on candidate length
-            var effectiveZiranmaSnapshot = ziranmaSnapshot
+            // Calculate dynamic limit based on candidate lengths and set on controller for proper pagination
+            val allCandidates = ziranmaInputController.getAllCandidates()
+            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(allCandidates, ziranmaSnapshot.currentPage) else defaultCandidateLimit
             if (isJuyingMode) {
-                val candidateLimit = calculateJuyingCandidateLimit(ziranmaSnapshot.candidates)
-                // Update controller's page size and get fresh snapshot if limit changed
-                ziranmaInputController.updateJuyingPageSize(candidateLimit)
-                effectiveZiranmaSnapshot = ziranmaInputController.getSnapshot()
+                ziranmaInputController.setDynamicDisplayLimit(candidateLimit)
             }
-            val rawCandidates = effectiveZiranmaSnapshot.candidates
+            // Get fresh snapshot with updated pagination
+            val updatedSnapshot = ziranmaInputController.getSnapshot()
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
-                lastInsertedChar = if (effectiveZiranmaSnapshot.buffer.isNotEmpty()) effectiveZiranmaSnapshot.buffer.last() else null,
-                variations = reorderForJuyingDisplay(rawCandidates)
+                lastInsertedChar = if (updatedSnapshot.buffer.isNotEmpty()) updatedSnapshot.buffer.last() else null,
+                variations = reorderForJuyingDisplay(updatedSnapshot.candidates)
             )
             // Pagination info from Ziranma
-            currentPage = effectiveZiranmaSnapshot.currentPage
-            totalPages = effectiveZiranmaSnapshot.totalPages
-            hasNextPage = effectiveZiranmaSnapshot.hasNextPage
-            hasPrevPage = effectiveZiranmaSnapshot.hasPrevPage
+            currentPage = updatedSnapshot.currentPage
+            totalPages = updatedSnapshot.totalPages
+            hasNextPage = updatedSnapshot.hasNextPage
+            hasPrevPage = updatedSnapshot.hasPrevPage
         } else if (wubiSnapshot.isActive) {
             // Wubi mode
-            // In Juying mode, dynamically adjust page size based on candidate length
-            var effectiveWubiSnapshot = wubiSnapshot
+            // Calculate dynamic limit based on candidate lengths and set on controller for proper pagination
+            val allCandidates = wubiInputController.getAllCandidates()
+            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(allCandidates, wubiSnapshot.currentPage) else defaultCandidateLimit
             if (isJuyingMode) {
-                val candidateLimit = calculateJuyingCandidateLimit(wubiSnapshot.candidates)
-                // Update controller's page size and get fresh snapshot if limit changed
-                wubiInputController.updateJuyingPageSize(candidateLimit)
-                effectiveWubiSnapshot = wubiInputController.getSnapshot()
+                wubiInputController.setDynamicDisplayLimit(candidateLimit)
             }
-            val rawCandidates = effectiveWubiSnapshot.candidates
+            // Get fresh snapshot with updated pagination
+            val updatedSnapshot = wubiInputController.getSnapshot()
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
-                lastInsertedChar = if (effectiveWubiSnapshot.buffer.isNotEmpty()) effectiveWubiSnapshot.buffer.last() else null,
-                variations = reorderForJuyingDisplay(rawCandidates)
+                lastInsertedChar = if (updatedSnapshot.buffer.isNotEmpty()) updatedSnapshot.buffer.last() else null,
+                variations = reorderForJuyingDisplay(updatedSnapshot.candidates)
             )
             // Pagination info from Wubi
-            currentPage = effectiveWubiSnapshot.currentPage
-            totalPages = effectiveWubiSnapshot.totalPages
-            hasNextPage = effectiveWubiSnapshot.hasNextPage
-            hasPrevPage = effectiveWubiSnapshot.hasPrevPage
+            currentPage = updatedSnapshot.currentPage
+            totalPages = updatedSnapshot.totalPages
+            hasNextPage = updatedSnapshot.hasNextPage
+            hasPrevPage = updatedSnapshot.hasPrevPage
         } else if (zhenmaSnapshot.isActive) {
             // Zhenma mode
-            // In Juying mode, dynamically adjust page size based on candidate length
-            var effectiveZhenmaSnapshot = zhenmaSnapshot
+            // Calculate dynamic limit based on candidate lengths and set on controller for proper pagination
+            val allCandidates = zhenmaInputController.getAllCandidates()
+            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(allCandidates, zhenmaSnapshot.currentPage) else defaultCandidateLimit
             if (isJuyingMode) {
-                val candidateLimit = calculateJuyingCandidateLimit(zhenmaSnapshot.candidates)
-                // Update controller's page size and get fresh snapshot if limit changed
-                zhenmaInputController.updateJuyingPageSize(candidateLimit)
-                effectiveZhenmaSnapshot = zhenmaInputController.getSnapshot()
+                zhenmaInputController.setDynamicDisplayLimit(candidateLimit)
             }
-            val rawCandidates = effectiveZhenmaSnapshot.candidates
+            // Get fresh snapshot with updated pagination
+            val updatedSnapshot = zhenmaInputController.getSnapshot()
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
-                lastInsertedChar = if (effectiveZhenmaSnapshot.buffer.isNotEmpty()) effectiveZhenmaSnapshot.buffer.last() else null,
-                variations = reorderForJuyingDisplay(rawCandidates)
+                lastInsertedChar = if (updatedSnapshot.buffer.isNotEmpty()) updatedSnapshot.buffer.last() else null,
+                variations = reorderForJuyingDisplay(updatedSnapshot.candidates)
             )
             // Pagination info from Zhenma
-            currentPage = effectiveZhenmaSnapshot.currentPage
-            totalPages = effectiveZhenmaSnapshot.totalPages
-            hasNextPage = effectiveZhenmaSnapshot.hasNextPage
-            hasPrevPage = effectiveZhenmaSnapshot.hasPrevPage
+            currentPage = updatedSnapshot.currentPage
+            totalPages = updatedSnapshot.totalPages
+            hasNextPage = updatedSnapshot.hasNextPage
+            hasPrevPage = updatedSnapshot.hasPrevPage
         } else if (wordPredictionSnapshot.hasSuggestions && !shouldDisableSmartFeatures) {
             // Show English word predictions
             // In Juying mode: [1st best (Sym), current typed word (Space), 2nd best (Ctrl)]
@@ -2812,6 +2831,21 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
                 // Restore saved candidates and buffer, then go to next page
                 if (savedAltChineseMode != null) {
+                    // Helper to calculate dynamic candidate limit based on max candidate length for a specific page
+                    fun calculateDynamicLimit(allCandidates: List<String>, page: Int): Int {
+                        if (allCandidates.isEmpty()) return 5
+                        // Calculate which candidates would be on this page with max page size (5)
+                        val startIndex = page * 5
+                        val pageCandidates = allCandidates.drop(startIndex).take(5)
+                        if (pageCandidates.isEmpty()) return 5
+                        val maxLen = pageCandidates.maxOfOrNull { it.length } ?: 1
+                        return when {
+                            maxLen >= 10 -> 1
+                            maxLen >= 6 -> 3
+                            else -> 5
+                        }
+                    }
+
                     when (savedAltChineseMode) {
                         "pinyin" -> {
                             // Restore buffer and syllable parsing state for proper candidate selection
@@ -2827,6 +2861,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 savedAltMatchedPinyin,
                                 savedAltPhraseCandidateCount
                             )
+                            // Calculate limit for the NEXT page (savedAltCurrentPage + 1)
+                            val nextPage = savedAltCurrentPage + 1
+                            val dynamicLimit = calculateDynamicLimit(savedAltCandidatesForNextPage, nextPage)
+                            pinyinInputController.setDynamicDisplayLimit(dynamicLimit)
                             if (pinyinInputController.hasNextPage()) {
                                 pinyinInputController.nextPage()
                             }
@@ -2837,6 +2875,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 shuangpinInputController.restoreBuffer(savedAltBuffer)
                                 ic?.setComposingText(savedAltBuffer, 1)
                             }
+                            // Calculate limit for the NEXT page (savedAltCurrentPage + 1)
+                            val nextPage = savedAltCurrentPage + 1
+                            val dynamicLimit = calculateDynamicLimit(savedAltCandidatesForNextPage, nextPage)
+                            shuangpinInputController.setDynamicDisplayLimit(dynamicLimit)
                             if (shuangpinInputController.hasNextPage()) {
                                 shuangpinInputController.nextPage()
                             }
@@ -2847,6 +2889,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 wubiInputController.restoreBuffer(savedAltBuffer)
                                 ic?.setComposingText(savedAltBuffer, 1)
                             }
+                            // Calculate limit for the NEXT page (savedAltCurrentPage + 1)
+                            val nextPage = savedAltCurrentPage + 1
+                            val dynamicLimit = calculateDynamicLimit(savedAltCandidatesForNextPage, nextPage)
+                            wubiInputController.setDynamicDisplayLimit(dynamicLimit)
                             if (wubiInputController.hasNextPage()) {
                                 wubiInputController.nextPage()
                             }
@@ -2857,6 +2903,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 zhenmaInputController.restoreBuffer(savedAltBuffer)
                                 ic?.setComposingText(savedAltBuffer, 1)
                             }
+                            // Calculate limit for the NEXT page (savedAltCurrentPage + 1)
+                            val nextPage = savedAltCurrentPage + 1
+                            val dynamicLimit = calculateDynamicLimit(savedAltCandidatesForNextPage, nextPage)
+                            zhenmaInputController.setDynamicDisplayLimit(dynamicLimit)
                             if (zhenmaInputController.hasNextPage()) {
                                 zhenmaInputController.nextPage()
                             }
@@ -3139,6 +3189,21 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
                     // Restore saved candidates and buffer, then go to next page
                     if (savedAltCandidatesForNextPage.isNotEmpty() && savedAltChineseMode != null) {
+                        // Helper to calculate dynamic candidate limit based on max candidate length for a specific page
+                        fun calculateDynamicLimit(allCandidates: List<String>, page: Int): Int {
+                            if (allCandidates.isEmpty()) return 5
+                            // Calculate which candidates would be on this page with max page size (5)
+                            val startIndex = page * 5
+                            val pageCandidates = allCandidates.drop(startIndex).take(5)
+                            if (pageCandidates.isEmpty()) return 5
+                            val maxLen = pageCandidates.maxOfOrNull { it.length } ?: 1
+                            return when {
+                                maxLen >= 10 -> 1
+                                maxLen >= 6 -> 3
+                                else -> 5
+                            }
+                        }
+
                         when (savedAltChineseMode) {
                             "pinyin" -> {
                                 // Restore buffer and syllable parsing state for proper candidate selection
@@ -3154,6 +3219,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     savedAltMatchedPinyin,
                                     savedAltPhraseCandidateCount
                                 )
+                                // Calculate limit for the NEXT page (savedAltCurrentPage + 1)
+                                val nextPage = savedAltCurrentPage + 1
+                                val dynamicLimit = calculateDynamicLimit(savedAltCandidatesForNextPage, nextPage)
+                                pinyinInputController.setDynamicDisplayLimit(dynamicLimit)
                                 if (pinyinInputController.hasNextPage()) {
                                     pinyinInputController.nextPage()
                                 }
@@ -3164,6 +3233,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     t9PinyinInputController.restoreBuffer(savedAltBuffer)
                                     ic?.setComposingText(t9PinyinInputController.getDisplayBuffer(), 1)
                                 }
+                                // Calculate limit for the NEXT page (savedAltCurrentPage + 1)
+                                val nextPage = savedAltCurrentPage + 1
+                                val dynamicLimit = calculateDynamicLimit(savedAltCandidatesForNextPage, nextPage)
+                                t9PinyinInputController.setJuyingModeEnabled(true)
+                                t9PinyinInputController.setDynamicDisplayLimit(dynamicLimit)
                                 if (t9PinyinInputController.getSnapshot().hasNextPage) {
                                     t9PinyinInputController.nextPage()
                                 }
@@ -3174,6 +3248,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     shuangpinInputController.restoreBuffer(savedAltBuffer)
                                     ic?.setComposingText(savedAltBuffer, 1)
                                 }
+                                // Calculate limit for the NEXT page (savedAltCurrentPage + 1)
+                                val nextPage = savedAltCurrentPage + 1
+                                val dynamicLimit = calculateDynamicLimit(savedAltCandidatesForNextPage, nextPage)
+                                shuangpinInputController.setDynamicDisplayLimit(dynamicLimit)
                                 if (shuangpinInputController.hasNextPage()) {
                                     shuangpinInputController.nextPage()
                                 }
@@ -3184,6 +3262,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     wubiInputController.restoreBuffer(savedAltBuffer)
                                     ic?.setComposingText(savedAltBuffer, 1)
                                 }
+                                // Calculate limit for the NEXT page (savedAltCurrentPage + 1)
+                                val nextPage = savedAltCurrentPage + 1
+                                val dynamicLimit = calculateDynamicLimit(savedAltCandidatesForNextPage, nextPage)
+                                wubiInputController.setDynamicDisplayLimit(dynamicLimit)
                                 if (wubiInputController.hasNextPage()) {
                                     wubiInputController.nextPage()
                                 }
@@ -3194,6 +3276,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     zhenmaInputController.restoreBuffer(savedAltBuffer)
                                     ic?.setComposingText(savedAltBuffer, 1)
                                 }
+                                // Calculate limit for the NEXT page (savedAltCurrentPage + 1)
+                                val nextPage = savedAltCurrentPage + 1
+                                val dynamicLimit = calculateDynamicLimit(savedAltCandidatesForNextPage, nextPage)
+                                zhenmaInputController.setDynamicDisplayLimit(dynamicLimit)
                                 if (zhenmaInputController.hasNextPage()) {
                                     zhenmaInputController.nextPage()
                                 }
@@ -3230,9 +3316,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     when {
                         isPinyinMode -> {
                             val candidates = pinyinInputController.getCurrentPageCandidates()
+                            val allCandidates = pinyinInputController.getAllCandidates()
                             val suggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
                             savedAltSuggestion = suggestion
-                            savedAltCandidatesForNextPage = pinyinInputController.getAllCandidates()
+                            savedAltCandidatesForNextPage = allCandidates
                             savedAltCurrentPage = pinyinInputController.getCurrentPage()
                             savedAltBuffer = pinyinInputController.getBuffer()
                             savedAltFirstSyllable = pinyinInputController.getFirstSyllable()
@@ -3257,6 +3344,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                         pinyinInputController.clearNextWordPredictions()
                                     }
                                 }
+                            } else if (allCandidates.size > candidates.size) {
+                                // No candidate at altCandidateIndex, but there are more candidates available
+                                // Keep state for double-click Alt to navigate to next page
+                                // Don't clear buffer - just wait for potential double-click
                             } else {
                                 pinyinInputController.clearBuffer()
                                 pinyinInputController.clearNextWordPredictions()
@@ -3264,9 +3355,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         }
                         isT9PinyinMode -> {
                             val candidates = t9PinyinInputController.getCurrentPageCandidates()
+                            val allCandidates = t9PinyinInputController.getAllCandidates()
                             val suggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
                             savedAltSuggestion = suggestion
-                            savedAltCandidatesForNextPage = t9PinyinInputController.getAllCandidates()
+                            savedAltCandidatesForNextPage = allCandidates
                             savedAltCurrentPage = t9PinyinInputController.getCurrentPage()
                             savedAltBuffer = t9PinyinInputController.getBuffer()
                             savedAltChineseMode = "t9pinyin"
@@ -3280,15 +3372,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     playJuyingSelectionSound(keyCode)
                                     // T9 always clears buffer after selection
                                 }
+                            } else if (allCandidates.size > candidates.size) {
+                                // No candidate at altCandidateIndex, but there are more candidates available
+                                // Keep state for double-click Alt to navigate to next page
                             } else {
                                 t9PinyinInputController.clearBuffer()
                             }
                         }
                         isShuangpinMode -> {
                             val candidates = shuangpinInputController.getCurrentPageCandidates()
+                            val allCandidates = shuangpinInputController.getAllCandidates()
                             val suggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
                             savedAltSuggestion = suggestion
-                            savedAltCandidatesForNextPage = shuangpinInputController.getAllCandidates()
+                            savedAltCandidatesForNextPage = allCandidates
                             savedAltCurrentPage = shuangpinInputController.getCurrentPage()
                             savedAltBuffer = shuangpinInputController.getBuffer()
                             savedAltChineseMode = "shuangpin"
@@ -3308,6 +3404,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                         shuangpinInputController.clearNextWordPredictions()
                                     }
                                 }
+                            } else if (allCandidates.size > candidates.size) {
+                                // No candidate at altCandidateIndex, but there are more candidates available
+                                // Keep state for double-click Alt to navigate to next page
                             } else {
                                 shuangpinInputController.clearBuffer()
                                 shuangpinInputController.clearNextWordPredictions()
@@ -3315,9 +3414,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         }
                         isWubiMode -> {
                             val candidates = wubiInputController.getCurrentPageCandidates()
+                            val allCandidates = wubiInputController.getAllCandidates()
                             val suggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
                             savedAltSuggestion = suggestion
-                            savedAltCandidatesForNextPage = wubiInputController.getAllCandidates()
+                            savedAltCandidatesForNextPage = allCandidates
                             savedAltCurrentPage = wubiInputController.getCurrentPage()
                             savedAltBuffer = wubiInputController.getBuffer()
                             savedAltChineseMode = "wubi"
@@ -3337,6 +3437,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                         wubiInputController.clearNextWordPredictions()
                                     }
                                 }
+                            } else if (allCandidates.size > candidates.size) {
+                                // No candidate at altCandidateIndex, but there are more candidates available
+                                // Keep state for double-click Alt to navigate to next page
                             } else {
                                 wubiInputController.clearBuffer()
                                 wubiInputController.clearNextWordPredictions()
@@ -3344,9 +3447,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         }
                         isZhenmaMode -> {
                             val candidates = zhenmaInputController.getCurrentPageCandidates()
+                            val allCandidates = zhenmaInputController.getAllCandidates()
                             val suggestion = if (candidates.size > altCandidateIndex) candidates[altCandidateIndex] else null
                             savedAltSuggestion = suggestion
-                            savedAltCandidatesForNextPage = zhenmaInputController.getAllCandidates()
+                            savedAltCandidatesForNextPage = allCandidates
                             savedAltCurrentPage = zhenmaInputController.getCurrentPage()
                             savedAltBuffer = zhenmaInputController.getBuffer()
                             savedAltChineseMode = "zhenma"
@@ -3366,6 +3470,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                         zhenmaInputController.clearNextWordPredictions()
                                     }
                                 }
+                            } else if (allCandidates.size > candidates.size) {
+                                // No candidate at altCandidateIndex, but there are more candidates available
+                                // Keep state for double-click Alt to navigate to next page
                             } else {
                                 zhenmaInputController.clearBuffer()
                                 zhenmaInputController.clearNextWordPredictions()
@@ -6385,11 +6492,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val result = modifierStateController.handleAltKeyUp(translatedKeyCode)
             }
 
-            if (!altUsedForSymbolInput && savedAltSuggestion != null) {
-                // INSTANT BEHAVIOR: Character was already committed on Alt DOWN
+            // Check if there are more candidates available for next page navigation
+            val hasMoreCandidatesForNextPage = savedAltCandidatesForNextPage.isNotEmpty() &&
+                savedAltSuggestion == null && !altUsedForSymbolInput
+
+            if (!altUsedForSymbolInput && (savedAltSuggestion != null || hasMoreCandidatesForNextPage)) {
+                // INSTANT BEHAVIOR: Character was already committed on Alt DOWN (if suggestion exists)
+                // OR: No suggestion at position but more candidates available for next page
                 // This runnable just cleans up state after the double-click window expires
                 // If user presses Alt again within THRESHOLD (double-click),
-                // the second Alt DOWN will cancel this runnable and undo the committed character
+                // the second Alt DOWN will cancel this runnable and undo the committed character / go to next page
                 pendingAltSelectionRunnable = Runnable {
                     // Character was already committed on Alt DOWN - just clean up state
                     // Clear saved state after double-click window expires
@@ -6409,7 +6521,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
                 mainHandler.postDelayed(pendingAltSelectionRunnable!!, altDoubleClickDelay)
             } else {
-                // Alt was used for symbol input or no 5th suggestion - clear state immediately
+                // Alt was used for symbol input or no candidates for next page - clear state immediately
                 savedAltSuggestion = null
                 savedAltCandidatesForNextPage = emptyList()
                 savedAltCurrentPage = 0

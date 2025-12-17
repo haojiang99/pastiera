@@ -35,14 +35,21 @@ class ZiranmaInputController(
     // Dynamic page size (changes based on Juying mode)
     private var pageSize: Int = DEFAULT_PAGE_SIZE
 
+    // Dynamic display limit for Juying mode (can be 1, 3, or 5 based on candidate length)
+    // When set (> 0), this overrides pageSize for pagination
+    private var dynamicDisplayLimit: Int = 0
+
+    // Whether Juying mode is enabled
+    private var isJuyingModeEnabled: Boolean = false
+
     /**
      * Sets the page size for candidates.
-     * @param juyingMode Whether Juying mode is enabled
+     * @param juyingMode Whether Juying mode is enabled (uses 5 candidates per page)
      * @param maxCandidatesNonJuying Maximum number of candidates per page in non-Juying mode
-     * @param juyingPageSize Custom page size for Juying mode (1, 3, or 5 based on candidate length)
      */
-    fun setJuyingMode(juyingMode: Boolean, maxCandidatesNonJuying: Int = DEFAULT_PAGE_SIZE, juyingPageSize: Int = JUYING_PAGE_SIZE) {
-        val newPageSize = if (juyingMode) juyingPageSize else maxCandidatesNonJuying
+    fun setJuyingMode(juyingMode: Boolean, maxCandidatesNonJuying: Int = DEFAULT_PAGE_SIZE) {
+        isJuyingModeEnabled = juyingMode
+        val newPageSize = if (juyingMode) JUYING_PAGE_SIZE else maxCandidatesNonJuying
         if (newPageSize != pageSize) {
             pageSize = newPageSize
             currentPage = 0 // Reset to first page when page size changes
@@ -50,18 +57,28 @@ class ZiranmaInputController(
     }
 
     /**
-     * Updates just the Juying page size without changing mode.
-     * Used when candidate length changes and we need to adjust pagination dynamically.
-     * @param juyingPageSize The new page size (1, 3, or 5)
+     * Sets the dynamic display limit for Juying mode.
+     * This is calculated based on the maximum candidate length and determines
+     * how many candidates can be shown on screen (1, 3, or 5).
+     * When this is set, candidates beyond this limit are pushed to the next page.
+     * @param limit The number of candidates to show (1, 3, or 5). Set to 0 to disable.
      */
-    fun updateJuyingPageSize(juyingPageSize: Int) {
-        if (juyingPageSize != pageSize && juyingPageSize in 1..JUYING_PAGE_SIZE) {
-            pageSize = juyingPageSize
-            // Don't reset page - allow staying on current page if valid
-            val totalPages = if (allCandidates.isEmpty()) 1 else (allCandidates.size + pageSize - 1) / pageSize
-            if (currentPage >= totalPages) {
-                currentPage = (totalPages - 1).coerceAtLeast(0)
-            }
+    fun setDynamicDisplayLimit(limit: Int) {
+        if (dynamicDisplayLimit != limit) {
+            dynamicDisplayLimit = limit
+            // Don't reset page - user may be navigating
+        }
+    }
+
+    /**
+     * Gets the effective page size for pagination.
+     * In Juying mode, uses dynamicDisplayLimit if set, otherwise uses pageSize.
+     */
+    private fun getEffectivePageSize(): Int {
+        return if (isJuyingModeEnabled && dynamicDisplayLimit > 0) {
+            dynamicDisplayLimit
+        } else {
+            pageSize
         }
     }
 
@@ -290,8 +307,13 @@ class ZiranmaInputController(
         updateCandidates()
     }
 
+    /**
+     * Calculates total number of pages.
+     * Uses effective page size (dynamic display limit in Juying mode) for pagination.
+     */
     private fun getTotalPages(): Int {
-        return if (allCandidates.isEmpty()) 1 else ((allCandidates.size + pageSize - 1) / pageSize)
+        val effectivePageSize = getEffectivePageSize()
+        return if (allCandidates.isEmpty()) 1 else ((allCandidates.size + effectivePageSize - 1) / effectivePageSize)
     }
 
     fun nextPage(): Boolean {
@@ -738,9 +760,15 @@ class ZiranmaInputController(
 
     fun getCurrentPage(): Int = currentPage
 
+    /**
+     * Gets candidates for the current page.
+     * Uses effective page size (dynamic display limit in Juying mode) so hidden
+     * candidates are pushed to the next page.
+     */
     fun getCurrentPageCandidates(): List<String> {
-        val startIndex = currentPage * pageSize
-        val endIndex = minOf(startIndex + pageSize, allCandidates.size)
+        val effectivePageSize = getEffectivePageSize()
+        val startIndex = currentPage * effectivePageSize
+        val endIndex = minOf(startIndex + effectivePageSize, allCandidates.size)
         return if (startIndex < allCandidates.size) {
             allCandidates.subList(startIndex, endIndex)
         } else {
