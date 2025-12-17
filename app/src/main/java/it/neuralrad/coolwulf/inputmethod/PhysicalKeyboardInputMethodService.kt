@@ -6666,8 +6666,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
 
         // Handle SYM key release (nothing to do; it is a toggle)
-        if (keyCode == KEYCODE_SYM) {
-            // Consumiamo l'evento
+        // Use translatedKeyCode for BlackBerry compatibility (raw keyCode 58 -> translated 63)
+        if (translatedKeyCode == KeyEvent.KEYCODE_SYM || keyCode == KEYCODE_SYM) {
+            // Consume the event - SYM is a toggle handled on key down
             return true
         }
         
