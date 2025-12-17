@@ -1337,12 +1337,25 @@ class PinyinInputController(
         // Neural suggestions get lower boost because they're model predictions, not user preferences
         // When priority is enabled, use a high boost to put neural prediction first
         for ((index, neuralSuggestion) in neuralSuggestions.withIndex()) {
+            val freq = userFreqMap[neuralSuggestion] ?: 0
+            // First neural suggestion gets priority boost, others get decreasing priority
+            val boost = if (neuralPinyinPriority) (1000 - index) else if (freq == 0) 1 else 0
+
             if (neuralSuggestion !in addedPhrases) {
-                val freq = userFreqMap[neuralSuggestion] ?: 0
-                // First neural suggestion gets priority boost, others get decreasing priority
-                val boost = if (neuralPinyinPriority) (1000 - index) else if (freq == 0) 1 else 0
+                // New suggestion - add with boost
                 allCandidatesWithFreq.add(neuralSuggestion to (freq + boost))
                 addedPhrases.add(neuralSuggestion)
+            } else if (neuralPinyinPriority) {
+                // Already added but priority is enabled - update the score to ensure neural gets priority
+                // Find and update the existing entry with the higher neural priority boost
+                val existingIndex = allCandidatesWithFreq.indexOfFirst { it.first == neuralSuggestion }
+                if (existingIndex >= 0) {
+                    val existingScore = allCandidatesWithFreq[existingIndex].second
+                    val newScore = freq + boost
+                    if (newScore > existingScore) {
+                        allCandidatesWithFreq[existingIndex] = neuralSuggestion to newScore
+                    }
+                }
             }
         }
 
@@ -1570,12 +1583,25 @@ class PinyinInputController(
             // Add neural suggestions (with priority boost or +1 boost when freq is 0)
             // When priority is enabled, use a high boost to put neural prediction first
             for ((index, neuralSuggestion) in neuralSuggestions.withIndex()) {
+                val freq = userFreqMap[neuralSuggestion] ?: 0
+                // First neural suggestion gets priority boost, others get decreasing priority
+                val boost = if (neuralPinyinPriority) (1000 - index) else if (freq == 0) 1 else 0
+
                 if (neuralSuggestion !in addedToMerge) {
-                    val freq = userFreqMap[neuralSuggestion] ?: 0
-                    // First neural suggestion gets priority boost, others get decreasing priority
-                    val boost = if (neuralPinyinPriority) (1000 - index) else if (freq == 0) 1 else 0
+                    // New suggestion - add with boost
                     allCandidatesWithFreq.add(neuralSuggestion to (freq + boost))
                     addedToMerge.add(neuralSuggestion)
+                } else if (neuralPinyinPriority) {
+                    // Already added but priority is enabled - update the score to ensure neural gets priority
+                    // Find and update the existing entry with the higher neural priority boost
+                    val existingIndex = allCandidatesWithFreq.indexOfFirst { it.first == neuralSuggestion }
+                    if (existingIndex >= 0) {
+                        val existingScore = allCandidatesWithFreq[existingIndex].second
+                        val newScore = freq + boost
+                        if (newScore > existingScore) {
+                            allCandidatesWithFreq[existingIndex] = neuralSuggestion to newScore
+                        }
+                    }
                 }
             }
 
