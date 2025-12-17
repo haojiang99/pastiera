@@ -3,7 +3,10 @@ package it.neuralrad.coolwulf.inputmethod
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
+import ai.onnxruntime.OrtSession.SessionOptions.OptLevel
+import ai.onnxruntime.providers.NNAPIFlags
 import android.content.Context
+import java.util.EnumSet
 import android.net.Uri
 import android.util.Log
 import it.neuralrad.coolwulf.SettingsManager
@@ -102,6 +105,10 @@ class NeuralPinyinRecognizer(private val context: Context) {
     private var encoderSession: OrtSession? = null
     private var decoderSession: OrtSession? = null
     private var ortEnv: OrtEnvironment? = null
+
+    // Pre-allocated buffer for decoder input to reduce tensor allocation overhead
+    // Reused across decoder steps in autoregressive decoding
+    private val decoderInputBuffer = LongArray(1)
 
     /**
      * Gets the extracted model directory in app's internal storage.
@@ -489,23 +496,60 @@ class NeuralPinyinRecognizer(private val context: Context) {
 
     /**
      * Initializes the ONNX Runtime sessions for encoder and decoder.
+     * Applies performance optimizations:
+     * - Dynamic thread count based on device CPU cores
+     * - Graph optimization level ALL_OPT for operator fusion
+     * - Memory pattern optimization for predictable shapes
+     * - NNAPI execution provider for hardware acceleration (with fallback)
      */
     private fun initOrtSessions() {
         try {
             ortEnv = OrtEnvironment.getEnvironment()
 
             val sessionOptions = OrtSession.SessionOptions()
-            sessionOptions.setIntraOpNumThreads(2)
+
+            // 1. Optimize thread count based on device CPU cores
+            // Use half the cores to leave headroom for UI thread, minimum 2
+            val numCores = Runtime.getRuntime().availableProcessors()
+            val optimalThreads = maxOf(2, numCores / 2)
+            sessionOptions.setIntraOpNumThreads(optimalThreads)
+            Log.d(TAG, "Using $optimalThreads intra-op threads (device has $numCores cores)")
+
+            // 2. Enable all graph optimizations (operator fusion, constant folding, etc.)
+            sessionOptions.setOptimizationLevel(OptLevel.ALL_OPT)
+            Log.d(TAG, "Graph optimization level set to ALL_OPT")
+
+            // 3. Enable memory pattern optimization for reduced allocation overhead
+            // Effective when tensor shapes are predictable (as in our encoder-decoder model)
+            sessionOptions.setMemoryPatternOptimization(true)
+            Log.d(TAG, "Memory pattern optimization enabled")
+
+            // 4. Try NNAPI execution provider for hardware acceleration (GPU/NPU)
+            // Falls back gracefully to CPU if NNAPI is unavailable or unsupported
+            var nnapiEnabled = false
+            try {
+                // USE_FP16: Enable FP16 relaxation for speed (slight precision trade-off)
+                // CPU_DISABLED: Disable NNAPI's CPU fallback, use ORT's optimized CPU kernels instead
+                sessionOptions.addNnapi(EnumSet.of(
+                    NNAPIFlags.USE_FP16,
+                    NNAPIFlags.CPU_DISABLED
+                ))
+                nnapiEnabled = true
+                Log.d(TAG, "NNAPI execution provider enabled with FP16 relaxation")
+            } catch (e: Exception) {
+                // NNAPI not available (older Android, missing library, etc.) - continue with CPU
+                Log.d(TAG, "NNAPI not available, using CPU execution: ${e.message}")
+            }
 
             // Load encoder
             val encoderPath = File(extractedModelDir, ENCODER_FILE).absolutePath
             encoderSession = ortEnv!!.createSession(encoderPath, sessionOptions)
-            Log.d(TAG, "Encoder session created")
+            Log.d(TAG, "Encoder session created (NNAPI: $nnapiEnabled)")
 
             // Load decoder
             val decoderPath = File(extractedModelDir, DECODER_FILE).absolutePath
             decoderSession = ortEnv!!.createSession(decoderPath, sessionOptions)
-            Log.d(TAG, "Decoder session created")
+            Log.d(TAG, "Decoder session created (NNAPI: $nnapiEnabled)")
 
         } catch (e: Exception) {
             throw RuntimeException("Failed to initialize ONNX Runtime sessions: ${e.message}", e)
@@ -613,8 +657,9 @@ class NeuralPinyinRecognizer(private val context: Context) {
 
             for (step in 0 until maxAllowedLen) {
                 // Prepare decoder input: input_token [1] containing current token
-                val decoderInputData = longArrayOf(currentToken.toLong())
-                val decoderInputTensor = OnnxTensor.createTensor(env, decoderInputData)
+                // Use pre-allocated buffer to reduce allocation overhead
+                decoderInputBuffer[0] = currentToken.toLong()
+                val decoderInputTensor = OnnxTensor.createTensor(env, decoderInputBuffer)
 
                 // Run decoder with encoder outputs and LSTM states
                 // Decoder inputs: input_token [1], encoder_outputs, hidden, cell
@@ -762,8 +807,9 @@ class NeuralPinyinRecognizer(private val context: Context) {
 
                 for (beam in beams) {
                     // Create tensors for this beam
-                    val decoderInputData = longArrayOf(beam.lastToken.toLong())
-                    val decoderInputTensor = OnnxTensor.createTensor(env, decoderInputData)
+                    // Use pre-allocated buffer to reduce allocation overhead
+                    decoderInputBuffer[0] = beam.lastToken.toLong()
+                    val decoderInputTensor = OnnxTensor.createTensor(env, decoderInputBuffer)
 
                     // Reshape hidden/cell states back to tensor format [numLayers, 1, hiddenDim*2]
                     val hiddenTensor = createHiddenTensor(env, beam.hiddenState)
