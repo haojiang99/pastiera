@@ -1716,15 +1716,22 @@ class PinyinInputController(
         page: Int,
         savedFirstSyllable: String,
         savedMatchedPinyin: String,
-        savedPhraseCandidateCount: Int
+        savedPhraseCandidateCount: Int,
+        savedPhraseCandidateSet: Set<String> = emptySet()
     ) {
         allCandidates = candidates
         currentPage = page
         firstSyllable = savedFirstSyllable
         matchedPinyin = savedMatchedPinyin
         phraseCandidateCount = savedPhraseCandidateCount
+        phraseCandidateSet = savedPhraseCandidateSet
         isShowingNextWordPredictions = false  // Not showing predictions, showing actual candidates
     }
+
+    /**
+     * Gets the phrase candidate set for saving before Alt selection.
+     */
+    fun getPhraseCandidateSet(): Set<String> = phraseCandidateSet
 
     /**
      * Gets the first syllable value for saving before Alt selection.

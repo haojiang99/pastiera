@@ -209,6 +209,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private var savedAltFirstSyllable: String = ""  // Save syllable parsing state for Alt selection
     private var savedAltMatchedPinyin: String = ""
     private var savedAltPhraseCandidateCount: Int = 0
+    private var savedAltPhraseCandidateSet: Set<String> = emptySet()  // Save phrase set for proper single char detection
     private var altCommittedCharacter: String? = null  // Character committed on Alt DOWN (for undo)
     private var altRemainingBuffer: String = ""  // Remaining buffer after selection (for undo)
 
@@ -853,7 +854,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         candidatesBarController.onVariationSelectedListener = variationListener
 
         // Helper function to reverse map display index to original index based on candidate count
-        // Display reordering:
+        // Display reordering (non-fixed mode):
         // 1 candidate: [1st] -> display 0 = original 0
         // 2 candidates: [2nd, 1st] -> display 0=orig 1, display 1=orig 0
         // 3 candidates: [2nd, 1st, 3rd] -> display 0=orig 1, display 1=orig 0, display 2=orig 2
@@ -881,13 +882,61 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
 
+        // Helper function to map slot index to original candidate index in fixed position mode
+        // Fixed position slots: [Shift=0, Sym=1, Space=2, Ctrl=3, Alt=4]
+        // Placement rules:
+        // 1 candidate:  Space(best=0)
+        // 2 candidates: Space(best=0), Sym(2nd=1)
+        // 3 candidates: Space(best=0), Sym(2nd=1), Ctrl(3rd=2)
+        // 4 candidates: Space(best=0), Shift(2nd=1), Sym(3rd=2), Ctrl(4th=3)
+        // 5 candidates: Space(best=0), Shift(2nd=1), Sym(3rd=2), Ctrl(4th=3), Alt(5th=4)
+        fun reverseFixedPositionSlotIndex(slotIndex: Int, candidateCount: Int): Int {
+            return when (candidateCount) {
+                1 -> when (slotIndex) {
+                    2 -> 0  // Space -> best (original 0)
+                    else -> -1
+                }
+                2 -> when (slotIndex) {
+                    2 -> 0  // Space -> best (original 0)
+                    1 -> 1  // Sym -> 2nd (original 1)
+                    else -> -1
+                }
+                3 -> when (slotIndex) {
+                    2 -> 0  // Space -> best (original 0)
+                    1 -> 1  // Sym -> 2nd (original 1)
+                    3 -> 2  // Ctrl -> 3rd (original 2)
+                    else -> -1
+                }
+                4 -> when (slotIndex) {
+                    2 -> 0  // Space -> best (original 0)
+                    0 -> 1  // Shift -> 2nd (original 1)
+                    1 -> 2  // Sym -> 3rd (original 2)
+                    3 -> 3  // Ctrl -> 4th (original 3)
+                    else -> -1
+                }
+                else -> when (slotIndex) {
+                    2 -> 0  // Space -> best (original 0)
+                    0 -> 1  // Shift -> 2nd (original 1)
+                    1 -> 2  // Sym -> 3rd (original 2)
+                    3 -> 3  // Ctrl -> 4th (original 3)
+                    4 -> 4  // Alt -> 5th (original 4)
+                    else -> -1
+                }
+            }
+        }
+
         // Register listener for Pinyin candidate selection (with index)
         val pinyinListener = object : VariationButtonHandler.OnPinyinCandidateSelectedListener {
             override fun onPinyinCandidateSelected(candidate: String, candidateIndex: Int) {
                 val ic = currentInputConnection ?: return
                 val isJuyingMode = SettingsManager.getJuyingModeEnabled(this@PhysicalKeyboardInputMethodService)
+                val isFixedPositionMode = SettingsManager.getJuyingFixedPositions(this@PhysicalKeyboardInputMethodService)
                 val candidateCount = pinyinInputController.getCurrentPageCandidates().size
-                val originalIndex = if (isJuyingMode) {
+                // In fixed position mode, candidateIndex is the slot index (0-4), need to map to original index
+                // In non-fixed mode, candidateIndex is the display order, need to reverse the reordering
+                val originalIndex = if (isJuyingMode && isFixedPositionMode) {
+                    reverseFixedPositionSlotIndex(candidateIndex, candidateCount)
+                } else if (isJuyingMode) {
                     reverseJuyingDisplayIndex(candidateIndex, candidateCount)
                 } else {
                     candidateIndex
@@ -911,8 +960,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             override fun onWubiCandidateSelected(candidate: String, candidateIndex: Int) {
                 val ic = currentInputConnection ?: return
                 val isJuyingMode = SettingsManager.getJuyingModeEnabled(this@PhysicalKeyboardInputMethodService)
+                val isFixedPositionMode = SettingsManager.getJuyingFixedPositions(this@PhysicalKeyboardInputMethodService)
                 val candidateCount = wubiInputController.getCurrentPageCandidates().size
-                val originalIndex = if (isJuyingMode) {
+                // In fixed position mode, candidateIndex is the slot index (0-4), need to map to original index
+                // In non-fixed mode, candidateIndex is the display order, need to reverse the reordering
+                val originalIndex = if (isJuyingMode && isFixedPositionMode) {
+                    reverseFixedPositionSlotIndex(candidateIndex, candidateCount)
+                } else if (isJuyingMode) {
                     reverseJuyingDisplayIndex(candidateIndex, candidateCount)
                 } else candidateIndex
                 // VariationButtonHandler already committed the text, we just update buffer state
@@ -933,8 +987,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             override fun onShuangpinCandidateSelected(candidate: String, candidateIndex: Int) {
                 val ic = currentInputConnection ?: return
                 val isJuyingMode = SettingsManager.getJuyingModeEnabled(this@PhysicalKeyboardInputMethodService)
+                val isFixedPositionMode = SettingsManager.getJuyingFixedPositions(this@PhysicalKeyboardInputMethodService)
                 val candidateCount = shuangpinInputController.getCurrentPageCandidates().size
-                val originalIndex = if (isJuyingMode) {
+                // In fixed position mode, candidateIndex is the slot index (0-4), need to map to original index
+                // In non-fixed mode, candidateIndex is the display order, need to reverse the reordering
+                val originalIndex = if (isJuyingMode && isFixedPositionMode) {
+                    reverseFixedPositionSlotIndex(candidateIndex, candidateCount)
+                } else if (isJuyingMode) {
                     reverseJuyingDisplayIndex(candidateIndex, candidateCount)
                 } else candidateIndex
                 // VariationButtonHandler already committed the text, we just update buffer state
@@ -955,8 +1014,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             override fun onZhenmaCandidateSelected(candidate: String, candidateIndex: Int) {
                 val ic = currentInputConnection ?: return
                 val isJuyingMode = SettingsManager.getJuyingModeEnabled(this@PhysicalKeyboardInputMethodService)
+                val isFixedPositionMode = SettingsManager.getJuyingFixedPositions(this@PhysicalKeyboardInputMethodService)
                 val candidateCount = zhenmaInputController.getCurrentPageCandidates().size
-                val originalIndex = if (isJuyingMode) {
+                // In fixed position mode, candidateIndex is the slot index (0-4), need to map to original index
+                // In non-fixed mode, candidateIndex is the display order, need to reverse the reordering
+                val originalIndex = if (isJuyingMode && isFixedPositionMode) {
+                    reverseFixedPositionSlotIndex(candidateIndex, candidateCount)
+                } else if (isJuyingMode) {
                     reverseJuyingDisplayIndex(candidateIndex, candidateCount)
                 } else candidateIndex
                 // VariationButtonHandler already committed the text, we just update buffer state
@@ -977,8 +1041,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             override fun onZiranmaCandidateSelected(candidate: String, candidateIndex: Int) {
                 val ic = currentInputConnection ?: return
                 val isJuyingMode = SettingsManager.getJuyingModeEnabled(this@PhysicalKeyboardInputMethodService)
+                val isFixedPositionMode = SettingsManager.getJuyingFixedPositions(this@PhysicalKeyboardInputMethodService)
                 val candidateCount = ziranmaInputController.getCurrentPageCandidates().size
-                val originalIndex = if (isJuyingMode) {
+                // In fixed position mode, candidateIndex is the slot index (0-4), need to map to original index
+                // In non-fixed mode, candidateIndex is the display order, need to reverse the reordering
+                val originalIndex = if (isJuyingMode && isFixedPositionMode) {
+                    reverseFixedPositionSlotIndex(candidateIndex, candidateCount)
+                } else if (isJuyingMode) {
                     reverseJuyingDisplayIndex(candidateIndex, candidateCount)
                 } else candidateIndex
                 // VariationButtonHandler already committed the text, we just update buffer state
@@ -2859,7 +2928,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 savedAltCurrentPage,
                                 savedAltFirstSyllable,
                                 savedAltMatchedPinyin,
-                                savedAltPhraseCandidateCount
+                                savedAltPhraseCandidateCount,
+                                savedAltPhraseCandidateSet
                             )
                             // Calculate limit for the NEXT page (savedAltCurrentPage + 1)
                             val nextPage = savedAltCurrentPage + 1
@@ -2918,6 +2988,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     savedAltCurrentPage = 0
                     savedAltChineseMode = null
                     savedAltBuffer = ""
+                    savedAltPhraseCandidateSet = emptySet()
                 }
                 updateStatusBarText()
                 altLastPressTime = 0L
@@ -3217,7 +3288,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     savedAltCurrentPage,
                                     savedAltFirstSyllable,
                                     savedAltMatchedPinyin,
-                                    savedAltPhraseCandidateCount
+                                    savedAltPhraseCandidateCount,
+                                    savedAltPhraseCandidateSet
                                 )
                                 // Calculate limit for the NEXT page (savedAltCurrentPage + 1)
                                 val nextPage = savedAltCurrentPage + 1
@@ -3291,6 +3363,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         savedAltCurrentPage = 0
                         savedAltChineseMode = null
                         savedAltBuffer = ""
+                        savedAltPhraseCandidateSet = emptySet()
                     }
                     updateStatusBarText()
                     altLastPressTime = 0L
@@ -3325,6 +3398,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             savedAltFirstSyllable = pinyinInputController.getFirstSyllable()
                             savedAltMatchedPinyin = pinyinInputController.getMatchedPinyin()
                             savedAltPhraseCandidateCount = pinyinInputController.getPhraseCandidateCount()
+                            savedAltPhraseCandidateSet = pinyinInputController.getPhraseCandidateSet()
                             savedAltChineseMode = "pinyin"
 
                             // Immediately commit the suggestion
@@ -6510,6 +6584,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     savedAltCurrentPage = 0
                     savedAltChineseMode = null
                     savedAltBuffer = ""
+                    savedAltPhraseCandidateSet = emptySet()
                     pendingAltSelectionRunnable = null
                     // Mark the instant selection as final (no more undo possible)
                     altCommittedCharacter = null
@@ -6527,6 +6602,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 savedAltCurrentPage = 0
                 savedAltChineseMode = null
                 savedAltBuffer = ""
+                savedAltPhraseCandidateSet = emptySet()
                 // Clear altLastPressTime immediately since Alt was used for symbol input
                 // This prevents the next key press from being treated as Alt+key
                 altLastPressTime = 0L
