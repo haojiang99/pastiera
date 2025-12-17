@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">酷狼输入法</string>
+    <string name="app_name">酷狼AI输入法</string>
     <string name="input_method_name">酷狼输入法物理键盘</string>
     <string name="input_method_name_en">酷狼输入法物理键盘</string>
     <string name="input_method_name_it">意大利语</string>
@@ -122,6 +122,10 @@
     <string name="neural_pinyin_description">使用深度学习模型处理长句</string>
     <string name="neural_pinyin_min_letters_title">最少字母数</string>
     <string name="neural_pinyin_min_letters_description">输入 %d 个以上字母时使用神经网络</string>
+    <string name="neural_pinyin_priority_title">优先显示神经网络预测</string>
+    <string name="neural_pinyin_priority_description">将神经网络预测结果显示为首选建议</string>
+    <string name="neural_pinyin_count_title">显示3个预测结果</string>
+    <string name="neural_pinyin_count_description">显示3个神经网络预测结果而不是1个</string>
 
     <!-- HMM Model Size -->
     <string name="hmm_model_size_title">HMM 模型大小</string>

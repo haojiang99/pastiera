@@ -1,5 +1,5 @@
 ﻿<resources>
-    <string name="app_name">Coolwulf IME</string>
+    <string name="app_name">CoolwulfIME AI Input</string>
     <string name="input_method_name">Coolwulf IME Physical Keyboard</string>
     <string name="input_method_name_en">Coolwulf IME Physical Keyboard</string>
     <string name="input_method_name_it">Italiano</string>
@@ -133,6 +133,10 @@
     <string name="neural_pinyin_description">Use deep learning model for long sentences</string>
     <string name="neural_pinyin_min_letters_title">Minimum Letters</string>
     <string name="neural_pinyin_min_letters_description">Use neural network when typing %d+ letters</string>
+    <string name="neural_pinyin_priority_title">Prioritize Neural Prediction</string>
+    <string name="neural_pinyin_priority_description">Show neural prediction as top suggestion</string>
+    <string name="neural_pinyin_count_title">Show 3 Predictions</string>
+    <string name="neural_pinyin_count_description">Show 3 neural predictions instead of 1</string>
 
     <!-- HMM Model Size -->
     <string name="hmm_model_size_title">HMM Model Size</string>

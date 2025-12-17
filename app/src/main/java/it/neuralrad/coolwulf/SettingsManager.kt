@@ -92,6 +92,8 @@ object SettingsManager {
     private const val KEY_NEURAL_PINYIN_MODEL_PATH = "neural_pinyin_model_path" // Path to Neural Pinyin ONNX model zip file
     private const val KEY_NEURAL_PINYIN_ENABLED = "neural_pinyin_enabled" // Enable neural network for long pinyin sentences
     private const val KEY_NEURAL_PINYIN_MIN_LETTERS = "neural_pinyin_min_letters" // Minimum letters to trigger neural pinyin (default 6)
+    private const val KEY_NEURAL_PINYIN_PRIORITY = "neural_pinyin_priority" // Put neural prediction as top suggestion (default false)
+    private const val KEY_NEURAL_PINYIN_COUNT = "neural_pinyin_count" // Number of neural predictions to show (1 or 3, default 1)
     private const val KEY_HMM_MODEL_SIZE = "hmm_model_size" // HMM model size: "small" (1.9MB), "standard" (2.3MB), "large" (3.2MB)
     private const val KEY_VOICE_AUTO_INSERT = "voice_auto_insert" // Auto-insert recognized text after silence
     private const val KEY_VOICE_CHINESE_PUNCTUATION = "voice_chinese_punctuation" // Use Chinese punctuation (。,) for voice input
@@ -2286,6 +2288,41 @@ object SettingsManager {
     fun setNeuralPinyinMinLetters(context: Context, minLetters: Int) {
         getPreferences(context).edit()
             .putInt(KEY_NEURAL_PINYIN_MIN_LETTERS, minLetters)
+            .apply()
+    }
+
+    /**
+     * Gets whether neural pinyin prediction should be prioritized as top suggestion.
+     * @return true if neural prediction should appear first, false to use frequency-based sorting
+     */
+    fun isNeuralPinyinPriority(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_NEURAL_PINYIN_PRIORITY, false)
+    }
+
+    /**
+     * Sets whether neural pinyin prediction should be prioritized as top suggestion.
+     */
+    fun setNeuralPinyinPriority(context: Context, priority: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_NEURAL_PINYIN_PRIORITY, priority)
+            .apply()
+    }
+
+    /**
+     * Gets the number of neural pinyin predictions to show.
+     * @return 1 (default) or 3
+     */
+    fun getNeuralPinyinCount(context: Context): Int {
+        return getPreferences(context).getInt(KEY_NEURAL_PINYIN_COUNT, 1)
+    }
+
+    /**
+     * Sets the number of neural pinyin predictions to show.
+     * @param count 1 or 3
+     */
+    fun setNeuralPinyinCount(context: Context, count: Int) {
+        getPreferences(context).edit()
+            .putInt(KEY_NEURAL_PINYIN_COUNT, count)
             .apply()
     }
 

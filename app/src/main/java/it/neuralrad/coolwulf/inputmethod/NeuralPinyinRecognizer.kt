@@ -10,6 +10,7 @@ import it.neuralrad.coolwulf.SettingsManager
 import kotlinx.coroutines.*
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
+import org.json.JSONObject
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -18,27 +19,27 @@ import java.util.zip.ZipInputStream
 
 /**
  * Neural network-based Pinyin to Chinese character conversion using ONNX Runtime.
- * Uses a Seq2Seq model with attention for improved accuracy on long sentences.
+ * Uses a BiLSTM+Attention encoder-decoder model for improved accuracy.
  * The model is loaded from a user-selected zip file containing:
- * - model.onnx (or model_int8.onnx for quantized version)
- * - vocab_pinyin.txt (pinyin vocabulary)
- * - vocab_hanzi.txt (Chinese character vocabulary)
+ * - encoder_int8.onnx (encoder model)
+ * - decoder_int8.onnx (decoder model)
+ * - vocab_pinyin.json (pinyin vocabulary with token2idx/idx2token)
+ * - vocab_hanzi.json (Chinese character vocabulary with token2idx/idx2token)
+ * - inference_config.json (model configuration)
  *
- * This is an optional enhancement for pinyin input when typing long sentences (>4 letters).
+ * This is the primary method for pinyin-to-hanzi conversion when the model is loaded.
  */
 class NeuralPinyinRecognizer(private val context: Context) {
     companion object {
         private const val TAG = "NeuralPinyinRecognizer"
         private const val EXTRACTED_MODEL_DIR = "neural-pinyin-model"
-        private const val MODEL_FILE = "model.onnx"
-        private const val MODEL_INT8_FILE = "model_int8.onnx"
-        private const val MODEL_MOBILE_FP16_FILE = "model_mobile_fp16.onnx"
-        private const val VOCAB_PINYIN_FILE = "vocab_pinyin.txt"
-        private const val VOCAB_HANZI_FILE = "vocab_hanzi.txt"
 
-        // Maximum sequence length for inference
-        private const val MAX_INPUT_LENGTH = 50
-        private const val MAX_OUTPUT_LENGTH = 30
+        // Encoder-decoder model files
+        private const val ENCODER_FILE = "encoder_int8.onnx"
+        private const val DECODER_FILE = "decoder_int8.onnx"
+        private const val VOCAB_PINYIN_FILE = "vocab_pinyin.json"
+        private const val VOCAB_HANZI_FILE = "vocab_hanzi.json"
+        private const val CONFIG_FILE = "inference_config.json"
 
         @Volatile
         private var instance: NeuralPinyinRecognizer? = null
@@ -81,15 +82,25 @@ class NeuralPinyinRecognizer(private val context: Context) {
     private var isModelReady = false
     private var isExtracting = false
 
-    // Vocabularies
-    private var pinyinVocab: Map<String, Int> = emptyMap()
-    private var hanziVocab: Map<Int, String> = emptyMap()
-    private var pinyinPadId: Int = 0
-    private var hanziStartId: Int = 1
-    private var hanziEndId: Int = 2
+    // Vocabularies (token -> index)
+    private var pinyinToken2Idx: Map<String, Int> = emptyMap()
+    private var hanziToken2Idx: Map<String, Int> = emptyMap()
+    private var hanziIdx2Token: Map<Int, String> = emptyMap()
 
-    // ONNX Runtime session (will be initialized when model is loaded)
-    private var ortSession: OrtSession? = null
+    // Special token IDs
+    private var padId: Int = 0
+    private var sosId: Int = 1
+    private var eosId: Int = 2
+    private var unkId: Int = 3
+
+    // Model configuration
+    private var maxOutputLen: Int = 64
+    private var hiddenDim: Int = 512
+    private var numLayers: Int = 3
+
+    // ONNX Runtime sessions
+    private var encoderSession: OrtSession? = null
+    private var decoderSession: OrtSession? = null
     private var ortEnv: OrtEnvironment? = null
 
     /**
@@ -123,13 +134,12 @@ class NeuralPinyinRecognizer(private val context: Context) {
      */
     fun isModelExtracted(): Boolean {
         if (!extractedModelDir.exists()) return false
-        // Check for required model files (support multiple model naming conventions)
-        val hasModel = File(extractedModelDir, MODEL_FILE).exists() ||
-                File(extractedModelDir, MODEL_INT8_FILE).exists() ||
-                File(extractedModelDir, MODEL_MOBILE_FP16_FILE).exists()
+        val hasEncoder = File(extractedModelDir, ENCODER_FILE).exists()
+        val hasDecoder = File(extractedModelDir, DECODER_FILE).exists()
         val hasPinyinVocab = File(extractedModelDir, VOCAB_PINYIN_FILE).exists()
         val hasHanziVocab = File(extractedModelDir, VOCAB_HANZI_FILE).exists()
-        return hasModel && hasPinyinVocab && hasHanziVocab
+        val hasConfig = File(extractedModelDir, CONFIG_FILE).exists()
+        return hasEncoder && hasDecoder && hasPinyinVocab && hasHanziVocab && hasConfig
     }
 
     /**
@@ -169,7 +179,7 @@ class NeuralPinyinRecognizer(private val context: Context) {
         onProgress: ((Int, String) -> Unit)? = null,
         onComplete: ((Boolean, String?) -> Unit)? = null
     ) {
-        Log.e(TAG, "extractModel: Starting extraction")  // Using Log.e for release builds
+        Log.e(TAG, "extractModel: Starting extraction")
         val uriStr = getModelZipUri()
         if (uriStr == null) {
             Log.e(TAG, "extractModel: No model zip file configured")
@@ -224,8 +234,6 @@ class NeuralPinyinRecognizer(private val context: Context) {
                 val extracted = isModelExtracted()
                 Log.e(TAG, "extractModel: isModelExtracted = $extracted")
 
-                // Set isExtracting to false BEFORE calling onComplete to avoid race condition
-                // where getModelStatus() is called before isExtracting is cleared
                 isExtracting = false
                 Log.e(TAG, "extractModel: isExtracting set to false")
 
@@ -236,7 +244,6 @@ class NeuralPinyinRecognizer(private val context: Context) {
                     }
                 } else {
                     Log.e(TAG, "extractModel: Model files not found after extraction")
-                    // Log what files are actually there
                     val files = extractedModelDir.listFiles()
                     Log.e(TAG, "extractModel: Files in dir: ${files?.map { "${it.name} (${it.length()} bytes)" }}")
                     withContext(Dispatchers.Main) {
@@ -270,7 +277,6 @@ class NeuralPinyinRecognizer(private val context: Context) {
                 Log.e(TAG, "extractZip: Found entry: ${entry.name}, isDirectory=${entry.isDirectory}")
 
                 // Get the entry name - if it contains a /, strip the first directory level
-                // Otherwise use the name as-is
                 val entryName = if (entry.name.contains('/')) {
                     entry.name.substringAfter('/')
                 } else {
@@ -303,7 +309,6 @@ class NeuralPinyinRecognizer(private val context: Context) {
             Log.e(TAG, "extractZip: Extraction complete, extracted $fileCount files")
         }
 
-        // Log extracted files
         Log.e(TAG, "extractZip: Files in extracted dir: ${extractedModelDir.listFiles()?.map { it.name }}")
     }
 
@@ -322,7 +327,6 @@ class NeuralPinyinRecognizer(private val context: Context) {
         var fileCount = 0
 
         while (entry != null) {
-            // Strip the first directory level
             val entryName = entry.name.substringAfter('/', entry.name)
 
             if (entryName.isNotEmpty() && !entry.isDirectory && tarIn.canReadEntryData(entry)) {
@@ -366,7 +370,7 @@ class NeuralPinyinRecognizer(private val context: Context) {
     }
 
     /**
-     * Initializes the ONNX model for inference.
+     * Initializes the ONNX encoder-decoder models for inference.
      * @param onReady Callback when initialization completes (success, error message)
      */
     fun initModel(onReady: ((Boolean, String?) -> Unit)? = null) {
@@ -394,26 +398,17 @@ class NeuralPinyinRecognizer(private val context: Context) {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Load vocabularies
+                // Load configuration
+                loadConfig()
+
+                // Load vocabularies (JSON format)
                 loadVocabularies()
 
-                // Find model file (prefer int8 quantized version, then mobile fp16, then full)
-                val modelFile = when {
-                    File(extractedModelDir, MODEL_INT8_FILE).exists() ->
-                        File(extractedModelDir, MODEL_INT8_FILE).absolutePath
-                    File(extractedModelDir, MODEL_MOBILE_FP16_FILE).exists() ->
-                        File(extractedModelDir, MODEL_MOBILE_FP16_FILE).absolutePath
-                    File(extractedModelDir, MODEL_FILE).exists() ->
-                        File(extractedModelDir, MODEL_FILE).absolutePath
-                    else -> throw IOException("Model file not found")
-                }
-
-                // Initialize ONNX Runtime session using reflection
-                // This avoids compile-time dependency on ONNX Runtime
-                initOrtSession(modelFile)
+                // Initialize ONNX Runtime sessions for encoder and decoder
+                initOrtSessions()
 
                 isModelReady = true
-                Log.i(TAG, "Neural pinyin model initialized successfully")
+                Log.i(TAG, "Neural pinyin encoder-decoder model initialized successfully")
 
                 withContext(Dispatchers.Main) {
                     onReady?.invoke(true, null)
@@ -430,83 +425,125 @@ class NeuralPinyinRecognizer(private val context: Context) {
     }
 
     /**
-     * Loads the pinyin and hanzi vocabularies from files.
+     * Loads the model configuration from inference_config.json.
      */
-    private fun loadVocabularies() {
-        // Load pinyin vocabulary (token -> id)
-        val pinyinVocabFile = File(extractedModelDir, VOCAB_PINYIN_FILE)
-        val pinyinMap = mutableMapOf<String, Int>()
-        pinyinVocabFile.readLines().forEachIndexed { index, line ->
-            val token = line.trim()
-            if (token.isNotEmpty()) {
-                pinyinMap[token] = index
-            }
-        }
-        pinyinVocab = pinyinMap
-        pinyinPadId = pinyinMap["<pad>"] ?: 0
+    private fun loadConfig() {
+        val configFile = File(extractedModelDir, CONFIG_FILE)
+        val jsonStr = configFile.readText()
+        val json = JSONObject(jsonStr)
 
-        // Load hanzi vocabulary (id -> token)
-        val hanziVocabFile = File(extractedModelDir, VOCAB_HANZI_FILE)
-        val hanziMap = mutableMapOf<Int, String>()
-        hanziVocabFile.readLines().forEachIndexed { index, line ->
-            val token = line.trim()
-            if (token.isNotEmpty()) {
-                hanziMap[index] = token
-            }
-        }
-        hanziVocab = hanziMap
-        hanziStartId = hanziMap.entries.find { it.value == "<s>" }?.key ?: 1
-        hanziEndId = hanziMap.entries.find { it.value == "</s>" }?.key ?: 2
+        maxOutputLen = json.optInt("max_output_len", 64)
+        hiddenDim = json.optInt("hidden_dim", 512)
+        numLayers = json.optInt("num_layers", 3)
 
-        Log.d(TAG, "Loaded vocabularies: ${pinyinVocab.size} pinyin, ${hanziVocab.size} hanzi")
+        // Load special token IDs
+        val specialTokens = json.optJSONObject("special_tokens")
+        if (specialTokens != null) {
+            padId = specialTokens.optInt("PAD", 0)
+            sosId = specialTokens.optInt("SOS", 1)
+            eosId = specialTokens.optInt("EOS", 2)
+            unkId = specialTokens.optInt("UNK", 3)
+        }
+
+        Log.d(TAG, "Loaded config: maxOutputLen=$maxOutputLen, hiddenDim=$hiddenDim, numLayers=$numLayers")
+        Log.d(TAG, "Special tokens: PAD=$padId, SOS=$sosId, EOS=$eosId, UNK=$unkId")
     }
 
     /**
-     * Initializes the ONNX Runtime session.
+     * Loads the pinyin and hanzi vocabularies from JSON files.
      */
-    private fun initOrtSession(modelPath: String) {
+    private fun loadVocabularies() {
+        // Load pinyin vocabulary (token -> index)
+        val pinyinVocabFile = File(extractedModelDir, VOCAB_PINYIN_FILE)
+        val pinyinJsonStr = pinyinVocabFile.readText()
+        val pinyinJson = JSONObject(pinyinJsonStr)
+
+        val pinyinToken2IdxJson = pinyinJson.getJSONObject("token2idx")
+        val pinyinMap = mutableMapOf<String, Int>()
+        pinyinToken2IdxJson.keys().forEach { key ->
+            pinyinMap[key] = pinyinToken2IdxJson.getInt(key)
+        }
+        pinyinToken2Idx = pinyinMap
+
+        // Load hanzi vocabulary (token -> index and index -> token)
+        val hanziVocabFile = File(extractedModelDir, VOCAB_HANZI_FILE)
+        val hanziJsonStr = hanziVocabFile.readText()
+        val hanziJson = JSONObject(hanziJsonStr)
+
+        val hanziToken2IdxJson = hanziJson.getJSONObject("token2idx")
+        val hanziTokenMap = mutableMapOf<String, Int>()
+        hanziToken2IdxJson.keys().forEach { key ->
+            hanziTokenMap[key] = hanziToken2IdxJson.getInt(key)
+        }
+        hanziToken2Idx = hanziTokenMap
+
+        val hanziIdx2TokenJson = hanziJson.getJSONObject("idx2token")
+        val hanziIdxMap = mutableMapOf<Int, String>()
+        hanziIdx2TokenJson.keys().forEach { key ->
+            hanziIdxMap[key.toInt()] = hanziIdx2TokenJson.getString(key)
+        }
+        hanziIdx2Token = hanziIdxMap
+
+        Log.d(TAG, "Loaded vocabularies: ${pinyinToken2Idx.size} pinyin tokens, ${hanziToken2Idx.size} hanzi tokens")
+    }
+
+    /**
+     * Initializes the ONNX Runtime sessions for encoder and decoder.
+     */
+    private fun initOrtSessions() {
         try {
-            // Get OrtEnvironment singleton
             ortEnv = OrtEnvironment.getEnvironment()
 
-            // Create session options
             val sessionOptions = OrtSession.SessionOptions()
             sessionOptions.setIntraOpNumThreads(2)
 
-            // Create session from model file
-            ortSession = ortEnv!!.createSession(modelPath, sessionOptions)
+            // Load encoder
+            val encoderPath = File(extractedModelDir, ENCODER_FILE).absolutePath
+            encoderSession = ortEnv!!.createSession(encoderPath, sessionOptions)
+            Log.d(TAG, "Encoder session created")
 
-            Log.d(TAG, "ONNX Runtime session created successfully")
+            // Load decoder
+            val decoderPath = File(extractedModelDir, DECODER_FILE).absolutePath
+            decoderSession = ortEnv!!.createSession(decoderPath, sessionOptions)
+            Log.d(TAG, "Decoder session created")
+
         } catch (e: Exception) {
-            throw RuntimeException("Failed to initialize ONNX Runtime: ${e.message}", e)
+            throw RuntimeException("Failed to initialize ONNX Runtime sessions: ${e.message}", e)
         }
     }
 
     /**
-     * Converts pinyin string to Chinese characters using the neural model.
-     * @param pinyin The pinyin input (space-separated syllables, e.g., "ni hao")
+     * Converts pinyin string to Chinese characters using the neural encoder-decoder model.
+     * @param pinyin The pinyin input (continuous letters without spaces, e.g., "nihao")
+     * @param numResults Number of candidate results to return (1 or 3, default 1)
      * @return List of candidate Chinese strings, sorted by probability
      */
-    fun convert(pinyin: String): List<String> {
-        if (!isModelReady || ortSession == null) {
+    fun convert(pinyin: String, numResults: Int = 1): List<String> {
+        if (!isModelReady || encoderSession == null || decoderSession == null) {
             Log.w(TAG, "Model not ready for inference")
             return emptyList()
         }
 
         try {
-            // Tokenize pinyin input
+            // Tokenize pinyin input (character-level)
             val pinyinTokens = tokenizePinyin(pinyin)
             if (pinyinTokens.isEmpty()) {
                 return emptyList()
             }
 
-            // Run inference
-            val outputIds = runInference(pinyinTokens)
+            // If only 1 result needed, use greedy decoding
+            if (numResults <= 1) {
+                val outputIds = runEncoderDecoderInference(pinyinTokens)
+                val result = decodeOutput(outputIds)
+                return if (result.isNotEmpty()) listOf(result) else emptyList()
+            }
 
-            // Decode output to Chinese characters
-            val result = decodeOutput(outputIds)
-
-            return if (result.isNotEmpty()) listOf(result) else emptyList()
+            // Use beam search for multiple results
+            val beamResults = runBeamSearchInference(pinyinTokens, numResults)
+            return beamResults.mapNotNull { ids ->
+                val result = decodeOutput(ids)
+                if (result.isNotEmpty()) result else null
+            }.distinct().take(numResults)
         } catch (e: Exception) {
             Log.e(TAG, "Error during inference: ${e.message}", e)
             return emptyList()
@@ -515,130 +552,405 @@ class NeuralPinyinRecognizer(private val context: Context) {
 
     /**
      * Tokenizes pinyin string into vocabulary IDs.
-     * The model uses character-level input (e.g., "ni hao" -> ['n','i',' ','h','a','o']).
+     * Uses character-level tokenization (e.g., "nihao" -> [n, i, h, a, o]).
+     * Note: SOS/EOS tokens are not added to encoder input - they are only used by the decoder.
      */
     private fun tokenizePinyin(pinyin: String): LongArray {
         val cleanedPinyin = pinyin.lowercase().trim()
         val tokens = mutableListOf<Long>()
 
-        // Character-by-character tokenization
+        // Character-by-character tokenization (no SOS/EOS for encoder input)
         for (char in cleanedPinyin) {
             val charStr = char.toString()
-            val id = pinyinVocab[charStr]
+            val id = pinyinToken2Idx[charStr]
             if (id != null) {
                 tokens.add(id.toLong())
             } else {
-                // Use <unk> token for unknown characters
-                val unkId = pinyinVocab["<unk>"] ?: 1
+                // Use UNK token for unknown characters
                 tokens.add(unkId.toLong())
             }
         }
 
-        // Pad or truncate to MAX_INPUT_LENGTH
-        val paddedTokens = LongArray(MAX_INPUT_LENGTH) { pinyinPadId.toLong() }
-        tokens.take(MAX_INPUT_LENGTH).forEachIndexed { index, token ->
-            paddedTokens[index] = token
-        }
-
-        return paddedTokens
+        return tokens.toLongArray()
     }
 
     /**
-     * Runs model inference using ONNX Runtime.
-     * The CBHG model outputs logits [batch, seq_len, vocab_size], we take argmax.
+     * Runs encoder-decoder inference with autoregressive decoding.
+     * The model uses LSTM hidden/cell states that need to be passed between steps.
      */
-    private fun runInference(inputTokens: LongArray): LongArray {
+    private fun runEncoderDecoderInference(inputTokens: LongArray): List<Int> {
+        val encoder = encoderSession ?: throw RuntimeException("Encoder session not initialized")
+        val decoder = decoderSession ?: throw RuntimeException("Decoder session not initialized")
+        val env = ortEnv ?: throw RuntimeException("Environment not initialized")
+
         try {
-            val session = ortSession ?: throw RuntimeException("Session not initialized")
-            val env = ortEnv ?: throw RuntimeException("Environment not initialized")
+            // Prepare encoder input [1, seq_len]
+            val encoderInputData = arrayOf(inputTokens)
+            val encoderInputTensor = OnnxTensor.createTensor(env, encoderInputData)
 
-            // Create input tensor with shape [1, seq_len]
-            // Reshape 1D array to 2D for batch dimension
-            val inputData = arrayOf(inputTokens)
-            val inputTensor = OnnxTensor.createTensor(env, inputData)
+            // Run encoder to get hidden states
+            // Encoder inputs: pinyin_ids [batch, seq_len]
+            // Encoder outputs: encoder_outputs [batch, seq_len, hidden*2], hidden [num_layers, batch, hidden*2], cell [num_layers, batch, hidden*2]
+            val encoderInputMap = mapOf("pinyin_ids" to encoderInputTensor)
+            val encoderResult = encoder.run(encoderInputMap)
 
-            // Run inference
-            val inputMap = mapOf("pinyin_input" to inputTensor)
-            val outputResult = session.run(inputMap)
+            // Get encoder outputs (3 tensors: encoder_outputs, hidden, cell)
+            val encoderOutputsTensor = encoderResult.get("encoder_outputs").get() as OnnxTensor
+            var hiddenTensor = encoderResult.get("hidden").get() as OnnxTensor
+            var cellTensor = encoderResult.get("cell").get() as OnnxTensor
 
-            // Get output tensor
-            val outputTensor = outputResult.get(0) as OnnxTensor
-            val outputValue = outputTensor.value
+            // Calculate reasonable max output length based on input pinyin length
+            // Each Chinese character corresponds to ~2-6 pinyin letters (average ~3)
+            // So max output should be roughly inputLength/2 + some buffer
+            val inputLength = inputTokens.size
+            val maxAllowedLen = minOf(maxOutputLen, inputLength / 2 + 5)
 
-            // Handle different output types
-            val outputIds: LongArray = when (outputValue) {
-                is Array<*> -> {
-                    // Check if it's 3D float array (logits) or 2D long array (direct output)
-                    @Suppress("UNCHECKED_CAST")
-                    when {
-                        outputValue.isArrayOf<FloatArray>() -> {
-                            // 2D: [seq_len, vocab_size] - take argmax
-                            val logits2d = outputValue as Array<FloatArray>
-                            LongArray(logits2d.size) { i ->
-                                logits2d[i].indices.maxByOrNull { logits2d[i][it] }?.toLong() ?: 0L
+            // Autoregressive decoding
+            val outputIds = mutableListOf<Int>()
+            var currentToken = sosId
+            var consecutiveRepeatCount = 0
+            var lastToken = -1
+
+            for (step in 0 until maxAllowedLen) {
+                // Prepare decoder input: input_token [1] containing current token
+                val decoderInputData = longArrayOf(currentToken.toLong())
+                val decoderInputTensor = OnnxTensor.createTensor(env, decoderInputData)
+
+                // Run decoder with encoder outputs and LSTM states
+                // Decoder inputs: input_token [1], encoder_outputs, hidden, cell
+                // Decoder outputs: output [1, vocab], new_hidden, new_cell
+                val decoderInputMap = mapOf(
+                    "input_token" to decoderInputTensor,
+                    "encoder_outputs" to encoderOutputsTensor,
+                    "hidden" to hiddenTensor,
+                    "cell" to cellTensor
+                )
+                val decoderResult = decoder.run(decoderInputMap)
+
+                // Get logits [1, vocab_size] and find the most likely next token
+                val logitsTensor = decoderResult.get("output").get() as OnnxTensor
+                val logitsValue = logitsTensor.value
+
+                val nextToken = when (logitsValue) {
+                    is Array<*> -> {
+                        @Suppress("UNCHECKED_CAST")
+                        when {
+                            // 2D: [1, vocab] - take first (only) batch
+                            logitsValue.isArrayOf<FloatArray>() -> {
+                                val logits2d = logitsValue as Array<FloatArray>
+                                val logits = logits2d[0]
+                                logits.indices.maxByOrNull { logits[it] } ?: eosId
                             }
-                        }
-                        outputValue.isArrayOf<Array<*>>() -> {
-                            // 3D: [batch, seq_len, vocab_size] - take argmax
-                            val logits3d = outputValue as Array<Array<FloatArray>>
-                            val seqLen = logits3d[0].size
-                            LongArray(seqLen) { i ->
-                                logits3d[0][i].indices.maxByOrNull { logits3d[0][i][it] }?.toLong() ?: 0L
-                            }
-                        }
-                        outputValue.isArrayOf<LongArray>() -> {
-                            // 2D long array - direct indices
-                            (outputValue as Array<LongArray>)[0]
-                        }
-                        else -> {
-                            Log.w(TAG, "Unexpected output type: ${outputValue.javaClass}")
-                            LongArray(0)
+                            else -> eosId
                         }
                     }
+                    else -> eosId
                 }
-                else -> {
-                    Log.w(TAG, "Unexpected output value type: ${outputValue?.javaClass}")
-                    LongArray(0)
+
+                // Get new hidden/cell states for next step
+                val newHiddenTensor = decoderResult.get("new_hidden").get() as OnnxTensor
+                val newCellTensor = decoderResult.get("new_cell").get() as OnnxTensor
+
+                // Close old states and update (except for encoderOutputsTensor which is reused)
+                decoderInputTensor.close()
+                if (step > 0) {
+                    // Only close if not the original from encoder
+                    hiddenTensor.close()
+                    cellTensor.close()
                 }
+                hiddenTensor = newHiddenTensor
+                cellTensor = newCellTensor
+
+                // Stop if we hit EOS
+                if (nextToken == eosId) {
+                    decoderResult.close()
+                    break
+                }
+
+                // Detect repetition - stop if same token generated 3+ times consecutively
+                if (nextToken == lastToken) {
+                    consecutiveRepeatCount++
+                    if (consecutiveRepeatCount >= 2) {
+                        // Stop decoding - model is stuck in a loop
+                        decoderResult.close()
+                        break
+                    }
+                } else {
+                    consecutiveRepeatCount = 0
+                }
+                lastToken = nextToken
+
+                // Skip PAD tokens
+                if (nextToken != padId) {
+                    outputIds.add(nextToken)
+                }
+
+                currentToken = nextToken
             }
 
-            // Close tensors and result
-            inputTensor.close()
-            outputResult.close()
+            // Close remaining tensors
+            encoderInputTensor.close()
+            encoderResult.close()
+            hiddenTensor.close()
+            cellTensor.close()
 
             return outputIds
         } catch (e: Exception) {
-            Log.e(TAG, "Inference error: ${e.message}", e)
-            return LongArray(0)
+            Log.e(TAG, "Encoder-decoder inference error: ${e.message}", e)
+            return emptyList()
         }
+    }
+
+    /**
+     * Beam state for beam search decoding.
+     */
+    private data class BeamState(
+        val tokens: List<Int>,
+        val logProb: Float,
+        val lastToken: Int,
+        val hiddenState: FloatArray,
+        val cellState: FloatArray
+    )
+
+    /**
+     * Runs beam search inference to get multiple candidate outputs.
+     * Uses beam search with top-k expansion at each step.
+     */
+    private fun runBeamSearchInference(inputTokens: LongArray, beamWidth: Int): List<List<Int>> {
+        val encoder = encoderSession ?: throw RuntimeException("Encoder session not initialized")
+        val decoder = decoderSession ?: throw RuntimeException("Decoder session not initialized")
+        val env = ortEnv ?: throw RuntimeException("Environment not initialized")
+
+        try {
+            // Prepare encoder input [1, seq_len]
+            val encoderInputData = arrayOf(inputTokens)
+            val encoderInputTensor = OnnxTensor.createTensor(env, encoderInputData)
+
+            // Run encoder
+            val encoderInputMap = mapOf("pinyin_ids" to encoderInputTensor)
+            val encoderResult = encoder.run(encoderInputMap)
+
+            val encoderOutputsTensor = encoderResult.get("encoder_outputs").get() as OnnxTensor
+            val initialHiddenTensor = encoderResult.get("hidden").get() as OnnxTensor
+            val initialCellTensor = encoderResult.get("cell").get() as OnnxTensor
+
+            // Extract hidden and cell states as arrays for beam state
+            val initialHidden = extractFloatArray(initialHiddenTensor)
+            val initialCell = extractFloatArray(initialCellTensor)
+
+            // Calculate reasonable max output length based on input pinyin length
+            val inputLength = inputTokens.size
+            val maxAllowedLen = minOf(maxOutputLen, inputLength / 2 + 5)
+
+            // Initialize beams with SOS token
+            var beams = listOf(
+                BeamState(
+                    tokens = emptyList(),
+                    logProb = 0f,
+                    lastToken = sosId,
+                    hiddenState = initialHidden,
+                    cellState = initialCell
+                )
+            )
+
+            val completedBeams = mutableListOf<BeamState>()
+
+            for (step in 0 until maxAllowedLen) {
+                if (beams.isEmpty()) break
+
+                val newBeams = mutableListOf<BeamState>()
+
+                for (beam in beams) {
+                    // Create tensors for this beam
+                    val decoderInputData = longArrayOf(beam.lastToken.toLong())
+                    val decoderInputTensor = OnnxTensor.createTensor(env, decoderInputData)
+
+                    // Reshape hidden/cell states back to tensor format [numLayers, 1, hiddenDim*2]
+                    val hiddenTensor = createHiddenTensor(env, beam.hiddenState)
+                    val cellTensor = createHiddenTensor(env, beam.cellState)
+
+                    val decoderInputMap = mapOf(
+                        "input_token" to decoderInputTensor,
+                        "encoder_outputs" to encoderOutputsTensor,
+                        "hidden" to hiddenTensor,
+                        "cell" to cellTensor
+                    )
+                    val decoderResult = decoder.run(decoderInputMap)
+
+                    // Get logits and compute log probabilities
+                    val logitsTensor = decoderResult.get("output").get() as OnnxTensor
+                    val logits = extractLogits(logitsTensor)
+
+                    // Get top-k tokens
+                    val topK = getTopKTokens(logits, beamWidth * 2)
+
+                    // Get new hidden/cell states
+                    val newHiddenTensor = decoderResult.get("new_hidden").get() as OnnxTensor
+                    val newCellTensor = decoderResult.get("new_cell").get() as OnnxTensor
+                    val newHidden = extractFloatArray(newHiddenTensor)
+                    val newCell = extractFloatArray(newCellTensor)
+
+                    for ((token, logProb) in topK) {
+                        val newLogProb = beam.logProb + logProb
+
+                        if (token == eosId) {
+                            completedBeams.add(BeamState(
+                                tokens = beam.tokens,
+                                logProb = newLogProb,
+                                lastToken = eosId,
+                                hiddenState = newHidden,
+                                cellState = newCell
+                            ))
+                        } else if (token != padId) {
+                            // Check for repetition - skip if this token would create 3+ consecutive repeats
+                            val newTokens = beam.tokens + token
+                            val hasRepetition = newTokens.size >= 3 &&
+                                newTokens[newTokens.size - 1] == newTokens[newTokens.size - 2] &&
+                                newTokens[newTokens.size - 2] == newTokens[newTokens.size - 3]
+
+                            if (!hasRepetition) {
+                                newBeams.add(BeamState(
+                                    tokens = newTokens,
+                                    logProb = newLogProb,
+                                    lastToken = token,
+                                    hiddenState = newHidden,
+                                    cellState = newCell
+                                ))
+                            }
+                        }
+                    }
+
+                    // Clean up tensors
+                    decoderInputTensor.close()
+                    hiddenTensor.close()
+                    cellTensor.close()
+                }
+
+                // Keep top beams
+                beams = newBeams.sortedByDescending { it.logProb }.take(beamWidth)
+
+                // Early stop if we have enough completed beams
+                if (completedBeams.size >= beamWidth) break
+            }
+
+            // Add any remaining beams to completed
+            completedBeams.addAll(beams)
+
+            // Clean up
+            encoderInputTensor.close()
+            encoderResult.close()
+
+            // Return sorted results
+            return completedBeams
+                .sortedByDescending { it.logProb }
+                .take(beamWidth)
+                .map { it.tokens }
+        } catch (e: Exception) {
+            Log.e(TAG, "Beam search inference error: ${e.message}", e)
+            return emptyList()
+        }
+    }
+
+    /**
+     * Extracts float array from ONNX tensor.
+     */
+    private fun extractFloatArray(tensor: OnnxTensor): FloatArray {
+        val value = tensor.value
+        return when (value) {
+            is Array<*> -> {
+                // 3D: [numLayers, 1, hidden*2] -> flatten
+                @Suppress("UNCHECKED_CAST")
+                val arr3d = value as Array<Array<FloatArray>>
+                arr3d.flatMap { layer -> layer.flatMap { it.toList() } }.toFloatArray()
+            }
+            is FloatArray -> value
+            else -> FloatArray(0)
+        }
+    }
+
+    /**
+     * Creates hidden state tensor from flat array.
+     */
+    private fun createHiddenTensor(env: OrtEnvironment, flatArray: FloatArray): OnnxTensor {
+        // Reshape to [numLayers, 1, hiddenDim*2]
+        val hiddenSize = hiddenDim * 2
+        val reshaped = Array(numLayers) { layer ->
+            Array(1) { FloatArray(hiddenSize) { idx ->
+                flatArray.getOrElse(layer * hiddenSize + idx) { 0f }
+            }}
+        }
+        return OnnxTensor.createTensor(env, reshaped)
+    }
+
+    /**
+     * Extracts logits from output tensor.
+     */
+    private fun extractLogits(tensor: OnnxTensor): FloatArray {
+        val value = tensor.value
+        return when (value) {
+            is Array<*> -> {
+                @Suppress("UNCHECKED_CAST")
+                when {
+                    value.isArrayOf<FloatArray>() -> (value as Array<FloatArray>)[0]
+                    else -> FloatArray(0)
+                }
+            }
+            is FloatArray -> value
+            else -> FloatArray(0)
+        }
+    }
+
+    /**
+     * Gets top-k tokens with their log probabilities.
+     */
+    private fun getTopKTokens(logits: FloatArray, k: Int): List<Pair<Int, Float>> {
+        if (logits.isEmpty()) return emptyList()
+
+        // Apply softmax and convert to log probs
+        val maxLogit = logits.maxOrNull() ?: 0f
+        val expLogits = logits.map { kotlin.math.exp(it - maxLogit) }
+        val sumExp = expLogits.sum()
+        val logProbs = expLogits.map { kotlin.math.ln(it / sumExp).toFloat() }
+
+        // Get top-k indices
+        return logProbs.mapIndexed { idx, prob -> idx to prob }
+            .sortedByDescending { it.second }
+            .take(k)
     }
 
     /**
      * Decodes output token IDs to Chinese string.
-     * Handles special tokens: <pad>, <unk>, _, <s>, </s>
+     * Also removes trailing repetitive characters.
      */
-    private fun decodeOutput(outputIds: LongArray): String {
+    private fun decodeOutput(outputIds: List<Int>): String {
         val result = StringBuilder()
 
         for (id in outputIds) {
-            val idInt = id.toInt()
-            // Stop at end token
-            if (idInt == hanziEndId) break
-
             // Skip special tokens
-            if (idInt == hanziStartId || idInt == 0) continue
+            if (id == padId || id == sosId || id == eosId || id == unkId) {
+                continue
+            }
 
-            val char = hanziVocab[idInt]
-            if (char != null) {
-                // Skip special tokens and blank alignment tokens
-                when (char) {
-                    "<pad>", "<unk>", "_", "<s>", "</s>" -> continue
-                    else -> result.append(char)
-                }
+            val char = hanziIdx2Token[id]
+            if (char != null && !char.startsWith("<")) {
+                result.append(char)
             }
         }
 
-        return result.toString()
+        // Post-processing: trim trailing repetitive characters
+        // If the last 2+ characters are the same, keep only one
+        var output = result.toString()
+        while (output.length >= 2) {
+            val lastChar = output.last()
+            val secondLastChar = output[output.length - 2]
+            if (lastChar == secondLastChar) {
+                output = output.dropLast(1)
+            } else {
+                break
+            }
+        }
+
+        return output
     }
 
     /**
@@ -646,19 +958,22 @@ class NeuralPinyinRecognizer(private val context: Context) {
      */
     fun releaseModel() {
         try {
-            ortSession?.close()
+            encoderSession?.close()
+            decoderSession?.close()
         } catch (e: Exception) {
-            Log.e(TAG, "Error closing session: ${e.message}")
+            Log.e(TAG, "Error closing sessions: ${e.message}")
         }
 
-        ortSession = null
+        encoderSession = null
+        decoderSession = null
         isModelReady = false
-        pinyinVocab = emptyMap()
-        hanziVocab = emptyMap()
+        pinyinToken2Idx = emptyMap()
+        hanziToken2Idx = emptyMap()
+        hanziIdx2Token = emptyMap()
     }
 
     /**
-     * Model status enum (shared with SherpaSpeechRecognizer).
+     * Model status enum.
      */
     enum class ModelStatus {
         NOT_CONFIGURED,      // No zip file selected

@@ -9,7 +9,7 @@ import it.neuralrad.coolwulf.data.pinyin.PinyinDictionary
 import it.neuralrad.coolwulf.data.pinyin.UserPinyinMemory
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
-import it.neuralrad.coolwulf.inputmethod.HmmPinyinRecognizer
+import it.neuralrad.coolwulf.inputmethod.NeuralPinyinRecognizer
 import it.neuralrad.coolwulf.SettingsManager
 
 /**
@@ -84,10 +84,12 @@ class PinyinInputController(
     // Whether fuzzy pinyin (模糊音) is enabled
     private var fuzzyPinyinEnabled: Boolean = false
 
-    // HMM pinyin recognizer for statistical model based conversion
-    private var hmmPinyinRecognizer: HmmPinyinRecognizer? = null
-    private var hmmPinyinEnabled: Boolean = true  // Enabled by default
-    private var hmmPinyinMinLetters: Int = 6
+    // Neural pinyin recognizer for encoder-decoder model (primary method for long sentences)
+    private var neuralPinyinRecognizer: NeuralPinyinRecognizer? = null
+    private var neuralPinyinEnabled: Boolean = false  // Disabled by default until model is loaded
+    private var neuralPinyinMinLetters: Int = 6
+    private var neuralPinyinPriority: Boolean = false  // When true, neural prediction shown as top suggestion
+    private var neuralPinyinCount: Int = 1  // Number of neural predictions (1 or 3)
 
     // Fuzzy pinyin substitution rules
     // z↔zh, c↔ch, s↔sh, l↔n, en↔eng, in↔ing
@@ -1007,10 +1009,10 @@ class PinyinInputController(
             null
         }
 
-        // Get HMM pinyin suggestion
-        val neuralSuggestion = getHmmPinyinSuggestion(bufferWithoutSep)
+        // Get neural pinyin suggestions for long sentences
+        val neuralSuggestions = getLongSentenceSuggestions(bufferWithoutSep)
 
-        // NOTE: Custom phrases, auto-learned phrases, dict exact match, and HMM suggestion
+        // NOTE: Custom phrases, auto-learned phrases, dict exact match, and neural suggestion
         // are ALL added to frequency-based sorting below (not in fixed priority order)
         // This ensures the most-used candidate appears first, regardless of source.
 
@@ -1060,7 +1062,7 @@ class PinyinInputController(
             val hasPhraseSourceCandidates = abbreviationCandidates.isNotEmpty() ||
                 customPhrases.isNotEmpty() ||
                 autoLearnedPhrases.isNotEmpty() ||
-                neuralSuggestion != null ||
+                neuralSuggestions.isNotEmpty() ||
                 partialMatchPhrases.isNotEmpty() ||
                 dictPartialPhrases.isNotEmpty()
 
@@ -1104,10 +1106,12 @@ class PinyinInputController(
                         addedToFallback.add(phrase)
                     }
                 }
-                if (neuralSuggestion != null && neuralSuggestion !in addedToFallback) {
-                    val freq = userFreqMap[neuralSuggestion] ?: 0
-                    fallbackCandidates.add(neuralSuggestion to (freq + if (freq == 0) 1 else 0))
-                    addedToFallback.add(neuralSuggestion)
+                for (neuralSuggestion in neuralSuggestions) {
+                    if (neuralSuggestion !in addedToFallback) {
+                        val freq = userFreqMap[neuralSuggestion] ?: 0
+                        fallbackCandidates.add(neuralSuggestion to (freq + if (freq == 0) 1 else 0))
+                        addedToFallback.add(neuralSuggestion)
+                    }
                 }
 
                 // Sort by frequency and set as candidates
@@ -1135,8 +1139,8 @@ class PinyinInputController(
             // Single segment - check for dictionary phrase first
             val dictPhraseCandidates = PinyinDictionary.getPhraseCandidates(bufferWithoutSep)
             phraseCandidatesRaw.addAll(dictPhraseCandidates)
-            // Include auto-learned phrases in the check - if any phrase matches, consume full buffer
-            matchedPinyin = if (dictPhraseCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty()) bufferWithoutSep else actualFirstSyllable
+            // Include auto-learned phrases and neural suggestions in the check - if any phrase matches, consume full buffer
+            matchedPinyin = if (dictPhraseCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty() || neuralSuggestions.isNotEmpty()) bufferWithoutSep else actualFirstSyllable
         }
 
         // Now combine ALL candidate sources (custom, abbreviation, auto-learned, dictionary, partial, neural)
@@ -1224,14 +1228,17 @@ class PinyinInputController(
             }
         }
 
-        // Add HMM neural suggestion (with +1 boost when freq is 0 - slightly lower than learned phrases)
-        // HMM suggestions get lower boost because they're statistical predictions, not user preferences
-        if (neuralSuggestion != null && neuralSuggestion !in addedPhrases) {
-            val freq = userFreqMap[neuralSuggestion] ?: 0
-            val boost = if (freq == 0) 1 else 0  // +1 boost (lower than custom/learned +2)
-            allCandidatesWithFreq.add(neuralSuggestion to (freq + boost))
-            addedPhrases.add(neuralSuggestion)
-            Log.d(TAG, "Neural pinyin suggestion (freq-sorted): '$neuralSuggestion' with effective freq ${freq + boost}")
+        // Add neural suggestions (with priority boost or +1 boost when freq is 0)
+        // Neural suggestions get lower boost because they're model predictions, not user preferences
+        // When priority is enabled, use a high boost to put neural prediction first
+        for ((index, neuralSuggestion) in neuralSuggestions.withIndex()) {
+            if (neuralSuggestion !in addedPhrases) {
+                val freq = userFreqMap[neuralSuggestion] ?: 0
+                // First neural suggestion gets priority boost, others get decreasing priority
+                val boost = if (neuralPinyinPriority) (1000 - index) else if (freq == 0) 1 else 0
+                allCandidatesWithFreq.add(neuralSuggestion to (freq + boost))
+                addedPhrases.add(neuralSuggestion)
+            }
         }
 
         // Add single-character candidates (no boost - raw frequency)
@@ -1266,10 +1273,8 @@ class PinyinInputController(
         phraseSet.addAll(autoLearnedPhrases)
         phraseSet.addAll(partialMatchPhrases)  // Include user-learned partial matches
         phraseSet.addAll(dictPartialPhrases)   // Include dictionary partial matches
-        // Include neural pinyin suggestion as a phrase (consumes entire buffer)
-        if (neuralSuggestion != null) {
-            phraseSet.add(neuralSuggestion)
-        }
+        // Include neural pinyin suggestions as phrases (consume entire buffer)
+        phraseSet.addAll(neuralSuggestions)
         phraseCandidateSet = phraseSet
 
         // phraseCandidateCount for compatibility (used in some places)
@@ -1336,8 +1341,8 @@ class PinyinInputController(
 
         val resultCandidates = mutableListOf<String>()
 
-        // Get HMM pinyin suggestion (will be added to frequency-based sorting below)
-        val neuralSuggestion = getHmmPinyinSuggestion(cleanBuffer)
+        // Get neural pinyin suggestions (will be added to frequency-based sorting below)
+        val neuralSuggestions = getLongSentenceSuggestions(cleanBuffer)
 
         val abbreviationCandidates = if (isMemoryEnabled() && isAbbreviationInputEnabled()) userMemory.getAbbreviationCandidates(cleanBuffer) else emptyList()
 
@@ -1384,7 +1389,7 @@ class PinyinInputController(
 
         val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(cleanBuffer)
 
-        if (prefixCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty() || abbreviationCandidates.isNotEmpty() || neuralSuggestion != null || partialMatchPhrases.isNotEmpty() || dictPartialPhrases.isNotEmpty()) {
+        if (prefixCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty() || abbreviationCandidates.isNotEmpty() || neuralSuggestions.isNotEmpty() || partialMatchPhrases.isNotEmpty() || dictPartialPhrases.isNotEmpty()) {
             // Get user frequency for accurate merging
             val userFreqMap = if (isMemoryEnabled()) userMemory.getFrequencyMap(cleanBuffer) else emptyMap()
 
@@ -1457,13 +1462,16 @@ class PinyinInputController(
                 }
             }
 
-            // Add HMM neural suggestion (with +1 boost when freq is 0 - slightly lower than learned phrases)
-            if (neuralSuggestion != null && neuralSuggestion !in addedToMerge) {
-                val freq = userFreqMap[neuralSuggestion] ?: 0
-                val boost = if (freq == 0) 1 else 0  // +1 boost (lower than custom/learned +2)
-                allCandidatesWithFreq.add(neuralSuggestion to (freq + boost))
-                addedToMerge.add(neuralSuggestion)
-                Log.d(TAG, "Neural pinyin suggestion (unparsable, freq-sorted): '$neuralSuggestion' with effective freq ${freq + boost}")
+            // Add neural suggestions (with priority boost or +1 boost when freq is 0)
+            // When priority is enabled, use a high boost to put neural prediction first
+            for ((index, neuralSuggestion) in neuralSuggestions.withIndex()) {
+                if (neuralSuggestion !in addedToMerge) {
+                    val freq = userFreqMap[neuralSuggestion] ?: 0
+                    // First neural suggestion gets priority boost, others get decreasing priority
+                    val boost = if (neuralPinyinPriority) (1000 - index) else if (freq == 0) 1 else 0
+                    allCandidatesWithFreq.add(neuralSuggestion to (freq + boost))
+                    addedToMerge.add(neuralSuggestion)
+                }
             }
 
             // Sort by effective frequency (descending)
@@ -1477,7 +1485,7 @@ class PinyinInputController(
             allCandidates = resultCandidates
             // If we have phrase candidates (abbreviation, custom, auto-learned, neural), use full buffer for phrase matching
             // Otherwise fall back to first syllable for single-character selection
-            val hasPhraseCandidates = abbreviationCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty() || neuralSuggestion != null
+            val hasPhraseCandidates = abbreviationCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty() || neuralSuggestions.isNotEmpty()
             matchedPinyin = if (hasPhraseCandidates) cleanBuffer else (PinyinDictionary.getFirstSyllableForPrefix(cleanBuffer) ?: cleanBuffer)
             firstSyllable = PinyinDictionary.getFirstSyllableForPrefix(cleanBuffer) ?: cleanBuffer
             // Build phrase set for accurate detection
@@ -1487,10 +1495,8 @@ class PinyinInputController(
             phraseSet.addAll(autoLearnedPhrases)
             phraseSet.addAll(partialMatchPhrases)
             phraseSet.addAll(dictPartialPhrases)
-            // Include neural pinyin suggestion as a phrase
-            if (neuralSuggestion != null) {
-                phraseSet.add(neuralSuggestion)
-            }
+            // Include neural pinyin suggestions as phrases
+            phraseSet.addAll(neuralSuggestions)
             phraseCandidateSet = phraseSet
             phraseCandidateCount = phraseSet.size
         } else if (resultCandidates.isNotEmpty()) {
@@ -1498,11 +1504,9 @@ class PinyinInputController(
             allCandidates = resultCandidates
             matchedPinyin = cleanBuffer
             firstSyllable = cleanBuffer
-            // Include neural suggestion in phrase set
+            // Include neural suggestions in phrase set
             val phraseSet = resultCandidates.toMutableSet()
-            if (neuralSuggestion != null) {
-                phraseSet.add(neuralSuggestion)
-            }
+            phraseSet.addAll(neuralSuggestions)
             phraseCandidateSet = phraseSet
             phraseCandidateCount = phraseSet.size
         } else {
@@ -1890,65 +1894,110 @@ class PinyinInputController(
     }
 
     /**
-     * Sets whether HMM pinyin is enabled.
+     * Sets whether neural pinyin is enabled.
      */
-    fun setHmmPinyinEnabled(enabled: Boolean) {
-        hmmPinyinEnabled = enabled
-        if (enabled && hmmPinyinRecognizer == null) {
-            hmmPinyinRecognizer = HmmPinyinRecognizer.getInstance(context)
-            // Initialize the model automatically
-            hmmPinyinRecognizer?.initModel()
+    fun setNeuralPinyinEnabled(enabled: Boolean) {
+        neuralPinyinEnabled = enabled
+        if (enabled && neuralPinyinRecognizer == null) {
+            neuralPinyinRecognizer = NeuralPinyinRecognizer.getInstance(context)
         }
     }
 
     /**
-     * Returns whether HMM pinyin is enabled.
+     * Returns whether neural pinyin is enabled.
      */
-    fun isHmmPinyinEnabled(): Boolean = hmmPinyinEnabled
+    fun isNeuralPinyinEnabled(): Boolean = neuralPinyinEnabled
 
     /**
-     * Sets the minimum number of letters required for HMM pinyin.
+     * Sets the minimum number of letters required for neural pinyin.
      */
-    fun setHmmPinyinMinLetters(minLetters: Int) {
-        hmmPinyinMinLetters = minLetters
+    fun setNeuralPinyinMinLetters(minLetters: Int) {
+        neuralPinyinMinLetters = minLetters
     }
 
     /**
-     * Returns the minimum number of letters for HMM pinyin.
+     * Returns the minimum number of letters for neural pinyin.
      */
-    fun getHmmPinyinMinLetters(): Int = hmmPinyinMinLetters
+    fun getNeuralPinyinMinLetters(): Int = neuralPinyinMinLetters
 
     /**
-     * Gets HMM pinyin suggestion if conditions are met.
-     * Returns a single suggestion from the HMM model, or null if not available.
+     * Sets whether neural pinyin prediction should be shown as the top suggestion.
      */
-    private fun getHmmPinyinSuggestion(pinyinInput: String): String? {
-        if (!hmmPinyinEnabled) return null
-        if (pinyinInput.length < hmmPinyinMinLetters) return null
+    fun setNeuralPinyinPriority(priority: Boolean) {
+        neuralPinyinPriority = priority
+    }
 
-        val recognizer = hmmPinyinRecognizer
-        if (recognizer == null) {
-            // Initialize on first use
-            hmmPinyinRecognizer = HmmPinyinRecognizer.getInstance(context)
-            hmmPinyinRecognizer?.initModel()
-            return null
+    /**
+     * Sets the number of neural pinyin predictions to show.
+     */
+    fun setNeuralPinyinCount(count: Int) {
+        neuralPinyinCount = count
+    }
+
+    /**
+     * Gets pinyin suggestions using the neural encoder-decoder model.
+     * Returns a list of suggestions (1 or 3 based on setting), or empty list if not available.
+     */
+    private fun getLongSentenceSuggestions(pinyinInput: String): List<String> {
+        if (!neuralPinyinEnabled) return emptyList()
+        if (pinyinInput.length < neuralPinyinMinLetters) return emptyList()
+
+        // Use neural model for long sentence conversion
+        val neuralResults = getNeuralPinyinSuggestions(pinyinInput)
+        if (neuralResults.isNotEmpty()) {
+            Log.d(TAG, "Neural pinyin suggestions: $neuralResults for '$pinyinInput'")
+            return neuralResults
         }
 
-        if (!recognizer.isReady()) {
-            // Model not ready yet
-            if (!recognizer.isLoading()) {
-                recognizer.initModel()
+        return emptyList()
+    }
+
+    /**
+     * Gets neural pinyin suggestions using the encoder-decoder model.
+     * Returns a list of suggestions (1 or 3 based on setting), or empty list if not available.
+     */
+    private fun getNeuralPinyinSuggestions(pinyinInput: String): List<String> {
+        // Check if ONNX Runtime is available
+        if (!NeuralPinyinRecognizer.isOnnxRuntimeAvailable()) {
+            return emptyList()
+        }
+
+        // Get or create recognizer instance
+        val recognizer = neuralPinyinRecognizer ?: run {
+            neuralPinyinRecognizer = NeuralPinyinRecognizer.getInstance(context)
+            neuralPinyinRecognizer
+        }
+
+        if (recognizer == null) return emptyList()
+
+        // Check model status
+        val status = recognizer.getModelStatus()
+        when (status) {
+            NeuralPinyinRecognizer.ModelStatus.READY -> {
+                // Model is ready, run inference with count parameter
+                return recognizer.convert(pinyinInput, neuralPinyinCount)
             }
-            return null
+            NeuralPinyinRecognizer.ModelStatus.AVAILABLE -> {
+                // Model extracted but not loaded - initialize it
+                recognizer.initModel()
+                return emptyList()
+            }
+            NeuralPinyinRecognizer.ModelStatus.ZIP_CONFIGURED -> {
+                // Zip configured but not extracted - extract it
+                recognizer.extractModel(
+                    onComplete = { success, _ ->
+                        if (success) {
+                            recognizer.initModel()
+                        }
+                    }
+                )
+                return emptyList()
+            }
+            else -> {
+                // Not configured, extracting, or loading - skip
+                return emptyList()
+            }
         }
-
-        // Parse the pinyin input into space-separated syllables for the HMM model
-        val spacedPinyin = parseToSpacedPinyin(pinyinInput)
-        if (spacedPinyin.isEmpty()) return null
-
-        // Run inference
-        val result = recognizer.convert(spacedPinyin)
-        return result.takeIf { it.isNotEmpty() }
     }
 
     /**
@@ -1973,16 +2022,4 @@ class PinyinInputController(
         return syllables.joinToString(" ")
     }
 
-    // Keep old method names for compatibility (deprecated)
-    @Deprecated("Use setHmmPinyinEnabled instead", ReplaceWith("setHmmPinyinEnabled(enabled)"))
-    fun setNeuralPinyinEnabled(enabled: Boolean) = setHmmPinyinEnabled(enabled)
-
-    @Deprecated("Use isHmmPinyinEnabled instead", ReplaceWith("isHmmPinyinEnabled()"))
-    fun isNeuralPinyinEnabled(): Boolean = isHmmPinyinEnabled()
-
-    @Deprecated("Use setHmmPinyinMinLetters instead", ReplaceWith("setHmmPinyinMinLetters(minLetters)"))
-    fun setNeuralPinyinMinLetters(minLetters: Int) = setHmmPinyinMinLetters(minLetters)
-
-    @Deprecated("Use getHmmPinyinMinLetters instead", ReplaceWith("getHmmPinyinMinLetters()"))
-    fun getNeuralPinyinMinLetters(): Int = getHmmPinyinMinLetters()
 }
