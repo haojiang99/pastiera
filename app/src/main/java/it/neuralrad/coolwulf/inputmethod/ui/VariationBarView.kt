@@ -101,6 +101,11 @@ class VariationBarView(
     private var currentInputConnection: android.view.inputmethod.InputConnection? = null
     private var swipeIndicator: View? = null
 
+    // Track the current expanded height to prevent jumping during typing
+    // Height only increases while typing, resets when input is cleared
+    private var currentExpandedHeight: Int = 0
+    private var lastBufferLength: Int = 0
+
     fun ensureView(): View {
         if (wrapper != null) {
             return wrapper!!
@@ -777,10 +782,46 @@ class VariationBarView(
         // Update wrapper height if needed for multi-line display
         // Reuse statusBarHeightPx calculated earlier as the default wrapper height
         val neededWrapperHeight = maxOf(statusBarHeightPx, buttonHeight + dp4ForCalc * 2)
+
+        // Get current buffer length to detect when input is cleared
+        val currentBufferLength = when {
+            snapshot.pinyinModeActive -> snapshot.pinyinBuffer.length
+            snapshot.t9PinyinModeActive -> snapshot.t9PinyinBuffer.length
+            snapshot.shuangpinModeActive -> snapshot.shuangpinBuffer.length
+            snapshot.ziranmaModeActive -> snapshot.ziranmaBuffer.length
+            snapshot.wubiModeActive -> snapshot.wubiBuffer.length
+            snapshot.zhenmaModeActive -> snapshot.zhenmaBuffer.length
+            else -> 0
+        }
+
+        // Reset expanded height when buffer is cleared (user committed or deleted all input)
+        // or when switching out of Chinese input mode
+        val isChineseInputActive = snapshot.pinyinModeActive || snapshot.t9PinyinModeActive ||
+            snapshot.shuangpinModeActive || snapshot.ziranmaModeActive ||
+            snapshot.wubiModeActive || snapshot.zhenmaModeActive
+
+        if (currentBufferLength == 0 || !isChineseInputActive) {
+            // Reset to default height when buffer is empty or not in Chinese mode
+            currentExpandedHeight = statusBarHeightPx
+        } else if (currentBufferLength < lastBufferLength) {
+            // User deleted characters - allow height to decrease but not below needed height
+            currentExpandedHeight = maxOf(neededWrapperHeight, statusBarHeightPx)
+        }
+        lastBufferLength = currentBufferLength
+
+        // Height can only increase while typing, never decrease (prevents jumping)
+        // Use the maximum of current expanded height and newly calculated needed height
+        val finalWrapperHeight = if (isChineseInputActive && currentBufferLength > 0) {
+            maxOf(currentExpandedHeight, neededWrapperHeight)
+        } else {
+            neededWrapperHeight
+        }
+        currentExpandedHeight = finalWrapperHeight
+
         wrapper?.let { w ->
             val currentParams = w.layoutParams as? LinearLayout.LayoutParams
-            if (currentParams != null && currentParams.height != neededWrapperHeight) {
-                currentParams.height = neededWrapperHeight
+            if (currentParams != null && currentParams.height != finalWrapperHeight) {
+                currentParams.height = finalWrapperHeight
                 w.layoutParams = currentParams
                 w.requestLayout()
             }
