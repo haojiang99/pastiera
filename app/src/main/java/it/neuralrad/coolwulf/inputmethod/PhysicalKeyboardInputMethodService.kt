@@ -2218,9 +2218,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // In Juying mode, limit candidates based on suggestion length
         val isJuyingMode = SettingsManager.getJuyingModeEnabled(this)
+        val isDynamicCandidateCount = SettingsManager.getJuyingDynamicCandidateCount(this)
 
         // Helper to calculate dynamic candidate limit based on max candidate length in a list
         fun calculateLimitFromCandidates(candidates: List<String>): Int {
+            // If dynamic candidate count is disabled, always return 5
+            if (!isDynamicCandidateCount) return 5
             if (candidates.isEmpty()) return 5
             val maxLen = candidates.maxOfOrNull { it.length } ?: 1
             return when {
@@ -2233,6 +2236,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Helper to calculate dynamic candidate limit for a specific page
         // This iterates through pages with variable page sizes to find the correct start index
         fun calculateJuyingCandidateLimit(allCandidates: List<String>, targetPage: Int): Int {
+            // If dynamic candidate count is disabled, always return 5
+            if (!isDynamicCandidateCount) return 5
             if (allCandidates.isEmpty()) return 5
 
             var startIndex = 0
@@ -2901,7 +2906,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 // Restore saved candidates and buffer, then go to next page
                 if (savedAltChineseMode != null) {
                     // Helper to calculate dynamic candidate limit based on max candidate length for a specific page
+                    val isDynamicCountEnabled = SettingsManager.getJuyingDynamicCandidateCount(this)
                     fun calculateDynamicLimit(allCandidates: List<String>, page: Int): Int {
+                        // If dynamic candidate count is disabled, always return 5
+                        if (!isDynamicCountEnabled) return 5
                         if (allCandidates.isEmpty()) return 5
                         // Calculate which candidates would be on this page with max page size (5)
                         val startIndex = page * 5
@@ -3261,7 +3269,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Restore saved candidates and buffer, then go to next page
                     if (savedAltCandidatesForNextPage.isNotEmpty() && savedAltChineseMode != null) {
                         // Helper to calculate dynamic candidate limit based on max candidate length for a specific page
+                        val isDynamicCountEnabled = SettingsManager.getJuyingDynamicCandidateCount(this)
                         fun calculateDynamicLimit(allCandidates: List<String>, page: Int): Int {
+                            // If dynamic candidate count is disabled, always return 5
+                            if (!isDynamicCountEnabled) return 5
                             if (allCandidates.isEmpty()) return 5
                             // Calculate which candidates would be on this page with max page size (5)
                             val startIndex = page * 5
@@ -3591,12 +3602,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         }
                         // Apply the same dynamic limit used in display (based on candidate length)
                         // When candidates are long (multi-character phrases), reduce count to avoid cramming
+                        // Only apply dynamic limit if the setting is enabled; otherwise always use 5 keys
+                        val isDynamicCountEnabled = SettingsManager.getJuyingDynamicCandidateCount(this)
                         val displayedCandidateLimit = if (juyingModeEnabled && hasChineseCandidates && rawCandidates.isNotEmpty()) {
-                            val maxLen = rawCandidates.take(5).maxOfOrNull { it.length } ?: 1
-                            when {
-                                maxLen >= 10 -> 1  // Very long phrases (10+ chars): show only 1
-                                maxLen >= 6 -> 3   // Long phrases (6-9 chars): show 3
-                                else -> 5          // Short candidates (1-5 chars): show 5
+                            if (isDynamicCountEnabled) {
+                                val maxLen = rawCandidates.take(5).maxOfOrNull { it.length } ?: 1
+                                when {
+                                    maxLen >= 10 -> 1  // Very long phrases (10+ chars): show only 1
+                                    maxLen >= 6 -> 3   // Long phrases (6-9 chars): show 3
+                                    else -> 5          // Short candidates (1-5 chars): show 5
+                                }
+                            } else {
+                                5  // Dynamic mode OFF: always map all 5 keys
                             }
                         } else {
                             rawCandidates.size

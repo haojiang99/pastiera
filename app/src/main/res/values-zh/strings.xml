@@ -167,6 +167,8 @@
     <string name="juying_fixed_positions_description">保持5个候选词槽位和箭头按钮在固定位置。每个物理按键始终对应屏幕上的相同位置。</string>
     <string name="juying_sound_title">选词按键音</string>
     <string name="juying_sound_description">按巨硬按键（Shift/Sym/Space/Ctrl/Alt）选择候选词时播放键盘音效。</string>
+    <string name="juying_dynamic_count_title">动态候选词数量</string>
+    <string name="juying_dynamic_count_description">根据词组长度调整每页显示的候选词数量。长词组显示更少候选词。</string>
 
     <!-- Touchpad Page Navigation -->
     <string name="touchpad_page_title">触摸板翻页</string>
