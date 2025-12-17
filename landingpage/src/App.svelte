@@ -8,6 +8,7 @@
     features: false,
     juying: false,
     voice: false,
+    neural: false,
     learning: false,
     comparison: false,
     free: false,
@@ -94,7 +95,8 @@
         <a href="#features">功能特色</a>
         <a href="#juying">巨硬模式</a>
         <a href="#voice">语音识别</a>
-        <a href="/coolwulfIMEv0.80.1593.apk" class="btn-nav" download>立即下载</a>
+        <a href="#neural">神经网络</a>
+        <a href="/coolwulfIMEv0.81.1731.apk" class="btn-nav" download>立即下载 v0.81</a>
       </div>
     </div>
   </nav>
@@ -119,8 +121,8 @@
         <strong>永久免费 · 无广告 · 隐私安全</strong>
       </p>
       <div class="hero-buttons">
-        <a href="/coolwulfIMEv0.80.1593.apk" class="btn btn-primary" download>
-          <span>立即下载</span>
+        <a href="/coolwulfIMEv0.81.1731.apk" class="btn btn-primary" download>
+          <span>立即下载 v0.81</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
           </svg>
@@ -358,6 +360,117 @@
     </div>
   </section>
 
+  <!-- Neural Network Pinyin Section -->
+  <section id="neural" class="neural" data-section="neural" class:visible={visible.neural}>
+    <div class="container">
+      <div class="neural-content">
+        <div class="neural-text">
+          <div class="badge badge-blue">AI 驱动</div>
+          <h2><span class="highlight">神经网络</span>拼音输入</h2>
+          <p class="neural-desc">
+            采用 Bi-LSTM + Attention 编码器-解码器架构的深度学习模型，
+            实现高精度的拼音到汉字转换。模型使用 Beam Search 解码，
+            支持多候选词输出，准确率高达95%以上。
+          </p>
+          <div class="neural-features">
+            <div class="neural-feature">
+              <span class="nf-icon">🧠</span>
+              <div>
+                <h4>Bi-LSTM + Attention</h4>
+                <p>双向长短期记忆网络配合注意力机制</p>
+              </div>
+            </div>
+            <div class="neural-feature">
+              <span class="nf-icon">🎯</span>
+              <div>
+                <h4>Beam Search 解码</h4>
+                <p>高质量多候选词生成，准确率95%+</p>
+              </div>
+            </div>
+            <div class="neural-feature">
+              <span class="nf-icon">📴</span>
+              <div>
+                <h4>完全离线</h4>
+                <p>本地运行 ONNX 模型，无需网络</p>
+              </div>
+            </div>
+            <div class="neural-feature">
+              <span class="nf-icon">⚡</span>
+              <div>
+                <h4>INT8 量化</h4>
+                <p>模型经过量化优化，推理速度极快</p>
+              </div>
+            </div>
+          </div>
+          <div class="neural-download">
+            <div class="neural-download-options">
+              <a href="/pinyin_ime_model_int8.zip" class="btn btn-neural-model" download>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                <span>标准模型 (39.2MB)</span>
+              </a>
+              <a href="/pinyin_ime_model_small_int8.zip" class="btn btn-neural-model-small" download>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                <span>轻量模型 (8.7MB)</span>
+              </a>
+            </div>
+            <p class="neural-download-note">下载模型后放入应用数据目录，启用神经网络拼音功能</p>
+          </div>
+        </div>
+        <div class="neural-visual">
+          <div class="neural-diagram">
+            <div class="diagram-flow">
+              <div class="diagram-box">
+                <span class="diagram-label">输入</span>
+                <code>nihao</code>
+              </div>
+              <div class="diagram-arrow">→</div>
+              <div class="diagram-box diagram-encoder">
+                <span class="diagram-label">Bi-LSTM Encoder</span>
+                <div class="lstm-visual">
+                  <span>←</span><span>→</span>
+                </div>
+              </div>
+              <div class="diagram-arrow">→</div>
+              <div class="diagram-box diagram-attention">
+                <span class="diagram-label">Attention</span>
+                <div class="attention-visual">
+                  <div class="att-dot"></div>
+                  <div class="att-dot"></div>
+                  <div class="att-dot active"></div>
+                  <div class="att-dot"></div>
+                </div>
+              </div>
+              <div class="diagram-arrow">→</div>
+              <div class="diagram-box diagram-decoder">
+                <span class="diagram-label">LSTM Decoder</span>
+                <div class="decoder-visual">
+                  <span>↓</span>
+                </div>
+              </div>
+              <div class="diagram-arrow">→</div>
+              <div class="diagram-box diagram-output">
+                <span class="diagram-label">输出</span>
+                <code>你好</code>
+              </div>
+            </div>
+            <div class="diagram-candidates">
+              <span class="cand-label">Beam Search 候选:</span>
+              <div class="cand-list">
+                <span class="cand active">你好</span>
+                <span class="cand">尼好</span>
+                <span class="cand">妮好</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Learning Section -->
   <section class="learning" data-section="learning" class:visible={visible.learning}>
     <div class="container">
@@ -482,20 +595,37 @@
           酷狼输入法就是为你量身定做的输入工具。
         </p>
         <div class="cta-buttons">
-          <a href="/coolwulfIMEv0.80.1593.apk" class="btn btn-primary btn-large" download>
+          <a href="/coolwulfIMEv0.81.1731.apk" class="btn btn-primary btn-large" download>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
             </svg>
-            <span>下载 APK (v0.80)</span>
-          </a>
-          <a href="/sherpa-onnx-paraformer-zh-small-2024-03-09.zip" class="btn btn-voice-model btn-large" download>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-            </svg>
-            <span>下载语音模型 (72MB)</span>
+            <span>下载 APK (v0.81)</span>
           </a>
         </div>
-        <p class="cta-note">支持 Android 10+ · 需要实体键盘或蓝牙键盘 · APK约18MB</p>
+        <div class="cta-model-downloads">
+          <p class="cta-model-label">可选模型下载:</p>
+          <div class="cta-model-buttons">
+            <a href="/pinyin_ime_model_int8.zip" class="btn btn-neural-model" download>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+              <span>神经网络模型 (39.2MB)</span>
+            </a>
+            <a href="/pinyin_ime_model_small_int8.zip" class="btn btn-neural-model-small" download>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+              <span>轻量模型 (8.7MB)</span>
+            </a>
+            <a href="/sherpa-onnx-paraformer-zh-small-2024-03-09.zip" class="btn btn-voice-model" download>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+              <span>语音模型 (72MB)</span>
+            </a>
+          </div>
+        </div>
+        <p class="cta-note">支持 Android 10+ · 需要实体键盘或蓝牙键盘 · APK约19MB</p>
       </div>
     </div>
   </section>
@@ -1350,6 +1480,259 @@
     color: #666;
   }
 
+  /* Neural Network Section */
+  .neural {
+    padding: 120px 24px;
+    background: linear-gradient(180deg, #0a0a0f 0%, #0d0d15 50%, #0a0a0f 100%);
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s ease;
+  }
+
+  .neural.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .neural-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+
+  .neural-text h2 {
+    text-align: left;
+    margin-bottom: 24px;
+  }
+
+  .neural-desc {
+    font-size: 1.1rem;
+    color: #aaa;
+    margin-bottom: 32px;
+    line-height: 1.8;
+  }
+
+  .badge-blue {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.3);
+    color: #93c5fd;
+  }
+
+  .neural-features {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  .neural-feature {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .nf-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+
+  .neural-feature h4 {
+    font-size: 1rem;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+
+  .neural-feature p {
+    font-size: 0.85rem;
+    color: #888;
+  }
+
+  .neural-download {
+    padding-top: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .neural-download-options {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .btn-neural-model {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    border-radius: 12px;
+    color: #93c5fd;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  }
+
+  .btn-neural-model:hover {
+    background: rgba(59, 130, 246, 0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+  }
+
+  .btn-neural-model-small {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.4);
+    border-radius: 12px;
+    color: #c4b5fd;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  }
+
+  .btn-neural-model-small:hover {
+    background: rgba(139, 92, 246, 0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+  }
+
+  .neural-download-note {
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: #666;
+  }
+
+  .neural-visual {
+    display: flex;
+    justify-content: center;
+  }
+
+  .neural-diagram {
+    background: rgba(20, 20, 30, 0.8);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 20px;
+    padding: 32px;
+    width: 100%;
+  }
+
+  .diagram-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+
+  .diagram-box {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px 16px;
+    text-align: center;
+    min-width: 80px;
+  }
+
+  .diagram-label {
+    display: block;
+    font-size: 0.7rem;
+    color: #888;
+    margin-bottom: 4px;
+  }
+
+  .diagram-box code {
+    color: #93c5fd;
+    font-family: 'SF Mono', monospace;
+  }
+
+  .diagram-encoder {
+    border-color: rgba(34, 197, 94, 0.4);
+  }
+
+  .lstm-visual {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    color: #86efac;
+    font-size: 1rem;
+  }
+
+  .diagram-attention {
+    border-color: rgba(251, 191, 36, 0.4);
+  }
+
+  .attention-visual {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .att-dot {
+    width: 8px;
+    height: 8px;
+    background: rgba(251, 191, 36, 0.3);
+    border-radius: 50%;
+  }
+
+  .att-dot.active {
+    background: #fbbf24;
+  }
+
+  .diagram-decoder {
+    border-color: rgba(99, 102, 241, 0.4);
+  }
+
+  .decoder-visual {
+    color: #a5b4fc;
+    font-size: 1rem;
+  }
+
+  .diagram-output {
+    border-color: rgba(59, 130, 246, 0.4);
+  }
+
+  .diagram-arrow {
+    color: #666;
+    font-size: 1rem;
+  }
+
+  .diagram-candidates {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .cand-label {
+    font-size: 0.8rem;
+    color: #888;
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  .cand-list {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .cand {
+    padding: 6px 14px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #aaa;
+    font-size: 0.9rem;
+  }
+
+  .cand.active {
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    color: #fff;
+  }
+
   /* Learning Section */
   .learning {
     padding: 120px 24px;
@@ -1642,6 +2025,26 @@
     color: #666;
   }
 
+  .cta-model-downloads {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .cta-model-label {
+    font-size: 0.9rem;
+    color: #888;
+    margin-bottom: 16px;
+  }
+
+  .cta-model-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+
   /* Footer */
   footer {
     padding: 48px 24px;
@@ -1692,6 +2095,7 @@
 
     .juying-content,
     .voice-content,
+    .neural-content,
     .learning-content {
       grid-template-columns: 1fr;
     }
@@ -1701,6 +2105,10 @@
     }
 
     .juying-visual {
+      order: -1;
+    }
+
+    .neural-visual {
       order: -1;
     }
   }
@@ -1730,6 +2138,28 @@
 
     .voice-features {
       grid-template-columns: 1fr;
+    }
+
+    .neural-features {
+      grid-template-columns: 1fr;
+    }
+
+    .neural-download-options {
+      flex-direction: column;
+    }
+
+    .diagram-flow {
+      gap: 4px;
+    }
+
+    .diagram-box {
+      padding: 8px 10px;
+      min-width: 60px;
+      font-size: 0.8rem;
+    }
+
+    .diagram-label {
+      font-size: 0.6rem;
     }
 
     .learning-content {
