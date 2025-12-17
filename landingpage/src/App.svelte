@@ -33,51 +33,51 @@
 
   const features = [
     {
-      icon: '⌨️',
-      title: '首字母输入',
-      desc: '仅需输入首字母，按键减少50%-70%',
-      example: '"你好我们今天开会" → nhwmjtkh'
-    },
-    {
-      icon: '🎯',
-      title: '巨硬模式',
-      desc: 'Modifier键直选候选词，手不离键盘',
-      example: 'Shift/Ctrl/Alt/Space 一键选词'
-    },
-    {
       icon: '🧠',
-      title: '本地自学习',
-      desc: '越用越懂你，所有学习在本地完成',
-      example: '隐私安全，无需联网'
+      title: '神经网络拼音',
+      desc: 'Bi-LSTM + Attention 深度学习模型，本地推理',
+      example: '95%+ 准确率 · 完全离线'
+    },
+    {
+      icon: '⌨️',
+      title: '多输入方案',
+      desc: '拼音、双拼、五笔一应俱全',
+      example: '五笔 Z 键反查 · 万能键 · 近乎完美'
     },
     {
       icon: '🎙️',
       title: '离线语音识别',
-      desc: '高精度普通话识别，完全本地运行',
-      example: '无需网络，隐私无忧'
+      desc: 'Sherpa-ONNX 深度学习引擎，本地运行',
+      example: '无需网络 · 语音数据不外传'
     },
     {
-      icon: '🎨',
-      title: '自定义主题',
-      desc: '自由定制状态栏颜色，打造专属界面',
-      example: '15种颜色可调 · 8款预设主题'
+      icon: '📦',
+      title: '模块化设计',
+      desc: '按需加载 AI 模型，节省存储空间',
+      example: '核心19MB · 模型可选下载'
     },
     {
-      icon: '🔊',
-      title: '自定义音效',
-      desc: '多种键盘音效可选，支持自定义音效',
-      example: '机械/打字机/钢琴/马里奥等'
+      icon: '🔒',
+      title: '隐私优先',
+      desc: '零网络连接，所有数据本地处理',
+      example: '无云端 · 无数据上传'
+    },
+    {
+      icon: '💾',
+      title: '数据自主',
+      desc: '完全掌控你的学习数据和词库',
+      example: '支持导入/导出 · 数据归你所有'
     }
   ];
 
   const comparisons = [
-    { item: '设计重心', mainstream: '触屏输入', coolwulf: '实体键盘输入' },
-    { item: '拼音方式', mainstream: '全拼为主', coolwulf: '首字母为核心' },
-    { item: '选词方式', mainstream: '点击/数字/翻页', coolwulf: 'Modifier键直选' },
-    { item: '是否离键', mainstream: '频繁', coolwulf: '极少' },
-    { item: '习惯学习', mainstream: '云端部分', coolwulf: '本地深度学习' },
-    { item: '语音识别', mainstream: '需要联网', coolwulf: '完全离线' },
-    { item: '收费广告', mainstream: '广告+会员', coolwulf: '完全免费' }
+    { item: 'AI 引擎', mainstream: '云端处理', coolwulf: '本地神经网络' },
+    { item: '网络依赖', mainstream: '需要联网', coolwulf: '完全离线' },
+    { item: '隐私保护', mainstream: '数据上传', coolwulf: '数据不出设备' },
+    { item: '语音识别', mainstream: '云端识别', coolwulf: '本地深度学习' },
+    { item: '数据控制', mainstream: '云端存储', coolwulf: '本地可导入导出' },
+    { item: '模块化', mainstream: '全部捆绑', coolwulf: '按需加载模型' },
+    { item: '收费广告', mainstream: '广告+会员', coolwulf: '永久免费' }
   ];
 </script>
 
@@ -96,7 +96,7 @@
         <a href="#juying">巨硬模式</a>
         <a href="#voice">语音识别</a>
         <a href="#neural">神经网络</a>
-        <a href="/coolwulfIMEv0.81.1731.apk" class="btn-nav" download>立即下载 v0.81</a>
+        <a href="/coolwulfIMEv0.81.1771.apk" class="btn-nav" download>立即下载 v0.81</a>
       </div>
     </div>
   </nav>
@@ -109,19 +109,19 @@
       <div class="glow glow-2"></div>
     </div>
     <div class="hero-content">
-      <div class="badge">🚀 专为实体键盘打造</div>
+      <div class="badge">🤖 本地 AI 驱动</div>
       <h1>
         <span class="gradient-text">酷狼输入法</span>
         <br />
-        <span class="subtitle">让输入回归键盘的本质</span>
+        <span class="subtitle">AI 赋能的隐私优先输入法</span>
       </h1>
       <p class="hero-desc">
-        一款真正为实体键盘效率而生的中文输入法<br />
-        首字母输入 · 巨硬模式 · 本地自学习 · 离线语音<br />
-        <strong>永久免费 · 无广告 · 隐私安全</strong>
+        支持实体键盘与软键盘的智能中文输入法<br />
+        拼音 · 双拼 · 五笔 · 神经网络 · 离线语音 · 模块化设计<br />
+        <strong>完全离线 · 无云端 · 数据自主 · 永久免费</strong>
       </p>
       <div class="hero-buttons">
-        <a href="/coolwulfIMEv0.81.1731.apk" class="btn btn-primary" download>
+        <a href="/coolwulfIMEv0.81.1771.apk" class="btn btn-primary" download>
           <span>立即下载 v0.81</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
@@ -131,16 +131,16 @@
       </div>
       <div class="hero-stats">
         <div class="stat">
-          <span class="stat-value">50-70%</span>
-          <span class="stat-label">按键减少</span>
-        </div>
-        <div class="stat">
           <span class="stat-value">100%</span>
-          <span class="stat-label">本地运行</span>
+          <span class="stat-label">本地 AI</span>
         </div>
         <div class="stat">
           <span class="stat-value">0</span>
-          <span class="stat-label">广告/收费</span>
+          <span class="stat-label">网络连接</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">100%</span>
+          <span class="stat-label">数据自主</span>
         </div>
       </div>
     </div>
@@ -181,27 +181,27 @@
   <section class="problem" data-section="problem" class:visible={visible.problem}>
     <div class="container">
       <h2>传统输入法的<span class="highlight">痛点</span></h2>
-      <p class="section-desc">主流输入法为触屏设计，实体键盘用户被迫忍受这些问题：</p>
+      <p class="section-desc">主流输入法存在这些隐私和体验问题：</p>
       <div class="problem-grid">
         <div class="problem-card">
-          <div class="problem-icon">👆</div>
-          <h3>频繁触屏</h3>
-          <p>选词需要离开键盘点击屏幕，打断输入节奏</p>
+          <div class="problem-icon">☁️</div>
+          <h3>云端依赖</h3>
+          <p>输入数据上传云端，隐私无法保障</p>
         </div>
         <div class="problem-card">
-          <div class="problem-icon">🔢</div>
-          <h3>按键繁琐</h3>
-          <p>全拼输入按键多，实体键盘打字疲劳</p>
+          <div class="problem-icon">📡</div>
+          <h3>网络必须</h3>
+          <p>语音识别、智能纠错都需联网才能使用</p>
         </div>
         <div class="problem-card">
-          <div class="problem-icon">📄</div>
-          <h3>反复翻页</h3>
-          <p>候选词太多，需要反复翻页寻找</p>
+          <div class="problem-icon">🔐</div>
+          <h3>数据失控</h3>
+          <p>无法导出学习数据，换机重新开始</p>
         </div>
         <div class="problem-card">
-          <div class="problem-icon">🧠</div>
-          <h3>思维中断</h3>
-          <p>操作冗余导致思维流被不断打断</p>
+          <div class="problem-icon">📦</div>
+          <h3>臃肿捆绑</h3>
+          <p>功能全部打包，占用大量存储空间</p>
         </div>
       </div>
     </div>
@@ -210,8 +210,8 @@
   <!-- Features Section -->
   <section id="features" class="features" data-section="features" class:visible={visible.features}>
     <div class="container">
-      <h2>四大<span class="highlight">核心功能</span></h2>
-      <p class="section-desc">从底层重构，专为实体键盘优化的输入体验</p>
+      <h2>六大<span class="highlight">核心优势</span></h2>
+      <p class="section-desc">本地 AI 驱动，模块化设计，隐私优先的智能输入体验</p>
       <div class="features-grid">
         {#each features as feature, i}
           <div class="feature-card" style="--delay: {i * 0.1}s">
@@ -554,32 +554,32 @@
   <section class="free" data-section="free" class:visible={visible.free}>
     <div class="container">
       <div class="free-content">
-        <h2>完全<span class="highlight">免费</span></h2>
-        <p class="free-desc">这不是商业策略，而是产品态度</p>
+        <h2>数据<span class="highlight">自主权</span></h2>
+        <p class="free-desc">你的数据，你做主</p>
         <div class="free-grid">
           <div class="free-item">
-            <div class="free-icon">💰</div>
-            <h4>永久免费</h4>
-            <p>所有功能完全开放</p>
+            <div class="free-icon">📴</div>
+            <h4>零网络连接</h4>
+            <p>所有 AI 功能完全离线运行</p>
           </div>
           <div class="free-item">
-            <div class="free-icon">🚫</div>
-            <h4>无广告</h4>
-            <p>纯净的输入体验</p>
+            <div class="free-icon">💾</div>
+            <h4>数据可导出</h4>
+            <p>学习词库、设置随时导入导出</p>
           </div>
           <div class="free-item">
             <div class="free-icon">🔐</div>
-            <h4>不卖数据</h4>
-            <p>输入数据永不外泄</p>
+            <h4>本地处理</h4>
+            <p>语音、输入数据不出设备</p>
           </div>
           <div class="free-item">
-            <div class="free-icon">☁️</div>
-            <h4>不强制云同步</h4>
-            <p>数据完全由你掌控</p>
+            <div class="free-icon">💰</div>
+            <h4>永久免费</h4>
+            <p>无广告、无会员、无隐藏收费</p>
           </div>
         </div>
         <p class="free-quote">
-          "一个真正为输入效率服务，而不是为流量变现服务的工具"
+          "一个真正为用户隐私服务，而不是为流量变现服务的 AI 输入法"
         </p>
       </div>
     </div>
@@ -589,13 +589,13 @@
   <section id="download" class="cta" data-section="cta" class:visible={visible.cta}>
     <div class="container">
       <div class="cta-content">
-        <h2>准备好提升你的<span class="highlight">输入效率</span>了吗？</h2>
+        <h2>准备好体验<span class="highlight">隐私优先</span>的 AI 输入法了吗？</h2>
         <p>
-          如果你是全键盘手机用户、蓝牙键盘用户、或追求极致效率的人，<br />
-          酷狼输入法就是为你量身定做的输入工具。
+          无论你使用实体键盘、软键盘、还是蓝牙键盘，<br />
+          酷狼输入法为你提供本地 AI 驱动的智能输入体验，数据永远属于你。
         </p>
         <div class="cta-buttons">
-          <a href="/coolwulfIMEv0.81.1731.apk" class="btn btn-primary btn-large" download>
+          <a href="/coolwulfIMEv0.81.1771.apk" class="btn btn-primary btn-large" download>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
             </svg>
@@ -625,7 +625,7 @@
             </a>
           </div>
         </div>
-        <p class="cta-note">支持 Android 10+ · 需要实体键盘或蓝牙键盘 · APK约19MB</p>
+        <p class="cta-note">支持 Android 10+ · 实体键盘/软键盘/蓝牙键盘 · 核心 APK 约19MB · AI 模型可选下载</p>
       </div>
     </div>
   </section>
@@ -638,7 +638,7 @@
           <span class="logo-icon">🐺</span>
           <span>酷狼输入法</span>
         </div>
-        <p>为实体键盘效率而生 · 永久免费 · 开源项目</p>
+        <p>本地 AI 驱动 · 隐私优先 · 永久免费</p>
         <div class="footer-links">
           <a href="https://github.com/user/coolwulf-ime">GitHub</a>
           <span>·</span>
