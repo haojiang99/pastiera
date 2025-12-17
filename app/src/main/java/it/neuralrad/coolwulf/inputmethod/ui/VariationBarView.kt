@@ -135,6 +135,8 @@ class VariationBarView(
             )
             setBackgroundColor(Color.TRANSPARENT)
             visibility = View.VISIBLE
+            clipChildren = false
+            clipToPadding = false
         }
 
         // Wrapper FrameLayout to hold both container and overlay
@@ -144,6 +146,8 @@ class VariationBarView(
                 variationsContainerHeight
             )
             visibility = View.GONE
+            clipChildren = false
+            clipToPadding = false
             addView(container)
         }
 
@@ -712,12 +716,74 @@ class VariationBarView(
         val suggestionHeightPercent = SettingsManager.getSuggestionHeightPercent(context)
         val maxButtonHeight = (statusBarHeightPx * suggestionHeightPercent / 100)
 
-        val buttonHeight = if (isEnglishWordPrediction) {
+        val baseButtonHeight = if (isEnglishWordPrediction) {
             // For English word predictions, use percentage-based height
             maxButtonHeight
         } else {
             // For Chinese candidates, use smaller of button width or percentage-based height
             minOf(buttonWidth, maxButtonHeight)
+        }
+
+        // For Juying mode with long text, calculate if we need extra height for multi-line display
+        // Minimum readable font size is 11sp - allows more text per line while still being readable
+        val minReadableFontSizeSp = 11f
+        val minFontSizePx = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP,
+            minReadableFontSizeSp,
+            context.resources.displayMetrics
+        )
+        val dp6ForCalc = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            6f,
+            context.resources.displayMetrics
+        ).toInt()
+        val dp4ForCalc = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            4f,
+            context.resources.displayMetrics
+        ).toInt()
+
+        // Calculate maximum height needed based on longest text in Juying mode
+        // Use limitedVariations (which contains the actual button texts after layout, including fixed positions)
+        val buttonHeight = if (isJuyingModeWithSuggestions) {
+            var maxNeededHeight = baseButtonHeight
+            val testPaint = android.graphics.Paint().apply {
+                textSize = minFontSizePx
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+            }
+
+            for ((index, variation) in limitedVariations.withIndex()) {
+                // Skip empty slots (in fixed position mode)
+                if (variation.isEmpty()) continue
+
+                val btnWidth = buttonWidths.getOrElse(index) { buttonWidth }
+                val availableTextWidth = btnWidth - dp6ForCalc * 2
+                val textWidthAtMinFont = testPaint.measureText(variation)
+
+                if (textWidthAtMinFont > availableTextWidth) {
+                    // Calculate lines needed using actual text width measurement
+                    // Number of lines = ceil(textWidth / availableWidth)
+                    val numLinesNeeded = kotlin.math.ceil(textWidthAtMinFont / availableTextWidth.toFloat()).toInt().coerceIn(1, 10)
+                    val lineHeightPx = minFontSizePx * 1.3f
+                    val neededHeight = (lineHeightPx * numLinesNeeded + dp4ForCalc * 2).toInt()
+                    maxNeededHeight = maxOf(maxNeededHeight, neededHeight)
+                }
+            }
+            maxNeededHeight
+        } else {
+            baseButtonHeight
+        }
+
+        // Update wrapper height if needed for multi-line display
+        // Reuse statusBarHeightPx calculated earlier as the default wrapper height
+        val neededWrapperHeight = maxOf(statusBarHeightPx, buttonHeight + dp4ForCalc * 2)
+        wrapper?.let { w ->
+            val currentParams = w.layoutParams as? LinearLayout.LayoutParams
+            if (currentParams != null && currentParams.height != neededWrapperHeight) {
+                currentParams.height = neededWrapperHeight
+                w.layoutParams = currentParams
+                w.requestLayout()
+            }
         }
 
         // Reuse existing row if available, otherwise create new one
@@ -737,6 +803,8 @@ class VariationBarView(
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
                 setBackgroundColor(Color.TRANSPARENT)
                 layoutParams = LinearLayout.LayoutParams(variationsRowWidth, buttonHeight)
+                clipChildren = false
+                clipToPadding = false
             }.also {
                 currentVariationsRow = it
                 containerView.addView(it, 0)
@@ -803,7 +871,7 @@ class VariationBarView(
                 index == 0  // First candidate is always the best in non-Juying mode
             }
             val button = createVariationButton(
-                variation, inputConnection, individualButtonWidth, showNumberedButtons, index + 1,
+                variation, inputConnection, individualButtonWidth, buttonHeight, showNumberedButtons, index + 1,
                 snapshot.wordPredictionActive, wordPredictionPrefixLength, snapshot.pinyinModeActive,
                 snapshot.shuangpinModeActive, snapshot.ziranmaModeActive, snapshot.wubiModeActive, snapshot.zhenmaModeActive, candidateIndex = index,
                 isJuyingMode = snapshot.isJuyingMode, isBestCandidate = isBestCandidate
@@ -1643,6 +1711,7 @@ class VariationBarView(
         variation: String,
         inputConnection: android.view.inputmethod.InputConnection?,
         buttonWidth: Int,
+        buttonHeight: Int,
         showNumbered: Boolean = false,
         candidateNumber: Int = 0,
         isWordPrediction: Boolean = false,
@@ -1671,8 +1740,6 @@ class VariationBarView(
             3f,
             context.resources.displayMetrics
         ).toInt()
-
-        val buttonHeight = buttonWidth
 
         // Check if semi-transparent mode is enabled
         val isSemiTransparent = SettingsManager.isSemiTransparentStatusBar(context)
@@ -1909,29 +1976,66 @@ class VariationBarView(
                 background = stateListDrawable
             }
 
-            layoutParams = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
-                marginEnd = dp3
+            // For long text in Juying mode, calculate if we need multiple lines
+            // Minimum readable font size is 11sp - allows more text per line while still readable
+            val minReadableFontSizeSp = 11f
+            val maxFontSizeSp = when {
+                displayText.length <= 3 -> 18f
+                displayText.length <= 5 -> 16f
+                else -> 14f
             }
-            maxLines = 1
 
-            // In Juying mode, use auto-sizing to ensure long text fits in buttons
-            if (isJuyingMode && displayText.length > 2) {
-                // Enable auto-size text with min 8sp, max based on content, granularity 1sp
-                val maxSize = when {
-                    displayText.length <= 3 -> 18
-                    displayText.length <= 5 -> 16
-                    else -> 14
+            // Calculate if text fits on single line with minimum font size
+            val minFontSizePx = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_SP,
+                minReadableFontSizeSp,
+                context.resources.displayMetrics
+            )
+            val testPaint = android.graphics.Paint().apply {
+                textSize = minFontSizePx
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+            }
+            val textWidthAtMinFont = testPaint.measureText(displayText)
+            val availableTextWidth = buttonWidth - dp6 * 2  // Account for padding
+
+            // Determine if we need multiple lines (only for Juying mode when text doesn't fit on one line)
+            val needsMultiLine = isJuyingMode && textWidthAtMinFont > availableTextWidth
+
+            if (needsMultiLine) {
+                // Calculate how many lines we need using actual text width measurement
+                // Number of lines = ceil(textWidth / availableWidth)
+                val numLinesNeeded = kotlin.math.ceil(textWidthAtMinFont / availableTextWidth.toFloat()).toInt().coerceIn(1, 10)
+
+                // Adjust button height for multiple lines
+                val lineHeightPx = minFontSizePx * 1.3f  // Line height with some spacing
+                val adjustedButtonHeight = (lineHeightPx * numLinesNeeded + dp4 * 2).toInt().coerceAtLeast(buttonHeight)
+
+                layoutParams = LinearLayout.LayoutParams(buttonWidth, adjustedButtonHeight).apply {
+                    marginEnd = dp3
                 }
-                TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
-                    this,
-                    8,  // min text size in sp
-                    maxSize,  // max text size in sp
-                    1,  // granularity in sp
-                    TypedValue.COMPLEX_UNIT_SP
-                )
+                maxLines = numLinesNeeded
+                textSize = minReadableFontSizeSp
+                // No ellipsize - we want to show all text across multiple lines
             } else {
-                // Use fixed text size for short text or non-Juying mode
-                textSize = textSizeSp
+                layoutParams = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
+                    marginEnd = dp3
+                }
+                maxLines = 1
+
+                // In Juying mode, use auto-sizing to ensure long text fits in buttons
+                if (isJuyingMode && displayText.length > 2) {
+                    // Enable auto-size text with min font, max based on content, granularity 1sp
+                    TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
+                        this,
+                        minReadableFontSizeSp.toInt(),  // min text size in sp (11sp for readability)
+                        maxFontSizeSp.toInt(),  // max text size in sp
+                        1,  // granularity in sp
+                        TypedValue.COMPLEX_UNIT_SP
+                    )
+                } else {
+                    // Use fixed text size for short text or non-Juying mode
+                    textSize = textSizeSp
+                }
             }
 
             isClickable = true
