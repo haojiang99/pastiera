@@ -2186,88 +2186,130 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         if (pinyinSnapshot.isActive) {
             // Pinyin mode takes priority
-            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(pinyinSnapshot.candidates) else defaultCandidateLimit
-            val rawCandidates = pinyinSnapshot.candidates.take(candidateLimit)
+            // In Juying mode, dynamically adjust page size based on candidate length
+            var effectiveSnapshot = pinyinSnapshot
+            if (isJuyingMode) {
+                val candidateLimit = calculateJuyingCandidateLimit(pinyinSnapshot.candidates)
+                // Update controller's page size and get fresh snapshot if limit changed
+                pinyinInputController.updateJuyingPageSize(candidateLimit)
+                effectiveSnapshot = pinyinInputController.getSnapshot()
+            }
+            val rawCandidates = effectiveSnapshot.candidates
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
-                lastInsertedChar = if (pinyinSnapshot.buffer.isNotEmpty()) pinyinSnapshot.buffer.last() else null,
+                lastInsertedChar = if (effectiveSnapshot.buffer.isNotEmpty()) effectiveSnapshot.buffer.last() else null,
                 variations = reorderForJuyingDisplay(rawCandidates)
             )
             // Pagination info from Pinyin
-            currentPage = pinyinSnapshot.currentPage
-            totalPages = pinyinSnapshot.totalPages
-            hasNextPage = pinyinSnapshot.hasNextPage
-            hasPrevPage = pinyinSnapshot.hasPrevPage
+            currentPage = effectiveSnapshot.currentPage
+            totalPages = effectiveSnapshot.totalPages
+            hasNextPage = effectiveSnapshot.hasNextPage
+            hasPrevPage = effectiveSnapshot.hasPrevPage
         } else if (t9PinyinSnapshot.isActive) {
             // T9 Pinyin mode
-            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(t9PinyinSnapshot.candidates) else defaultCandidateLimit
-            val rawCandidates = t9PinyinSnapshot.candidates.take(candidateLimit)
+            // In Juying mode, dynamically adjust page size based on candidate length
+            var effectiveT9Snapshot = t9PinyinSnapshot
+            if (isJuyingMode) {
+                val candidateLimit = calculateJuyingCandidateLimit(t9PinyinSnapshot.candidates)
+                // Update controller's page size and get fresh snapshot if limit changed
+                t9PinyinInputController.updateJuyingPageSize(candidateLimit)
+                effectiveT9Snapshot = t9PinyinInputController.getSnapshot()
+            }
+            val rawCandidates = effectiveT9Snapshot.candidates
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
-                lastInsertedChar = if (t9PinyinSnapshot.buffer.isNotEmpty()) t9PinyinSnapshot.buffer.last() else null,
+                lastInsertedChar = if (effectiveT9Snapshot.buffer.isNotEmpty()) effectiveT9Snapshot.buffer.last() else null,
                 variations = reorderForJuyingDisplay(rawCandidates)
             )
             // Pagination info from T9 Pinyin
-            currentPage = t9PinyinSnapshot.currentPage
-            totalPages = t9PinyinSnapshot.totalPages
-            hasNextPage = t9PinyinSnapshot.hasNextPage
-            hasPrevPage = t9PinyinSnapshot.hasPrevPage
+            currentPage = effectiveT9Snapshot.currentPage
+            totalPages = effectiveT9Snapshot.totalPages
+            hasNextPage = effectiveT9Snapshot.hasNextPage
+            hasPrevPage = effectiveT9Snapshot.hasPrevPage
         } else if (shuangpinSnapshot.isActive) {
             // Shuangpin mode
-            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(shuangpinSnapshot.candidates) else defaultCandidateLimit
-            val rawCandidates = shuangpinSnapshot.candidates.take(candidateLimit)
+            // In Juying mode, dynamically adjust page size based on candidate length
+            var effectiveShuangpinSnapshot = shuangpinSnapshot
+            if (isJuyingMode) {
+                val candidateLimit = calculateJuyingCandidateLimit(shuangpinSnapshot.candidates)
+                // Update controller's page size and get fresh snapshot if limit changed
+                shuangpinInputController.updateJuyingPageSize(candidateLimit)
+                effectiveShuangpinSnapshot = shuangpinInputController.getSnapshot()
+            }
+            val rawCandidates = effectiveShuangpinSnapshot.candidates
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
-                lastInsertedChar = if (shuangpinSnapshot.buffer.isNotEmpty()) shuangpinSnapshot.buffer.last() else null,
+                lastInsertedChar = if (effectiveShuangpinSnapshot.buffer.isNotEmpty()) effectiveShuangpinSnapshot.buffer.last() else null,
                 variations = reorderForJuyingDisplay(rawCandidates)
             )
             // Pagination info from Shuangpin
-            currentPage = shuangpinSnapshot.currentPage
-            totalPages = shuangpinSnapshot.totalPages
-            hasNextPage = shuangpinSnapshot.hasNextPage
-            hasPrevPage = shuangpinSnapshot.hasPrevPage
+            currentPage = effectiveShuangpinSnapshot.currentPage
+            totalPages = effectiveShuangpinSnapshot.totalPages
+            hasNextPage = effectiveShuangpinSnapshot.hasNextPage
+            hasPrevPage = effectiveShuangpinSnapshot.hasPrevPage
         } else if (ziranmaSnapshot.isActive) {
             // Ziranma mode
-            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(ziranmaSnapshot.candidates) else defaultCandidateLimit
-            val rawCandidates = ziranmaSnapshot.candidates.take(candidateLimit)
+            // In Juying mode, dynamically adjust page size based on candidate length
+            var effectiveZiranmaSnapshot = ziranmaSnapshot
+            if (isJuyingMode) {
+                val candidateLimit = calculateJuyingCandidateLimit(ziranmaSnapshot.candidates)
+                // Update controller's page size and get fresh snapshot if limit changed
+                ziranmaInputController.updateJuyingPageSize(candidateLimit)
+                effectiveZiranmaSnapshot = ziranmaInputController.getSnapshot()
+            }
+            val rawCandidates = effectiveZiranmaSnapshot.candidates
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
-                lastInsertedChar = if (ziranmaSnapshot.buffer.isNotEmpty()) ziranmaSnapshot.buffer.last() else null,
+                lastInsertedChar = if (effectiveZiranmaSnapshot.buffer.isNotEmpty()) effectiveZiranmaSnapshot.buffer.last() else null,
                 variations = reorderForJuyingDisplay(rawCandidates)
             )
             // Pagination info from Ziranma
-            currentPage = ziranmaSnapshot.currentPage
-            totalPages = ziranmaSnapshot.totalPages
-            hasNextPage = ziranmaSnapshot.hasNextPage
-            hasPrevPage = ziranmaSnapshot.hasPrevPage
+            currentPage = effectiveZiranmaSnapshot.currentPage
+            totalPages = effectiveZiranmaSnapshot.totalPages
+            hasNextPage = effectiveZiranmaSnapshot.hasNextPage
+            hasPrevPage = effectiveZiranmaSnapshot.hasPrevPage
         } else if (wubiSnapshot.isActive) {
             // Wubi mode
-            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(wubiSnapshot.candidates) else defaultCandidateLimit
-            val rawCandidates = wubiSnapshot.candidates.take(candidateLimit)
+            // In Juying mode, dynamically adjust page size based on candidate length
+            var effectiveWubiSnapshot = wubiSnapshot
+            if (isJuyingMode) {
+                val candidateLimit = calculateJuyingCandidateLimit(wubiSnapshot.candidates)
+                // Update controller's page size and get fresh snapshot if limit changed
+                wubiInputController.updateJuyingPageSize(candidateLimit)
+                effectiveWubiSnapshot = wubiInputController.getSnapshot()
+            }
+            val rawCandidates = effectiveWubiSnapshot.candidates
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
-                lastInsertedChar = if (wubiSnapshot.buffer.isNotEmpty()) wubiSnapshot.buffer.last() else null,
+                lastInsertedChar = if (effectiveWubiSnapshot.buffer.isNotEmpty()) effectiveWubiSnapshot.buffer.last() else null,
                 variations = reorderForJuyingDisplay(rawCandidates)
             )
             // Pagination info from Wubi
-            currentPage = wubiSnapshot.currentPage
-            totalPages = wubiSnapshot.totalPages
-            hasNextPage = wubiSnapshot.hasNextPage
-            hasPrevPage = wubiSnapshot.hasPrevPage
+            currentPage = effectiveWubiSnapshot.currentPage
+            totalPages = effectiveWubiSnapshot.totalPages
+            hasNextPage = effectiveWubiSnapshot.hasNextPage
+            hasPrevPage = effectiveWubiSnapshot.hasPrevPage
         } else if (zhenmaSnapshot.isActive) {
             // Zhenma mode
-            val candidateLimit = if (isJuyingMode) calculateJuyingCandidateLimit(zhenmaSnapshot.candidates) else defaultCandidateLimit
-            val rawCandidates = zhenmaSnapshot.candidates.take(candidateLimit)
+            // In Juying mode, dynamically adjust page size based on candidate length
+            var effectiveZhenmaSnapshot = zhenmaSnapshot
+            if (isJuyingMode) {
+                val candidateLimit = calculateJuyingCandidateLimit(zhenmaSnapshot.candidates)
+                // Update controller's page size and get fresh snapshot if limit changed
+                zhenmaInputController.updateJuyingPageSize(candidateLimit)
+                effectiveZhenmaSnapshot = zhenmaInputController.getSnapshot()
+            }
+            val rawCandidates = effectiveZhenmaSnapshot.candidates
             variationSnapshot = VariationStateController.Snapshot(
                 isActive = true,
-                lastInsertedChar = if (zhenmaSnapshot.buffer.isNotEmpty()) zhenmaSnapshot.buffer.last() else null,
+                lastInsertedChar = if (effectiveZhenmaSnapshot.buffer.isNotEmpty()) effectiveZhenmaSnapshot.buffer.last() else null,
                 variations = reorderForJuyingDisplay(rawCandidates)
             )
             // Pagination info from Zhenma
-            currentPage = zhenmaSnapshot.currentPage
-            totalPages = zhenmaSnapshot.totalPages
-            hasNextPage = zhenmaSnapshot.hasNextPage
-            hasPrevPage = zhenmaSnapshot.hasPrevPage
+            currentPage = effectiveZhenmaSnapshot.currentPage
+            totalPages = effectiveZhenmaSnapshot.totalPages
+            hasNextPage = effectiveZhenmaSnapshot.hasNextPage
+            hasPrevPage = effectiveZhenmaSnapshot.hasPrevPage
         } else if (wordPredictionSnapshot.hasSuggestions && !shouldDisableSmartFeatures) {
             // Show English word predictions
             // In Juying mode: [1st best (Sym), current typed word (Space), 2nd best (Ctrl)]

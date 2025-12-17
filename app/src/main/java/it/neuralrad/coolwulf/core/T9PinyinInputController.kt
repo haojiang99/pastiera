@@ -35,6 +35,7 @@ class T9PinyinInputController(
         private const val TAG = "T9PinyinInput"
         private const val MAX_BUFFER_LENGTH = 20  // Maximum T9 digit buffer length
         private const val DEFAULT_PAGE_SIZE = 9   // Number of candidates per page
+        private const val JUYING_PAGE_SIZE = 5    // Number of candidates per page (Juying mode)
 
         // T9 key to letters mapping
         private val T9_MAPPING = mapOf(
@@ -112,6 +113,36 @@ class T9PinyinInputController(
 
     // Page size
     private var pageSize = DEFAULT_PAGE_SIZE
+
+    /**
+     * Sets the page size for candidates.
+     * @param juyingMode Whether Juying mode is enabled
+     * @param maxCandidatesNonJuying Maximum number of candidates per page in non-Juying mode
+     * @param juyingPageSize Custom page size for Juying mode (1, 3, or 5 based on candidate length)
+     */
+    fun setJuyingMode(juyingMode: Boolean, maxCandidatesNonJuying: Int = DEFAULT_PAGE_SIZE, juyingPageSize: Int = JUYING_PAGE_SIZE) {
+        val newPageSize = if (juyingMode) juyingPageSize else maxCandidatesNonJuying
+        if (newPageSize != pageSize) {
+            pageSize = newPageSize
+            currentPage = 0 // Reset to first page when page size changes
+        }
+    }
+
+    /**
+     * Updates just the Juying page size without changing mode.
+     * Used when candidate length changes and we need to adjust pagination dynamically.
+     * @param juyingPageSize The new page size (1, 3, or 5)
+     */
+    fun updateJuyingPageSize(juyingPageSize: Int) {
+        if (juyingPageSize != pageSize && juyingPageSize in 1..JUYING_PAGE_SIZE) {
+            pageSize = juyingPageSize
+            // Don't reset page - allow staying on current page if valid
+            val totalPages = if (allCandidates.isEmpty()) 1 else (allCandidates.size + pageSize - 1) / pageSize
+            if (currentPage >= totalPages) {
+                currentPage = (totalPages - 1).coerceAtLeast(0)
+            }
+        }
+    }
 
     // User memory for frequency sorting
     private val userMemory: UserPinyinMemory = UserPinyinMemory.getInstance(context)
