@@ -81,6 +81,58 @@ class WubiInputController(
         }
     }
 
+    /**
+     * Calculates the dynamic page limit for a specific set of candidates based on max length.
+     * Used for variable page sizes in Juying mode.
+     */
+    private fun calculateDynamicLimitForCandidates(candidates: List<String>): Int {
+        if (candidates.isEmpty()) return JUYING_PAGE_SIZE
+        val maxLen = candidates.maxOfOrNull { it.length } ?: 1
+        return when {
+            maxLen >= 10 -> 1  // Very long phrases (10+ chars): show only 1
+            maxLen >= 6 -> 3   // Long phrases (6-9 chars): show 3
+            else -> 5          // Short candidates (1-5 chars): show 5
+        }
+    }
+
+    /**
+     * Gets the start index for a given page by iterating through all previous pages
+     * with variable page sizes (dynamic mode).
+     */
+    private fun getPageStartIndex(targetPage: Int): Int {
+        if (!isJuyingModeEnabled || dynamicDisplayLimit <= 0) {
+            // Fixed page size mode
+            return targetPage * getEffectivePageSize()
+        }
+
+        // Dynamic page size mode - iterate through pages
+        var startIndex = 0
+        for (page in 0 until targetPage) {
+            if (startIndex >= allCandidates.size) break
+            val pageEndIndex = minOf(startIndex + JUYING_PAGE_SIZE, allCandidates.size)
+            val pageCandidates = allCandidates.subList(startIndex, pageEndIndex)
+            val pageLimit = calculateDynamicLimitForCandidates(pageCandidates)
+            startIndex += pageLimit
+        }
+        return startIndex
+    }
+
+    /**
+     * Gets the page limit for a specific page (how many candidates on that page).
+     */
+    private fun getPageLimit(targetPage: Int): Int {
+        if (!isJuyingModeEnabled || dynamicDisplayLimit <= 0) {
+            return getEffectivePageSize()
+        }
+
+        // Dynamic page size mode
+        val startIndex = getPageStartIndex(targetPage)
+        if (startIndex >= allCandidates.size) return JUYING_PAGE_SIZE
+        val pageEndIndex = minOf(startIndex + JUYING_PAGE_SIZE, allCandidates.size)
+        val pageCandidates = allCandidates.subList(startIndex, pageEndIndex)
+        return calculateDynamicLimitForCandidates(pageCandidates)
+    }
+
     // Current wubi input buffer (e.g., "gggg" for "王")
     private var buffer = StringBuilder()
 
@@ -589,8 +641,25 @@ class WubiInputController(
      * Uses effective page size (dynamic display limit in Juying mode) for pagination.
      */
     private fun getTotalPages(): Int {
-        val effectivePageSize = getEffectivePageSize()
-        return if (allCandidates.isEmpty()) 1 else ((allCandidates.size + effectivePageSize - 1) / effectivePageSize)
+        if (allCandidates.isEmpty()) return 1
+
+        if (!isJuyingModeEnabled || dynamicDisplayLimit <= 0) {
+            // Fixed page size mode
+            val effectivePageSize = getEffectivePageSize()
+            return (allCandidates.size + effectivePageSize - 1) / effectivePageSize
+        }
+
+        // Dynamic page size mode - count pages by iterating
+        var pageCount = 0
+        var startIndex = 0
+        while (startIndex < allCandidates.size) {
+            val pageEndIndex = minOf(startIndex + JUYING_PAGE_SIZE, allCandidates.size)
+            val pageCandidates = allCandidates.subList(startIndex, pageEndIndex)
+            val pageLimit = calculateDynamicLimitForCandidates(pageCandidates)
+            startIndex += pageLimit
+            pageCount++
+        }
+        return maxOf(pageCount, 1)
     }
 
     /**
@@ -1110,9 +1179,9 @@ class WubiInputController(
      * candidates are pushed to the next page.
      */
     fun getCurrentPageCandidates(): List<String> {
-        val effectivePageSize = getEffectivePageSize()
-        val startIndex = currentPage * effectivePageSize
-        val endIndex = minOf(startIndex + effectivePageSize, allCandidates.size)
+        val startIndex = getPageStartIndex(currentPage)
+        val pageLimit = getPageLimit(currentPage)
+        val endIndex = minOf(startIndex + pageLimit, allCandidates.size)
         return if (startIndex < allCandidates.size) {
             allCandidates.subList(startIndex, endIndex)
         } else {
