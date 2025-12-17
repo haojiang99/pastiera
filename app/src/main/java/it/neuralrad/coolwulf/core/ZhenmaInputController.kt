@@ -23,7 +23,7 @@ class ZhenmaInputController(
 ) {
     companion object {
         private const val TAG = "ZhenmaInputController"
-        private const val MAX_BUFFER_LENGTH = 30 // Allow longer input for English words (commit with Enter)
+        private const val MAX_BUFFER_LENGTH = 100 // Allow longer input for English words and sentences
         private const val DEFAULT_PAGE_SIZE = 9  // Number of candidates per page (normal mode)
         private const val JUYING_PAGE_SIZE = 5   // Number of candidates per page (Juying mode)
     }

@@ -27,7 +27,7 @@ class ZiranmaInputController(
 ) {
     companion object {
         private const val TAG = "ZiranmaInputController"
-        private const val MAX_BUFFER_LENGTH = 50 // Maximum Ziranma buffer length
+        private const val MAX_BUFFER_LENGTH = 200 // Maximum Ziranma buffer length (increased for long sentences)
         private const val DEFAULT_PAGE_SIZE = 9  // Number of candidates per page (normal mode)
         private const val JUYING_PAGE_SIZE = 5   // Number of candidates per page (Juying mode)
     }

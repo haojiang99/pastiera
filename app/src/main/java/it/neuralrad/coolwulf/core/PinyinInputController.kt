@@ -22,7 +22,7 @@ class PinyinInputController(
 ) {
     companion object {
         private const val TAG = "PinyinInputController"
-        private const val MAX_BUFFER_LENGTH = 50 // Maximum pinyin buffer length (increased for sentences)
+        private const val MAX_BUFFER_LENGTH = 200 // Maximum pinyin buffer length (increased for long sentences)
         private const val DEFAULT_PAGE_SIZE = 9  // Number of candidates per page (normal mode)
         private const val JUYING_PAGE_SIZE = 5   // Number of candidates per page (Juying mode)
         private const val SEPARATOR = '\'' // Apostrophe separator for disambiguating syllables (e.g., he'ni = 和你)

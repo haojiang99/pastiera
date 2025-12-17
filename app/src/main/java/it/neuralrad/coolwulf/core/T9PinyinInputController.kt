@@ -33,7 +33,7 @@ class T9PinyinInputController(
 ) {
     companion object {
         private const val TAG = "T9PinyinInput"
-        private const val MAX_BUFFER_LENGTH = 20  // Maximum T9 digit buffer length
+        private const val MAX_BUFFER_LENGTH = 100  // Maximum T9 digit buffer length (increased for long sentences)
         private const val DEFAULT_PAGE_SIZE = 9   // Number of candidates per page
         private const val JUYING_PAGE_SIZE = 5    // Number of candidates per page in Juying mode
 

@@ -27,7 +27,7 @@ class ShuangpinInputController(
 ) {
     companion object {
         private const val TAG = "ShuangpinInputController"
-        private const val MAX_BUFFER_LENGTH = 50 // Maximum Shuangpin buffer length
+        private const val MAX_BUFFER_LENGTH = 200 // Maximum Shuangpin buffer length (increased for long sentences)
         private const val DEFAULT_PAGE_SIZE = 9  // Number of candidates per page (normal mode)
         private const val JUYING_PAGE_SIZE = 5   // Number of candidates per page (Juying mode)
     }
