@@ -204,6 +204,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getJuyingDynamicCandidateCount(context))
     }
 
+    var juyingPunctuationButtons by remember {
+        mutableStateOf(SettingsManager.isJuyingPunctuationButtons(context))
+    }
+
     var touchpadPageEnabled by remember {
         mutableStateOf(SettingsManager.getTouchpadPageEnabled(context))
     }
@@ -2152,6 +2156,44 @@ fun TextInputSettingsScreen(
                                 onCheckedChange = { enabled ->
                                     juyingDynamicCandidateCount = enabled
                                     SettingsManager.setJuyingDynamicCandidateCount(context, enabled)
+                                }
+                            )
+                        }
+                    }
+
+                    // Juying Punctuation Buttons toggle (sub-setting of Juying mode)
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(72.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Spacer(modifier = Modifier.width(24.dp)) // Indent to align with parent
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.juying_punctuation_buttons_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = stringResource(R.string.juying_punctuation_buttons_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2
+                                )
+                            }
+                            Switch(
+                                checked = juyingPunctuationButtons,
+                                onCheckedChange = { enabled ->
+                                    juyingPunctuationButtons = enabled
+                                    SettingsManager.setJuyingPunctuationButtons(context, enabled)
                                 }
                             )
                         }

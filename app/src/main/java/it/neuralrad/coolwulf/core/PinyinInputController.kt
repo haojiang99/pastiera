@@ -22,7 +22,7 @@ class PinyinInputController(
 ) {
     companion object {
         private const val TAG = "PinyinInputController"
-        private const val MAX_BUFFER_LENGTH = 200 // Maximum pinyin buffer length (increased for long sentences)
+        private const val MAX_BUFFER_LENGTH = 60 // Maximum pinyin buffer length (reduced to prevent crashes)
         private const val DEFAULT_PAGE_SIZE = 9  // Number of candidates per page (normal mode)
         private const val JUYING_PAGE_SIZE = 5   // Number of candidates per page (Juying mode)
         private const val SEPARATOR = '\'' // Apostrophe separator for disambiguating syllables (e.g., he'ni = 和你)
@@ -367,7 +367,13 @@ class PinyinInputController(
             cursorPosition
         }
         buffer.insert(insertPosition, lowerChar)
-        updateCandidates()
+        try {
+            updateCandidates()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating candidates after letter input: ${e.message}", e)
+            // Fallback: clear candidates to prevent crash loop
+            allCandidates = emptyList()
+        }
         Log.d(TAG, "Letter added at position $insertPosition: '$lowerChar' → Buffer: '$buffer', Candidates: ${allCandidates.joinToString(", ")}")
         return true
     }
@@ -787,7 +793,7 @@ class PinyinInputController(
 
         // Safety limit: if buffer is very long, only process the first portion
         // to prevent stack overflow from deep recursion in parsing
-        val maxProcessLength = 200  // ~60+ syllables max
+        val maxProcessLength = 50  // Reduced from 200 - ~15 syllables max is plenty for practical use
         val processStr = if (bufferStr.length > maxProcessLength) {
             Log.w(TAG, "Buffer too long (${bufferStr.length}), truncating to $maxProcessLength for parsing")
             bufferStr.take(maxProcessLength)
@@ -858,10 +864,20 @@ class PinyinInputController(
     private fun autoParseSegment(segment: String): List<ParsedSegment> {
         if (segment.isEmpty()) return emptyList()
 
-        val segments = mutableListOf<ParsedSegment>()
-        var remaining = segment.lowercase()
-        val maxSegments = 60  // Limit segments to prevent excessive processing
+        // Hard limit on input length to prevent crashes
+        val maxInputLength = 50
+        val limitedSegment = if (segment.length > maxInputLength) {
+            Log.w(TAG, "autoParseSegment: input too long (${segment.length}), truncating to $maxInputLength")
+            segment.take(maxInputLength)
+        } else {
+            segment
+        }
 
+        val segments = mutableListOf<ParsedSegment>()
+        var remaining = limitedSegment.lowercase()
+        val maxSegments = 30  // Reduced limit to prevent excessive processing
+
+        try {
         while (remaining.isNotEmpty() && segments.size < maxSegments) {
             // First, check if there's a phrase match for the entire remaining input
             val fullPhraseCandidates = PinyinDictionary.getPhraseCandidates(remaining)
@@ -931,6 +947,16 @@ class PinyinInputController(
                 break
             }
         }
+        } catch (e: StackOverflowError) {
+            Log.e(TAG, "Stack overflow in autoParseSegment: ${e.message}", e)
+            return emptyList()
+        } catch (e: OutOfMemoryError) {
+            Log.e(TAG, "Out of memory in autoParseSegment: ${e.message}", e)
+            return emptyList()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in autoParseSegment: ${e.message}", e)
+            return emptyList()
+        }
 
         return segments
     }
@@ -948,50 +974,55 @@ class PinyinInputController(
     private fun findLongestPhraseMatch(input: String): String? {
         if (input.length < 2) return null
 
-        // Limit input length to prevent excessive parsing with long pinyin
-        val maxInputForPhrase = 20  // ~6-7 syllables max
-        val limitedInput = if (input.length > maxInputForPhrase) input.take(maxInputForPhrase) else input
+        try {
+            // Limit input length to prevent excessive parsing with long pinyin
+            val maxInputForPhrase = 15  // Reduced from 20 to ~4-5 syllables max
+            val limitedInput = if (input.length > maxInputForPhrase) input.take(maxInputForPhrase) else input
 
-        // First, split the entire input into syllables (using fuzzy matching if enabled)
-        val allSyllables = mutableListOf<String>()
-        var remaining = limitedInput
-        val maxSyllables = 6  // Limit syllables to prevent excessive combinations
-        while (remaining.isNotEmpty() && allSyllables.size < maxSyllables) {
-            val syllable = findLongestSyllableWithFuzzy(remaining)
-            if (syllable != null) {
-                allSyllables.add(syllable)
-                remaining = remaining.substring(syllable.length)
-            } else {
-                break
-            }
-        }
-
-        // Need at least 2 syllables to form a phrase
-        if (allSyllables.size < 2) return null
-
-        // Try progressively shorter combinations starting from all syllables
-        // Match any phrase in the dictionary - rely on frequency sorting for ranking
-        for (numSyllables in allSyllables.size downTo 2) {
-            val phrase = allSyllables.take(numSyllables).joinToString("")
-            val phraseCandidates = PinyinDictionary.getPhraseCandidates(phrase)
-            if (phraseCandidates.isNotEmpty()) {
-                Log.d(TAG, "Found phrase match: '$phrase' -> ${phraseCandidates.take(3)}")
-                return phrase
-            }
-
-            // If fuzzy enabled, try phrase variants
-            if (fuzzyPinyinEnabled) {
-                // Generate fuzzy variants for each syllable and try combinations
-                val syllablesToUse = allSyllables.take(numSyllables)
-                val fuzzyPhraseCandidates = getPhraseCandidatesWithFuzzy(syllablesToUse)
-                if (fuzzyPhraseCandidates.isNotEmpty()) {
-                    Log.d(TAG, "Found fuzzy phrase match: '$phrase' -> ${fuzzyPhraseCandidates.take(3)}")
-                    return phrase
+            // First, split the entire input into syllables (using fuzzy matching if enabled)
+            val allSyllables = mutableListOf<String>()
+            var remaining = limitedInput
+            val maxSyllables = 4  // Reduced from 6 to prevent excessive combinations
+            while (remaining.isNotEmpty() && allSyllables.size < maxSyllables) {
+                val syllable = findLongestSyllableWithFuzzy(remaining)
+                if (syllable != null) {
+                    allSyllables.add(syllable)
+                    remaining = remaining.substring(syllable.length)
+                } else {
+                    break
                 }
             }
-        }
 
-        return null
+            // Need at least 2 syllables to form a phrase
+            if (allSyllables.size < 2) return null
+
+            // Try progressively shorter combinations starting from all syllables
+            // Match any phrase in the dictionary - rely on frequency sorting for ranking
+            for (numSyllables in allSyllables.size downTo 2) {
+                val phrase = allSyllables.take(numSyllables).joinToString("")
+                val phraseCandidates = PinyinDictionary.getPhraseCandidates(phrase)
+                if (phraseCandidates.isNotEmpty()) {
+                    Log.d(TAG, "Found phrase match: '$phrase' -> ${phraseCandidates.take(3)}")
+                    return phrase
+                }
+
+                // If fuzzy enabled, try phrase variants (only for short phrases to avoid explosion)
+                if (fuzzyPinyinEnabled && numSyllables <= 3) {
+                    // Generate fuzzy variants for each syllable and try combinations
+                    val syllablesToUse = allSyllables.take(numSyllables)
+                    val fuzzyPhraseCandidates = getPhraseCandidatesWithFuzzy(syllablesToUse)
+                    if (fuzzyPhraseCandidates.isNotEmpty()) {
+                        Log.d(TAG, "Found fuzzy phrase match: '$phrase' -> ${fuzzyPhraseCandidates.take(3)}")
+                        return phrase
+                    }
+                }
+            }
+
+            return null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in findLongestPhraseMatch: ${e.message}", e)
+            return null
+        }
     }
 
     /**
@@ -1037,57 +1068,79 @@ class PinyinInputController(
     private fun getPhraseCandidatesWithFuzzy(syllables: List<String>): List<String> {
         if (syllables.isEmpty()) return emptyList()
 
-        // Limit syllables to prevent exponential explosion with fuzzy matching
-        // With 5 syllables and 4 variants each, that's 4^5 = 1024 combinations
-        // With 6+ syllables it becomes 4096+ which causes stack overflow
-        val maxSyllablesForFuzzy = 4
-        val limitedSyllables = syllables.take(maxSyllablesForFuzzy)
+        try {
+            // Limit syllables to prevent exponential explosion with fuzzy matching
+            // With 3 syllables and 4 variants each, that's 4^3 = 64 combinations (safe)
+            // With 4 syllables it becomes 256 (borderline), 5+ is dangerous
+            val maxSyllablesForFuzzy = 3  // Reduced from 4 to be safer
+            val limitedSyllables = syllables.take(maxSyllablesForFuzzy)
 
-        // First try exact phrase
-        val exactPhrase = syllables.joinToString("")
-        val exactCandidates = PinyinDictionary.getPhraseCandidates(exactPhrase)
-        if (exactCandidates.isNotEmpty()) {
-            return exactCandidates
-        }
+            // First try exact phrase
+            val exactPhrase = syllables.joinToString("")
+            val exactCandidates = PinyinDictionary.getPhraseCandidates(exactPhrase)
+            if (exactCandidates.isNotEmpty()) {
+                return exactCandidates
+            }
 
-        if (!fuzzyPinyinEnabled) return emptyList()
+            if (!fuzzyPinyinEnabled) return emptyList()
 
-        // Skip fuzzy matching for long phrases (too many combinations)
-        if (syllables.size > maxSyllablesForFuzzy) {
-            return emptyList()
-        }
+            // Skip fuzzy matching for long phrases (too many combinations)
+            if (syllables.size > maxSyllablesForFuzzy) {
+                return emptyList()
+            }
 
-        // Generate fuzzy variants for each syllable
-        val variantLists = limitedSyllables.map { getFuzzyVariants(it) }
+            // Generate fuzzy variants for each syllable
+            val variantLists = limitedSyllables.map { getFuzzyVariants(it) }
 
-        // Try combinations (limited to avoid explosion)
-        val seen = mutableSetOf<String>()
-        val results = mutableListOf<String>()
-        var callCount = 0
-        val maxCalls = 500  // Limit total recursive calls
+            // Try combinations iteratively (not recursively) to avoid stack issues
+            val seen = mutableSetOf<String>()
+            val results = mutableListOf<String>()
+            var combinationCount = 0
+            val maxCombinations = 100  // Hard limit on combinations to try
 
-        fun tryVariants(index: Int, current: String) {
-            callCount++
-            if (results.size >= 9 || callCount >= maxCalls) return
-            if (index == variantLists.size) {
-                if (current != exactPhrase && current !in seen) {
-                    val candidates = PinyinDictionary.getPhraseCandidates(current)
+            // Iterative cartesian product instead of recursive
+            val indices = IntArray(variantLists.size) { 0 }
+            while (combinationCount < maxCombinations && results.size < 9) {
+                // Build current combination
+                val current = StringBuilder()
+                for (i in variantLists.indices) {
+                    current.append(variantLists[i][indices[i]])
+                }
+                val phrase = current.toString()
+                combinationCount++
+
+                if (phrase != exactPhrase && phrase !in seen) {
+                    seen.add(phrase)
+                    val candidates = PinyinDictionary.getPhraseCandidates(phrase)
                     for (c in candidates) {
-                        if (c !in seen) {
+                        if (c !in seen && results.size < 9) {
                             seen.add(c)
                             results.add(c)
                         }
                     }
                 }
-                return
-            }
-            for (variant in variantLists[index]) {
-                tryVariants(index + 1, current + variant)
-            }
-        }
 
-        tryVariants(0, "")
-        return results
+                // Increment indices (like counting in variable-base number system)
+                var carry = true
+                for (i in variantLists.indices.reversed()) {
+                    if (carry) {
+                        indices[i]++
+                        if (indices[i] >= variantLists[i].size) {
+                            indices[i] = 0
+                        } else {
+                            carry = false
+                        }
+                    }
+                }
+                // If we carried all the way through, we've tried all combinations
+                if (carry) break
+            }
+
+            return results
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in getPhraseCandidatesWithFuzzy: ${e.message}", e)
+            return emptyList()
+        }
     }
 
     /**
@@ -1104,6 +1157,26 @@ class PinyinInputController(
             return
         }
 
+        try {
+            generateCombinedCandidatesInternal(fullBuffer, segments)
+        } catch (e: OutOfMemoryError) {
+            Log.e(TAG, "Out of memory in generateCombinedCandidates: ${e.message}", e)
+            allCandidates = emptyList()
+            matchedPinyin = ""
+            phraseCandidateCount = 0
+            phraseCandidateSet = emptySet()
+            firstSyllable = ""
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in generateCombinedCandidates: ${e.message}", e)
+            allCandidates = emptyList()
+            matchedPinyin = ""
+            phraseCandidateCount = 0
+            phraseCandidateSet = emptySet()
+            firstSyllable = ""
+        }
+    }
+
+    private fun generateCombinedCandidatesInternal(fullBuffer: String, segments: List<ParsedSegment>) {
         // Find the actual first syllable (not phrase) for single-character fallback
         val bufferWithoutSep = fullBuffer.replace(SEPARATOR.toString(), "")
 

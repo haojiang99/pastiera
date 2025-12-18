@@ -193,7 +193,9 @@ class StatusBarController(
         // Chinese punctuation mode
         val chinesePunctuationMode: Boolean = true,
         // Juying mode - hide numbers, candidates already reordered
-        val isJuyingMode: Boolean = false
+        val isJuyingMode: Boolean = false,
+        // Next word prediction mode - showing predicted next words after committing text
+        val isNextWordPrediction: Boolean = false
     ) {
         val navModeActive: Boolean
             get() = ctrlLatchActive && ctrlLatchFromNavMode

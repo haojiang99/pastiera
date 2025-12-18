@@ -115,6 +115,7 @@ object SettingsManager {
     private const val KEY_TRADITIONAL_CHINESE_TOGGLE_ENABLED = "traditional_chinese_toggle_enabled" // Show 简/繁 toggle button in status bar
     private const val KEY_SHOW_SYM_BUTTON = "show_sym_button" // Show SYM button in status bar
     private const val KEY_SHOW_SOUND_TOGGLE_BUTTON = "show_sound_toggle_button" // Show sound toggle button in status bar
+    private const val KEY_JUYING_PUNCTUATION_BUTTONS = "juying_punctuation_buttons" // Show comma/period buttons on sides in Juying mode
     private const val KEY_STATUS_BAR_THEME = "status_bar_theme" // Status bar theme ID
     private const val KEY_DAY_NIGHT_THEME_ENABLED = "day_night_theme_enabled" // Enable automatic day/night theme switching
     private const val KEY_DAY_THEME = "day_theme" // Theme ID to use during daytime
@@ -243,6 +244,7 @@ object SettingsManager {
     private const val DEFAULT_TRADITIONAL_CHINESE_TOGGLE_ENABLED = false  // 简/繁 toggle disabled by default
     private const val DEFAULT_SHOW_SYM_BUTTON = true  // SYM button shown by default
     private const val DEFAULT_SHOW_SOUND_TOGGLE_BUTTON = false  // Sound toggle button hidden by default
+    private const val DEFAULT_JUYING_PUNCTUATION_BUTTONS = false  // Punctuation buttons hidden by default
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
@@ -2570,6 +2572,22 @@ object SettingsManager {
     fun setShowSoundToggleButton(context: Context, show: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_SHOW_SOUND_TOGGLE_BUTTON, show)
+            .apply()
+    }
+
+    /**
+     * Returns whether punctuation buttons (comma/period) are shown on sides in Juying mode.
+     */
+    fun isJuyingPunctuationButtons(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_JUYING_PUNCTUATION_BUTTONS, DEFAULT_JUYING_PUNCTUATION_BUTTONS)
+    }
+
+    /**
+     * Sets whether to show punctuation buttons (comma/period) on sides in Juying mode.
+     */
+    fun setJuyingPunctuationButtons(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_JUYING_PUNCTUATION_BUTTONS, enabled)
             .apply()
     }
 

@@ -63,6 +63,7 @@ class VariationBarView(
     var onPunctuationToggleListener: (() -> Unit)? = null
     var onTraditionalChineseToggleListener: (() -> Unit)? = null
     var onSoundToggleListener: (() -> Unit)? = null
+    var onPunctuationButtonListener: ((String) -> Unit)? = null  // Called when comma/period button is pressed
 
     private var wrapper: FrameLayout? = null
     private var symButtonView: TextView? = null
@@ -590,38 +591,72 @@ class VariationBarView(
                 val fixedSlots = arrayOf("", "", "", "", "")
                 val numSuggestions = suggestionLayouts.size
 
-                // Fixed placement rules:
-                // 1 candidate:  Space(best)
-                // 2 candidates: Space(best), Sym
-                // 3 candidates: Space(best), Sym, Ctrl
-                // 4 candidates: Space(best), Shift, Sym, Ctrl
-                // 5 candidates: Space(best), Shift, Sym, Ctrl, Alt
-                when (numSuggestions) {
-                    1 -> {
-                        fixedSlots[2] = suggestionLayouts[0].text  // Space = best
+                // Check if punctuation buttons should be shown in next word prediction mode
+                val showPunctuationButtons = snapshot.isNextWordPrediction &&
+                    SettingsManager.isJuyingPunctuationButtons(context) &&
+                    suggestionLayouts.isNotEmpty()
+
+                // Get the appropriate punctuation based on Chinese/English mode
+                val comma = if (isChinesePunctuationMode) "，" else ","
+                val period = if (isChinesePunctuationMode) "。" else "."
+
+                if (showPunctuationButtons) {
+                    // In next word prediction mode with punctuation enabled:
+                    // Position 0 (Shift) = comma, Position 4 (Alt) = period
+                    // Suggestions fill 1, 2, 3 (Sym, Space, Ctrl)
+                    fixedSlots[0] = comma   // Shift = comma
+                    fixedSlots[4] = period  // Alt = period
+
+                    // Fill middle slots with suggestions
+                    when (numSuggestions) {
+                        1 -> {
+                            fixedSlots[2] = suggestionLayouts[0].text  // Space = best
+                        }
+                        2 -> {
+                            fixedSlots[2] = suggestionLayouts[0].text  // Space = best
+                            fixedSlots[1] = suggestionLayouts[1].text  // Sym = 2nd
+                        }
+                        else -> {
+                            // 3 or more candidates - fill Sym, Space, Ctrl
+                            fixedSlots[2] = suggestionLayouts[0].text  // Space = best
+                            fixedSlots[1] = suggestionLayouts[1].text  // Sym = 2nd
+                            fixedSlots[3] = if (numSuggestions > 2) suggestionLayouts[2].text else ""  // Ctrl = 3rd
+                        }
                     }
-                    2 -> {
-                        fixedSlots[2] = suggestionLayouts[0].text  // Space = best
-                        fixedSlots[1] = suggestionLayouts[1].text  // Sym = 2nd
-                    }
-                    3 -> {
-                        fixedSlots[2] = suggestionLayouts[0].text  // Space = best
-                        fixedSlots[1] = suggestionLayouts[1].text  // Sym = 2nd
-                        fixedSlots[3] = suggestionLayouts[2].text  // Ctrl = 3rd
-                    }
-                    4 -> {
-                        fixedSlots[2] = suggestionLayouts[0].text  // Space = best
-                        fixedSlots[0] = suggestionLayouts[1].text  // Shift = 2nd
-                        fixedSlots[1] = suggestionLayouts[2].text  // Sym = 3rd
-                        fixedSlots[3] = suggestionLayouts[3].text  // Ctrl = 4th
-                    }
-                    else -> {
-                        // 5 or more candidates
-                        fixedSlots[2] = suggestionLayouts[0].text  // Space = best
-                        fixedSlots[0] = suggestionLayouts[1].text  // Shift = 2nd
-                        fixedSlots[1] = suggestionLayouts[2].text  // Sym = 3rd
-                        fixedSlots[3] = suggestionLayouts[3].text  // Ctrl = 4th
-                        fixedSlots[4] = suggestionLayouts[4].text  // Alt = 5th
+                } else {
+                    // Normal fixed placement rules:
+                    // 1 candidate:  Space(best)
+                    // 2 candidates: Space(best), Sym
+                    // 3 candidates: Space(best), Sym, Ctrl
+                    // 4 candidates: Space(best), Shift, Sym, Ctrl
+                    // 5 candidates: Space(best), Shift, Sym, Ctrl, Alt
+                    when (numSuggestions) {
+                        1 -> {
+                            fixedSlots[2] = suggestionLayouts[0].text  // Space = best
+                        }
+                        2 -> {
+                            fixedSlots[2] = suggestionLayouts[0].text  // Space = best
+                            fixedSlots[1] = suggestionLayouts[1].text  // Sym = 2nd
+                        }
+                        3 -> {
+                            fixedSlots[2] = suggestionLayouts[0].text  // Space = best
+                            fixedSlots[1] = suggestionLayouts[1].text  // Sym = 2nd
+                            fixedSlots[3] = suggestionLayouts[2].text  // Ctrl = 3rd
+                        }
+                        4 -> {
+                            fixedSlots[2] = suggestionLayouts[0].text  // Space = best
+                            fixedSlots[0] = suggestionLayouts[1].text  // Shift = 2nd
+                            fixedSlots[1] = suggestionLayouts[2].text  // Sym = 3rd
+                            fixedSlots[3] = suggestionLayouts[3].text  // Ctrl = 4th
+                        }
+                        else -> {
+                            // 5 or more candidates
+                            fixedSlots[2] = suggestionLayouts[0].text  // Space = best
+                            fixedSlots[0] = suggestionLayouts[1].text  // Shift = 2nd
+                            fixedSlots[1] = suggestionLayouts[2].text  // Sym = 3rd
+                            fixedSlots[3] = suggestionLayouts[3].text  // Ctrl = 4th
+                            fixedSlots[4] = suggestionLayouts[4].text  // Alt = 5th
+                        }
                     }
                 }
 
@@ -1802,8 +1837,18 @@ class VariationBarView(
             else -> baseFontSize - 8f  // Very long words
         }.coerceAtLeast(10f)  // Minimum 10sp
 
+        // Check if this is a punctuation button (comma or period in next word prediction mode)
+        val isPunctuationButton = variation in listOf(",", ".", "，", "。")
+
         // Choose the appropriate click listener based on mode
         val clickListener = when {
+            isPunctuationButton -> {
+                // Punctuation button - just commit the punctuation directly
+                View.OnClickListener {
+                    inputConnection?.commitText(variation, 1)
+                    onPunctuationButtonListener?.invoke(variation)
+                }
+            }
             isWordPrediction -> {
                 // English word prediction - delete prefix and insert word + space
                 VariationButtonHandler.createWordPredictionClickListener(
@@ -1880,7 +1925,7 @@ class VariationBarView(
         }
 
         // Capture flags for closure
-        val shouldVibrate = isWordPrediction || isPinyinMode || isShuangpinMode || isZiranmaMode || isWubiMode || isZhenmaMode
+        val shouldVibrate = isPunctuationButton || isWordPrediction || isPinyinMode || isShuangpinMode || isZiranmaMode || isWubiMode || isZhenmaMode
 
         // Use golden/yellow text for best candidate in Juying mode
         // Apply transparency when semi-transparent mode is enabled

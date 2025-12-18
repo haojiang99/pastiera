@@ -2479,7 +2479,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             hasNextPage = hasNextPage,
             hasPrevPage = hasPrevPage,
             chinesePunctuationMode = isChinesePunctuationModeActive(),
-            isJuyingMode = isJuyingMode
+            isJuyingMode = isJuyingMode,
+            isNextWordPrediction = pinyinSnapshot.isNextWordPrediction ||
+                                   shuangpinSnapshot.isNextWordPrediction ||
+                                   wubiSnapshot.isNextWordPrediction ||
+                                   zhenmaSnapshot.isNextWordPrediction ||
+                                   ziranmaSnapshot.isNextWordPrediction
         )
         val emojiMapText = ""
         // Passa le mappature SYM per la griglia emoji/caratteri
@@ -3684,6 +3689,55 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // Skip if key doesn't map to a valid candidate
                         if (originalCandidateIndex < 0) {
                             return true
+                        }
+
+                        // Check if punctuation buttons are enabled in next word prediction mode
+                        // Shift (index 0) -> comma, Alt (index 4) -> period
+                        val punctuationButtonsEnabled = SettingsManager.isJuyingPunctuationButtons(this@PhysicalKeyboardInputMethodService)
+                        val isNextWordPredictionActive = when {
+                            isPinyinMode -> pinyinInputController.isShowingNextWordPredictions()
+                            isShuangpinMode -> shuangpinInputController.isShowingNextWordPredictions()
+                            isWubiMode -> wubiInputController.isShowingNextWordPredictions()
+                            isZhenmaMode -> zhenmaInputController.isShowingNextWordPredictions()
+                            else -> false
+                        }
+
+                        val isFixedPositionModeActive = SettingsManager.getJuyingFixedPositions(this@PhysicalKeyboardInputMethodService)
+                        if (punctuationButtonsEnabled && isNextWordPredictionActive && isFixedPositionModeActive) {
+                            // Get the appropriate punctuation based on Chinese/English punctuation mode
+                            val comma = if (isChinesePunctuationModeActive()) "，" else ","
+                            val period = if (isChinesePunctuationModeActive()) "。" else "."
+
+                            when (originalCandidateIndex) {
+                                0 -> {
+                                    // Shift position - commit comma
+                                    ic.commitText(comma, 1)
+                                    playJuyingSelectionSound(keyCode)
+                                    // Clear next word predictions after punctuation
+                                    when {
+                                        isPinyinMode -> pinyinInputController.clearNextWordPredictions()
+                                        isShuangpinMode -> shuangpinInputController.clearNextWordPredictions()
+                                        isWubiMode -> wubiInputController.clearNextWordPredictions()
+                                        isZhenmaMode -> zhenmaInputController.clearNextWordPredictions()
+                                    }
+                                    updateStatusBarText()
+                                    return true
+                                }
+                                4 -> {
+                                    // Alt position - commit period
+                                    ic.commitText(period, 1)
+                                    playJuyingSelectionSound(keyCode)
+                                    // Clear next word predictions after punctuation
+                                    when {
+                                        isPinyinMode -> pinyinInputController.clearNextWordPredictions()
+                                        isShuangpinMode -> shuangpinInputController.clearNextWordPredictions()
+                                        isWubiMode -> wubiInputController.clearNextWordPredictions()
+                                        isZhenmaMode -> zhenmaInputController.clearNextWordPredictions()
+                                    }
+                                    updateStatusBarText()
+                                    return true
+                                }
+                            }
                         }
 
                         when {
