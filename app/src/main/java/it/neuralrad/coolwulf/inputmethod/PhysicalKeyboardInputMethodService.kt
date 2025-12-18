@@ -820,12 +820,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         pinyinInputController.setNeuralPinyinPriority(neuralPinyinPriority)
         pinyinInputController.setNeuralPinyinCount(neuralPinyinCount)
 
-        // Apply same neural pinyin settings to Shuangpin (converts to Pinyin internally)
-        shuangpinInputController.setNeuralPinyinEnabled(neuralPinyinEnabled)
-        shuangpinInputController.setNeuralPinyinMinLetters(neuralPinyinMinLetters)
-        shuangpinInputController.setNeuralPinyinPriority(neuralPinyinPriority)
-        shuangpinInputController.setNeuralPinyinCount(neuralPinyinCount)
-
         // Start clipboard history listener if enabled
         if (SettingsManager.getClipboardHistoryEnabled(this)) {
             it.neuralrad.coolwulf.core.ClipboardHistoryManager.startListening(this)
@@ -2613,12 +2607,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         pinyinInputController.setNeuralPinyinPriority(neuralPinyinPriority)
         pinyinInputController.setNeuralPinyinCount(neuralPinyinCount)
 
-        // Apply same neural pinyin settings to Shuangpin (converts to Pinyin internally)
-        shuangpinInputController.setNeuralPinyinEnabled(neuralPinyinEnabled)
-        shuangpinInputController.setNeuralPinyinMinLetters(neuralPinyinMinLetters)
-        shuangpinInputController.setNeuralPinyinPriority(neuralPinyinPriority)
-        shuangpinInputController.setNeuralPinyinCount(neuralPinyinCount)
-
         // Refresh virtual keyboard setting (may have changed in settings)
         val newVirtualKeyboardEnabled = SettingsManager.isVirtualKeyboardEnabled(this)
         if (newVirtualKeyboardEnabled != isVirtualKeyboardEnabled) {
@@ -2679,12 +2667,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         pinyinInputController.setNeuralPinyinMinLetters(neuralPinyinMinLetters)
         pinyinInputController.setNeuralPinyinPriority(neuralPinyinPriority)
         pinyinInputController.setNeuralPinyinCount(neuralPinyinCount)
-
-        // Apply same neural pinyin settings to Shuangpin (converts to Pinyin internally)
-        shuangpinInputController.setNeuralPinyinEnabled(neuralPinyinEnabled)
-        shuangpinInputController.setNeuralPinyinMinLetters(neuralPinyinMinLetters)
-        shuangpinInputController.setNeuralPinyinPriority(neuralPinyinPriority)
-        shuangpinInputController.setNeuralPinyinCount(neuralPinyinCount)
 
         // Refresh Juying mode page size for all Chinese input controllers
         val juyingModeEnabled = SettingsManager.getJuyingModeEnabled(this)
