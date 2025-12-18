@@ -304,6 +304,7 @@ class NextWordPredictor(private val context: Context) {
     /**
      * Gets next-word suggestions using interpolated n-gram model.
      * Combines trigram, bigram, unigram, and base model probabilities.
+     * Supports continuous prediction by always providing fallback candidates.
      *
      * @param previousWords Pair of last two committed words
      * @param limit Maximum number of suggestions to return
@@ -315,6 +316,12 @@ class NextWordPredictor(private val context: Context) {
 
         // Collect all candidate words from all sources
         collectCandidates(candidates, word1, word2)
+
+        // For continuous prediction: if no context-specific candidates found,
+        // fall back to top unigrams from base models
+        if (candidates.isEmpty() && word2 != null) {
+            collectFallbackCandidates(candidates, word2)
+        }
 
         if (candidates.isEmpty()) {
             return emptyList()
@@ -336,6 +343,35 @@ class NextWordPredictor(private val context: Context) {
             .sortedByDescending { it.value }
             .take(limit)
             .map { it.key }
+    }
+
+    /**
+     * Collects fallback candidates when no context-specific candidates are available.
+     * This enables continuous prediction by providing high-frequency words.
+     */
+    private fun collectFallbackCandidates(candidates: MutableMap<String, Float>, lastWord: String) {
+        // Detect if last word is Chinese
+        val isChinese = lastWord.any { it in '\u4e00'..'\u9fff' }
+
+        if (isChinese) {
+            // For Chinese, use top Chinese unigrams as fallback
+            chineseBaseUnigrams.entries
+                .sortedByDescending { it.value }
+                .take(20)
+                .forEach { candidates[it.key] = 0f }
+        } else {
+            // For English, use top English unigrams as fallback
+            baseUnigrams.entries
+                .sortedByDescending { it.value }
+                .take(20)
+                .forEach { candidates[it.key] = 0f }
+        }
+
+        // Also include user's top learned words
+        unigramCache.entries
+            .sortedByDescending { it.value }
+            .take(20)
+            .forEach { candidates[it.key] = 0f }
     }
 
     /**

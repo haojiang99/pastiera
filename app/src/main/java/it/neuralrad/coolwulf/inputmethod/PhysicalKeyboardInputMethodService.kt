@@ -3690,12 +3690,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             isPinyinMode -> {
                                 // Save buffer length BEFORE selection (for deletion)
                                 val bufferLengthBeforeSelect = pinyinInputController.getBuffer().length
+                                val wasShowingPredictions = pinyinInputController.isShowingNextWordPredictions()
                                 val selected = pinyinInputController.selectCandidate(originalCandidateIndex)
                                 if (selected != null) {
                                     var remainingBuffer = pinyinInputController.getBuffer()
                                     // For memory/prediction candidates, buffer may not be consumed normally
                                     // If buffer unchanged, it's a memory candidate - clear the buffer entirely
-                                    if (remainingBuffer.length == bufferLengthBeforeSelect) {
+                                    // But don't clear if showing predictions (to preserve chained predictions)
+                                    if (remainingBuffer.length == bufferLengthBeforeSelect && !wasShowingPredictions) {
                                         pinyinInputController.clearBuffer()
                                         remainingBuffer = ""
                                     }
@@ -3728,10 +3730,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             }
                             isShuangpinMode -> {
                                 val bufferLengthBeforeSelect = shuangpinInputController.getBuffer().length
+                                val wasShowingPredictions = shuangpinInputController.isShowingNextWordPredictions()
                                 val selected = shuangpinInputController.selectCandidate(originalCandidateIndex)
                                 if (selected != null) {
                                     var remainingBuffer = shuangpinInputController.getBuffer()
-                                    if (remainingBuffer.length == bufferLengthBeforeSelect) {
+                                    // Only clear buffer if not showing predictions (to preserve chained predictions)
+                                    if (remainingBuffer.length == bufferLengthBeforeSelect && !wasShowingPredictions) {
                                         shuangpinInputController.clearBuffer()
                                         remainingBuffer = ""
                                     }
@@ -3749,10 +3753,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             }
                             isWubiMode -> {
                                 val bufferLengthBeforeSelect = wubiInputController.getBuffer().length
+                                val wasShowingPredictions = wubiInputController.isShowingNextWordPredictions()
                                 val selected = wubiInputController.selectCandidate(originalCandidateIndex)
                                 if (selected != null) {
                                     var remainingBuffer = wubiInputController.getBuffer()
-                                    if (remainingBuffer.length == bufferLengthBeforeSelect) {
+                                    // Only clear buffer if not showing predictions (to preserve chained predictions)
+                                    if (remainingBuffer.length == bufferLengthBeforeSelect && !wasShowingPredictions) {
                                         wubiInputController.clearBuffer()
                                         remainingBuffer = ""
                                     }
@@ -3770,10 +3776,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             }
                             isZhenmaMode -> {
                                 val bufferLengthBeforeSelect = zhenmaInputController.getBuffer().length
+                                val wasShowingPredictions = zhenmaInputController.isShowingNextWordPredictions()
                                 val selected = zhenmaInputController.selectCandidate(originalCandidateIndex)
                                 if (selected != null) {
                                     var remainingBuffer = zhenmaInputController.getBuffer()
-                                    if (remainingBuffer.length == bufferLengthBeforeSelect) {
+                                    // Only clear buffer if not showing predictions (to preserve chained predictions)
+                                    if (remainingBuffer.length == bufferLengthBeforeSelect && !wasShowingPredictions) {
                                         zhenmaInputController.clearBuffer()
                                         remainingBuffer = ""
                                     }
