@@ -25,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.pinyin.AutoPhraseMemory
 import it.neuralrad.coolwulf.data.shuangpin.ShuangpinPhraseMemory
 import it.neuralrad.coolwulf.data.wubi.WubiPhraseMemory
@@ -46,6 +47,7 @@ fun LearnedPhrasesScreen(
     val autoPhraseMemory = remember { AutoPhraseMemory.getInstance(context) }
     val wubiPhraseMemory = remember { WubiPhraseMemory.getInstance(context) }
     val shuangpinPhraseMemory = remember { ShuangpinPhraseMemory.getInstance(context) }
+    val nextWordPredictor = remember { NextWordPredictor.getInstance(context) }
 
     // Tab state
     var selectedTabIndex by remember { mutableStateOf(0) }
@@ -334,6 +336,8 @@ fun LearnedPhrasesScreen(
                 TextButton(
                     onClick = {
                         autoPhraseMemory.deleteLearnedPhrase(phrase.pinyin, phrase.phrase)
+                        // Also remove from next word prediction n-gram caches
+                        nextWordPredictor.removePhrase(phrase.phrase)
                         pinyinPhrases = autoPhraseMemory.getAllLearnedPhrases()
                         pinyinPhraseToDelete = null
                         Toast.makeText(context, R.string.learned_phrases_deleted, Toast.LENGTH_SHORT).show()
@@ -370,6 +374,8 @@ fun LearnedPhrasesScreen(
                 TextButton(
                     onClick = {
                         shuangpinPhraseMemory.deleteLearnedPhrase(phrase.shuangpinCode, phrase.phrase)
+                        // Also remove from next word prediction n-gram caches
+                        nextWordPredictor.removePhrase(phrase.phrase)
                         shuangpinPhrases = shuangpinPhraseMemory.getAllLearnedPhrases()
                         shuangpinPhraseToDelete = null
                         Toast.makeText(context, R.string.learned_phrases_deleted, Toast.LENGTH_SHORT).show()
@@ -406,6 +412,8 @@ fun LearnedPhrasesScreen(
                 TextButton(
                     onClick = {
                         wubiPhraseMemory.deleteLearnedPhrase(phrase.wubiCode, phrase.phrase)
+                        // Also remove from next word prediction n-gram caches
+                        nextWordPredictor.removePhrase(phrase.phrase)
                         wubiPhrases = wubiPhraseMemory.getAllLearnedPhrases()
                         wubiPhraseToDelete = null
                         Toast.makeText(context, R.string.learned_phrases_deleted, Toast.LENGTH_SHORT).show()

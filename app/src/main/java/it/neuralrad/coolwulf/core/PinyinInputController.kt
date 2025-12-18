@@ -785,17 +785,44 @@ class PinyinInputController(
 
         val bufferStr = buffer.toString()
 
-        // Parse the buffer into segments (using backtick delimiters or auto-parsing)
-        parsedSegments = parseBufferIntoSegments(bufferStr)
-
-        if (parsedSegments.isEmpty()) {
-            // Couldn't parse - show prefix matches for partial input
-            handleUnparsableInput(bufferStr)
-            return
+        // Safety limit: if buffer is very long, only process the first portion
+        // to prevent stack overflow from deep recursion in parsing
+        val maxProcessLength = 200  // ~60+ syllables max
+        val processStr = if (bufferStr.length > maxProcessLength) {
+            Log.w(TAG, "Buffer too long (${bufferStr.length}), truncating to $maxProcessLength for parsing")
+            bufferStr.take(maxProcessLength)
+        } else {
+            bufferStr
         }
 
-        // Generate combined candidates from all segments
-        generateCombinedCandidates(bufferStr, parsedSegments)
+        try {
+            // Parse the buffer into segments (using backtick delimiters or auto-parsing)
+            parsedSegments = parseBufferIntoSegments(processStr)
+
+            if (parsedSegments.isEmpty()) {
+                // Couldn't parse - show prefix matches for partial input
+                handleUnparsableInput(processStr)
+                return
+            }
+
+            // Generate combined candidates from all segments
+            generateCombinedCandidates(bufferStr, parsedSegments)
+        } catch (e: StackOverflowError) {
+            Log.e(TAG, "Stack overflow in updateCandidates, buffer length: ${bufferStr.length}", e)
+            // Fallback: just show the raw buffer as unparsable
+            allCandidates = emptyList()
+            matchedPinyin = ""
+            phraseCandidateCount = 0
+            firstSyllable = ""
+            parsedSegments = emptyList()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in updateCandidates: ${e.message}", e)
+            allCandidates = emptyList()
+            matchedPinyin = ""
+            phraseCandidateCount = 0
+            firstSyllable = ""
+            parsedSegments = emptyList()
+        }
     }
 
     /**
@@ -833,8 +860,9 @@ class PinyinInputController(
 
         val segments = mutableListOf<ParsedSegment>()
         var remaining = segment.lowercase()
+        val maxSegments = 60  // Limit segments to prevent excessive processing
 
-        while (remaining.isNotEmpty()) {
+        while (remaining.isNotEmpty() && segments.size < maxSegments) {
             // First, check if there's a phrase match for the entire remaining input
             val fullPhraseCandidates = PinyinDictionary.getPhraseCandidates(remaining)
             if (fullPhraseCandidates.isNotEmpty()) {
@@ -920,10 +948,15 @@ class PinyinInputController(
     private fun findLongestPhraseMatch(input: String): String? {
         if (input.length < 2) return null
 
+        // Limit input length to prevent excessive parsing with long pinyin
+        val maxInputForPhrase = 20  // ~6-7 syllables max
+        val limitedInput = if (input.length > maxInputForPhrase) input.take(maxInputForPhrase) else input
+
         // First, split the entire input into syllables (using fuzzy matching if enabled)
         val allSyllables = mutableListOf<String>()
-        var remaining = input
-        while (remaining.isNotEmpty()) {
+        var remaining = limitedInput
+        val maxSyllables = 6  // Limit syllables to prevent excessive combinations
+        while (remaining.isNotEmpty() && allSyllables.size < maxSyllables) {
             val syllable = findLongestSyllableWithFuzzy(remaining)
             if (syllable != null) {
                 allSyllables.add(syllable)
@@ -979,7 +1012,8 @@ class PinyinInputController(
         // Split pinyin into syllables and get fuzzy phrase candidates
         val syllables = mutableListOf<String>()
         var remaining = pinyin
-        while (remaining.isNotEmpty()) {
+        val maxSyllables = 6  // Limit to prevent excessive processing
+        while (remaining.isNotEmpty() && syllables.size < maxSyllables) {
             val syllable = PinyinDictionary.findLongestSyllable(remaining)
                 ?: findLongestSyllableWithFuzzy(remaining)
             if (syllable != null) {
@@ -1003,6 +1037,12 @@ class PinyinInputController(
     private fun getPhraseCandidatesWithFuzzy(syllables: List<String>): List<String> {
         if (syllables.isEmpty()) return emptyList()
 
+        // Limit syllables to prevent exponential explosion with fuzzy matching
+        // With 5 syllables and 4 variants each, that's 4^5 = 1024 combinations
+        // With 6+ syllables it becomes 4096+ which causes stack overflow
+        val maxSyllablesForFuzzy = 4
+        val limitedSyllables = syllables.take(maxSyllablesForFuzzy)
+
         // First try exact phrase
         val exactPhrase = syllables.joinToString("")
         val exactCandidates = PinyinDictionary.getPhraseCandidates(exactPhrase)
@@ -1012,15 +1052,23 @@ class PinyinInputController(
 
         if (!fuzzyPinyinEnabled) return emptyList()
 
+        // Skip fuzzy matching for long phrases (too many combinations)
+        if (syllables.size > maxSyllablesForFuzzy) {
+            return emptyList()
+        }
+
         // Generate fuzzy variants for each syllable
-        val variantLists = syllables.map { getFuzzyVariants(it) }
+        val variantLists = limitedSyllables.map { getFuzzyVariants(it) }
 
         // Try combinations (limited to avoid explosion)
         val seen = mutableSetOf<String>()
         val results = mutableListOf<String>()
+        var callCount = 0
+        val maxCalls = 500  // Limit total recursive calls
 
         fun tryVariants(index: Int, current: String) {
-            if (results.size >= 9) return
+            callCount++
+            if (results.size >= 9 || callCount >= maxCalls) return
             if (index == variantLists.size) {
                 if (current != exactPhrase && current !in seen) {
                     val candidates = PinyinDictionary.getPhraseCandidates(current)
@@ -2096,46 +2144,54 @@ class PinyinInputController(
      * Returns a list of suggestions (1 or 3 based on setting), or empty list if not available.
      */
     private fun getNeuralPinyinSuggestions(pinyinInput: String): List<String> {
-        // Check if ONNX Runtime is available
-        if (!NeuralPinyinRecognizer.isOnnxRuntimeAvailable()) {
-            return emptyList()
-        }
-
-        // Get or create recognizer instance
-        val recognizer = neuralPinyinRecognizer ?: run {
-            neuralPinyinRecognizer = NeuralPinyinRecognizer.getInstance(context)
-            neuralPinyinRecognizer
-        }
-
-        if (recognizer == null) return emptyList()
-
-        // Check model status
-        val status = recognizer.getModelStatus()
-        when (status) {
-            NeuralPinyinRecognizer.ModelStatus.READY -> {
-                // Model is ready, run inference with count parameter
-                return recognizer.convert(pinyinInput, neuralPinyinCount)
-            }
-            NeuralPinyinRecognizer.ModelStatus.AVAILABLE -> {
-                // Model extracted but not loaded - initialize it
-                recognizer.initModel()
+        try {
+            // Check if ONNX Runtime is available
+            if (!NeuralPinyinRecognizer.isOnnxRuntimeAvailable()) {
                 return emptyList()
             }
-            NeuralPinyinRecognizer.ModelStatus.ZIP_CONFIGURED -> {
-                // Zip configured but not extracted - extract it
-                recognizer.extractModel(
-                    onComplete = { success, _ ->
-                        if (success) {
-                            recognizer.initModel()
+
+            // Get or create recognizer instance
+            val recognizer = neuralPinyinRecognizer ?: run {
+                neuralPinyinRecognizer = NeuralPinyinRecognizer.getInstance(context)
+                neuralPinyinRecognizer
+            }
+
+            if (recognizer == null) return emptyList()
+
+            // Check model status
+            val status = recognizer.getModelStatus()
+            when (status) {
+                NeuralPinyinRecognizer.ModelStatus.READY -> {
+                    // Model is ready, run inference with count parameter
+                    return recognizer.convert(pinyinInput, neuralPinyinCount)
+                }
+                NeuralPinyinRecognizer.ModelStatus.AVAILABLE -> {
+                    // Model extracted but not loaded - initialize it
+                    recognizer.initModel()
+                    return emptyList()
+                }
+                NeuralPinyinRecognizer.ModelStatus.ZIP_CONFIGURED -> {
+                    // Zip configured but not extracted - extract it
+                    recognizer.extractModel(
+                        onComplete = { success, _ ->
+                            if (success) {
+                                recognizer.initModel()
+                            }
                         }
-                    }
-                )
-                return emptyList()
+                    )
+                    return emptyList()
+                }
+                else -> {
+                    // Not configured, extracting, or loading - skip
+                    return emptyList()
+                }
             }
-            else -> {
-                // Not configured, extracting, or loading - skip
-                return emptyList()
-            }
+        } catch (e: OutOfMemoryError) {
+            Log.e(TAG, "Out of memory in neural pinyin: ${e.message}", e)
+            return emptyList()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in neural pinyin: ${e.message}", e)
+            return emptyList()
         }
     }
 
@@ -2146,8 +2202,9 @@ class PinyinInputController(
     private fun parseToSpacedPinyin(input: String): String {
         val syllables = mutableListOf<String>()
         var remaining = input.lowercase()
+        val maxSyllables = 20  // Limit to prevent excessive processing
 
-        while (remaining.isNotEmpty()) {
+        while (remaining.isNotEmpty() && syllables.size < maxSyllables) {
             val syllable = PinyinDictionary.findLongestSyllable(remaining)
             if (syllable != null) {
                 syllables.add(syllable)

@@ -64,9 +64,9 @@ class NextWordPredictor(private val context: Context) {
     private val shuangpinPhraseMemory: ShuangpinPhraseMemory by lazy { ShuangpinPhraseMemory(context) }
     private val ziranmaPhraseMemory: ZiranmaPhraseMemory by lazy { ZiranmaPhraseMemory(context) }
 
-    // Cached phrase frequencies from all memories (phrase -> total frequency)
-    private var phraseFrequencyCache: Map<String, Int> = emptyMap()
-    private var phraseFrequencyCacheTime: Long = 0
+    // Cached phrases from all memories (just the set of phrases, no frequency weighting)
+    private var phraseCache: Set<String> = emptySet()
+    private var phraseCacheTime: Long = 0
     private val PHRASE_CACHE_VALIDITY_MS = 60_000L  // Refresh cache every 60 seconds
 
     // Last two committed words (used to learn sequences)
@@ -436,10 +436,9 @@ class NextWordPredictor(private val context: Context) {
             .forEach { candidates[it.key] = 0f }
 
         // From user-learned phrases (Pinyin, Wubi, Shuangpin, Ziranma memories)
-        // Only include phrases that have some contextual relevance:
-        // - If we have context (word2), only include phrases that could follow naturally
-        // - Phrases starting with the same character as a bigram/trigram match get priority
-        refreshPhraseFrequencyCache()
+        // Only include phrases that have contextual relevance (match bigram context)
+        // All phrases are treated equally - no frequency weighting
+        refreshPhraseCache()
 
         // Get characters that appear in context-matched candidates
         val contextChars = mutableSetOf<Char>()
@@ -453,38 +452,35 @@ class NextWordPredictor(private val context: Context) {
             }
         }
 
-        // Only add phrases that are contextually relevant or very high frequency
-        val highFreqThreshold = 10  // Minimum frequency to be included without context match
-        phraseFrequencyCache.entries
-            .filter { (phrase, freq) ->
-                // Include if: matches context OR is very frequently used
-                val matchesContext = contextChars.isEmpty() ||
-                    (phrase.isNotEmpty() && contextChars.contains(phrase.first()))
-                val isHighFreq = freq >= highFreqThreshold
-                matchesContext || isHighFreq
+        // Only add phrases that are contextually relevant (no frequency-based inclusion)
+        phraseCache
+            .filter { phrase ->
+                // Only include if matches context
+                contextChars.isNotEmpty() &&
+                    phrase.isNotEmpty() &&
+                    contextChars.contains(phrase.first())
             }
-            .sortedByDescending { it.value }
-            .take(30)  // Reduced from 100 to avoid overwhelming context-based predictions
-            .forEach { candidates[it.key] = 0f }
+            .take(20)  // Limit to avoid overwhelming context-based predictions
+            .forEach { candidates[it] = 0f }
     }
 
     /**
-     * Refreshes the phrase frequency cache from all input method memories.
+     * Refreshes the phrase cache from all input method memories.
+     * All phrases are treated equally - no frequency weighting.
      * Caches results to avoid frequent memory access.
      */
-    private fun refreshPhraseFrequencyCache() {
+    private fun refreshPhraseCache() {
         val currentTime = System.currentTimeMillis()
-        if (currentTime - phraseFrequencyCacheTime < PHRASE_CACHE_VALIDITY_MS && phraseFrequencyCache.isNotEmpty()) {
+        if (currentTime - phraseCacheTime < PHRASE_CACHE_VALIDITY_MS && phraseCache.isNotEmpty()) {
             return  // Cache is still valid
         }
 
-        val combinedFrequencies = mutableMapOf<String, Int>()
+        val allPhrases = mutableSetOf<String>()
 
         // Collect from Pinyin auto-learned phrases
         try {
             pinyinPhraseMemory.getAllLearnedPhrases().forEach { learned ->
-                val phrase = learned.phrase
-                combinedFrequencies[phrase] = (combinedFrequencies[phrase] ?: 0) + learned.frequency
+                allPhrases.add(learned.phrase)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading Pinyin phrase memory", e)
@@ -493,8 +489,7 @@ class NextWordPredictor(private val context: Context) {
         // Collect from Wubi auto-learned phrases
         try {
             wubiPhraseMemory.getAllLearnedPhrases().forEach { learned ->
-                val phrase = learned.phrase
-                combinedFrequencies[phrase] = (combinedFrequencies[phrase] ?: 0) + learned.frequency
+                allPhrases.add(learned.phrase)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading Wubi phrase memory", e)
@@ -503,8 +498,7 @@ class NextWordPredictor(private val context: Context) {
         // Collect from Shuangpin auto-learned phrases
         try {
             shuangpinPhraseMemory.getAllLearnedPhrases().forEach { learned ->
-                val phrase = learned.phrase
-                combinedFrequencies[phrase] = (combinedFrequencies[phrase] ?: 0) + learned.frequency
+                allPhrases.add(learned.phrase)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading Shuangpin phrase memory", e)
@@ -513,25 +507,23 @@ class NextWordPredictor(private val context: Context) {
         // Collect from Ziranma auto-learned phrases
         try {
             ziranmaPhraseMemory.getAllLearnedPhrases().forEach { learned ->
-                val phrase = learned.phrase
-                combinedFrequencies[phrase] = (combinedFrequencies[phrase] ?: 0) + learned.frequency
+                allPhrases.add(learned.phrase)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading Ziranma phrase memory", e)
         }
 
-        phraseFrequencyCache = combinedFrequencies
-        phraseFrequencyCacheTime = currentTime
-        Log.d(TAG, "Refreshed phrase frequency cache: ${combinedFrequencies.size} phrases")
+        phraseCache = allPhrases
+        phraseCacheTime = currentTime
+        Log.d(TAG, "Refreshed phrase cache: ${allPhrases.size} phrases")
     }
 
     /**
-     * Gets the frequency of a phrase from user memories.
-     * Used for scoring candidates.
+     * Checks if a phrase exists in user memories.
      */
-    private fun getPhraseFrequency(phrase: String): Int {
-        refreshPhraseFrequencyCache()
-        return phraseFrequencyCache[phrase] ?: 0
+    private fun isPhraseInMemory(phrase: String): Boolean {
+        refreshPhraseCache()
+        return phraseCache.contains(phrase)
     }
 
     /**
@@ -635,11 +627,10 @@ class NextWordPredictor(private val context: Context) {
             totalWeight += zhWeight
         }
 
-        // User-learned phrase frequency contribution
-        // Phrases from Pinyin/Wubi/Shuangpin/Ziranma memories
-        // Only give significant weight if there's contextual evidence (bigram/trigram match)
-        val phraseFreq = getPhraseFrequency(candidate)
-        if (phraseFreq > 0) {
+        // User-learned phrase contribution (from Pinyin/Wubi/Shuangpin/Ziranma memories)
+        // All phrases are treated equally - no frequency weighting
+        // Only give a small bonus if this candidate exists in phrase memory AND has context
+        if (isPhraseInMemory(candidate)) {
             // Check if this candidate has any contextual support
             val hasTrigramSupport = word1 != null && word2 != null &&
                 (trigramCache["$word1|$word2"]?.containsKey(candidate) == true ||
@@ -648,21 +639,15 @@ class NextWordPredictor(private val context: Context) {
                 (bigramCache[word2]?.containsKey(candidate) == true ||
                  chineseBaseBigrams[word2]?.containsKey(candidate) == true)
 
-            // Calculate phrase probability with log scaling
-            val phraseProb = ln(phraseFreq.toFloat() + 1) / ln(100f)
-
-            // Reduce weight significantly if no contextual support
-            // This prevents high-frequency phrases from always dominating
-            val contextMultiplier = when {
-                hasTrigramSupport -> 1.5f  // Strong context match - boost
-                hasBigramSupport -> 1.0f   // Some context match - normal weight
-                else -> 0.3f               // No context match - significantly reduce
+            // Only add phrase memory bonus if there's contextual support
+            // This prevents learned phrases from dominating without context
+            if (hasTrigramSupport || hasBigramSupport) {
+                val contextMultiplier = if (hasTrigramSupport) 1.0f else 0.5f
+                val phraseWeight = LAMBDA_PHRASE_MEMORY * contextMultiplier
+                // Fixed small bonus (0.5) instead of frequency-based score
+                score += phraseWeight * 0.5f
+                totalWeight += phraseWeight
             }
-
-            val baseWeight = if (isChinese) LAMBDA_PHRASE_MEMORY * 1.5f else LAMBDA_PHRASE_MEMORY
-            val phraseWeight = baseWeight * contextMultiplier
-            score += phraseWeight * phraseProb.coerceIn(0f, 1f)
-            totalWeight += phraseWeight
         }
 
         // Normalize by total weight (so scores are comparable)
@@ -900,8 +885,67 @@ class NextWordPredictor(private val context: Context) {
         lastCommittedWords = Pair(null, null)
         nextWordSuggestions = emptyList()
         isShowingNextWordPredictions = false
+        phraseCache = emptySet()
+        phraseCacheTime = 0
         prefs.edit().clear().apply()
         Log.d(TAG, "All word prediction data cleared")
+    }
+
+    /**
+     * Removes a specific phrase from all n-gram caches.
+     * Call this when a phrase is deleted from user's learned phrases.
+     * @param phrase The phrase to remove from all caches
+     */
+    fun removePhrase(phrase: String) {
+        val normalizedPhrase = normalizeWord(phrase)
+        if (normalizedPhrase.isEmpty()) return
+
+        var removed = false
+
+        // Remove from unigram cache
+        if (unigramCache.remove(normalizedPhrase) != null) {
+            removed = true
+            Log.d(TAG, "Removed '$normalizedPhrase' from unigram cache")
+        }
+
+        // Remove from bigram cache (as a key and as a value in all entries)
+        bigramCache.remove(normalizedPhrase)
+        bigramCache.values.forEach { nextWordMap ->
+            if (nextWordMap.remove(normalizedPhrase) != null) {
+                removed = true
+            }
+        }
+        // Clean up empty entries
+        bigramCache.entries.removeIf { it.value.isEmpty() }
+
+        // Remove from trigram cache (as part of key and as value)
+        val trigramKeysToRemove = trigramCache.keys.filter {
+            it.contains(normalizedPhrase)
+        }
+        trigramKeysToRemove.forEach { trigramCache.remove(it) }
+
+        trigramCache.values.forEach { nextWordMap ->
+            if (nextWordMap.remove(normalizedPhrase) != null) {
+                removed = true
+            }
+        }
+        // Clean up empty entries
+        trigramCache.entries.removeIf { it.value.isEmpty() }
+
+        // Remove from continuation counts
+        continuationCounts.remove(normalizedPhrase)
+
+        // Invalidate phrase cache so it gets refreshed
+        phraseCacheTime = 0
+
+        // Recalculate totals
+        totalWordCount = unigramCache.values.sum()
+        totalContinuationContexts = continuationCounts.values.sum()
+
+        if (removed) {
+            saveToPreferencesAsync()
+            Log.d(TAG, "Removed phrase '$normalizedPhrase' from n-gram caches and saved")
+        }
     }
 
     /**
@@ -914,7 +958,7 @@ class NextWordPredictor(private val context: Context) {
         val totalTrigramFrequency = trigramCache.values.sumOf { it.values.sum() }
 
         // Refresh phrase cache to get accurate count
-        refreshPhraseFrequencyCache()
+        refreshPhraseCache()
 
         return Stats(
             totalUnigrams = unigramCache.size,
@@ -931,7 +975,7 @@ class NextWordPredictor(private val context: Context) {
             chineseUnigramCount = chineseBaseUnigrams.size,
             chineseBigramContexts = chineseBaseBigrams.size,
             chineseTrigramContexts = chineseBaseTrigrams.size,
-            phraseMemoryCount = phraseFrequencyCache.size
+            phraseMemoryCount = phraseCache.size
         )
     }
 
@@ -982,7 +1026,8 @@ class NextWordPredictor(private val context: Context) {
         private const val LAMBDA_CHINESE_UNIGRAM = 0.08f   // Chinese base unigrams
 
         // Interpolation weight for user-learned phrases from input method memories
-        private const val LAMBDA_PHRASE_MEMORY = 0.25f     // Phrases from Pinyin/Wubi/Shuangpin/Ziranma
+        // Kept low so phrases don't dominate over context-based predictions
+        private const val LAMBDA_PHRASE_MEMORY = 0.08f     // Phrases from Pinyin/Wubi/Shuangpin/Ziranma
 
         @Volatile
         private var instance: NextWordPredictor? = null

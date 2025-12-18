@@ -568,9 +568,18 @@ class NeuralPinyinRecognizer(private val context: Context) {
             return emptyList()
         }
 
+        // Limit input length to prevent memory issues with very long input
+        val maxInputLength = 100
+        val limitedPinyin = if (pinyin.length > maxInputLength) {
+            Log.w(TAG, "Pinyin input too long (${pinyin.length}), truncating to $maxInputLength")
+            pinyin.take(maxInputLength)
+        } else {
+            pinyin
+        }
+
         try {
             // Tokenize pinyin input (character-level)
-            val pinyinTokens = tokenizePinyin(pinyin)
+            val pinyinTokens = tokenizePinyin(limitedPinyin)
             if (pinyinTokens.isEmpty()) {
                 return emptyList()
             }
@@ -588,6 +597,9 @@ class NeuralPinyinRecognizer(private val context: Context) {
                 val result = decodeOutput(ids)
                 if (result.isNotEmpty()) result else null
             }.distinct().take(numResults)
+        } catch (e: OutOfMemoryError) {
+            Log.e(TAG, "Out of memory during inference: ${e.message}", e)
+            return emptyList()
         } catch (e: Exception) {
             Log.e(TAG, "Error during inference: ${e.message}", e)
             return emptyList()
@@ -623,9 +635,9 @@ class NeuralPinyinRecognizer(private val context: Context) {
      * The model uses LSTM hidden/cell states that need to be passed between steps.
      */
     private fun runEncoderDecoderInference(inputTokens: LongArray): List<Int> {
-        val encoder = encoderSession ?: throw RuntimeException("Encoder session not initialized")
-        val decoder = decoderSession ?: throw RuntimeException("Decoder session not initialized")
-        val env = ortEnv ?: throw RuntimeException("Environment not initialized")
+        val encoder = encoderSession ?: return emptyList()
+        val decoder = decoderSession ?: return emptyList()
+        val env = ortEnv ?: return emptyList()
 
         try {
             // Prepare encoder input [1, seq_len]
@@ -762,9 +774,9 @@ class NeuralPinyinRecognizer(private val context: Context) {
      * Uses beam search with top-k expansion at each step.
      */
     private fun runBeamSearchInference(inputTokens: LongArray, beamWidth: Int): List<List<Int>> {
-        val encoder = encoderSession ?: throw RuntimeException("Encoder session not initialized")
-        val decoder = decoderSession ?: throw RuntimeException("Decoder session not initialized")
-        val env = ortEnv ?: throw RuntimeException("Environment not initialized")
+        val encoder = encoderSession ?: return emptyList()
+        val decoder = decoderSession ?: return emptyList()
+        val env = ortEnv ?: return emptyList()
 
         try {
             // Prepare encoder input [1, seq_len]
