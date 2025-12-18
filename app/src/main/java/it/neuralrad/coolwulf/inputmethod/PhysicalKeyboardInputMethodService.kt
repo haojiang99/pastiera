@@ -3193,18 +3193,30 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // English uses only Shift/Sym/Ctrl for 3 suggestions, remapped to indices 0-2
             val isEnglishOnlyMode = hasWordPredictions && !isChineseInputActive
             val isEnglishNextWordMode = isEnglishOnlyMode && englishWordPredictionController.getSnapshot().isNextWordPrediction
+            // Check if punctuation buttons should be active (affects Shift/Alt handling)
+            val punctuationButtonsSetting = SettingsManager.isJuyingPunctuationButtons(this)
+            val fixedPositionsSetting = SettingsManager.getJuyingFixedPositions(this)
+            val isNextWordPredictionForPunctuation = when {
+                isPinyinMode -> pinyinInputController.isShowingNextWordPredictions()
+                isShuangpinMode -> shuangpinInputController.isShowingNextWordPredictions()
+                isWubiMode -> wubiInputController.isShowingNextWordPredictions()
+                isZhenmaMode -> zhenmaInputController.isShowingNextWordPredictions()
+                else -> englishWordPredictionController.getSnapshot().isNextWordPrediction
+            }
+            val punctuationButtonsActive = punctuationButtonsSetting && fixedPositionsSetting && isNextWordPredictionForPunctuation
+
             // For Chinese mode with NO candidates AND NO word predictions, skip ALL keys - let them work normally
             // But if there ARE word predictions (next-word suggestions), Juying keys should still work
             val isChineseNoCandidate = isChineseInputActive && !hasChineseCandidates && !hasWordPredictions
             if (isChineseNoCandidate) {
                 // No Chinese candidates and no word predictions - don't use any keys for Juying selection, let them work normally
                 juyingCandidateIndex = -1
-            } else if (isEnglishOnlyMode && (juyingCandidateIndex == 0 || juyingCandidateIndex == 4)) {
-                // English mode: Skip Shift(0), Alt(4) for Juying selection
+            } else if (isEnglishOnlyMode && (juyingCandidateIndex == 0 || juyingCandidateIndex == 4) && !punctuationButtonsActive) {
+                // English mode: Skip Shift(0), Alt(4) for Juying selection UNLESS punctuation buttons are active
                 // Shift is reserved for typing capital letters
                 // Alt is reserved for other functions
                 juyingCandidateIndex = -1
-            } else if (isEnglishOnlyMode && juyingCandidateIndex >= 0) {
+            } else if (isEnglishOnlyMode && juyingCandidateIndex >= 0 && !punctuationButtonsActive) {
                 // Remap for English: Sym(1)→0, Space(2)→1, Ctrl(3)→2
                 // Display: [1st best (left), current typed word (middle), 2nd best (right)]
                 // Sym picks left (1st best), Space picks middle (current word), Ctrl picks right (2nd best)
@@ -3224,11 +3236,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     (currentTime - shiftLastPressTime) <= altDoubleClickDelay
 
                 // Check for double-click on Alt for next page (Chinese input only)
+                // But skip this check if punctuation buttons are active - Alt should type period directly
                 val isDoubleClickAlt = isDeviceAltKey(keyCode) &&
-                    (currentTime - altLastPressTime) <= altDoubleClickDelay
+                    (currentTime - altLastPressTime) <= altDoubleClickDelay &&
+                    !punctuationButtonsActive
 
                 // Check if there's a pending Alt selection (first click waiting)
-                val hasPendingAltSelection = pendingAltSelectionRunnable != null
+                // But skip if punctuation buttons are active
+                val hasPendingAltSelection = pendingAltSelectionRunnable != null && !punctuationButtonsActive
 
                 if (isDoubleClickShift && isChineseInputActive) {
                     // Double press Shift - go to previous page (Chinese only)
@@ -3394,11 +3409,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     // Mark that Alt was used for pagination - skip normal Alt UP handling
                     altUsedForPagination = true
                     return true
-                } else if (isDeviceAltKey(keyCode) && isChineseInputActive && hasChineseCandidates) {
-                    // Alt pressed in Chinese mode with candidates
+                } else if (isDeviceAltKey(keyCode) && isChineseInputActive && hasChineseCandidates && !punctuationButtonsActive) {
+                    // Alt pressed in Chinese mode with candidates (but NOT when punctuation buttons are active)
                     // INSTANT BEHAVIOR: Immediately commit the suggestion on Alt DOWN
                     // If double-click detected: undo and go to next page
                     // If Alt+key for symbol: undo and insert symbol
+                    // When punctuation buttons are active, skip this and let the punctuation handler below deal with Alt
 
                     altUsedForSymbolInput = false  // Reset flag for new press
                     val ic = currentInputConnection
@@ -3627,6 +3643,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         }
                         val candidateCount = minOf(rawCandidates.size, displayedCandidateLimit)
 
+                        // Check if punctuation buttons are active (need this before candidate mapping)
+                        val punctuationButtonsEnabled = SettingsManager.isJuyingPunctuationButtons(this@PhysicalKeyboardInputMethodService)
+                        val isFixedPositionModeEnabled = SettingsManager.getJuyingFixedPositions(this@PhysicalKeyboardInputMethodService)
+                        val isNextWordPredictionForMapping = when {
+                            isPinyinMode -> pinyinInputController.isShowingNextWordPredictions()
+                            isShuangpinMode -> shuangpinInputController.isShowingNextWordPredictions()
+                            isWubiMode -> wubiInputController.isShowingNextWordPredictions()
+                            isZhenmaMode -> zhenmaInputController.isShowingNextWordPredictions()
+                            else -> englishWordPredictionController.getSnapshot().isNextWordPrediction
+                        }
+                        val punctuationModeActive = punctuationButtonsEnabled && isNextWordPredictionForMapping && isFixedPositionModeEnabled
+
                         // For Chinese input in Juying mode (with actual Chinese candidates), map key index to original candidate index
                         // Mapping depends on number of candidates:
                         // 1 candidate: Space(key 2) -> original 0
@@ -3634,7 +3662,22 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // 3 candidates: [2nd, 1st, 3rd] - Sym(key 1)->orig 1, Space(key 2)->orig 0, Ctrl(key 3)->orig 2
                         // 4+ candidates: [2nd, 3rd, 1st, 4th, 5th] - original mapping
                         // For Chinese mode with word predictions (no Chinese candidates), use direct index mapping like English mode
-                        val originalCandidateIndex = if (isChineseInputActive && hasChineseCandidates) {
+                        // When punctuation buttons are active: positions 0,4 are punctuation, positions 1,2,3 map to candidates
+                        val originalCandidateIndex = if (punctuationModeActive) {
+                            // Punctuation mode: Shift=comma, Alt=period, others map to candidates
+                            // Position 2 (Space) = best (index 0)
+                            // Position 1 (Sym) = 2nd (index 1)
+                            // Position 3 (Ctrl) = 3rd (index 2)
+                            // Shift (0) and Alt (4) return special marker -100 to indicate punctuation
+                            when (juyingCandidateIndex) {
+                                0 -> -100  // Shift -> punctuation (comma)
+                                1 -> 1     // Sym -> 2nd candidate
+                                2 -> 0     // Space -> best candidate
+                                3 -> 2     // Ctrl -> 3rd candidate
+                                4 -> -100  // Alt -> punctuation (period)
+                                else -> -1
+                            }
+                        } else if (isChineseInputActive && hasChineseCandidates) {
                             when (candidateCount) {
                                 1 -> if (juyingCandidateIndex == 2) 0 else -1  // Only Space selects
                                 2 -> when (juyingCandidateIndex) {
@@ -3687,29 +3730,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             juyingCandidateIndex // English mode - no reordering
                         }
 
-                        // Skip if key doesn't map to a valid candidate
-                        if (originalCandidateIndex < 0) {
+                        // Skip if key doesn't map to a valid candidate (but -100 is special for punctuation)
+                        if (originalCandidateIndex < 0 && originalCandidateIndex != -100) {
                             return true
                         }
 
-                        // Check if punctuation buttons are enabled in next word prediction mode
-                        // Shift (index 0) -> comma, Alt (index 4) -> period
-                        val punctuationButtonsEnabled = SettingsManager.isJuyingPunctuationButtons(this@PhysicalKeyboardInputMethodService)
-                        val isNextWordPredictionActive = when {
-                            isPinyinMode -> pinyinInputController.isShowingNextWordPredictions()
-                            isShuangpinMode -> shuangpinInputController.isShowingNextWordPredictions()
-                            isWubiMode -> wubiInputController.isShowingNextWordPredictions()
-                            isZhenmaMode -> zhenmaInputController.isShowingNextWordPredictions()
-                            else -> englishWordPredictionController.getSnapshot().isNextWordPrediction
-                        }
-
-                        val isFixedPositionModeActive = SettingsManager.getJuyingFixedPositions(this@PhysicalKeyboardInputMethodService)
-                        if (punctuationButtonsEnabled && isNextWordPredictionActive && isFixedPositionModeActive) {
+                        // Handle punctuation buttons if active (use juyingCandidateIndex for position check)
+                        // This must be checked BEFORE candidate selection since -100 indicates punctuation
+                        if (punctuationModeActive && originalCandidateIndex == -100) {
                             // Get the appropriate punctuation based on Chinese/English punctuation mode
                             val comma = if (isChinesePunctuationModeActive()) "，" else ","
                             val period = if (isChinesePunctuationModeActive()) "。" else "."
 
-                            when (originalCandidateIndex) {
+                            when (juyingCandidateIndex) {
                                 0 -> {
                                     // Shift position - commit comma
                                     ic.commitText(comma, 1)
