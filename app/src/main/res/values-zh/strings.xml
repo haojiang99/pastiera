@@ -170,7 +170,12 @@
     <string name="juying_dynamic_count_title">动态候选词数量</string>
     <string name="juying_dynamic_count_description">根据词组长度调整每页显示的候选词数量。长词组显示更少候选词。</string>
     <string name="juying_punctuation_buttons_title">快捷标点按钮</string>
-    <string name="juying_punctuation_buttons_description">在下一词预测界面左右两侧显示逗号和句号按钮。</string>
+    <string name="juying_punctuation_buttons_description">在下一词预测界面左右两侧显示标点按钮。</string>
+    <string name="punctuation_left_title">左侧标点 (Shift键)</string>
+    <string name="punctuation_left_description">Shift键位置显示的标点</string>
+    <string name="punctuation_right_title">右侧标点 (Alt键)</string>
+    <string name="punctuation_right_description">Alt键位置显示的标点</string>
+    <string name="punctuation_select_description">选择标点符号。上方为英文标点，下方为中文标点。</string>
 
     <!-- Touchpad Page Navigation -->
     <string name="touchpad_page_title">触摸板翻页</string>

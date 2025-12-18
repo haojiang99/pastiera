@@ -169,7 +169,12 @@
     <string name="juying_dynamic_count_title">Dynamic Candidate Count</string>
     <string name="juying_dynamic_count_description">Adjust the number of candidates per page based on phrase length. Longer phrases show fewer candidates.</string>
     <string name="juying_punctuation_buttons_title">Quick Punctuation Buttons</string>
-    <string name="juying_punctuation_buttons_description">Show comma and period buttons on the sides when next word predictions are displayed.</string>
+    <string name="juying_punctuation_buttons_description">Show punctuation buttons on the sides when next word predictions are displayed.</string>
+    <string name="punctuation_left_title">Left Punctuation (Shift)</string>
+    <string name="punctuation_left_description">Punctuation for Shift key position</string>
+    <string name="punctuation_right_title">Right Punctuation (Alt)</string>
+    <string name="punctuation_right_description">Punctuation for Alt key position</string>
+    <string name="punctuation_select_description">Select a punctuation mark. The English version is shown above, Chinese version below.</string>
 
     <!-- Touchpad Page Navigation -->
     <string name="touchpad_page_title">Touchpad Page Navigation</string>

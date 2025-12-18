@@ -116,6 +116,8 @@ object SettingsManager {
     private const val KEY_SHOW_SYM_BUTTON = "show_sym_button" // Show SYM button in status bar
     private const val KEY_SHOW_SOUND_TOGGLE_BUTTON = "show_sound_toggle_button" // Show sound toggle button in status bar
     private const val KEY_JUYING_PUNCTUATION_BUTTONS = "juying_punctuation_buttons" // Show comma/period buttons on sides in Juying mode
+    private const val KEY_JUYING_PUNCTUATION_LEFT = "juying_punctuation_left" // Left punctuation (Shift position)
+    private const val KEY_JUYING_PUNCTUATION_RIGHT = "juying_punctuation_right" // Right punctuation (Alt position)
     private const val KEY_STATUS_BAR_THEME = "status_bar_theme" // Status bar theme ID
     private const val KEY_DAY_NIGHT_THEME_ENABLED = "day_night_theme_enabled" // Enable automatic day/night theme switching
     private const val KEY_DAY_THEME = "day_theme" // Theme ID to use during daytime
@@ -245,6 +247,8 @@ object SettingsManager {
     private const val DEFAULT_SHOW_SYM_BUTTON = true  // SYM button shown by default
     private const val DEFAULT_SHOW_SOUND_TOGGLE_BUTTON = false  // Sound toggle button hidden by default
     private const val DEFAULT_JUYING_PUNCTUATION_BUTTONS = false  // Punctuation buttons hidden by default
+    private const val DEFAULT_JUYING_PUNCTUATION_LEFT = ","  // Default left punctuation (comma)
+    private const val DEFAULT_JUYING_PUNCTUATION_RIGHT = "."  // Default right punctuation (period)
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
@@ -2589,6 +2593,65 @@ object SettingsManager {
         getPreferences(context).edit()
             .putBoolean(KEY_JUYING_PUNCTUATION_BUTTONS, enabled)
             .apply()
+    }
+
+    /**
+     * Gets the left punctuation character (Shift position) for quick punctuation input.
+     */
+    fun getJuyingPunctuationLeft(context: Context): String {
+        return getPreferences(context).getString(KEY_JUYING_PUNCTUATION_LEFT, DEFAULT_JUYING_PUNCTUATION_LEFT)
+            ?: DEFAULT_JUYING_PUNCTUATION_LEFT
+    }
+
+    /**
+     * Sets the left punctuation character (Shift position) for quick punctuation input.
+     */
+    fun setJuyingPunctuationLeft(context: Context, punctuation: String) {
+        getPreferences(context).edit()
+            .putString(KEY_JUYING_PUNCTUATION_LEFT, punctuation)
+            .apply()
+    }
+
+    /**
+     * Gets the right punctuation character (Alt position) for quick punctuation input.
+     */
+    fun getJuyingPunctuationRight(context: Context): String {
+        return getPreferences(context).getString(KEY_JUYING_PUNCTUATION_RIGHT, DEFAULT_JUYING_PUNCTUATION_RIGHT)
+            ?: DEFAULT_JUYING_PUNCTUATION_RIGHT
+    }
+
+    /**
+     * Sets the right punctuation character (Alt position) for quick punctuation input.
+     */
+    fun setJuyingPunctuationRight(context: Context, punctuation: String) {
+        getPreferences(context).edit()
+            .putString(KEY_JUYING_PUNCTUATION_RIGHT, punctuation)
+            .apply()
+    }
+
+    /**
+     * Converts English punctuation to Chinese equivalent.
+     */
+    fun getChinesePunctuation(englishPunctuation: String): String {
+        return when (englishPunctuation) {
+            "," -> "，"
+            "." -> "。"
+            "?" -> "？"
+            "!" -> "！"
+            ":" -> "："
+            ";" -> "；"
+            "'" -> "'"
+            "\"" -> "\""
+            "(" -> "（"
+            ")" -> "）"
+            "[" -> "【"
+            "]" -> "】"
+            "<" -> "《"
+            ">" -> "》"
+            "/" -> "、"
+            "-" -> "—"
+            else -> englishPunctuation
+        }
     }
 
     /**

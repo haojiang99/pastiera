@@ -208,6 +208,17 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.isJuyingPunctuationButtons(context))
     }
 
+    var juyingPunctuationLeft by remember {
+        mutableStateOf(SettingsManager.getJuyingPunctuationLeft(context))
+    }
+
+    var juyingPunctuationRight by remember {
+        mutableStateOf(SettingsManager.getJuyingPunctuationRight(context))
+    }
+
+    var showPunctuationDialog by remember { mutableStateOf(false) }
+    var editingPunctuationPosition by remember { mutableStateOf("left") } // "left" or "right"
+
     var touchpadPageEnabled by remember {
         mutableStateOf(SettingsManager.getTouchpadPageEnabled(context))
     }
@@ -2198,6 +2209,98 @@ fun TextInputSettingsScreen(
                             )
                         }
                     }
+
+                    // Left punctuation (Shift key) - shown when punctuation buttons enabled
+                    if (juyingPunctuationButtons) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .clickable {
+                                    editingPunctuationPosition = "left"
+                                    showPunctuationDialog = true
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Spacer(modifier = Modifier.width(24.dp)) // Indent
+                                Spacer(modifier = Modifier.width(16.dp)) // Extra indent
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.punctuation_left_title),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.punctuation_left_description),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                }
+                                Text(
+                                    text = "$juyingPunctuationLeft / ${SettingsManager.getChinesePunctuation(juyingPunctuationLeft)}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Icon(
+                                    imageVector = Icons.Filled.ChevronRight,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // Right punctuation (Alt key)
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .clickable {
+                                    editingPunctuationPosition = "right"
+                                    showPunctuationDialog = true
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Spacer(modifier = Modifier.width(24.dp)) // Indent
+                                Spacer(modifier = Modifier.width(16.dp)) // Extra indent
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.punctuation_right_title),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.punctuation_right_description),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                }
+                                Text(
+                                    text = "$juyingPunctuationRight / ${SettingsManager.getChinesePunctuation(juyingPunctuationRight)}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Icon(
+                                    imageVector = Icons.Filled.ChevronRight,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // Touchpad Page Navigation toggle
@@ -3703,6 +3806,101 @@ fun TextInputSettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showMaxCandidatesDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
+    }
+
+    // Punctuation selection dialog
+    if (showPunctuationDialog) {
+        val punctuationOptions = listOf(",", ".", "?", "!", ";", ":", "'", "\"", "-", "/", "(", ")")
+        val currentPunctuation = if (editingPunctuationPosition == "left") juyingPunctuationLeft else juyingPunctuationRight
+
+        AlertDialog(
+            onDismissRequest = { showPunctuationDialog = false },
+            title = {
+                Text(
+                    if (editingPunctuationPosition == "left")
+                        stringResource(R.string.punctuation_left_title)
+                    else
+                        stringResource(R.string.punctuation_right_title)
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = stringResource(R.string.punctuation_select_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    // Grid of punctuation options (3 columns)
+                    punctuationOptions.chunked(3).forEach { rowOptions ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            rowOptions.forEach { punct ->
+                                val chinesePunct = SettingsManager.getChinesePunctuation(punct)
+                                val isSelected = currentPunctuation == punct
+
+                                Surface(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 4.dp)
+                                        .clickable {
+                                            if (editingPunctuationPosition == "left") {
+                                                juyingPunctuationLeft = punct
+                                                SettingsManager.setJuyingPunctuationLeft(context, punct)
+                                            } else {
+                                                juyingPunctuationRight = punct
+                                                SettingsManager.setJuyingPunctuationRight(context, punct)
+                                            }
+                                            showPunctuationDialog = false
+                                        },
+                                    shape = MaterialTheme.shapes.small,
+                                    color = if (isSelected)
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = punct,
+                                            style = MaterialTheme.typography.titleLarge,
+                                            color = if (isSelected)
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            else
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = chinesePunct,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (isSelected)
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            else
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                            // Fill remaining space in last row if needed
+                            repeat(3 - rowOptions.size) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPunctuationDialog = false }) {
                     Text(stringResource(android.R.string.cancel))
                 }
             }

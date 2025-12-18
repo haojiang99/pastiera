@@ -596,16 +596,25 @@ class VariationBarView(
                     SettingsManager.isJuyingPunctuationButtons(context) &&
                     suggestionLayouts.isNotEmpty()
 
-                // Get the appropriate punctuation based on Chinese/English mode
-                val comma = if (isChinesePunctuationMode) "，" else ","
-                val period = if (isChinesePunctuationMode) "。" else "."
+                // Get the custom punctuation from settings
+                val leftPunctuationEnglish = SettingsManager.getJuyingPunctuationLeft(context)
+                val rightPunctuationEnglish = SettingsManager.getJuyingPunctuationRight(context)
+                // Convert to Chinese if in Chinese punctuation mode
+                val leftPunctuation = if (isChinesePunctuationMode)
+                    SettingsManager.getChinesePunctuation(leftPunctuationEnglish)
+                else
+                    leftPunctuationEnglish
+                val rightPunctuation = if (isChinesePunctuationMode)
+                    SettingsManager.getChinesePunctuation(rightPunctuationEnglish)
+                else
+                    rightPunctuationEnglish
 
                 if (showPunctuationButtons) {
                     // In next word prediction mode with punctuation enabled:
-                    // Position 0 (Shift) = comma, Position 4 (Alt) = period
+                    // Position 0 (Shift) = left punctuation, Position 4 (Alt) = right punctuation
                     // Suggestions fill 1, 2, 3 (Sym, Space, Ctrl)
-                    fixedSlots[0] = comma   // Shift = comma
-                    fixedSlots[4] = period  // Alt = period
+                    fixedSlots[0] = leftPunctuation   // Shift = left punctuation
+                    fixedSlots[4] = rightPunctuation  // Alt = right punctuation
 
                     // Fill middle slots with suggestions
                     when (numSuggestions) {

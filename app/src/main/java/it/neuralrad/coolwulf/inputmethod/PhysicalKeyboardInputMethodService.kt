@@ -3738,14 +3738,22 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // Handle punctuation buttons if active (use juyingCandidateIndex for position check)
                         // This must be checked BEFORE candidate selection since -100 indicates punctuation
                         if (punctuationModeActive && originalCandidateIndex == -100) {
-                            // Get the appropriate punctuation based on Chinese/English punctuation mode
-                            val comma = if (isChinesePunctuationModeActive()) "，" else ","
-                            val period = if (isChinesePunctuationModeActive()) "。" else "."
+                            // Get the custom punctuation from settings and convert based on Chinese/English mode
+                            val leftPunctuationEnglish = SettingsManager.getJuyingPunctuationLeft(this@PhysicalKeyboardInputMethodService)
+                            val rightPunctuationEnglish = SettingsManager.getJuyingPunctuationRight(this@PhysicalKeyboardInputMethodService)
+                            val leftPunctuation = if (isChinesePunctuationModeActive())
+                                SettingsManager.getChinesePunctuation(leftPunctuationEnglish)
+                            else
+                                leftPunctuationEnglish
+                            val rightPunctuation = if (isChinesePunctuationModeActive())
+                                SettingsManager.getChinesePunctuation(rightPunctuationEnglish)
+                            else
+                                rightPunctuationEnglish
 
                             when (juyingCandidateIndex) {
                                 0 -> {
-                                    // Shift position - commit comma
-                                    ic.commitText(comma, 1)
+                                    // Shift position - commit left punctuation
+                                    ic.commitText(leftPunctuation, 1)
                                     playJuyingSelectionSound(keyCode)
                                     // Clear next word predictions after punctuation
                                     when {
@@ -3762,8 +3770,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                     return true
                                 }
                                 4 -> {
-                                    // Alt position - commit period
-                                    ic.commitText(period, 1)
+                                    // Alt position - commit right punctuation
+                                    ic.commitText(rightPunctuation, 1)
                                     playJuyingSelectionSound(keyCode)
                                     // Clear next word predictions after punctuation
                                     when {
