@@ -101,11 +101,6 @@ class VariationBarView(
     private var currentInputConnection: android.view.inputmethod.InputConnection? = null
     private var swipeIndicator: View? = null
 
-    // Track the current expanded height to prevent jumping during typing
-    // Height only increases while typing, resets when input is cleared
-    private var currentExpandedHeight: Int = 0
-    private var lastBufferLength: Int = 0
-
     fun ensureView(): View {
         if (wrapper != null) {
             return wrapper!!
@@ -748,9 +743,18 @@ class VariationBarView(
             context.resources.displayMetrics
         ).toInt()
 
-        // Calculate maximum height needed based on longest text in Juying mode
-        // Use limitedVariations (which contains the actual button texts after layout, including fixed positions)
-        val buttonHeight = if (isJuyingModeWithSuggestions) {
+        // Check if Chinese input mode is active
+        val isChineseInputActive = snapshot.pinyinModeActive || snapshot.t9PinyinModeActive ||
+            snapshot.shuangpinModeActive || snapshot.ziranmaModeActive ||
+            snapshot.wubiModeActive || snapshot.zhenmaModeActive
+
+        // For Chinese input modes, always use fixed base height to completely eliminate jumping
+        // For non-Chinese modes (English word prediction, accent variations), calculate dynamic height
+        val stableButtonHeight = if (isChineseInputActive) {
+            // Fixed height for Chinese input - no dynamic adjustment
+            baseButtonHeight
+        } else if (isJuyingModeWithSuggestions) {
+            // Only calculate dynamic height for non-Chinese modes (e.g., English word predictions)
             var maxNeededHeight = baseButtonHeight
             val testPaint = android.graphics.Paint().apply {
                 textSize = minFontSizePx
@@ -758,7 +762,6 @@ class VariationBarView(
             }
 
             for ((index, variation) in limitedVariations.withIndex()) {
-                // Skip empty slots (in fixed position mode)
                 if (variation.isEmpty()) continue
 
                 val btnWidth = buttonWidths.getOrElse(index) { buttonWidth }
@@ -766,8 +769,6 @@ class VariationBarView(
                 val textWidthAtMinFont = testPaint.measureText(variation)
 
                 if (textWidthAtMinFont > availableTextWidth) {
-                    // Calculate lines needed using actual text width measurement
-                    // Number of lines = ceil(textWidth / availableWidth)
                     val numLinesNeeded = kotlin.math.ceil(textWidthAtMinFont / availableTextWidth.toFloat()).toInt().coerceIn(1, 10)
                     val lineHeightPx = minFontSizePx * 1.3f
                     val neededHeight = (lineHeightPx * numLinesNeeded + dp4ForCalc * 2).toInt()
@@ -777,43 +778,6 @@ class VariationBarView(
             maxNeededHeight
         } else {
             baseButtonHeight
-        }
-
-        // Get current buffer length to detect when input is cleared
-        val currentBufferLength = when {
-            snapshot.pinyinModeActive -> snapshot.pinyinBuffer.length
-            snapshot.t9PinyinModeActive -> snapshot.t9PinyinBuffer.length
-            snapshot.shuangpinModeActive -> snapshot.shuangpinBuffer.length
-            snapshot.ziranmaModeActive -> snapshot.ziranmaBuffer.length
-            snapshot.wubiModeActive -> snapshot.wubiBuffer.length
-            snapshot.zhenmaModeActive -> snapshot.zhenmaBuffer.length
-            else -> 0
-        }
-
-        // Check if Chinese input mode is active
-        val isChineseInputActive = snapshot.pinyinModeActive || snapshot.t9PinyinModeActive ||
-            snapshot.shuangpinModeActive || snapshot.ziranmaModeActive ||
-            snapshot.wubiModeActive || snapshot.zhenmaModeActive
-
-        // Reset expanded height when buffer is cleared (user committed or deleted all input)
-        // or when switching out of Chinese input mode
-        if (currentBufferLength == 0 || !isChineseInputActive) {
-            // Reset to default height when buffer is empty or not in Chinese mode
-            currentExpandedHeight = baseButtonHeight
-        }
-        lastBufferLength = currentBufferLength
-
-        // Stable button height: only increases during typing session, never decreases
-        // This prevents the jumping behavior when suggestions change
-        val stableButtonHeight = if (isChineseInputActive && currentBufferLength > 0) {
-            // During active typing, height can only increase
-            val newHeight = maxOf(currentExpandedHeight, buttonHeight)
-            currentExpandedHeight = newHeight
-            newHeight
-        } else {
-            // Not in Chinese mode or buffer empty - use calculated height directly
-            currentExpandedHeight = buttonHeight
-            buttonHeight
         }
 
         // Update wrapper height based on stable button height
