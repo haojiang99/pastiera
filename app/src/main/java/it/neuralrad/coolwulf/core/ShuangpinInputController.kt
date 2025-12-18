@@ -10,6 +10,7 @@ import it.neuralrad.coolwulf.data.shuangpin.ShuangpinConverter
 import it.neuralrad.coolwulf.data.shuangpin.ShuangpinPhraseMemory
 import it.neuralrad.coolwulf.data.NextWordPredictor
 import it.neuralrad.coolwulf.data.UserCustomDictionary
+import it.neuralrad.coolwulf.inputmethod.NeuralPinyinRecognizer
 import it.neuralrad.coolwulf.SettingsManager
 
 /**
@@ -164,6 +165,13 @@ class ShuangpinInputController(
 
     // Whether to use Chinese punctuation (true) or English punctuation (false)
     private var useChinesePunctuation: Boolean = true
+
+    // Neural Pinyin support - converts Shuangpin to Pinyin for neural model
+    private var neuralPinyinRecognizer: NeuralPinyinRecognizer? = null
+    private var neuralPinyinEnabled: Boolean = false  // Disabled by default until model is loaded
+    private var neuralPinyinMinLetters: Int = 6
+    private var neuralPinyinPriority: Boolean = false  // When true, neural prediction shown as top suggestion
+    private var neuralPinyinCount: Int = 1  // Number of neural predictions (1 or 3)
 
     data class Snapshot(
         val isActive: Boolean,
@@ -638,6 +646,24 @@ class ShuangpinInputController(
                     }
                 }
                 Log.d(TAG, "Combined candidates for ${syllables.size} syllables: ${combinedPhrases.take(3)}")
+            }
+
+            // Get neural model suggestions (converts Shuangpin to Pinyin internally)
+            val neuralSuggestions = getLongSentenceSuggestions(bufferStr)
+            if (neuralSuggestions.isNotEmpty()) {
+                // Add neural suggestions with priority handling
+                for ((index, neuralSuggestion) in neuralSuggestions.withIndex()) {
+                    if (neuralSuggestion !in resultCandidates) {
+                        if (neuralPinyinPriority) {
+                            // Insert at the beginning for priority
+                            resultCandidates.add(index, neuralSuggestion)
+                        } else {
+                            // Add to the list (after other phrases)
+                            resultCandidates.add(neuralSuggestion)
+                        }
+                    }
+                }
+                Log.d(TAG, "Neural suggestions added: $neuralSuggestions (priority: $neuralPinyinPriority)")
             }
 
             phraseCandidateCount = resultCandidates.size
@@ -1209,5 +1235,123 @@ class ShuangpinInputController(
         Log.d(TAG, "Shuangpin session finalized: '$combinedShuangpinCode' → '$combinedPhrase'")
 
         sessionSelections.clear()
+    }
+
+    // ========== Neural Pinyin Settings ==========
+
+    /**
+     * Sets whether neural pinyin recognition is enabled.
+     * When enabled, converts Shuangpin to Pinyin and uses the neural model for long sentence prediction.
+     */
+    fun setNeuralPinyinEnabled(enabled: Boolean) {
+        neuralPinyinEnabled = enabled
+        if (enabled && neuralPinyinRecognizer == null) {
+            neuralPinyinRecognizer = NeuralPinyinRecognizer.getInstance(context)
+        }
+        Log.d(TAG, "Neural pinyin ${if (enabled) "enabled" else "disabled"}")
+    }
+
+    /**
+     * Returns whether neural pinyin is enabled.
+     */
+    fun isNeuralPinyinEnabled(): Boolean = neuralPinyinEnabled
+
+    /**
+     * Sets the minimum number of letters before neural pinyin suggestions are shown.
+     */
+    fun setNeuralPinyinMinLetters(minLetters: Int) {
+        neuralPinyinMinLetters = minLetters
+        Log.d(TAG, "Neural pinyin min letters set to $minLetters")
+    }
+
+    /**
+     * Gets the minimum letters threshold for neural pinyin.
+     */
+    fun getNeuralPinyinMinLetters(): Int = neuralPinyinMinLetters
+
+    /**
+     * Sets whether neural pinyin suggestions should have priority (shown first).
+     */
+    fun setNeuralPinyinPriority(priority: Boolean) {
+        neuralPinyinPriority = priority
+        Log.d(TAG, "Neural pinyin priority ${if (priority) "enabled" else "disabled"}")
+    }
+
+    /**
+     * Sets the number of neural pinyin suggestions to show (1 or 3).
+     */
+    fun setNeuralPinyinCount(count: Int) {
+        neuralPinyinCount = count
+        Log.d(TAG, "Neural pinyin count set to $count")
+    }
+
+    /**
+     * Gets Shuangpin long sentence suggestions by converting to Pinyin and using the neural model.
+     * Returns a list of suggestions, or empty list if not available.
+     */
+    private fun getLongSentenceSuggestions(shuangpinInput: String): List<String> {
+        if (!neuralPinyinEnabled) return emptyList()
+
+        // Convert Shuangpin to Pinyin
+        val pinyinInput = ShuangpinConverter.toPinyinString(shuangpinInput) ?: return emptyList()
+
+        if (pinyinInput.length < neuralPinyinMinLetters) return emptyList()
+
+        // Use neural model for long sentence conversion
+        val neuralResults = getNeuralPinyinSuggestions(pinyinInput)
+        if (neuralResults.isNotEmpty()) {
+            Log.d(TAG, "Neural Shuangpin suggestions: $neuralResults for '$shuangpinInput' -> pinyin '$pinyinInput'")
+            return neuralResults
+        }
+
+        return emptyList()
+    }
+
+    /**
+     * Gets neural pinyin suggestions using the encoder-decoder model.
+     * Returns a list of suggestions (1 or 3 based on setting), or empty list if not available.
+     */
+    private fun getNeuralPinyinSuggestions(pinyinInput: String): List<String> {
+        // Check if ONNX Runtime is available
+        if (!NeuralPinyinRecognizer.isOnnxRuntimeAvailable()) {
+            return emptyList()
+        }
+
+        // Get or create recognizer instance
+        val recognizer = neuralPinyinRecognizer ?: run {
+            neuralPinyinRecognizer = NeuralPinyinRecognizer.getInstance(context)
+            neuralPinyinRecognizer
+        }
+
+        if (recognizer == null) return emptyList()
+
+        // Check model status
+        val status = recognizer.getModelStatus()
+        when (status) {
+            NeuralPinyinRecognizer.ModelStatus.READY -> {
+                // Model is ready, run inference with count parameter
+                return recognizer.convert(pinyinInput, neuralPinyinCount)
+            }
+            NeuralPinyinRecognizer.ModelStatus.AVAILABLE -> {
+                // Model extracted but not loaded - initialize it
+                recognizer.initModel()
+                return emptyList()
+            }
+            NeuralPinyinRecognizer.ModelStatus.ZIP_CONFIGURED -> {
+                // Zip configured but not extracted - extract it
+                recognizer.extractModel(
+                    onComplete = { success, _ ->
+                        if (success) {
+                            recognizer.initModel()
+                        }
+                    }
+                )
+                return emptyList()
+            }
+            else -> {
+                // Not configured, extracting, or loading - skip
+                return emptyList()
+            }
+        }
     }
 }
