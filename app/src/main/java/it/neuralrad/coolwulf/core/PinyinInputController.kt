@@ -469,12 +469,13 @@ class PinyinInputController(
      * @return The selected Chinese character, or null if index invalid
      */
     fun selectCandidate(index: Int): String? {
-        val currentPageCandidates = getCurrentPageCandidates()
-        if (!isPinyinModeActive || index < 0 || index >= currentPageCandidates.size) {
-            return null
-        }
+        try {
+            val currentPageCandidates = getCurrentPageCandidates()
+            if (!isPinyinModeActive || index < 0 || index >= currentPageCandidates.size) {
+                return null
+            }
 
-        val selected = currentPageCandidates[index]
+            val selected = currentPageCandidates[index]
 
         // Calculate the actual index in the full candidate list (accounting for pagination)
         val actualIndex = currentPage * pageSize + index
@@ -587,10 +588,14 @@ class PinyinInputController(
 
         // Convert to traditional Chinese if setting is enabled
         val useTraditional = SettingsManager.isTraditionalChineseMode(context)
-        return if (useTraditional) {
-            ChineseCharacterConverter.toTraditional(selected)
-        } else {
-            selected
+            return if (useTraditional) {
+                ChineseCharacterConverter.toTraditional(selected)
+            } else {
+                selected
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in selectCandidate: ${e.message}", e)
+            return null
         }
     }
 
@@ -623,22 +628,28 @@ class PinyinInputController(
      * Shows next-word predictions if available and enabled.
      */
     private fun showNextWordPredictions() {
-        if (nextWordPredictionEnabled && nextWordPredictor.isShowingPredictions()) {
-            val nextWordSuggestions = nextWordPredictor.getSuggestions()
-            if (nextWordSuggestions.isNotEmpty()) {
-                isShowingNextWordPredictions = true
-                allCandidates = nextWordSuggestions
-                currentPage = 0
-                phraseCandidateCount = nextWordSuggestions.size  // All are "phrase" type for selection
-                phraseCandidateSet = nextWordSuggestions.toSet()  // All predictions are phrases
-                matchedPinyin = ""
-                firstSyllable = ""
-                Log.d(TAG, "Showing next-word predictions: $nextWordSuggestions")
-                return
+        try {
+            if (nextWordPredictionEnabled && nextWordPredictor.isShowingPredictions()) {
+                val nextWordSuggestions = nextWordPredictor.getSuggestions()
+                if (nextWordSuggestions.isNotEmpty()) {
+                    isShowingNextWordPredictions = true
+                    allCandidates = nextWordSuggestions
+                    currentPage = 0
+                    phraseCandidateCount = nextWordSuggestions.size  // All are "phrase" type for selection
+                    phraseCandidateSet = nextWordSuggestions.toSet()  // All predictions are phrases
+                    matchedPinyin = ""
+                    firstSyllable = ""
+                    Log.d(TAG, "Showing next-word predictions: $nextWordSuggestions")
+                    return
+                }
             }
+            isShowingNextWordPredictions = false
+            updateCandidates()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in showNextWordPredictions: ${e.message}", e)
+            isShowingNextWordPredictions = false
+            allCandidates = emptyList()
         }
-        isShowingNextWordPredictions = false
-        updateCandidates()
     }
 
 
@@ -878,75 +889,75 @@ class PinyinInputController(
         val maxSegments = 30  // Reduced limit to prevent excessive processing
 
         try {
-        while (remaining.isNotEmpty() && segments.size < maxSegments) {
-            // First, check if there's a phrase match for the entire remaining input
-            val fullPhraseCandidates = PinyinDictionary.getPhraseCandidates(remaining)
-            if (fullPhraseCandidates.isNotEmpty()) {
-                // Found a phrase match for entire remaining - use it as a single segment
-                segments.add(ParsedSegment(
-                    pinyin = remaining,
-                    candidates = sortByFrequencyIfEnabled(remaining, fullPhraseCandidates),
-                    isComplete = true
-                ))
-                break
-            }
+            while (remaining.isNotEmpty() && segments.size < maxSegments) {
+                // First, check if there's a phrase match for the entire remaining input
+                val fullPhraseCandidates = PinyinDictionary.getPhraseCandidates(remaining)
+                if (fullPhraseCandidates.isNotEmpty()) {
+                    // Found a phrase match for entire remaining - use it as a single segment
+                    segments.add(ParsedSegment(
+                        pinyin = remaining,
+                        candidates = sortByFrequencyIfEnabled(remaining, fullPhraseCandidates),
+                        isComplete = true
+                    ))
+                    break
+                }
 
-            // Try to find the longest phrase match starting at current position
-            // This is key: check phrases BEFORE falling back to single syllables
-            val longestPhrase = findLongestPhraseMatch(remaining)
-            if (longestPhrase != null) {
-                // Get phrase candidates - include fuzzy variants if enabled
-                val phraseCandidates = getPhraseCandidatesForInput(longestPhrase)
-                segments.add(ParsedSegment(
-                    pinyin = longestPhrase,
-                    candidates = sortByFrequencyIfEnabled(longestPhrase, phraseCandidates),
-                    isComplete = true
-                ))
-                remaining = remaining.substring(longestPhrase.length)
-                continue
-            }
+                // Try to find the longest phrase match starting at current position
+                // This is key: check phrases BEFORE falling back to single syllables
+                val longestPhrase = findLongestPhraseMatch(remaining)
+                if (longestPhrase != null) {
+                    // Get phrase candidates - include fuzzy variants if enabled
+                    val phraseCandidates = getPhraseCandidatesForInput(longestPhrase)
+                    segments.add(ParsedSegment(
+                        pinyin = longestPhrase,
+                        candidates = sortByFrequencyIfEnabled(longestPhrase, phraseCandidates),
+                        isComplete = true
+                    ))
+                    remaining = remaining.substring(longestPhrase.length)
+                    continue
+                }
 
-            // No phrase match found, try longest-match syllable (with fuzzy support)
-            val syllable = findLongestSyllableWithFuzzy(remaining)
-            if (syllable != null) {
-                // Get candidates with fuzzy variants if enabled
-                val candidates = getCandidatesWithFuzzy(syllable)
-                segments.add(ParsedSegment(
-                    pinyin = syllable,
-                    candidates = sortByFrequencyIfEnabled(syllable, candidates),
-                    isComplete = true
-                ))
-                remaining = remaining.substring(syllable.length)
-            } else {
-                // Can't parse as complete syllable - might be partial input
-                // Try prefix matching for the remaining text (with fuzzy support)
-                var prefixCandidates = PinyinDictionary.getCandidatesForPrefix(remaining)
+                // No phrase match found, try longest-match syllable (with fuzzy support)
+                val syllable = findLongestSyllableWithFuzzy(remaining)
+                if (syllable != null) {
+                    // Get candidates with fuzzy variants if enabled
+                    val candidates = getCandidatesWithFuzzy(syllable)
+                    segments.add(ParsedSegment(
+                        pinyin = syllable,
+                        candidates = sortByFrequencyIfEnabled(syllable, candidates),
+                        isComplete = true
+                    ))
+                    remaining = remaining.substring(syllable.length)
+                } else {
+                    // Can't parse as complete syllable - might be partial input
+                    // Try prefix matching for the remaining text (with fuzzy support)
+                    var prefixCandidates = PinyinDictionary.getCandidatesForPrefix(remaining)
 
-                // If no exact prefix match and fuzzy is enabled, try fuzzy variants
-                if (prefixCandidates.isEmpty() && fuzzyPinyinEnabled) {
-                    val variants = getFuzzyVariants(remaining)
-                    for (variant in variants) {
-                        if (variant != remaining) {
-                            prefixCandidates = PinyinDictionary.getCandidatesForPrefix(variant)
-                            if (prefixCandidates.isNotEmpty()) {
-                                Log.d(TAG, "Fuzzy prefix match: '$remaining' → '$variant'")
-                                break
+                    // If no exact prefix match and fuzzy is enabled, try fuzzy variants
+                    if (prefixCandidates.isEmpty() && fuzzyPinyinEnabled) {
+                        val variants = getFuzzyVariants(remaining)
+                        for (variant in variants) {
+                            if (variant != remaining) {
+                                prefixCandidates = PinyinDictionary.getCandidatesForPrefix(variant)
+                                if (prefixCandidates.isNotEmpty()) {
+                                    Log.d(TAG, "Fuzzy prefix match: '$remaining' → '$variant'")
+                                    break
+                                }
                             }
                         }
                     }
-                }
 
-                if (prefixCandidates.isNotEmpty()) {
-                    val firstSyl = PinyinDictionary.getFirstSyllableForPrefix(remaining) ?: remaining
-                    segments.add(ParsedSegment(
-                        pinyin = remaining,
-                        candidates = sortByFrequencyIfEnabled(remaining, prefixCandidates),
-                        isComplete = false
-                    ))
+                    if (prefixCandidates.isNotEmpty()) {
+                        val firstSyl = PinyinDictionary.getFirstSyllableForPrefix(remaining) ?: remaining
+                        segments.add(ParsedSegment(
+                            pinyin = remaining,
+                            candidates = sortByFrequencyIfEnabled(remaining, prefixCandidates),
+                            isComplete = false
+                        ))
+                    }
+                    break
                 }
-                break
             }
-        }
         } catch (e: StackOverflowError) {
             Log.e(TAG, "Stack overflow in autoParseSegment: ${e.message}", e)
             return emptyList()

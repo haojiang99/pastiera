@@ -2484,7 +2484,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                    shuangpinSnapshot.isNextWordPrediction ||
                                    wubiSnapshot.isNextWordPrediction ||
                                    zhenmaSnapshot.isNextWordPrediction ||
-                                   ziranmaSnapshot.isNextWordPrediction
+                                   ziranmaSnapshot.isNextWordPrediction ||
+                                   wordPredictionSnapshot.isNextWordPrediction
         )
         val emojiMapText = ""
         // Passa le mappature SYM per la griglia emoji/caratteri
@@ -3699,7 +3700,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             isShuangpinMode -> shuangpinInputController.isShowingNextWordPredictions()
                             isWubiMode -> wubiInputController.isShowingNextWordPredictions()
                             isZhenmaMode -> zhenmaInputController.isShowingNextWordPredictions()
-                            else -> false
+                            else -> englishWordPredictionController.getSnapshot().isNextWordPrediction
                         }
 
                         val isFixedPositionModeActive = SettingsManager.getJuyingFixedPositions(this@PhysicalKeyboardInputMethodService)
@@ -3719,6 +3720,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                         isShuangpinMode -> shuangpinInputController.clearNextWordPredictions()
                                         isWubiMode -> wubiInputController.clearNextWordPredictions()
                                         isZhenmaMode -> zhenmaInputController.clearNextWordPredictions()
+                                        else -> {
+                                            englishWordPredictionController.clearNextWordPredictions()
+                                            englishWordPredictionController.clearSuggestions()
+                                        }
                                     }
                                     updateStatusBarText()
                                     return true
@@ -3733,6 +3738,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                         isShuangpinMode -> shuangpinInputController.clearNextWordPredictions()
                                         isWubiMode -> wubiInputController.clearNextWordPredictions()
                                         isZhenmaMode -> zhenmaInputController.clearNextWordPredictions()
+                                        else -> {
+                                            englishWordPredictionController.clearNextWordPredictions()
+                                            englishWordPredictionController.clearSuggestions()
+                                        }
                                     }
                                     updateStatusBarText()
                                     return true

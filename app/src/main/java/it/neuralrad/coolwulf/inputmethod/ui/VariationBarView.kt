@@ -2035,11 +2035,13 @@ class VariationBarView(
             // For long text in Juying mode, calculate if we need multiple lines
             // Minimum font size is configurable in settings (default 11sp)
             val minReadableFontSizeSp = SettingsManager.getSuggestionMinFontSize(context).toFloat()
-            val maxFontSizeSp = when {
+            val baseMaxFontSizeSp = when {
                 displayText.length <= 3 -> 18f
                 displayText.length <= 5 -> 16f
                 else -> 14f
             }
+            // Ensure max is always >= min to avoid IllegalArgumentException in auto-size
+            val maxFontSizeSp = maxOf(baseMaxFontSizeSp, minReadableFontSizeSp + 1f)
 
             // Calculate if text fits on single line with minimum font size
             val minFontSizePx = TypedValue.applyDimension(
@@ -2082,13 +2084,26 @@ class VariationBarView(
                 // In Juying mode, use auto-sizing to ensure long text fits in buttons
                 if (isJuyingMode && displayText.length > 2) {
                     // Enable auto-size text with min font, max based on content, granularity 1sp
-                    TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
-                        this,
-                        minReadableFontSizeSp.toInt(),  // min text size in sp (11sp for readability)
-                        maxFontSizeSp.toInt(),  // max text size in sp
-                        1,  // granularity in sp
-                        TypedValue.COMPLEX_UNIT_SP
-                    )
+                    try {
+                        val minSize = minReadableFontSizeSp.toInt()
+                        val maxSize = maxFontSizeSp.toInt()
+                        // Extra safety check: ensure max > min
+                        if (maxSize > minSize) {
+                            TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
+                                this,
+                                minSize,  // min text size in sp
+                                maxSize,  // max text size in sp
+                                1,  // granularity in sp
+                                TypedValue.COMPLEX_UNIT_SP
+                            )
+                        } else {
+                            // Fallback to fixed size if auto-size would fail
+                            textSize = minReadableFontSizeSp
+                        }
+                    } catch (e: IllegalArgumentException) {
+                        // Fallback if auto-size fails
+                        textSize = minReadableFontSizeSp
+                    }
                 } else {
                     // Use fixed text size for short text or non-Juying mode
                     textSize = textSizeSp
