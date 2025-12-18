@@ -1906,6 +1906,8 @@ class VariationBarView(
             setTextColor(textColor)
             setTypeface(null, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
+            // Use equal vertical padding and disable font padding for better vertical centering
+            includeFontPadding = false
             setPadding(dp6, dp4, dp6, dp4)
 
             // Apply 3D effect with shadow and layered background
@@ -2019,6 +2021,7 @@ class VariationBarView(
                 // The stable height is pre-calculated in showVariations() to accommodate all buttons
                 layoutParams = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
                     marginEnd = dp3
+                    gravity = Gravity.CENTER_VERTICAL
                 }
                 maxLines = numLinesNeeded
                 textSize = minReadableFontSizeSp
@@ -2027,6 +2030,7 @@ class VariationBarView(
                 // Always use the passed buttonHeight (which is stableButtonHeight) to prevent jumping
                 layoutParams = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
                     marginEnd = dp3
+                    gravity = Gravity.CENTER_VERTICAL
                 }
                 maxLines = 1
 

@@ -436,11 +436,35 @@ class NextWordPredictor(private val context: Context) {
             .forEach { candidates[it.key] = 0f }
 
         // From user-learned phrases (Pinyin, Wubi, Shuangpin, Ziranma memories)
-        // These are multi-character phrases that user has typed frequently
+        // Only include phrases that have some contextual relevance:
+        // - If we have context (word2), only include phrases that could follow naturally
+        // - Phrases starting with the same character as a bigram/trigram match get priority
         refreshPhraseFrequencyCache()
+
+        // Get characters that appear in context-matched candidates
+        val contextChars = mutableSetOf<Char>()
+        if (word2 != null) {
+            // Collect first characters from bigram matches
+            bigramCache[word2]?.keys?.forEach { key ->
+                if (key.isNotEmpty()) contextChars.add(key.first())
+            }
+            chineseBaseBigrams[word2]?.keys?.forEach { key ->
+                if (key.isNotEmpty()) contextChars.add(key.first())
+            }
+        }
+
+        // Only add phrases that are contextually relevant or very high frequency
+        val highFreqThreshold = 10  // Minimum frequency to be included without context match
         phraseFrequencyCache.entries
+            .filter { (phrase, freq) ->
+                // Include if: matches context OR is very frequently used
+                val matchesContext = contextChars.isEmpty() ||
+                    (phrase.isNotEmpty() && contextChars.contains(phrase.first()))
+                val isHighFreq = freq >= highFreqThreshold
+                matchesContext || isHighFreq
+            }
             .sortedByDescending { it.value }
-            .take(100)
+            .take(30)  // Reduced from 100 to avoid overwhelming context-based predictions
             .forEach { candidates[it.key] = 0f }
     }
 
@@ -613,12 +637,30 @@ class NextWordPredictor(private val context: Context) {
 
         // User-learned phrase frequency contribution
         // Phrases from Pinyin/Wubi/Shuangpin/Ziranma memories
+        // Only give significant weight if there's contextual evidence (bigram/trigram match)
         val phraseFreq = getPhraseFrequency(candidate)
         if (phraseFreq > 0) {
-            // Calculate phrase probability with log scaling to handle varying frequencies
-            // Higher frequency = higher probability, but with diminishing returns
-            val phraseProb = ln(phraseFreq.toFloat() + 1) / ln(100f)  // Normalize to ~0-1 range
-            val phraseWeight = if (isChinese) LAMBDA_PHRASE_MEMORY * 1.5f else LAMBDA_PHRASE_MEMORY
+            // Check if this candidate has any contextual support
+            val hasTrigramSupport = word1 != null && word2 != null &&
+                (trigramCache["$word1|$word2"]?.containsKey(candidate) == true ||
+                 chineseBaseTrigrams["$word1|$word2"]?.containsKey(candidate) == true)
+            val hasBigramSupport = word2 != null &&
+                (bigramCache[word2]?.containsKey(candidate) == true ||
+                 chineseBaseBigrams[word2]?.containsKey(candidate) == true)
+
+            // Calculate phrase probability with log scaling
+            val phraseProb = ln(phraseFreq.toFloat() + 1) / ln(100f)
+
+            // Reduce weight significantly if no contextual support
+            // This prevents high-frequency phrases from always dominating
+            val contextMultiplier = when {
+                hasTrigramSupport -> 1.5f  // Strong context match - boost
+                hasBigramSupport -> 1.0f   // Some context match - normal weight
+                else -> 0.3f               // No context match - significantly reduce
+            }
+
+            val baseWeight = if (isChinese) LAMBDA_PHRASE_MEMORY * 1.5f else LAMBDA_PHRASE_MEMORY
+            val phraseWeight = baseWeight * contextMultiplier
             score += phraseWeight * phraseProb.coerceIn(0f, 1f)
             totalWeight += phraseWeight
         }
