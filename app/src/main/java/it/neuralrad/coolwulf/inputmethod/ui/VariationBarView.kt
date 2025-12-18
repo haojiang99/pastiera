@@ -725,8 +725,8 @@ class VariationBarView(
         }
 
         // For Juying mode with long text, calculate if we need extra height for multi-line display
-        // Minimum readable font size is 11sp - allows more text per line while still being readable
-        val minReadableFontSizeSp = 11f
+        // Minimum font size is configurable in settings (default 11sp)
+        val minReadableFontSizeSp = SettingsManager.getSuggestionMinFontSize(context).toFloat()
         val minFontSizePx = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_SP,
             minReadableFontSizeSp,
@@ -748,13 +748,16 @@ class VariationBarView(
             snapshot.shuangpinModeActive || snapshot.ziranmaModeActive ||
             snapshot.wubiModeActive || snapshot.zhenmaModeActive
 
-        // For Chinese input modes, always use fixed base height to completely eliminate jumping
+        // Check if auto-adjust status bar height is enabled
+        val autoAdjustEnabled = SettingsManager.isAutoAdjustStatusBarHeight(context)
+
+        // For Chinese input modes, use fixed base height unless auto-adjust is enabled
         // For non-Chinese modes (English word prediction, accent variations), calculate dynamic height
-        val stableButtonHeight = if (isChineseInputActive) {
-            // Fixed height for Chinese input - no dynamic adjustment
+        val stableButtonHeight = if (isChineseInputActive && !autoAdjustEnabled) {
+            // Fixed height for Chinese input - no dynamic adjustment (prevents jumping)
             baseButtonHeight
         } else if (isJuyingModeWithSuggestions) {
-            // Only calculate dynamic height for non-Chinese modes (e.g., English word predictions)
+            // Calculate dynamic height when auto-adjust is enabled or for non-Chinese modes
             var maxNeededHeight = baseButtonHeight
             val testPaint = android.graphics.Paint().apply {
                 textSize = minFontSizePx
@@ -1983,8 +1986,8 @@ class VariationBarView(
             }
 
             // For long text in Juying mode, calculate if we need multiple lines
-            // Minimum readable font size is 11sp - allows more text per line while still readable
-            val minReadableFontSizeSp = 11f
+            // Minimum font size is configurable in settings (default 11sp)
+            val minReadableFontSizeSp = SettingsManager.getSuggestionMinFontSize(context).toFloat()
             val maxFontSizeSp = when {
                 displayText.length <= 3 -> 18f
                 displayText.length <= 5 -> 16f

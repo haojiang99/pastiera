@@ -677,6 +677,14 @@
     <string name="candidate_font_size_title">候选词字体大小</string>
     <string name="candidate_font_size_description">当前：%1$d SP</string>
 
+    <!-- Suggestion Minimum Font Size -->
+    <string name="suggestion_min_font_size_title">候选词最小字体大小</string>
+    <string name="suggestion_min_font_size_description">当前：%1$d SP（用于长文本换行）</string>
+
+    <!-- Auto-adjustable Status Bar Height -->
+    <string name="auto_adjust_status_bar_title">自动调整状态栏高度</string>
+    <string name="auto_adjust_status_bar_description">当候选词需要更多空间换行时自动扩展状态栏</string>
+
     <!-- Status Bar Height -->
     <string name="status_bar_height_title">状态栏高度</string>
     <string name="status_bar_height_description">当前：%1$d DIP</string>

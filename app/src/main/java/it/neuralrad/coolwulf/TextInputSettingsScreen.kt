@@ -283,6 +283,14 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getCandidateFontSize(context))
     }
 
+    var suggestionMinFontSize by remember {
+        mutableStateOf(SettingsManager.getSuggestionMinFontSize(context))
+    }
+
+    var autoAdjustStatusBarHeight by remember {
+        mutableStateOf(SettingsManager.isAutoAdjustStatusBarHeight(context))
+    }
+
     var statusBarHeight by remember {
         mutableStateOf(SettingsManager.getStatusBarHeight(context))
     }
@@ -2437,10 +2445,103 @@ fun TextInputSettingsScreen(
                         onValueChange = { newValue ->
                             candidateFontSize = newValue.toInt()
                             SettingsManager.setCandidateFontSize(context, newValue.toInt())
+                            // Update min font size if it exceeds the new max
+                            if (suggestionMinFontSize > newValue.toInt()) {
+                                suggestionMinFontSize = newValue.toInt()
+                                SettingsManager.setSuggestionMinFontSize(context, newValue.toInt())
+                            }
                         },
                         valueRange = SettingsManager.getMinCandidateFontSize().toFloat()..SettingsManager.getMaxCandidateFontSize().toFloat(),
                         steps = SettingsManager.getMaxCandidateFontSize() - SettingsManager.getMinCandidateFontSize() - 1,
                         modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+
+            // Suggestion Minimum Font Size
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.TextFields,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.suggestion_min_font_size_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = stringResource(R.string.suggestion_min_font_size_description, suggestionMinFontSize),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Slider(
+                        value = suggestionMinFontSize.toFloat(),
+                        onValueChange = { newValue ->
+                            suggestionMinFontSize = newValue.toInt()
+                            SettingsManager.setSuggestionMinFontSize(context, newValue.toInt())
+                        },
+                        valueRange = SettingsManager.getMinSuggestionMinFontSize().toFloat()..candidateFontSize.toFloat(),
+                        steps = (candidateFontSize - SettingsManager.getMinSuggestionMinFontSize() - 1).coerceAtLeast(0),
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+
+            // Auto-Adjust Status Bar Height Toggle
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.auto_adjust_status_bar_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = stringResource(R.string.auto_adjust_status_bar_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = autoAdjustStatusBarHeight,
+                        onCheckedChange = { enabled ->
+                            autoAdjustStatusBarHeight = enabled
+                            SettingsManager.setAutoAdjustStatusBarHeight(context, enabled)
+                        }
                     )
                 }
             }

@@ -676,6 +676,14 @@
     <string name="candidate_font_size_title">Candidate Font Size</string>
     <string name="candidate_font_size_description">Current: %1$d SP</string>
 
+    <!-- Suggestion Minimum Font Size -->
+    <string name="suggestion_min_font_size_title">Suggestion Minimum Font Size</string>
+    <string name="suggestion_min_font_size_description">Current: %1$d SP (for long text wrapping)</string>
+
+    <!-- Auto-adjustable Status Bar Height -->
+    <string name="auto_adjust_status_bar_title">Auto-Adjust Status Bar Height</string>
+    <string name="auto_adjust_status_bar_description">Automatically expand status bar when suggestions need more space for wrapping</string>
+
     <!-- Status Bar Height -->
     <string name="status_bar_height_title">Status Bar Height</string>
     <string name="status_bar_height_description">Current: %1$d DIP</string>

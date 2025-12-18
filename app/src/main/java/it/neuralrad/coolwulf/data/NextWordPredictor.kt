@@ -3,6 +3,10 @@ package it.neuralrad.coolwulf.data
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import it.neuralrad.coolwulf.data.pinyin.AutoPhraseMemory
+import it.neuralrad.coolwulf.data.wubi.WubiPhraseMemory
+import it.neuralrad.coolwulf.data.shuangpin.ShuangpinPhraseMemory
+import it.neuralrad.coolwulf.data.ziranma.ZiranmaPhraseMemory
 import org.json.JSONObject
 import kotlin.math.ln
 import kotlin.math.max
@@ -53,6 +57,17 @@ class NextWordPredictor(private val context: Context) {
     private var chineseBaseBigrams: Map<String, Map<String, Float>> = emptyMap()
     private var chineseBaseTrigrams: Map<String, Map<String, Float>> = emptyMap()
     private var chineseBaseModelLoaded = false
+
+    // Phrase memories from various input methods (lazy initialized)
+    private val pinyinPhraseMemory: AutoPhraseMemory by lazy { AutoPhraseMemory(context) }
+    private val wubiPhraseMemory: WubiPhraseMemory by lazy { WubiPhraseMemory(context) }
+    private val shuangpinPhraseMemory: ShuangpinPhraseMemory by lazy { ShuangpinPhraseMemory(context) }
+    private val ziranmaPhraseMemory: ZiranmaPhraseMemory by lazy { ZiranmaPhraseMemory(context) }
+
+    // Cached phrase frequencies from all memories (phrase -> total frequency)
+    private var phraseFrequencyCache: Map<String, Int> = emptyMap()
+    private var phraseFrequencyCacheTime: Long = 0
+    private val PHRASE_CACHE_VALIDITY_MS = 60_000L  // Refresh cache every 60 seconds
 
     // Last two committed words (used to learn sequences)
     private var lastCommittedWords: Pair<String?, String?> = Pair(null, null)
@@ -419,6 +434,80 @@ class NextWordPredictor(private val context: Context) {
             .sortedByDescending { it.value }
             .take(50)
             .forEach { candidates[it.key] = 0f }
+
+        // From user-learned phrases (Pinyin, Wubi, Shuangpin, Ziranma memories)
+        // These are multi-character phrases that user has typed frequently
+        refreshPhraseFrequencyCache()
+        phraseFrequencyCache.entries
+            .sortedByDescending { it.value }
+            .take(100)
+            .forEach { candidates[it.key] = 0f }
+    }
+
+    /**
+     * Refreshes the phrase frequency cache from all input method memories.
+     * Caches results to avoid frequent memory access.
+     */
+    private fun refreshPhraseFrequencyCache() {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - phraseFrequencyCacheTime < PHRASE_CACHE_VALIDITY_MS && phraseFrequencyCache.isNotEmpty()) {
+            return  // Cache is still valid
+        }
+
+        val combinedFrequencies = mutableMapOf<String, Int>()
+
+        // Collect from Pinyin auto-learned phrases
+        try {
+            pinyinPhraseMemory.getAllLearnedPhrases().forEach { learned ->
+                val phrase = learned.phrase
+                combinedFrequencies[phrase] = (combinedFrequencies[phrase] ?: 0) + learned.frequency
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading Pinyin phrase memory", e)
+        }
+
+        // Collect from Wubi auto-learned phrases
+        try {
+            wubiPhraseMemory.getAllLearnedPhrases().forEach { learned ->
+                val phrase = learned.phrase
+                combinedFrequencies[phrase] = (combinedFrequencies[phrase] ?: 0) + learned.frequency
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading Wubi phrase memory", e)
+        }
+
+        // Collect from Shuangpin auto-learned phrases
+        try {
+            shuangpinPhraseMemory.getAllLearnedPhrases().forEach { learned ->
+                val phrase = learned.phrase
+                combinedFrequencies[phrase] = (combinedFrequencies[phrase] ?: 0) + learned.frequency
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading Shuangpin phrase memory", e)
+        }
+
+        // Collect from Ziranma auto-learned phrases
+        try {
+            ziranmaPhraseMemory.getAllLearnedPhrases().forEach { learned ->
+                val phrase = learned.phrase
+                combinedFrequencies[phrase] = (combinedFrequencies[phrase] ?: 0) + learned.frequency
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading Ziranma phrase memory", e)
+        }
+
+        phraseFrequencyCache = combinedFrequencies
+        phraseFrequencyCacheTime = currentTime
+        Log.d(TAG, "Refreshed phrase frequency cache: ${combinedFrequencies.size} phrases")
+    }
+
+    /**
+     * Gets the frequency of a phrase from user memories.
+     * Used for scoring candidates.
+     */
+    private fun getPhraseFrequency(phrase: String): Int {
+        refreshPhraseFrequencyCache()
+        return phraseFrequencyCache[phrase] ?: 0
     }
 
     /**
@@ -520,6 +609,18 @@ class NextWordPredictor(private val context: Context) {
             val zhWeight = if (isChinese) LAMBDA_CHINESE_UNIGRAM * 1.5f else LAMBDA_CHINESE_UNIGRAM
             score += zhWeight * chineseUnigramProb
             totalWeight += zhWeight
+        }
+
+        // User-learned phrase frequency contribution
+        // Phrases from Pinyin/Wubi/Shuangpin/Ziranma memories
+        val phraseFreq = getPhraseFrequency(candidate)
+        if (phraseFreq > 0) {
+            // Calculate phrase probability with log scaling to handle varying frequencies
+            // Higher frequency = higher probability, but with diminishing returns
+            val phraseProb = ln(phraseFreq.toFloat() + 1) / ln(100f)  // Normalize to ~0-1 range
+            val phraseWeight = if (isChinese) LAMBDA_PHRASE_MEMORY * 1.5f else LAMBDA_PHRASE_MEMORY
+            score += phraseWeight * phraseProb.coerceIn(0f, 1f)
+            totalWeight += phraseWeight
         }
 
         // Normalize by total weight (so scores are comparable)
@@ -770,6 +871,9 @@ class NextWordPredictor(private val context: Context) {
         val totalTrigrams = trigramCache.values.sumOf { it.size }
         val totalTrigramFrequency = trigramCache.values.sumOf { it.values.sum() }
 
+        // Refresh phrase cache to get accurate count
+        refreshPhraseFrequencyCache()
+
         return Stats(
             totalUnigrams = unigramCache.size,
             unigramOccurrences = totalWordCount,
@@ -784,7 +888,8 @@ class NextWordPredictor(private val context: Context) {
             chineseModelLoaded = chineseBaseModelLoaded,
             chineseUnigramCount = chineseBaseUnigrams.size,
             chineseBigramContexts = chineseBaseBigrams.size,
-            chineseTrigramContexts = chineseBaseTrigrams.size
+            chineseTrigramContexts = chineseBaseTrigrams.size,
+            phraseMemoryCount = phraseFrequencyCache.size
         )
     }
 
@@ -802,7 +907,8 @@ class NextWordPredictor(private val context: Context) {
         val chineseModelLoaded: Boolean,
         val chineseUnigramCount: Int,
         val chineseBigramContexts: Int,
-        val chineseTrigramContexts: Int
+        val chineseTrigramContexts: Int,
+        val phraseMemoryCount: Int
     )
 
     companion object {
@@ -832,6 +938,9 @@ class NextWordPredictor(private val context: Context) {
         private const val LAMBDA_CHINESE_TRIGRAM = 0.20f   // Chinese base trigrams (higher weight for Chinese)
         private const val LAMBDA_CHINESE_BIGRAM = 0.12f    // Chinese base bigrams
         private const val LAMBDA_CHINESE_UNIGRAM = 0.08f   // Chinese base unigrams
+
+        // Interpolation weight for user-learned phrases from input method memories
+        private const val LAMBDA_PHRASE_MEMORY = 0.25f     // Phrases from Pinyin/Wubi/Shuangpin/Ziranma
 
         @Volatile
         private var instance: NextWordPredictor? = null

@@ -83,6 +83,8 @@ object SettingsManager {
     private const val KEY_WUBI_AUTO_COMMIT_OVERFLOW = "wubi_auto_commit_overflow" // Wubi: auto-commit on 5th letter and start new word
     private const val KEY_WUBI_Z_KEY_MODE = "wubi_z_key_mode" // Wubi: Z key function mode: "disabled", "wildcard", "symbol"
     private const val KEY_CANDIDATE_FONT_SIZE = "candidate_font_size" // Font size for candidates/suggestions
+    private const val KEY_SUGGESTION_MIN_FONT_SIZE = "suggestion_min_font_size" // Minimum font size for suggestions (for long text wrapping)
+    private const val KEY_AUTO_ADJUST_STATUS_BAR_HEIGHT = "auto_adjust_status_bar_height" // Auto-adjust status bar height for long suggestions
     private const val KEY_PARTIAL_PINYIN_MATCHING = "partial_pinyin_matching" // Enable partial pinyin matching for phrases
     private const val KEY_ABBREVIATION_INPUT_ENABLED = "abbreviation_input_enabled" // Enable 首字母 (first letter abbreviation) input
     private const val KEY_SHOW_VIRTUAL_KEYBOARD_BUTTON = "show_virtual_keyboard_button" // Show virtual keyboard toggle button in status bar
@@ -208,6 +210,9 @@ object SettingsManager {
     private const val DEFAULT_CANDIDATE_FONT_SIZE = 18  // Default candidate font size in SP
     private const val MIN_CANDIDATE_FONT_SIZE = 12
     private const val MAX_CANDIDATE_FONT_SIZE = 28
+    private const val DEFAULT_SUGGESTION_MIN_FONT_SIZE = 11  // Default minimum font size for suggestions in SP
+    private const val MIN_SUGGESTION_MIN_FONT_SIZE = 5
+    private const val MAX_SUGGESTION_MIN_FONT_SIZE = 28  // Max is same as candidate font size max
     private const val DEFAULT_STATUS_BAR_HEIGHT = 55  // Default status bar height in DIP
     private const val MIN_STATUS_BAR_HEIGHT = 35
     private const val MAX_STATUS_BAR_HEIGHT = 80
@@ -1928,6 +1933,58 @@ object SettingsManager {
      * Gets the default candidate font size.
      */
     fun getDefaultCandidateFontSize(): Int = DEFAULT_CANDIDATE_FONT_SIZE
+
+    /**
+     * Gets the minimum font size for suggestions (used when text is long and needs wrapping).
+     */
+    fun getSuggestionMinFontSize(context: Context): Int {
+        val maxAllowed = getCandidateFontSize(context)  // Can't exceed current font size
+        val stored = getPreferences(context).getInt(KEY_SUGGESTION_MIN_FONT_SIZE, DEFAULT_SUGGESTION_MIN_FONT_SIZE)
+        return stored.coerceIn(MIN_SUGGESTION_MIN_FONT_SIZE, maxAllowed)
+    }
+
+    /**
+     * Sets the minimum font size for suggestions.
+     */
+    fun setSuggestionMinFontSize(context: Context, size: Int) {
+        val maxAllowed = getCandidateFontSize(context)
+        val clampedSize = size.coerceIn(MIN_SUGGESTION_MIN_FONT_SIZE, maxAllowed)
+        getPreferences(context).edit()
+            .putInt(KEY_SUGGESTION_MIN_FONT_SIZE, clampedSize)
+            .apply()
+    }
+
+    /**
+     * Gets the minimum allowed value for suggestion min font size.
+     */
+    fun getMinSuggestionMinFontSize(): Int = MIN_SUGGESTION_MIN_FONT_SIZE
+
+    /**
+     * Gets the maximum allowed value for suggestion min font size (same as current font size).
+     */
+    fun getMaxSuggestionMinFontSize(context: Context): Int = getCandidateFontSize(context)
+
+    /**
+     * Gets the default suggestion min font size.
+     */
+    fun getDefaultSuggestionMinFontSize(): Int = DEFAULT_SUGGESTION_MIN_FONT_SIZE
+
+    /**
+     * Returns whether auto-adjust status bar height is enabled.
+     * When enabled, status bar height will expand to fit long suggestions.
+     */
+    fun isAutoAdjustStatusBarHeight(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_AUTO_ADJUST_STATUS_BAR_HEIGHT, false)
+    }
+
+    /**
+     * Sets whether auto-adjust status bar height is enabled.
+     */
+    fun setAutoAdjustStatusBarHeight(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_AUTO_ADJUST_STATUS_BAR_HEIGHT, enabled)
+            .apply()
+    }
 
     /**
      * Gets the status bar height in DIP.
