@@ -1,6 +1,7 @@
 package it.neuralrad.coolwulf.core
 
 import android.content.Context
+import android.util.Log
 import android.view.KeyEvent
 import it.neuralrad.coolwulf.data.pinyin.AutoPhraseMemory
 import it.neuralrad.coolwulf.data.pinyin.ChineseCharacterConverter
@@ -20,6 +21,7 @@ class PinyinInputController(
     private val context: Context
 ) {
     companion object {
+        private const val TAG = "PinyinInputController"
         private const val MAX_BUFFER_LENGTH = 200 // Maximum pinyin buffer length (increased for long sentences)
         private const val DEFAULT_PAGE_SIZE = 9  // Number of candidates per page (normal mode)
         private const val JUYING_PAGE_SIZE = 5   // Number of candidates per page (Juying mode)
@@ -290,6 +292,9 @@ class PinyinInputController(
                 finalizeSession()
                 clearBuffer()
             }
+            Log.d(TAG, "========== Pinyin mode: ${if (active) "ENABLED" else "DISABLED"} ==========")
+        } else {
+            Log.d(TAG, "Pinyin mode already ${if (active) "enabled" else "disabled"}")
         }
     }
 
@@ -324,17 +329,20 @@ class PinyinInputController(
      */
     fun handleLetterKeyAtPosition(char: Char, cursorPosition: Int): Boolean {
         if (!isPinyinModeActive) {
+            Log.d(TAG, "handleLetterKeyAtPosition: Pinyin mode not active")
             return false
         }
 
         // Only accept lowercase letters
         val lowerChar = char.lowercaseChar()
         if (!lowerChar.isLetter() || lowerChar < 'a' || lowerChar > 'z') {
+            Log.d(TAG, "handleLetterKeyAtPosition: Invalid character '$char'")
             return false
         }
 
         // Check buffer length limit
         if (buffer.length >= MAX_BUFFER_LENGTH) {
+            Log.w(TAG, "Buffer full, ignoring input")
             return true
         }
 
@@ -360,6 +368,7 @@ class PinyinInputController(
         }
         buffer.insert(insertPosition, lowerChar)
         updateCandidates()
+        Log.d(TAG, "Letter added at position $insertPosition: '$lowerChar' → Buffer: '$buffer', Candidates: ${allCandidates.joinToString(", ")}")
         return true
     }
 
@@ -380,11 +389,13 @@ class PinyinInputController(
 
         // Check buffer length limit
         if (buffer.length >= MAX_BUFFER_LENGTH) {
+            Log.w(TAG, "Buffer full, ignoring separator")
             return true
         }
 
         buffer.append(SEPARATOR)
         updateCandidates()
+        Log.d(TAG, "Separator added → Buffer: '$buffer'")
         return true
     }
 
@@ -433,6 +444,7 @@ class PinyinInputController(
         if (deletePosition >= 0 && deletePosition < buffer.length) {
             buffer.deleteCharAt(deletePosition)
             updateCandidates()
+            Log.d(TAG, "Backspace at position $cursorPosition - Buffer: '$buffer', Candidates: ${allCandidates.size}")
         }
         return true
     }
@@ -489,6 +501,7 @@ class PinyinInputController(
             }
         }
 
+        Log.d(TAG, "Selected candidate $index (actual: $actualIndex): '$selected', consuming: '$pinyinToConsume' (phrase count: $phraseCandidateCount, isPhrase: $isPhrase)")
 
         // Remove the consumed pinyin from the buffer
         // Need to handle the case where buffer contains separators
@@ -498,6 +511,7 @@ class PinyinInputController(
         if (isPhrase && pinyinToConsume == bufferWithoutSep) {
             // Consuming entire buffer for phrase - clear everything including separators
             buffer.clear()
+            Log.d(TAG, "Consumed entire buffer for phrase")
         } else if (pinyinToConsume.isNotEmpty()) {
             // Try to find and consume the pinyin from the start of buffer
             // Handle both with and without separators
@@ -540,8 +554,10 @@ class PinyinInputController(
             }
 
             if (consumed) {
+                Log.d(TAG, "Consumed '$pinyinToConsume', remaining buffer: '$buffer'")
             } else {
                 // Fallback: clear entire buffer if something went wrong
+                Log.w(TAG, "Failed to consume pinyin '$pinyinToConsume' from buffer '$bufferStr', clearing buffer")
                 buffer.clear()
             }
         }
@@ -591,6 +607,7 @@ class PinyinInputController(
         if (combinedPhrase !in existingPhrases) {
             // Record the new phrase for auto-learning
             autoPhraseMemory.recordPhrase(combinedPinyin, combinedPhrase)
+            Log.d(TAG, "Session finalized: '$combinedPinyin' → '$combinedPhrase'")
         }
 
         sessionSelections.clear()
@@ -610,6 +627,7 @@ class PinyinInputController(
                 phraseCandidateSet = nextWordSuggestions.toSet()  // All predictions are phrases
                 matchedPinyin = ""
                 firstSyllable = ""
+                Log.d(TAG, "Showing next-word predictions: $nextWordSuggestions")
                 return
             }
         }
@@ -652,6 +670,7 @@ class PinyinInputController(
         val totalPages = getTotalPages()
         if (currentPage < totalPages - 1) {
             currentPage++
+            Log.d(TAG, "Moved to page ${currentPage + 1}/$totalPages")
             return true
         }
         return false
@@ -664,6 +683,7 @@ class PinyinInputController(
     fun prevPage(): Boolean {
         if (currentPage > 0) {
             currentPage--
+            Log.d(TAG, "Moved to page ${currentPage + 1}/${getTotalPages()}")
             return true
         }
         return false
@@ -725,6 +745,7 @@ class PinyinInputController(
         currentPage = 0
         // Clear session without finalizing (user cancelled input)
         sessionSelections.clear()
+        Log.d(TAG, "Buffer cleared")
     }
 
     /**
@@ -864,6 +885,7 @@ class PinyinInputController(
                         if (variant != remaining) {
                             prefixCandidates = PinyinDictionary.getCandidatesForPrefix(variant)
                             if (prefixCandidates.isNotEmpty()) {
+                                Log.d(TAG, "Fuzzy prefix match: '$remaining' → '$variant'")
                                 break
                             }
                         }
@@ -898,9 +920,18 @@ class PinyinInputController(
     private fun findLongestPhraseMatch(input: String): String? {
         if (input.length < 2) return null
 
-        // First, split the entire input into syllables using backtracking algorithm
-        // This handles cases like "genjunide" -> "gen" + "ju" + "ni" + "de" instead of "gen" + "jun" + (invalid "ide")
-        val allSyllables = segmentSyllablesWithBacktracking(input)
+        // First, split the entire input into syllables (using fuzzy matching if enabled)
+        val allSyllables = mutableListOf<String>()
+        var remaining = input
+        while (remaining.isNotEmpty()) {
+            val syllable = findLongestSyllableWithFuzzy(remaining)
+            if (syllable != null) {
+                allSyllables.add(syllable)
+                remaining = remaining.substring(syllable.length)
+            } else {
+                break
+            }
+        }
 
         // Need at least 2 syllables to form a phrase
         if (allSyllables.size < 2) return null
@@ -911,6 +942,7 @@ class PinyinInputController(
             val phrase = allSyllables.take(numSyllables).joinToString("")
             val phraseCandidates = PinyinDictionary.getPhraseCandidates(phrase)
             if (phraseCandidates.isNotEmpty()) {
+                Log.d(TAG, "Found phrase match: '$phrase' -> ${phraseCandidates.take(3)}")
                 return phrase
             }
 
@@ -920,87 +952,13 @@ class PinyinInputController(
                 val syllablesToUse = allSyllables.take(numSyllables)
                 val fuzzyPhraseCandidates = getPhraseCandidatesWithFuzzy(syllablesToUse)
                 if (fuzzyPhraseCandidates.isNotEmpty()) {
+                    Log.d(TAG, "Found fuzzy phrase match: '$phrase' -> ${fuzzyPhraseCandidates.take(3)}")
                     return phrase
                 }
             }
         }
 
         return null
-    }
-
-    /**
-     * Segments input into syllables using backtracking.
-     * Unlike greedy longest-match, this will backtrack if a longer match
-     * leaves an unparseable remainder.
-     *
-     * Example: "genjunide"
-     * - Greedy: "gen" + "jun" + (invalid "ide") -> fails
-     * - Backtracking: "gen" + "ju" + "ni" + "de" -> succeeds
-     */
-    private fun segmentSyllablesWithBacktracking(input: String): List<String> {
-        val result = mutableListOf<String>()
-
-        fun backtrack(pos: Int, syllables: MutableList<String>): Boolean {
-            if (pos >= input.length) {
-                result.clear()
-                result.addAll(syllables)
-                return true
-            }
-
-            val remaining = input.substring(pos)
-
-            // Try syllables from longest to shortest
-            val maxLen = minOf(6, remaining.length)
-            for (len in maxLen downTo 1) {
-                val candidate = remaining.substring(0, len)
-                val syllable = if (fuzzyPinyinEnabled) {
-                    // Check exact match first
-                    if (PinyinDictionary.contains(candidate)) {
-                        candidate
-                    } else {
-                        // Try fuzzy variants
-                        val variants = getFuzzyVariants(candidate)
-                        if (variants.any { it != candidate && PinyinDictionary.contains(it) }) {
-                            candidate
-                        } else {
-                            null
-                        }
-                    }
-                } else {
-                    if (PinyinDictionary.contains(candidate)) candidate else null
-                }
-
-                if (syllable != null) {
-                    syllables.add(syllable)
-                    if (backtrack(pos + len, syllables)) {
-                        return true
-                    }
-                    syllables.removeAt(syllables.size - 1)
-                }
-            }
-
-            return false
-        }
-
-        // Try backtracking first for complete parse
-        if (backtrack(0, mutableListOf())) {
-            return result
-        }
-
-        // Fall back to greedy longest-match if backtracking fails
-        // (This handles cases with genuinely invalid input)
-        val fallbackResult = mutableListOf<String>()
-        var remaining = input
-        while (remaining.isNotEmpty()) {
-            val syllable = findLongestSyllableWithFuzzy(remaining)
-            if (syllable != null) {
-                fallbackResult.add(syllable)
-                remaining = remaining.substring(syllable.length)
-            } else {
-                break
-            }
-        }
-        return fallbackResult
     }
 
     /**
@@ -1375,14 +1333,13 @@ class PinyinInputController(
             }
         }
 
-        // Add neural suggestions (with priority boost or +2 boost when freq is 0)
-        // Neural suggestions compete fairly with other phrases
+        // Add neural suggestions (with priority boost or +1 boost when freq is 0)
+        // Neural suggestions get lower boost because they're model predictions, not user preferences
         // When priority is enabled, use a high boost to put neural prediction first
-        val NEURAL_SUGGESTION_BOOST = 2
         for ((index, neuralSuggestion) in neuralSuggestions.withIndex()) {
             val freq = userFreqMap[neuralSuggestion] ?: 0
             // First neural suggestion gets priority boost, others get decreasing priority
-            val boost = if (neuralPinyinPriority) (1000 - index) else if (freq == 0) NEURAL_SUGGESTION_BOOST else 0
+            val boost = if (neuralPinyinPriority) (1000 - index) else if (freq == 0) 1 else 0
 
             if (neuralSuggestion !in addedPhrases) {
                 // New suggestion - add with boost
@@ -1623,14 +1580,12 @@ class PinyinInputController(
                 }
             }
 
-            // Add neural suggestions (with priority boost or +2 boost when freq is 0)
-            // Neural suggestions compete fairly with other phrases
+            // Add neural suggestions (with priority boost or +1 boost when freq is 0)
             // When priority is enabled, use a high boost to put neural prediction first
-            val NEURAL_SUGGESTION_BOOST = 2
             for ((index, neuralSuggestion) in neuralSuggestions.withIndex()) {
                 val freq = userFreqMap[neuralSuggestion] ?: 0
                 // First neural suggestion gets priority boost, others get decreasing priority
-                val boost = if (neuralPinyinPriority) (1000 - index) else if (freq == 0) NEURAL_SUGGESTION_BOOST else 0
+                val boost = if (neuralPinyinPriority) (1000 - index) else if (freq == 0) 1 else 0
 
                 if (neuralSuggestion !in addedToMerge) {
                     // New suggestion - add with boost
@@ -1765,6 +1720,7 @@ class PinyinInputController(
             isShowingNextWordPredictions = false
             allCandidates = emptyList()
             currentPage = 0
+            Log.d(TAG, "Cleared next-word predictions due to punctuation input")
         }
         // Also clear the predictor state so next sentence starts fresh
         nextWordPredictor.clearState()
@@ -1976,6 +1932,7 @@ class PinyinInputController(
      */
     fun setFuzzyPinyinEnabled(enabled: Boolean) {
         fuzzyPinyinEnabled = enabled
+        Log.d(TAG, "Fuzzy pinyin ${if (enabled) "enabled" else "disabled"}")
     }
 
     /**
@@ -2063,6 +2020,7 @@ class PinyinInputController(
                 val variants = getFuzzyVariants(prefix)
                 for (variant in variants) {
                     if (variant != prefix && PinyinDictionary.getCandidates(variant).isNotEmpty()) {
+                        Log.d(TAG, "Fuzzy match: '$prefix' → '$variant'")
                         return prefix // Return original prefix, candidates will use variant
                     }
                 }
@@ -2126,6 +2084,7 @@ class PinyinInputController(
         // Use neural model for long sentence conversion
         val neuralResults = getNeuralPinyinSuggestions(pinyinInput)
         if (neuralResults.isNotEmpty()) {
+            Log.d(TAG, "Neural pinyin suggestions: $neuralResults for '$pinyinInput'")
             return neuralResults
         }
 
