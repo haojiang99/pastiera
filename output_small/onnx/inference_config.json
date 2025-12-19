@@ -1,0 +1,14 @@
+{
+  "pinyin_vocab_size": 30,
+  "hanzi_vocab_size": 6943,
+  "hidden_dim": 256,
+  "num_layers": 2,
+  "char_level_pinyin": true,
+  "max_output_len": 64,
+  "special_tokens": {
+    "PAD": 0,
+    "SOS": 1,
+    "EOS": 2,
+    "UNK": 3
+  }
+}

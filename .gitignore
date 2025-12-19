@@ -44,3 +44,9 @@ landingpage/public/coolwulfIMEv0.77.1420.apk
 output/bilstm_pinyin_final.pt.saved
 nul
 *.apk
+*.save
+*.save2
+/output_small/logs
+*.bak
+*.bak2
+*.bak3
