@@ -96,7 +96,7 @@
         <a href="#juying">巨硬模式</a>
         <a href="#voice">语音识别</a>
         <a href="#neural">神经网络</a>
-        <a href="/coolwulfIMEv0.81.1828.apk" class="btn-nav" download>立即下载 v0.81</a>
+        <a href="/coolwulfIMEv0.81.1865.apk" class="btn-nav" download>立即下载 v0.81</a>
       </div>
     </div>
   </nav>
@@ -121,7 +121,7 @@
         <strong>完全离线 · 无云端 · 数据自主 · 永久免费</strong>
       </p>
       <div class="hero-buttons">
-        <a href="/coolwulfIMEv0.81.1828.apk" class="btn btn-primary" download>
+        <a href="/coolwulfIMEv0.81.1865.apk" class="btn btn-primary" download>
           <span>立即下载 v0.81</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
@@ -595,7 +595,7 @@
           酷狼输入法为你提供本地 AI 驱动的智能输入体验，数据永远属于你。
         </p>
         <div class="cta-buttons">
-          <a href="/coolwulfIMEv0.81.1828.apk" class="btn btn-primary btn-large" download>
+          <a href="/coolwulfIMEv0.81.1865.apk" class="btn btn-primary btn-large" download>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
             </svg>
