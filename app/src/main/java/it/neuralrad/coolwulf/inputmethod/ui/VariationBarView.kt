@@ -2041,83 +2041,69 @@ class VariationBarView(
                 background = stateListDrawable
             }
 
-            // For long text in Juying mode, calculate if we need multiple lines
-            // Minimum font size is configurable in settings (default 11sp)
-            val minReadableFontSizeSp = SettingsManager.getSuggestionMinFontSize(context).toFloat()
-            val baseMaxFontSizeSp = when {
-                displayText.length <= 3 -> 18f
-                displayText.length <= 5 -> 16f
-                else -> 14f
-            }
-            // Ensure max is always >= min to avoid IllegalArgumentException in auto-size
-            val maxFontSizeSp = maxOf(baseMaxFontSizeSp, minReadableFontSizeSp + 1f)
+            // For suggestion phrases, auto-adjust font size to fit button with multi-line wrapping
+            // Use reasonable minimum font size (not too small)
+            val minReadableFontSizeSp = 10f
+            val maxFontSizeSp = 16f
 
-            // Calculate if text fits on single line with minimum font size
-            val minFontSizePx = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_SP,
-                minReadableFontSizeSp,
-                context.resources.displayMetrics
-            )
+            // Calculate available space
+            val availableTextWidth = buttonWidth - dp6 * 2
+            val availableTextHeight = buttonHeight - dp4 * 2
+
             val testPaint = android.graphics.Paint().apply {
-                textSize = minFontSizePx
+                textSize = TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_SP,
+                    maxFontSizeSp,
+                    context.resources.displayMetrics
+                )
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
             }
-            val textWidthAtMinFont = testPaint.measureText(displayText)
-            val availableTextWidth = buttonWidth - dp6 * 2  // Account for padding
 
-            // Determine if we need multiple lines (only for Juying mode when text doesn't fit on one line)
-            val needsMultiLine = isJuyingMode && textWidthAtMinFont > availableTextWidth
+            // Always use the passed buttonHeight (which is stableButtonHeight) to prevent jumping
+            layoutParams = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
+                marginEnd = dp3
+                gravity = Gravity.CENTER_VERTICAL
+            }
 
-            if (needsMultiLine) {
-                // Calculate how many lines we need using actual text width measurement
-                // Number of lines = ceil(textWidth / availableWidth)
-                val numLinesNeeded = kotlin.math.ceil(textWidthAtMinFont / availableTextWidth.toFloat()).toInt().coerceIn(1, 10)
+            // Calculate how many lines can fit at max font size
+            val maxFontMetrics = testPaint.fontMetrics
+            val lineHeightAtMaxFont = maxFontMetrics.bottom - maxFontMetrics.top
+            val maxLinesAvailable = (availableTextHeight / lineHeightAtMaxFont).toInt().coerceAtLeast(1)
 
-                // Always use the passed buttonHeight (which is stableButtonHeight) to prevent jumping
-                // The stable height is pre-calculated in showVariations() to accommodate all buttons
-                layoutParams = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
-                    marginEnd = dp3
-                    gravity = Gravity.CENTER_VERTICAL
-                }
-                maxLines = numLinesNeeded
-                textSize = minReadableFontSizeSp
-                // No ellipsize - we want to show all text across multiple lines
-            } else {
-                // Always use the passed buttonHeight (which is stableButtonHeight) to prevent jumping
-                layoutParams = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
-                    marginEnd = dp3
-                    gravity = Gravity.CENTER_VERTICAL
-                }
-                maxLines = 1
+            // Find the best font size that fits all text using available lines
+            var bestFontSizeSp = minReadableFontSizeSp
+            var bestLines = 1
 
-                // In Juying mode, use auto-sizing to ensure long text fits in buttons
-                if (isJuyingMode && displayText.length > 2) {
-                    // Enable auto-size text with min font, max based on content, granularity 1sp
-                    try {
-                        val minSize = minReadableFontSizeSp.toInt()
-                        val maxSize = maxFontSizeSp.toInt()
-                        // Extra safety check: ensure max > min
-                        if (maxSize > minSize) {
-                            TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
-                                this,
-                                minSize,  // min text size in sp
-                                maxSize,  // max text size in sp
-                                1,  // granularity in sp
-                                TypedValue.COMPLEX_UNIT_SP
-                            )
-                        } else {
-                            // Fallback to fixed size if auto-size would fail
-                            textSize = minReadableFontSizeSp
-                        }
-                    } catch (e: IllegalArgumentException) {
-                        // Fallback if auto-size fails
-                        textSize = minReadableFontSizeSp
-                    }
-                } else {
-                    // Use fixed text size for short text or non-Juying mode
-                    textSize = textSizeSp
+            // Try each font size from max to min, prefer larger fonts with more lines
+            for (testSizeSp in maxFontSizeSp.toInt() downTo minReadableFontSizeSp.toInt()) {
+                val testSizePx = TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_SP,
+                    testSizeSp.toFloat(),
+                    context.resources.displayMetrics
+                )
+                testPaint.textSize = testSizePx
+                val testWidth = testPaint.measureText(displayText)
+                val testMetrics = testPaint.fontMetrics
+                val testLineHeight = testMetrics.bottom - testMetrics.top
+
+                // Calculate how many lines we can fit at this font size
+                val linesAvailableAtThisSize = (availableTextHeight / testLineHeight).toInt().coerceAtLeast(1)
+
+                // Calculate how many lines we need at this font size
+                val linesNeeded = kotlin.math.ceil(testWidth / availableTextWidth.toDouble()).toInt()
+
+                // Check if text fits with available lines
+                if (linesNeeded <= linesAvailableAtThisSize) {
+                    bestFontSizeSp = testSizeSp.toFloat()
+                    bestLines = linesNeeded.coerceAtLeast(1)
+                    break
                 }
             }
+
+            // Apply the settings
+            maxLines = bestLines.coerceIn(1, 5)
+            ellipsize = null  // No ellipsize - show all text
+            textSize = bestFontSizeSp
 
             isClickable = true
             isFocusable = true
