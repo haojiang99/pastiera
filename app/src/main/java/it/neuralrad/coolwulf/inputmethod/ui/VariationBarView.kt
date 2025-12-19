@@ -892,6 +892,7 @@ class VariationBarView(
 
         val wordPredictionPrefixLength = if (snapshot.wordPredictionActive) snapshot.wordPredictionPrefix.length else 0
         var buttonX = 0
+        var maxActualButtonHeight = 0  // Track max button height for wrapper adjustment
         // Count actual (non-empty) suggestions for best candidate calculation
         val actualSuggestionsCount = limitedVariations.count { it.isNotEmpty() }
         for ((index, variation) in limitedVariations.withIndex()) {
@@ -950,13 +951,28 @@ class VariationBarView(
             variationButtons.add(button)
             variationsRow.addView(button)
 
-            // Force measure and layout the button - use AT_MOST for height to allow multi-line wrapping
+            // Force measure and layout the button - use UNSPECIFIED for height to allow multi-line wrapping
             val buttonWidthSpec = View.MeasureSpec.makeMeasureSpec(individualButtonWidth, View.MeasureSpec.EXACTLY)
-            val buttonHeightSpec = View.MeasureSpec.makeMeasureSpec(stableButtonHeight, View.MeasureSpec.AT_MOST)
+            val buttonHeightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
             button.measure(buttonWidthSpec, buttonHeightSpec)
             val actualButtonHeight = button.measuredHeight
+            maxActualButtonHeight = maxOf(maxActualButtonHeight, actualButtonHeight)
             button.layout(buttonX, 0, buttonX + individualButtonWidth, actualButtonHeight)
             buttonX += individualButtonWidth + spacingBetweenButtons
+        }
+
+        // Update wrapper height to fit the tallest button with padding
+        if (maxActualButtonHeight > 0) {
+            val neededWrapperHeight = maxActualButtonHeight + dp4ForCalc * 2
+            val adjustedWrapperHeight = maxOf(statusBarHeightPx, neededWrapperHeight)
+            wrapper?.let { w ->
+                val currentParams = w.layoutParams as? LinearLayout.LayoutParams
+                if (currentParams != null && currentParams.height != adjustedWrapperHeight) {
+                    currentParams.height = adjustedWrapperHeight
+                    w.layoutParams = currentParams
+                    w.requestLayout()
+                }
+            }
         }
 
         // Force a layout pass
