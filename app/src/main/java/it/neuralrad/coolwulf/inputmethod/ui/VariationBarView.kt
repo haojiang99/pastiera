@@ -1007,8 +1007,9 @@ class VariationBarView(
                 val prevArrow = prevArrowButton ?: createArrowButton(arrowButtonSize, isNext = false).also {
                     prevArrowButton = it
                 }
-                // Use stableButtonHeight to match suggestion button heights
-                val prevParams = LinearLayout.LayoutParams(arrowButtonSize, stableButtonHeight).apply {
+                // Use maxActualButtonHeight to match suggestion button heights (or stableButtonHeight as fallback)
+                val arrowHeight = if (maxActualButtonHeight > 0) maxActualButtonHeight else stableButtonHeight
+                val prevParams = LinearLayout.LayoutParams(arrowButtonSize, arrowHeight).apply {
                     marginStart = TypedValue.applyDimension(
                         TypedValue.COMPLEX_UNIT_DIP,
                         2f,
@@ -1034,8 +1035,9 @@ class VariationBarView(
                 val nextArrow = nextArrowButton ?: createArrowButton(arrowButtonSize, isNext = true).also {
                     nextArrowButton = it
                 }
-                // Use stableButtonHeight to match suggestion button heights
-                val nextParams = LinearLayout.LayoutParams(arrowButtonSize, stableButtonHeight).apply {
+                // Use maxActualButtonHeight to match suggestion button heights (or stableButtonHeight as fallback)
+                val arrowHeight = if (maxActualButtonHeight > 0) maxActualButtonHeight else stableButtonHeight
+                val nextParams = LinearLayout.LayoutParams(arrowButtonSize, arrowHeight).apply {
                     marginStart = TypedValue.applyDimension(
                         TypedValue.COMPLEX_UNIT_DIP,
                         4f,
