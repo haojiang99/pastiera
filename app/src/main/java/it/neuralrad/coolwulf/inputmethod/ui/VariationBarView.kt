@@ -860,11 +860,11 @@ class VariationBarView(
         // Reuse existing row if available, otherwise create new one
         val variationsRow = if (reuseExistingRow && currentVariationsRow != null) {
             currentVariationsRow!!.apply {
-                // Update layout params if size changed
+                // Update layout params if size changed - use WRAP_CONTENT for height to allow multi-line
                 val lp = layoutParams as? LinearLayout.LayoutParams
-                if (lp != null && (lp.width != variationsRowWidth || lp.height != stableButtonHeight)) {
+                if (lp != null && lp.width != variationsRowWidth) {
                     lp.width = variationsRowWidth
-                    lp.height = stableButtonHeight
+                    lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
                     layoutParams = lp
                 }
             }
@@ -873,7 +873,7 @@ class VariationBarView(
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
                 setBackgroundColor(Color.TRANSPARENT)
-                layoutParams = LinearLayout.LayoutParams(variationsRowWidth, stableButtonHeight)
+                layoutParams = LinearLayout.LayoutParams(variationsRowWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
                 clipChildren = false
                 clipToPadding = false
             }.also {
@@ -882,11 +882,11 @@ class VariationBarView(
             }
         }
 
-        // Measure and layout the variationsRow
+        // Measure and layout the variationsRow - use AT_MOST for height to allow expansion
         val widthMeasureSpec = View.MeasureSpec.makeMeasureSpec(variationsRowWidth, View.MeasureSpec.EXACTLY)
-        val heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(stableButtonHeight, View.MeasureSpec.EXACTLY)
+        val heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(stableButtonHeight, View.MeasureSpec.AT_MOST)
         variationsRow.measure(widthMeasureSpec, heightMeasureSpec)
-        variationsRow.layout(0, 0, variationsRowWidth, stableButtonHeight)
+        variationsRow.layout(0, 0, variationsRowWidth, variationsRow.measuredHeight)
 
         lastDisplayedVariations = limitedVariations.toList()
 
@@ -950,11 +950,12 @@ class VariationBarView(
             variationButtons.add(button)
             variationsRow.addView(button)
 
-            // Force measure and layout the button
+            // Force measure and layout the button - use AT_MOST for height to allow multi-line wrapping
             val buttonWidthSpec = View.MeasureSpec.makeMeasureSpec(individualButtonWidth, View.MeasureSpec.EXACTLY)
-            val buttonHeightSpec = View.MeasureSpec.makeMeasureSpec(stableButtonHeight, View.MeasureSpec.EXACTLY)
+            val buttonHeightSpec = View.MeasureSpec.makeMeasureSpec(stableButtonHeight, View.MeasureSpec.AT_MOST)
             button.measure(buttonWidthSpec, buttonHeightSpec)
-            button.layout(buttonX, 0, buttonX + individualButtonWidth, stableButtonHeight)
+            val actualButtonHeight = button.measuredHeight
+            button.layout(buttonX, 0, buttonX + individualButtonWidth, actualButtonHeight)
             buttonX += individualButtonWidth + spacingBetweenButtons
         }
 
@@ -2077,8 +2078,8 @@ class VariationBarView(
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
             }
 
-            // Always use the passed buttonHeight (which is stableButtonHeight) to prevent jumping
-            layoutParams = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
+            // Use WRAP_CONTENT for height to allow multi-line text display
+            layoutParams = LinearLayout.LayoutParams(buttonWidth, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 marginEnd = dp3
                 gravity = Gravity.CENTER_VERTICAL
             }
@@ -2118,10 +2119,15 @@ class VariationBarView(
                 }
             }
 
-            // Apply the settings
-            maxLines = bestLines.coerceIn(1, 5)
+            // Apply the settings for multi-line wrapping
+            isSingleLine = false
+            setSingleLine(false)
+            maxLines = 10  // Allow up to 10 lines
             ellipsize = null  // No ellipsize - show all text
             textSize = bestFontSizeSp
+            // Use SIMPLE break strategy - breaks at any character (works for both Chinese and English)
+            breakStrategy = android.text.Layout.BREAK_STRATEGY_SIMPLE
+            hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_NONE
 
             isClickable = true
             isFocusable = true

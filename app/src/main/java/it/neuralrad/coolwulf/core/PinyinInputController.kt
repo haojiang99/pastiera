@@ -22,7 +22,7 @@ class PinyinInputController(
 ) {
     companion object {
         private const val TAG = "PinyinInputController"
-        private const val MAX_BUFFER_LENGTH = 60 // Maximum pinyin buffer length (reduced to prevent crashes)
+        private const val MAX_BUFFER_LENGTH = 120 // Maximum pinyin buffer length
         private const val DEFAULT_PAGE_SIZE = 9  // Number of candidates per page (normal mode)
         private const val JUYING_PAGE_SIZE = 5   // Number of candidates per page (Juying mode)
         private const val SEPARATOR = '\'' // Apostrophe separator for disambiguating syllables (e.g., he'ni = 和你)
@@ -804,7 +804,7 @@ class PinyinInputController(
 
         // Safety limit: if buffer is very long, only process the first portion
         // to prevent stack overflow from deep recursion in parsing
-        val maxProcessLength = 50  // Reduced from 200 - ~15 syllables max is plenty for practical use
+        val maxProcessLength = 100  // ~30 syllables max for practical use
         val processStr = if (bufferStr.length > maxProcessLength) {
             Log.w(TAG, "Buffer too long (${bufferStr.length}), truncating to $maxProcessLength for parsing")
             bufferStr.take(maxProcessLength)
@@ -876,7 +876,7 @@ class PinyinInputController(
         if (segment.isEmpty()) return emptyList()
 
         // Hard limit on input length to prevent crashes
-        val maxInputLength = 50
+        val maxInputLength = 100
         val limitedSegment = if (segment.length > maxInputLength) {
             Log.w(TAG, "autoParseSegment: input too long (${segment.length}), truncating to $maxInputLength")
             segment.take(maxInputLength)
