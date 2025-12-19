@@ -29,7 +29,8 @@ class VirtualKeyboardView(
     private val onKeyPress: (keyCode: Int, isShifted: Boolean) -> Unit,
     private val onCharacterInput: (char: Char) -> Unit,
     private val onVoiceInputRequest: (() -> Unit)? = null,
-    private val onShiftStateChanged: ((isShifted: Boolean, isCapsLock: Boolean) -> Unit)? = null
+    private val onShiftStateChanged: ((isShifted: Boolean, isCapsLock: Boolean) -> Unit)? = null,
+    private val onCtrlKeyPress: ((keyCode: Int) -> Unit)? = null
 ) {
     companion object {
         private val KEY_BG_COLOR = Color.argb(255, 60, 60, 65)
@@ -56,8 +57,10 @@ class VirtualKeyboardView(
     private var isCapsLock = false
     private var isAltMode = false
     private var isAltLocked = false
+    private var isCtrlActive = false
     private var shiftKey: TextView? = null
     private var altKey: TextView? = null
+    private var ctrlKey: TextView? = null
     private var useChinesePunctuation = false
 
     private val keyHeight: Int
@@ -95,6 +98,14 @@ class VirtualKeyboardView(
         TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_SP,
             12f,
+            context.resources.displayMetrics
+        )
+    }
+
+    private val symbolKeyTextSize: Float by lazy {
+        TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP,
+            20f,
             context.resources.displayMetrics
         )
     }
@@ -353,6 +364,7 @@ class VirtualKeyboardView(
         container = null
         shiftKey = null
         altKey = null
+        ctrlKey = null
     }
 
     private fun createKeyRow(keys: List<String>, sidePadding: Boolean = false): LinearLayout {
@@ -390,7 +402,7 @@ class VirtualKeyboardView(
             )
 
             // Shift key
-            shiftKey = createSpecialKey("⇧", 1.3f) {
+            shiftKey = createSymbolKey("⇧", 1.3f) {
                 if (isCapsLock) {
                     // Disable caps lock
                     isCapsLock = false
@@ -413,10 +425,8 @@ class VirtualKeyboardView(
                 addView(createCharacterKey(key))
             }
 
-            // Backspace key
-            addView(createSpecialKey("⌫", 1.3f) {
-                onKeyPress(KeyEvent.KEYCODE_DEL, false)
-            })
+            // Backspace key with hold-to-repeat
+            addView(createBackspaceKey())
         }
     }
 
@@ -442,8 +452,12 @@ class VirtualKeyboardView(
             // Period key
             addView(createCharacterKey(".", 0.8f))
 
+            // Ctrl key
+            ctrlKey = createCtrlKey()
+            addView(ctrlKey)
+
             // Enter key
-            addView(createSpecialKey("↵", 1.2f) {
+            addView(createSymbolKey("↵", 1.0f) {
                 onKeyPress(KeyEvent.KEYCODE_ENTER, false)
             })
         }
@@ -522,6 +536,56 @@ class VirtualKeyboardView(
         }
     }
 
+    private fun createCtrlKey(): TextView {
+        return TextView(context).apply {
+            text = "Ctrl"
+            setTextColor(KEY_TEXT_COLOR)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, specialKeyTextSize)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            background = createKeyBackground(KEY_BG_SPECIAL)
+
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                keyHeight,
+                1.0f
+            ).apply {
+                setMargins(keyMargin, keyMargin, keyMargin, keyMargin)
+            }
+
+            setOnTouchListener { v, event ->
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        playKeyPressFeedback(v)
+                        background = createKeyBackground(KEY_BG_PRESSED)
+                        true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        // Toggle Ctrl state (one-shot mode)
+                        isCtrlActive = !isCtrlActive
+                        updateCtrlKeyAppearance()
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        background = createKeyBackground(
+                            if (isCtrlActive) Color.argb(255, 80, 80, 90) else KEY_BG_SPECIAL
+                        )
+                        true
+                    }
+                    else -> false
+                }
+            }
+        }
+    }
+
+    private fun updateCtrlKeyAppearance() {
+        ctrlKey?.apply {
+            background = createKeyBackground(
+                if (isCtrlActive) Color.argb(255, 80, 80, 90) else KEY_BG_SPECIAL
+            )
+        }
+    }
+
     private fun createCharacterKey(char: String, weight: Float = 1f): TextView {
         return TextView(context).apply {
             val displayText = getDisplayText(char)
@@ -551,26 +615,38 @@ class VirtualKeyboardView(
                     MotionEvent.ACTION_UP -> {
                         background = createKeyBackground(KEY_BG_COLOR)
                         val originalChar = (v.tag as String)
-                        val outputText = getOutputText(originalChar)
 
-                        // Output each character (for multi-char symbols like \\)
-                        outputText.forEach { c ->
-                            onCharacterInput(c)
-                        }
+                        // Handle Ctrl+key combinations
+                        if (isCtrlActive && originalChar.length == 1 && originalChar[0].isLetter()) {
+                            val keyCode = getKeyCodeForChar(originalChar[0])
+                            if (keyCode != null) {
+                                onCtrlKeyPress?.invoke(keyCode)
+                            }
+                            // Clear Ctrl after use (one-shot)
+                            isCtrlActive = false
+                            updateCtrlKeyAppearance()
+                        } else {
+                            val outputText = getOutputText(originalChar)
 
-                        // Clear shift after typing (unless caps lock)
-                        if (isShifted && !isCapsLock) {
-                            isShifted = false
-                            updateShiftKeyAppearance()
-                            updateAllKeyLabels()
-                            onShiftStateChanged?.invoke(isShifted, isCapsLock)
-                        }
+                            // Output each character (for multi-char symbols like \\)
+                            outputText.forEach { c ->
+                                onCharacterInput(c)
+                            }
 
-                        // Clear alt mode after typing (unless alt locked)
-                        if (isAltMode && !isAltLocked) {
-                            isAltMode = false
-                            updateAltKeyAppearance()
-                            updateAllKeyLabels()
+                            // Clear shift after typing (unless caps lock)
+                            if (isShifted && !isCapsLock) {
+                                isShifted = false
+                                updateShiftKeyAppearance()
+                                updateAllKeyLabels()
+                                onShiftStateChanged?.invoke(isShifted, isCapsLock)
+                            }
+
+                            // Clear alt mode after typing (unless alt locked)
+                            if (isAltMode && !isAltLocked) {
+                                isAltMode = false
+                                updateAltKeyAppearance()
+                                updateAllKeyLabels()
+                            }
                         }
                         true
                     }
@@ -669,6 +745,117 @@ class VirtualKeyboardView(
                         true
                     }
                     MotionEvent.ACTION_CANCEL -> {
+                        background = createKeyBackground(KEY_BG_SPECIAL)
+                        true
+                    }
+                    else -> false
+                }
+            }
+        }
+    }
+
+    private fun createSymbolKey(label: String, weight: Float, onClick: () -> Unit): TextView {
+        return TextView(context).apply {
+            text = label
+            setTextColor(KEY_TEXT_COLOR)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, symbolKeyTextSize)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            background = createKeyBackground(KEY_BG_SPECIAL)
+
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                keyHeight,
+                weight
+            ).apply {
+                setMargins(keyMargin, keyMargin, keyMargin, keyMargin)
+            }
+
+            setOnTouchListener { v, event ->
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        playKeyPressFeedback(v)
+                        background = createKeyBackground(KEY_BG_PRESSED)
+                        true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        background = createKeyBackground(KEY_BG_SPECIAL)
+                        onClick()
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        background = createKeyBackground(KEY_BG_SPECIAL)
+                        true
+                    }
+                    else -> false
+                }
+            }
+        }
+    }
+
+    private fun createBackspaceKey(): TextView {
+        var deleteRepeatHandler: Handler? = null
+        var deleteRepeatRunnable: Runnable? = null
+        var isHolding = false
+
+        // Initial delay before repeat starts (ms)
+        val initialDelay = 400L
+        // Interval between repeats (ms)
+        val repeatInterval = 50L
+
+        return TextView(context).apply {
+            text = "⌫"
+            setTextColor(KEY_TEXT_COLOR)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, specialKeyTextSize)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            background = createKeyBackground(KEY_BG_SPECIAL)
+
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                keyHeight,
+                1.3f
+            ).apply {
+                setMargins(keyMargin, keyMargin, keyMargin, keyMargin)
+            }
+
+            setOnTouchListener { v, event ->
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        playKeyPressFeedback(v)
+                        background = createKeyBackground(KEY_BG_PRESSED)
+                        isHolding = true
+
+                        // Fire initial delete immediately
+                        onKeyPress(KeyEvent.KEYCODE_DEL, false)
+
+                        // Set up repeat handler
+                        deleteRepeatHandler = Handler(Looper.getMainLooper())
+                        deleteRepeatRunnable = object : Runnable {
+                            override fun run() {
+                                if (isHolding) {
+                                    onKeyPress(KeyEvent.KEYCODE_DEL, false)
+                                    deleteRepeatHandler?.postDelayed(this, repeatInterval)
+                                }
+                            }
+                        }
+                        // Start repeating after initial delay
+                        deleteRepeatHandler?.postDelayed(deleteRepeatRunnable!!, initialDelay)
+                        true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        isHolding = false
+                        deleteRepeatHandler?.removeCallbacks(deleteRepeatRunnable ?: return@setOnTouchListener true)
+                        deleteRepeatHandler = null
+                        deleteRepeatRunnable = null
+                        background = createKeyBackground(KEY_BG_SPECIAL)
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        isHolding = false
+                        deleteRepeatHandler?.removeCallbacks(deleteRepeatRunnable ?: return@setOnTouchListener true)
+                        deleteRepeatHandler = null
+                        deleteRepeatRunnable = null
                         background = createKeyBackground(KEY_BG_SPECIAL)
                         true
                     }
@@ -825,5 +1012,40 @@ class VirtualKeyboardView(
      */
     fun refreshTheme() {
         // Virtual keyboard colors are independent of the status bar theme - nothing to update
+    }
+
+    /**
+     * Returns the KeyEvent keycode for a given character.
+     */
+    private fun getKeyCodeForChar(char: Char): Int? {
+        return when (char.lowercaseChar()) {
+            'a' -> KeyEvent.KEYCODE_A
+            'b' -> KeyEvent.KEYCODE_B
+            'c' -> KeyEvent.KEYCODE_C
+            'd' -> KeyEvent.KEYCODE_D
+            'e' -> KeyEvent.KEYCODE_E
+            'f' -> KeyEvent.KEYCODE_F
+            'g' -> KeyEvent.KEYCODE_G
+            'h' -> KeyEvent.KEYCODE_H
+            'i' -> KeyEvent.KEYCODE_I
+            'j' -> KeyEvent.KEYCODE_J
+            'k' -> KeyEvent.KEYCODE_K
+            'l' -> KeyEvent.KEYCODE_L
+            'm' -> KeyEvent.KEYCODE_M
+            'n' -> KeyEvent.KEYCODE_N
+            'o' -> KeyEvent.KEYCODE_O
+            'p' -> KeyEvent.KEYCODE_P
+            'q' -> KeyEvent.KEYCODE_Q
+            'r' -> KeyEvent.KEYCODE_R
+            's' -> KeyEvent.KEYCODE_S
+            't' -> KeyEvent.KEYCODE_T
+            'u' -> KeyEvent.KEYCODE_U
+            'v' -> KeyEvent.KEYCODE_V
+            'w' -> KeyEvent.KEYCODE_W
+            'x' -> KeyEvent.KEYCODE_X
+            'y' -> KeyEvent.KEYCODE_Y
+            'z' -> KeyEvent.KEYCODE_Z
+            else -> null
+        }
     }
 }

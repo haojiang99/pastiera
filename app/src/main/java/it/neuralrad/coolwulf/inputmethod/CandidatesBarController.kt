@@ -142,6 +142,13 @@ class CandidatesBarController(
             candidatesStatusBar.onVirtualShiftStateChangedListener = value
         }
 
+    var onVirtualCtrlKeyPressListener: ((keyCode: Int) -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onVirtualCtrlKeyPressListener = value
+            candidatesStatusBar.onVirtualCtrlKeyPressListener = value
+        }
+
     fun getInputView(emojiMapText: String = ""): LinearLayout {
         return inputStatusBar.getOrCreateLayout(emojiMapText)
     }

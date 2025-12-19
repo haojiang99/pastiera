@@ -235,6 +235,9 @@ class StatusBarController(
     // Listener for virtual keyboard shift state changes
     var onVirtualShiftStateChangedListener: ((isShifted: Boolean, isCapsLock: Boolean) -> Unit)? = null
 
+    // Listener for virtual keyboard Ctrl+key combinations
+    var onVirtualCtrlKeyPressListener: ((keyCode: Int) -> Unit)? = null
+
     /**
      * Enables or disables the virtual keyboard.
      */
@@ -501,6 +504,9 @@ class StatusBarController(
                 },
                 onShiftStateChanged = { isShifted, isCapsLock ->
                     onVirtualShiftStateChangedListener?.invoke(isShifted, isCapsLock)
+                },
+                onCtrlKeyPress = { keyCode ->
+                    onVirtualCtrlKeyPressListener?.invoke(keyCode)
                 }
             )
             virtualKeyboardContainer?.addView(virtualKeyboardView?.ensureView())

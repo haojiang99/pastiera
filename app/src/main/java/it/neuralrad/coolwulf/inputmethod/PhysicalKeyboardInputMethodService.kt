@@ -1151,6 +1151,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
             updateStatusBarText()
         }
+        candidatesBarController.onVirtualCtrlKeyPressListener = { keyCode ->
+            handleVirtualCtrlKeyPress(keyCode)
+        }
 
         // Initialize virtual keyboard based on settings
         isVirtualKeyboardEnabled = SettingsManager.isVirtualKeyboardEnabled(this)
@@ -1883,6 +1886,52 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
             KeyEvent.KEYCODE_DEL -> {
+                // First check if next-word predictions are showing (no buffer but suggestions visible)
+                // If so, clear them without deleting text
+                val hasNextWordPredictions = when {
+                    pinyinInputController.isPinyinMode() && pinyinInputController.getBuffer().isEmpty() &&
+                        pinyinInputController.isShowingNextWordPredictions() -> true
+                    shuangpinInputController.isShuangpinMode() && shuangpinInputController.getBuffer().isEmpty() &&
+                        shuangpinInputController.isShowingNextWordPredictions() -> true
+                    wubiInputController.isWubiMode() && wubiInputController.getBuffer().isEmpty() &&
+                        wubiInputController.isShowingNextWordPredictions() -> true
+                    zhenmaInputController.isZhenmaMode() && zhenmaInputController.getBuffer().isEmpty() &&
+                        zhenmaInputController.isShowingNextWordPredictions() -> true
+                    ziranmaInputController.isZiranmaMode() && ziranmaInputController.getBuffer().isEmpty() &&
+                        ziranmaInputController.isShowingNextWordPredictions() -> true
+                    else -> {
+                        // Only check English predictions if NOT in any Chinese input mode
+                        val inChineseMode = pinyinInputController.isPinyinMode() ||
+                            shuangpinInputController.isShuangpinMode() ||
+                            wubiInputController.isWubiMode() ||
+                            zhenmaInputController.isZhenmaMode() ||
+                            ziranmaInputController.isZiranmaMode()
+                        if (!inChineseMode) {
+                            val snapshot = englishWordPredictionController.getSnapshot()
+                            snapshot.hasSuggestions && snapshot.isNextWordPrediction
+                        } else {
+                            false
+                        }
+                    }
+                }
+
+                if (hasNextWordPredictions) {
+                    // Clear next-word predictions without deleting text
+                    when {
+                        pinyinInputController.isPinyinMode() -> pinyinInputController.clearNextWordPredictions()
+                        shuangpinInputController.isShuangpinMode() -> shuangpinInputController.clearNextWordPredictions()
+                        wubiInputController.isWubiMode() -> wubiInputController.clearNextWordPredictions()
+                        zhenmaInputController.isZhenmaMode() -> zhenmaInputController.clearNextWordPredictions()
+                        ziranmaInputController.isZiranmaMode() -> ziranmaInputController.clearNextWordPredictions()
+                        else -> {
+                            englishWordPredictionController.clearNextWordPredictions()
+                            englishWordPredictionController.clearSuggestions()
+                        }
+                    }
+                    updateStatusBarText()
+                    return  // Don't delete text, just cleared predictions
+                }
+
                 // Handle backspace with cursor-aware deletion
                 if (pinyinInputController.getBuffer().isNotEmpty()) {
                     // Get cursor position within composing text
@@ -1995,13 +2044,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         ic.setComposingText("", 1)
                     }
                 } else {
-                    // Delete character from text
-                    val selectedText = ic.getSelectedText(0)
-                    if (selectedText != null && selectedText.isNotEmpty()) {
-                        ic.commitText("", 1)
-                    } else {
-                        ic.deleteSurroundingText(1, 0)
-                    }
+                    // Delete character from text - send key event directly to InputConnection
+                    // for proper newline handling (sendDownUpKeyEvents may not work in all apps)
+                    val eventTime = android.os.SystemClock.uptimeMillis()
+                    ic.sendKeyEvent(KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL, 0))
+                    ic.sendKeyEvent(KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL, 0))
                 }
             }
             KeyEvent.KEYCODE_ENTER -> {
@@ -2057,11 +2104,39 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         }
                     }
                 }
-                // No buffer to commit or not in Chinese mode - send enter key event
-                sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+                // No buffer to commit or not in Chinese mode
+                // Try to perform editor action (Send, Search, Go, Done, etc.) first
+                if (!handleEnterAction(ic)) {
+                    // No action performed - send enter key event for newline
+                    sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+                }
             }
         }
         updateStatusBarText()
+    }
+
+    /**
+     * Handles Ctrl+key combinations from the virtual keyboard.
+     * @param keyCode The key code to combine with Ctrl (e.g., KEYCODE_A, KEYCODE_C, KEYCODE_V)
+     */
+    private fun handleVirtualCtrlKeyPress(keyCode: Int) {
+        val ic = currentInputConnection ?: return
+
+        // Send Ctrl+key event by simulating key down and up with CTRL meta state
+        val eventTime = android.os.SystemClock.uptimeMillis()
+        val metaState = KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON
+
+        val downEvent = KeyEvent(
+            eventTime, eventTime,
+            KeyEvent.ACTION_DOWN, keyCode, 0, metaState
+        )
+        val upEvent = KeyEvent(
+            eventTime, eventTime,
+            KeyEvent.ACTION_UP, keyCode, 0, metaState
+        )
+
+        ic.sendKeyEvent(downEvent)
+        ic.sendKeyEvent(upEvent)
     }
 
     /**
