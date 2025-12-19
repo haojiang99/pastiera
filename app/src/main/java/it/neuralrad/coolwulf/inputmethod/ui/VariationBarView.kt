@@ -943,8 +943,8 @@ class VariationBarView(
             buttonX += individualButtonWidth + spacingBetweenButtons
         }
 
-        // Update wrapper height to fit the tallest button with padding
-        if (maxActualButtonHeight > 0) {
+        // Update wrapper height to fit the tallest button with padding (only when auto-adjust is enabled)
+        if (autoAdjustEnabled && maxActualButtonHeight > 0) {
             val neededWrapperHeight = maxActualButtonHeight + dp4ForCalc * 2
             val adjustedWrapperHeight = maxOf(statusBarHeightPx, neededWrapperHeight)
             wrapper?.let { w ->
@@ -989,8 +989,8 @@ class VariationBarView(
                 val prevArrow = prevArrowButton ?: createArrowButton(arrowButtonSize, isNext = false).also {
                     prevArrowButton = it
                 }
-                // Use maxActualButtonHeight to match suggestion button heights (or stableButtonHeight as fallback)
-                val arrowHeight = if (maxActualButtonHeight > 0) maxActualButtonHeight else stableButtonHeight
+                // Use maxActualButtonHeight when auto-adjust enabled, otherwise use stableButtonHeight
+                val arrowHeight = if (autoAdjustEnabled && maxActualButtonHeight > 0) maxActualButtonHeight else stableButtonHeight
                 val prevParams = LinearLayout.LayoutParams(arrowButtonSize, arrowHeight).apply {
                     marginStart = TypedValue.applyDimension(
                         TypedValue.COMPLEX_UNIT_DIP,
@@ -1017,8 +1017,8 @@ class VariationBarView(
                 val nextArrow = nextArrowButton ?: createArrowButton(arrowButtonSize, isNext = true).also {
                     nextArrowButton = it
                 }
-                // Use maxActualButtonHeight to match suggestion button heights (or stableButtonHeight as fallback)
-                val arrowHeight = if (maxActualButtonHeight > 0) maxActualButtonHeight else stableButtonHeight
+                // Use maxActualButtonHeight when auto-adjust enabled, otherwise use stableButtonHeight
+                val arrowHeight = if (autoAdjustEnabled && maxActualButtonHeight > 0) maxActualButtonHeight else stableButtonHeight
                 val nextParams = LinearLayout.LayoutParams(arrowButtonSize, arrowHeight).apply {
                     marginStart = TypedValue.applyDimension(
                         TypedValue.COMPLEX_UNIT_DIP,
