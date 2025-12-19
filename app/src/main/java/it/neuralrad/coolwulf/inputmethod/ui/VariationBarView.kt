@@ -79,6 +79,7 @@ class VariationBarView(
     private var isChinesePunctuationMode: Boolean = true
     private var isTraditionalChineseMode: Boolean = false
     private var isTraditionalChineseToggleEnabled: Boolean = false
+    private var isVirtualShiftActive: Boolean = false
     private var prevArrowButton: ImageView? = null
     private var nextArrowButton: ImageView? = null
     private var container: LinearLayout? = null
@@ -264,6 +265,17 @@ class VariationBarView(
         if (isTraditionalChineseToggleEnabled != enabled) {
             isTraditionalChineseToggleEnabled = enabled
             // Toggle button visibility will be handled in ensureView
+        }
+    }
+
+    /**
+     * Sets the virtual keyboard shift state. When shift is active, punctuation buttons
+     * show the shifted variants (e.g., ? and ! instead of , and .).
+     */
+    fun setVirtualShiftState(isShifted: Boolean) {
+        if (isVirtualShiftActive != isShifted) {
+            isVirtualShiftActive = isShifted
+            // The punctuation buttons will be updated on the next updateVariations call
         }
     }
 
@@ -596,9 +608,15 @@ class VariationBarView(
                     SettingsManager.isJuyingPunctuationButtons(context) &&
                     suggestionLayouts.isNotEmpty()
 
-                // Get the custom punctuation from settings
-                val leftPunctuationEnglish = SettingsManager.getJuyingPunctuationLeft(context)
-                val rightPunctuationEnglish = SettingsManager.getJuyingPunctuationRight(context)
+                // Get the custom punctuation from settings - use shifted variants when shift is active
+                val leftPunctuationEnglish = if (isVirtualShiftActive)
+                    SettingsManager.getJuyingPunctuationLeftShifted(context)
+                else
+                    SettingsManager.getJuyingPunctuationLeft(context)
+                val rightPunctuationEnglish = if (isVirtualShiftActive)
+                    SettingsManager.getJuyingPunctuationRightShifted(context)
+                else
+                    SettingsManager.getJuyingPunctuationRight(context)
                 // Convert to Chinese if in Chinese punctuation mode
                 val leftPunctuation = if (isChinesePunctuationMode)
                     SettingsManager.getChinesePunctuation(leftPunctuationEnglish)
@@ -2042,9 +2060,9 @@ class VariationBarView(
             }
 
             // For suggestion phrases, auto-adjust font size to fit button with multi-line wrapping
-            // Use reasonable minimum font size (not too small)
-            val minReadableFontSizeSp = 10f
-            val maxFontSizeSp = 16f
+            // Use font size settings from configuration
+            val minReadableFontSizeSp = SettingsManager.getSuggestionMinFontSize(context).toFloat()
+            val maxFontSizeSp = SettingsManager.getCandidateFontSize(context).toFloat()
 
             // Calculate available space
             val availableTextWidth = buttonWidth - dp6 * 2

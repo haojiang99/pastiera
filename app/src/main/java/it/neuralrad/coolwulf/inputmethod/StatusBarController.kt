@@ -263,6 +263,8 @@ class StatusBarController(
      */
     fun updateVirtualKeyboardShiftState(shifted: Boolean, capsLock: Boolean) {
         virtualKeyboardView?.setShiftState(shifted, capsLock)
+        // Also update the variation bar so punctuation buttons can update
+        variationBarView?.setVirtualShiftState(shifted || capsLock)
     }
 
     /**

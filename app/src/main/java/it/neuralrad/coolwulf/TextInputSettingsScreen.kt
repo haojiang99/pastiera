@@ -216,8 +216,16 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getJuyingPunctuationRight(context))
     }
 
+    var juyingPunctuationLeftShifted by remember {
+        mutableStateOf(SettingsManager.getJuyingPunctuationLeftShifted(context))
+    }
+
+    var juyingPunctuationRightShifted by remember {
+        mutableStateOf(SettingsManager.getJuyingPunctuationRightShifted(context))
+    }
+
     var showPunctuationDialog by remember { mutableStateOf(false) }
-    var editingPunctuationPosition by remember { mutableStateOf("left") } // "left" or "right"
+    var editingPunctuationPosition by remember { mutableStateOf("left") } // "left", "right", "left_shifted", "right_shifted"
 
     var touchpadPageEnabled by remember {
         mutableStateOf(SettingsManager.getTouchpadPageEnabled(context))
@@ -2300,6 +2308,96 @@ fun TextInputSettingsScreen(
                                 )
                             }
                         }
+
+                        // Left punctuation when Shift is active
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .clickable {
+                                    editingPunctuationPosition = "left_shifted"
+                                    showPunctuationDialog = true
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Spacer(modifier = Modifier.width(24.dp)) // Indent
+                                Spacer(modifier = Modifier.width(16.dp)) // Extra indent
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.punctuation_left_shifted_title),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.punctuation_left_shifted_description),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                }
+                                Text(
+                                    text = "$juyingPunctuationLeftShifted / ${SettingsManager.getChinesePunctuation(juyingPunctuationLeftShifted)}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Icon(
+                                    imageVector = Icons.Filled.ChevronRight,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // Right punctuation when Shift is active
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .clickable {
+                                    editingPunctuationPosition = "right_shifted"
+                                    showPunctuationDialog = true
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Spacer(modifier = Modifier.width(24.dp)) // Indent
+                                Spacer(modifier = Modifier.width(16.dp)) // Extra indent
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.punctuation_right_shifted_title),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.punctuation_right_shifted_description),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                }
+                                Text(
+                                    text = "$juyingPunctuationRightShifted / ${SettingsManager.getChinesePunctuation(juyingPunctuationRightShifted)}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Icon(
+                                    imageVector = Icons.Filled.ChevronRight,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -3815,16 +3913,25 @@ fun TextInputSettingsScreen(
     // Punctuation selection dialog
     if (showPunctuationDialog) {
         val punctuationOptions = listOf(",", ".", "?", "!", ";", ":", "'", "\"", "-", "/", "(", ")")
-        val currentPunctuation = if (editingPunctuationPosition == "left") juyingPunctuationLeft else juyingPunctuationRight
+        val currentPunctuation = when (editingPunctuationPosition) {
+            "left" -> juyingPunctuationLeft
+            "right" -> juyingPunctuationRight
+            "left_shifted" -> juyingPunctuationLeftShifted
+            "right_shifted" -> juyingPunctuationRightShifted
+            else -> juyingPunctuationLeft
+        }
 
         AlertDialog(
             onDismissRequest = { showPunctuationDialog = false },
             title = {
                 Text(
-                    if (editingPunctuationPosition == "left")
-                        stringResource(R.string.punctuation_left_title)
-                    else
-                        stringResource(R.string.punctuation_right_title)
+                    when (editingPunctuationPosition) {
+                        "left" -> stringResource(R.string.punctuation_left_title)
+                        "right" -> stringResource(R.string.punctuation_right_title)
+                        "left_shifted" -> stringResource(R.string.punctuation_left_shifted_title)
+                        "right_shifted" -> stringResource(R.string.punctuation_right_shifted_title)
+                        else -> stringResource(R.string.punctuation_left_title)
+                    }
                 )
             },
             text = {
@@ -3853,12 +3960,23 @@ fun TextInputSettingsScreen(
                                         .weight(1f)
                                         .padding(horizontal = 4.dp)
                                         .clickable {
-                                            if (editingPunctuationPosition == "left") {
-                                                juyingPunctuationLeft = punct
-                                                SettingsManager.setJuyingPunctuationLeft(context, punct)
-                                            } else {
-                                                juyingPunctuationRight = punct
-                                                SettingsManager.setJuyingPunctuationRight(context, punct)
+                                            when (editingPunctuationPosition) {
+                                                "left" -> {
+                                                    juyingPunctuationLeft = punct
+                                                    SettingsManager.setJuyingPunctuationLeft(context, punct)
+                                                }
+                                                "right" -> {
+                                                    juyingPunctuationRight = punct
+                                                    SettingsManager.setJuyingPunctuationRight(context, punct)
+                                                }
+                                                "left_shifted" -> {
+                                                    juyingPunctuationLeftShifted = punct
+                                                    SettingsManager.setJuyingPunctuationLeftShifted(context, punct)
+                                                }
+                                                "right_shifted" -> {
+                                                    juyingPunctuationRightShifted = punct
+                                                    SettingsManager.setJuyingPunctuationRightShifted(context, punct)
+                                                }
                                             }
                                             showPunctuationDialog = false
                                         },

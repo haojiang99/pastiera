@@ -118,6 +118,8 @@ object SettingsManager {
     private const val KEY_JUYING_PUNCTUATION_BUTTONS = "juying_punctuation_buttons" // Show comma/period buttons on sides in Juying mode
     private const val KEY_JUYING_PUNCTUATION_LEFT = "juying_punctuation_left" // Left punctuation (Shift position)
     private const val KEY_JUYING_PUNCTUATION_RIGHT = "juying_punctuation_right" // Right punctuation (Alt position)
+    private const val KEY_JUYING_PUNCTUATION_LEFT_SHIFTED = "juying_punctuation_left_shifted" // Left punctuation when Shift active
+    private const val KEY_JUYING_PUNCTUATION_RIGHT_SHIFTED = "juying_punctuation_right_shifted" // Right punctuation when Shift active
     private const val KEY_STATUS_BAR_THEME = "status_bar_theme" // Status bar theme ID
     private const val KEY_DAY_NIGHT_THEME_ENABLED = "day_night_theme_enabled" // Enable automatic day/night theme switching
     private const val KEY_DAY_THEME = "day_theme" // Theme ID to use during daytime
@@ -249,6 +251,8 @@ object SettingsManager {
     private const val DEFAULT_JUYING_PUNCTUATION_BUTTONS = false  // Punctuation buttons hidden by default
     private const val DEFAULT_JUYING_PUNCTUATION_LEFT = ","  // Default left punctuation (comma)
     private const val DEFAULT_JUYING_PUNCTUATION_RIGHT = "."  // Default right punctuation (period)
+    private const val DEFAULT_JUYING_PUNCTUATION_LEFT_SHIFTED = "?"  // Default left punctuation when Shift active
+    private const val DEFAULT_JUYING_PUNCTUATION_RIGHT_SHIFTED = "!"  // Default right punctuation when Shift active
     // Titan 2 default Juying keys
     private const val DEFAULT_JUYING_KEY_1 = KeyEvent.KEYCODE_SHIFT_LEFT // Shift (Candidate 2)
     private const val DEFAULT_JUYING_KEY_2 = KeyEvent.KEYCODE_SYM // Sym (Candidate 3)
@@ -2626,6 +2630,40 @@ object SettingsManager {
     fun setJuyingPunctuationRight(context: Context, punctuation: String) {
         getPreferences(context).edit()
             .putString(KEY_JUYING_PUNCTUATION_RIGHT, punctuation)
+            .apply()
+    }
+
+    /**
+     * Gets the left punctuation character when Shift is active.
+     */
+    fun getJuyingPunctuationLeftShifted(context: Context): String {
+        return getPreferences(context).getString(KEY_JUYING_PUNCTUATION_LEFT_SHIFTED, DEFAULT_JUYING_PUNCTUATION_LEFT_SHIFTED)
+            ?: DEFAULT_JUYING_PUNCTUATION_LEFT_SHIFTED
+    }
+
+    /**
+     * Sets the left punctuation character when Shift is active.
+     */
+    fun setJuyingPunctuationLeftShifted(context: Context, punctuation: String) {
+        getPreferences(context).edit()
+            .putString(KEY_JUYING_PUNCTUATION_LEFT_SHIFTED, punctuation)
+            .apply()
+    }
+
+    /**
+     * Gets the right punctuation character when Shift is active.
+     */
+    fun getJuyingPunctuationRightShifted(context: Context): String {
+        return getPreferences(context).getString(KEY_JUYING_PUNCTUATION_RIGHT_SHIFTED, DEFAULT_JUYING_PUNCTUATION_RIGHT_SHIFTED)
+            ?: DEFAULT_JUYING_PUNCTUATION_RIGHT_SHIFTED
+    }
+
+    /**
+     * Sets the right punctuation character when Shift is active.
+     */
+    fun setJuyingPunctuationRightShifted(context: Context, punctuation: String) {
+        getPreferences(context).edit()
+            .putString(KEY_JUYING_PUNCTUATION_RIGHT_SHIFTED, punctuation)
             .apply()
     }
 
