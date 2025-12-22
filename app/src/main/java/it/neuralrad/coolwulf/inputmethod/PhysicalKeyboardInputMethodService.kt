@@ -194,8 +194,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     // Track if Alt was just used for candidate selection (ignore Alt until key released)
     private var altUsedForCandidateSelection: Boolean = false
 
-    // Track if we just cleared next-word predictions due to Shift+letter (prevent re-triggering)
-    private var justClearedNextWordPredictions: Boolean = false
+    // Track if we just cleared next-word predictions due to Shift+letter or DEL (prevent re-triggering)
+    // Uses a counter: 0 = allow updates, >0 = skip this many update cycles
+    private var skipNextWordPredictionUpdates: Int = 0
 
     // Saved state when Alt is pressed in Juying mode (instant selection with undo on double-click)
     // On Alt DOWN: immediately commit suggestion, save state for undo
@@ -1927,10 +1928,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         zhenmaInputController.isZhenmaMode() -> zhenmaInputController.clearNextWordPredictions()
                         ziranmaInputController.isZiranmaMode() -> ziranmaInputController.clearNextWordPredictions()
                         else -> {
+                            englishWordPredictionController.onBackspaceInput()
                             englishWordPredictionController.clearNextWordPredictions()
                             englishWordPredictionController.clearSuggestions()
                         }
                     }
+                    // Skip next update cycle to prevent predictions from being repopulated
+                    skipNextWordPredictionUpdates = 1
                     updateStatusBarText()
                     return  // Don't delete text, just cleared predictions
                 }
@@ -2275,7 +2279,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val zhenmaSnapshot = zhenmaInputController.getSnapshot()
 
         // Update English word prediction from cursor position
-        englishWordPredictionController.updateFromCursor(currentInputConnection)
+        // Skip if we just cleared next-word predictions (e.g., from DEL key)
+        if (skipNextWordPredictionUpdates > 0) {
+            skipNextWordPredictionUpdates--
+        } else {
+            englishWordPredictionController.updateFromCursor(currentInputConnection)
+        }
         val wordPredictionSnapshot = englishWordPredictionController.getSnapshot()
 
         // Determine which variations to show:
@@ -3166,12 +3175,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Also handle DEL to clear English next-word predictions
         if (juyingModeEnabled && hasAnyCandidates && event?.repeatCount == 0) {
             // Handle DEL to clear English next-word predictions AND perform backspace
-            if (keyCode == KeyEvent.KEYCODE_DEL && hasWordPredictions && currentInputConnection != null) {
+            if (translatedKeyCode == KeyEvent.KEYCODE_DEL && hasWordPredictions && currentInputConnection != null) {
                 val snapshot = englishWordPredictionController.getSnapshot()
                 if (snapshot.hasSuggestions && snapshot.isNextWordPrediction) {
                     englishWordPredictionController.onBackspaceInput()
                     englishWordPredictionController.clearNextWordPredictions()
                     englishWordPredictionController.clearSuggestions()
+                    // Skip next 2 update cycles: one for updateStatusBarText below, one for onUpdateSelection callback
+                    skipNextWordPredictionUpdates = 2
                     updateStatusBarText()
                     // Don't consume the key - let backspace happen too
                     // Fall through to normal DEL/backspace handling
@@ -4256,28 +4267,30 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
 
-        // Handle DEL to clear English next-word predictions AND perform backspace
+        // Handle DEL when English next-word predictions are showing
+        // Clear predictions and let the DEL key delete the space (don't consume the key)
         // Check this BEFORE Chinese input mode handling since Juying mode can show English predictions
-        if (keyCode == KeyEvent.KEYCODE_DEL && ic != null) {
+        if (translatedKeyCode == KeyEvent.KEYCODE_DEL && ic != null && !isChineseInputModeActive()) {
             val snapshot = englishWordPredictionController.getSnapshot()
             if (snapshot.hasSuggestions && snapshot.isNextWordPrediction) {
                 englishWordPredictionController.onBackspaceInput()
                 englishWordPredictionController.clearNextWordPredictions()
                 englishWordPredictionController.clearSuggestions()
+                // Skip next 2 update cycles: one for updateStatusBarText below, one for onUpdateSelection callback
+                skipNextWordPredictionUpdates = 2
                 updateStatusBarText()
-                // Don't return - let backspace handling continue below
+                // Don't return here - let the DEL key be processed normally to delete the space
             }
         }
 
         // Handle English word prediction (when NOT in Chinese input mode)
         if (!isChineseInputModeActive() && ic != null) {
             // Update suggestions from current cursor position
-            // Skip if we just cleared predictions due to Shift+letter (let them stay cleared)
-            if (!justClearedNextWordPredictions) {
-                englishWordPredictionController.updateFromCursor(ic)
+            // Skip if we just cleared predictions due to Shift+letter or DEL (let them stay cleared)
+            if (skipNextWordPredictionUpdates > 0) {
+                skipNextWordPredictionUpdates--
             } else {
-                // Clear the flag after one key event so predictions can resume normally
-                justClearedNextWordPredictions = false
+                englishWordPredictionController.updateFromCursor(ic)
             }
 
             if (englishWordPredictionController.hasSuggestions()) {
@@ -4318,7 +4331,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // Clear the predictions without committing anything
                         englishWordPredictionController.clearSuggestions()
                         englishWordPredictionController.clearNextWordPredictions()  // Also clear predictor state
-                        justClearedNextWordPredictions = true  // Flag to prevent re-triggering
+                        skipNextWordPredictionUpdates = 1  // Skip next update cycle to prevent re-triggering
                         updateStatusBarText()
                         // Don't return - let normal letter handling with Shift occur (will type capital letter)
                     }
