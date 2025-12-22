@@ -541,8 +541,8 @@ fun CustomThemeEditorScreen(
                 }
             }
 
-            // Color list
-            val colorItems = listOf(
+            // Status Bar Color list
+            val statusBarColorItems = listOf(
                 "backgroundColor" to R.string.theme_color_background,
                 "textColor" to R.string.theme_color_text,
                 "textColorSecondary" to R.string.theme_color_text_secondary,
@@ -560,7 +560,201 @@ fun CustomThemeEditorScreen(
                 "ledInactiveColor" to R.string.theme_color_led_inactive
             )
 
-            colorItems.forEach { (key, labelResId) ->
+            statusBarColorItems.forEach { (key, labelResId) ->
+                ColorPickerRow(
+                    label = stringResource(labelResId),
+                    color = colors[key] ?: Color.Black,
+                    onClick = {
+                        editingColorKey = key
+                        val hsv = colorToHsv(colors[key] ?: Color.Black)
+                        pickerHue = hsv[0]
+                        pickerSaturation = hsv[1]
+                        pickerValue = hsv[2]
+                        pickerAlpha = (colors[key]?.alpha ?: 1f)
+                        showColorPicker = true
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Virtual Keyboard Colors Section Header
+            Text(
+                text = stringResource(R.string.theme_color_virtual_keyboard_section),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            // Virtual Keyboard Preview
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = colors["virtualKeyboardBackgroundColor"] ?: Color(0xFF1E1E23)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp)
+                ) {
+                    // Top row of keys
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P").forEach { key ->
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(32.dp)
+                                    .background(
+                                        colors["virtualKeyBackgroundColor"] ?: Color(0xFF3C3C41),
+                                        RoundedCornerShape(4.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = key,
+                                    color = colors["virtualKeyTextColor"] ?: Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Second row with special keys
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        // Shift key (special)
+                        Box(
+                            modifier = Modifier
+                                .weight(1.5f)
+                                .height(32.dp)
+                                .background(
+                                    colors["virtualKeySpecialColor"] ?: Color(0xFF2D2D32),
+                                    RoundedCornerShape(4.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "⇧",
+                                color = colors["virtualKeyTextColor"] ?: Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        // Regular keys
+                        listOf("A", "S", "D", "F", "G").forEach { key ->
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(32.dp)
+                                    .background(
+                                        colors["virtualKeyBackgroundColor"] ?: Color(0xFF3C3C41),
+                                        RoundedCornerShape(4.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = key,
+                                    color = colors["virtualKeyTextColor"] ?: Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                        // Pressed key
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(32.dp)
+                                .background(
+                                    colors["virtualKeyPressedColor"] ?: Color(0xFF64646E),
+                                    RoundedCornerShape(4.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "H",
+                                color = colors["virtualKeyTextColor"] ?: Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        // Backspace key (special)
+                        Box(
+                            modifier = Modifier
+                                .weight(1.5f)
+                                .height(32.dp)
+                                .background(
+                                    colors["virtualKeySpecialColor"] ?: Color(0xFF2D2D32),
+                                    RoundedCornerShape(4.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "⌫",
+                                color = colors["virtualKeyTextColor"] ?: Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Key popup preview
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Popup:",
+                            color = colors["virtualKeyTextColor"]?.copy(alpha = 0.6f) ?: Color.White.copy(alpha = 0.6f),
+                            fontSize = 10.sp,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(
+                                    colors["virtualKeyPopupBackgroundColor"] ?: Color(0xFF50505A),
+                                    RoundedCornerShape(6.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "H",
+                                color = colors["virtualKeyPopupTextColor"] ?: Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Virtual Keyboard Color list
+            val virtualKeyboardColorItems = listOf(
+                "virtualKeyboardBackgroundColor" to R.string.theme_color_virtual_keyboard_bg,
+                "virtualKeyBackgroundColor" to R.string.theme_color_virtual_key_bg,
+                "virtualKeyPressedColor" to R.string.theme_color_virtual_key_pressed,
+                "virtualKeySpecialColor" to R.string.theme_color_virtual_key_special,
+                "virtualKeyTextColor" to R.string.theme_color_virtual_key_text,
+                "virtualKeyPopupBackgroundColor" to R.string.theme_color_virtual_key_popup_bg,
+                "virtualKeyPopupTextColor" to R.string.theme_color_virtual_key_popup_text
+            )
+
+            virtualKeyboardColorItems.forEach { (key, labelResId) ->
                 ColorPickerRow(
                     label = stringResource(labelResId),
                     color = colors[key] ?: Color.Black,
@@ -847,5 +1041,12 @@ private val colorItems = listOf(
     "iconInactiveColor" to R.string.theme_color_icon_inactive,
     "ledActiveColor" to R.string.theme_color_led_active,
     "ledLockedColor" to R.string.theme_color_led_locked,
-    "ledInactiveColor" to R.string.theme_color_led_inactive
+    "ledInactiveColor" to R.string.theme_color_led_inactive,
+    "virtualKeyboardBackgroundColor" to R.string.theme_color_virtual_keyboard_bg,
+    "virtualKeyBackgroundColor" to R.string.theme_color_virtual_key_bg,
+    "virtualKeyPressedColor" to R.string.theme_color_virtual_key_pressed,
+    "virtualKeySpecialColor" to R.string.theme_color_virtual_key_special,
+    "virtualKeyTextColor" to R.string.theme_color_virtual_key_text,
+    "virtualKeyPopupBackgroundColor" to R.string.theme_color_virtual_key_popup_bg,
+    "virtualKeyPopupTextColor" to R.string.theme_color_virtual_key_popup_text
 )

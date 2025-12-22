@@ -33,7 +33,15 @@ data class StatusBarTheme(
     val iconInactiveColor: Int,
     val ledActiveColor: Int,
     val ledLockedColor: Int,
-    val ledInactiveColor: Int
+    val ledInactiveColor: Int,
+    // Virtual keyboard colors
+    val virtualKeyboardBackgroundColor: Int = Color.argb(255, 30, 30, 35),
+    val virtualKeyBackgroundColor: Int = Color.argb(255, 60, 60, 65),
+    val virtualKeyPressedColor: Int = Color.argb(255, 100, 100, 110),
+    val virtualKeySpecialColor: Int = Color.argb(255, 45, 45, 50),
+    val virtualKeyTextColor: Int = Color.WHITE,
+    val virtualKeyPopupBackgroundColor: Int = Color.argb(255, 80, 80, 90),
+    val virtualKeyPopupTextColor: Int = Color.WHITE
 ) {
     companion object {
         // Classic Dark (Default) - The original black theme
@@ -55,7 +63,14 @@ data class StatusBarTheme(
             iconInactiveColor = Color.rgb(100, 100, 100),
             ledActiveColor = Color.rgb(100, 150, 255),
             ledLockedColor = Color.rgb(247, 99, 0),
-            ledInactiveColor = Color.argb(26, 255, 255, 255)
+            ledInactiveColor = Color.argb(26, 255, 255, 255),
+            virtualKeyboardBackgroundColor = Color.argb(255, 30, 30, 35),
+            virtualKeyBackgroundColor = Color.argb(255, 60, 60, 65),
+            virtualKeyPressedColor = Color.argb(255, 100, 100, 110),
+            virtualKeySpecialColor = Color.argb(255, 45, 45, 50),
+            virtualKeyTextColor = Color.WHITE,
+            virtualKeyPopupBackgroundColor = Color.argb(255, 80, 80, 90),
+            virtualKeyPopupTextColor = Color.WHITE
         )
 
         // Ocean Blue - Modern blue gradient feel
@@ -77,7 +92,14 @@ data class StatusBarTheme(
             iconInactiveColor = Color.rgb(80, 100, 130),
             ledActiveColor = Color.rgb(72, 202, 228),
             ledLockedColor = Color.rgb(255, 107, 107),
-            ledInactiveColor = Color.argb(30, 72, 202, 228)
+            ledInactiveColor = Color.argb(30, 72, 202, 228),
+            virtualKeyboardBackgroundColor = Color.parseColor("#0D1B2A"),
+            virtualKeyBackgroundColor = Color.parseColor("#1B263B"),
+            virtualKeyPressedColor = Color.parseColor("#2E4A6B"),
+            virtualKeySpecialColor = Color.parseColor("#152238"),
+            virtualKeyTextColor = Color.rgb(200, 220, 255),
+            virtualKeyPopupBackgroundColor = Color.parseColor("#1E3A5F"),
+            virtualKeyPopupTextColor = Color.WHITE
         )
 
         // Midnight Purple - Elegant purple theme
@@ -99,7 +121,14 @@ data class StatusBarTheme(
             iconInactiveColor = Color.rgb(100, 80, 130),
             ledActiveColor = Color.rgb(187, 134, 252),
             ledLockedColor = Color.rgb(255, 82, 82),
-            ledInactiveColor = Color.argb(30, 187, 134, 252)
+            ledInactiveColor = Color.argb(30, 187, 134, 252),
+            virtualKeyboardBackgroundColor = Color.parseColor("#1A1A2E"),
+            virtualKeyBackgroundColor = Color.parseColor("#2D2D48"),
+            virtualKeyPressedColor = Color.parseColor("#4A3A6E"),
+            virtualKeySpecialColor = Color.parseColor("#232338"),
+            virtualKeyTextColor = Color.rgb(220, 200, 255),
+            virtualKeyPopupBackgroundColor = Color.parseColor("#2D1B4E"),
+            virtualKeyPopupTextColor = Color.WHITE
         )
 
         // Forest Green - Natural green theme
@@ -121,7 +150,14 @@ data class StatusBarTheme(
             iconInactiveColor = Color.rgb(80, 130, 80),
             ledActiveColor = Color.rgb(102, 204, 102),
             ledLockedColor = Color.rgb(255, 152, 0),
-            ledInactiveColor = Color.argb(30, 102, 204, 102)
+            ledInactiveColor = Color.argb(30, 102, 204, 102),
+            virtualKeyboardBackgroundColor = Color.parseColor("#0D1F0D"),
+            virtualKeyBackgroundColor = Color.parseColor("#1A2E1A"),
+            virtualKeyPressedColor = Color.parseColor("#2E4A2E"),
+            virtualKeySpecialColor = Color.parseColor("#142614"),
+            virtualKeyTextColor = Color.rgb(200, 255, 200),
+            virtualKeyPopupBackgroundColor = Color.parseColor("#1E3D1E"),
+            virtualKeyPopupTextColor = Color.WHITE
         )
 
         // Sunset Orange - Warm orange/coral theme
@@ -143,7 +179,14 @@ data class StatusBarTheme(
             iconInactiveColor = Color.rgb(130, 90, 70),
             ledActiveColor = Color.rgb(255, 138, 101),
             ledLockedColor = Color.rgb(255, 82, 82),
-            ledInactiveColor = Color.argb(30, 255, 138, 101)
+            ledInactiveColor = Color.argb(30, 255, 138, 101),
+            virtualKeyboardBackgroundColor = Color.parseColor("#1F1410"),
+            virtualKeyBackgroundColor = Color.parseColor("#2E1A14"),
+            virtualKeyPressedColor = Color.parseColor("#4A2E20"),
+            virtualKeySpecialColor = Color.parseColor("#261812"),
+            virtualKeyTextColor = Color.rgb(255, 220, 200),
+            virtualKeyPopupBackgroundColor = Color.parseColor("#3D2418"),
+            virtualKeyPopupTextColor = Color.WHITE
         )
 
         // Rose Gold - Elegant pink/rose theme
@@ -165,7 +208,14 @@ data class StatusBarTheme(
             iconInactiveColor = Color.rgb(130, 90, 100),
             ledActiveColor = Color.rgb(255, 145, 164),
             ledLockedColor = Color.rgb(255, 82, 82),
-            ledInactiveColor = Color.argb(30, 255, 145, 164)
+            ledInactiveColor = Color.argb(30, 255, 145, 164),
+            virtualKeyboardBackgroundColor = Color.parseColor("#1A1418"),
+            virtualKeyBackgroundColor = Color.parseColor("#2E2428"),
+            virtualKeyPressedColor = Color.parseColor("#4A3A40"),
+            virtualKeySpecialColor = Color.parseColor("#221C20"),
+            virtualKeyTextColor = Color.rgb(255, 210, 220),
+            virtualKeyPopupBackgroundColor = Color.parseColor("#3D2430"),
+            virtualKeyPopupTextColor = Color.WHITE
         )
 
         // Charcoal Gray - Sophisticated dark gray
@@ -187,7 +237,14 @@ data class StatusBarTheme(
             iconInactiveColor = Color.rgb(100, 100, 100),
             ledActiveColor = Color.rgb(10, 132, 255),
             ledLockedColor = Color.rgb(255, 149, 0),
-            ledInactiveColor = Color.argb(30, 142, 142, 147)
+            ledInactiveColor = Color.argb(30, 142, 142, 147),
+            virtualKeyboardBackgroundColor = Color.parseColor("#1C1C1E"),
+            virtualKeyBackgroundColor = Color.parseColor("#2C2C2E"),
+            virtualKeyPressedColor = Color.parseColor("#4A4A4E"),
+            virtualKeySpecialColor = Color.parseColor("#242426"),
+            virtualKeyTextColor = Color.rgb(230, 230, 230),
+            virtualKeyPopupBackgroundColor = Color.parseColor("#3A3A3C"),
+            virtualKeyPopupTextColor = Color.WHITE
         )
 
         // Cyber Neon - Vibrant cyberpunk style
@@ -209,7 +266,14 @@ data class StatusBarTheme(
             iconInactiveColor = Color.rgb(0, 100, 100),
             ledActiveColor = Color.rgb(0, 255, 255),
             ledLockedColor = Color.rgb(255, 0, 255),
-            ledInactiveColor = Color.argb(30, 0, 255, 255)
+            ledInactiveColor = Color.argb(30, 0, 255, 255),
+            virtualKeyboardBackgroundColor = Color.parseColor("#0A0A0F"),
+            virtualKeyBackgroundColor = Color.parseColor("#1A1A24"),
+            virtualKeyPressedColor = Color.parseColor("#2E1A3E"),
+            virtualKeySpecialColor = Color.parseColor("#12121A"),
+            virtualKeyTextColor = Color.rgb(0, 255, 255),
+            virtualKeyPopupBackgroundColor = Color.parseColor("#1A0A2E"),
+            virtualKeyPopupTextColor = Color.rgb(0, 255, 255)
         )
 
         // Silver Light - Clean light silver theme for daytime
@@ -231,7 +295,14 @@ data class StatusBarTheme(
             iconInactiveColor = Color.parseColor("#AEAEB2"),
             ledActiveColor = Color.parseColor("#34C759"),
             ledLockedColor = Color.parseColor("#FF9500"),
-            ledInactiveColor = Color.argb(40, 60, 60, 67)
+            ledInactiveColor = Color.argb(40, 60, 60, 67),
+            virtualKeyboardBackgroundColor = Color.parseColor("#D1D1D6"),
+            virtualKeyBackgroundColor = Color.parseColor("#FFFFFF"),
+            virtualKeyPressedColor = Color.parseColor("#BFBFC4"),
+            virtualKeySpecialColor = Color.parseColor("#AEAEB2"),
+            virtualKeyTextColor = Color.parseColor("#1C1C1E"),
+            virtualKeyPopupBackgroundColor = Color.parseColor("#FFFFFF"),
+            virtualKeyPopupTextColor = Color.parseColor("#1C1C1E")
         )
 
         // Warm Cream - Soft warm light theme
@@ -253,7 +324,14 @@ data class StatusBarTheme(
             iconInactiveColor = Color.parseColor("#B8A88A"),
             ledActiveColor = Color.parseColor("#6B8E23"),
             ledLockedColor = Color.parseColor("#CD853F"),
-            ledInactiveColor = Color.argb(40, 80, 70, 50)
+            ledInactiveColor = Color.argb(40, 80, 70, 50),
+            virtualKeyboardBackgroundColor = Color.parseColor("#E8DFD0"),
+            virtualKeyBackgroundColor = Color.parseColor("#FAF8F5"),
+            virtualKeyPressedColor = Color.parseColor("#D5CFC2"),
+            virtualKeySpecialColor = Color.parseColor("#D8D0C0"),
+            virtualKeyTextColor = Color.parseColor("#2C2417"),
+            virtualKeyPopupBackgroundColor = Color.parseColor("#FAF8F5"),
+            virtualKeyPopupTextColor = Color.parseColor("#2C2417")
         )
 
         // Sky Blue Light - Fresh blue light theme
@@ -275,7 +353,14 @@ data class StatusBarTheme(
             iconInactiveColor = Color.parseColor("#90CAF9"),
             ledActiveColor = Color.parseColor("#2196F3"),
             ledLockedColor = Color.parseColor("#FF5722"),
-            ledInactiveColor = Color.argb(40, 25, 118, 210)
+            ledInactiveColor = Color.argb(40, 25, 118, 210),
+            virtualKeyboardBackgroundColor = Color.parseColor("#BBDEFB"),
+            virtualKeyBackgroundColor = Color.parseColor("#E3F2FD"),
+            virtualKeyPressedColor = Color.parseColor("#90CAF9"),
+            virtualKeySpecialColor = Color.parseColor("#BBDEFB"),
+            virtualKeyTextColor = Color.parseColor("#0D47A1"),
+            virtualKeyPopupBackgroundColor = Color.parseColor("#E3F2FD"),
+            virtualKeyPopupTextColor = Color.parseColor("#0D47A1")
         )
 
         // Mint Fresh - Cool mint green light theme
@@ -297,7 +382,14 @@ data class StatusBarTheme(
             iconInactiveColor = Color.parseColor("#A5D6A7"),
             ledActiveColor = Color.parseColor("#4CAF50"),
             ledLockedColor = Color.parseColor("#FF9800"),
-            ledInactiveColor = Color.argb(40, 67, 160, 71)
+            ledInactiveColor = Color.argb(40, 67, 160, 71),
+            virtualKeyboardBackgroundColor = Color.parseColor("#C8E6C9"),
+            virtualKeyBackgroundColor = Color.parseColor("#E8F5E9"),
+            virtualKeyPressedColor = Color.parseColor("#A5D6A7"),
+            virtualKeySpecialColor = Color.parseColor("#C8E6C9"),
+            virtualKeyTextColor = Color.parseColor("#1B5E20"),
+            virtualKeyPopupBackgroundColor = Color.parseColor("#E8F5E9"),
+            virtualKeyPopupTextColor = Color.parseColor("#1B5E20")
         )
 
         // Lavender Mist - Soft purple light theme
@@ -319,7 +411,14 @@ data class StatusBarTheme(
             iconInactiveColor = Color.parseColor("#CE93D8"),
             ledActiveColor = Color.parseColor("#9C27B0"),
             ledLockedColor = Color.parseColor("#E91E63"),
-            ledInactiveColor = Color.argb(40, 123, 31, 162)
+            ledInactiveColor = Color.argb(40, 123, 31, 162),
+            virtualKeyboardBackgroundColor = Color.parseColor("#E1BEE7"),
+            virtualKeyBackgroundColor = Color.parseColor("#F3E5F5"),
+            virtualKeyPressedColor = Color.parseColor("#CE93D8"),
+            virtualKeySpecialColor = Color.parseColor("#E1BEE7"),
+            virtualKeyTextColor = Color.parseColor("#4A148C"),
+            virtualKeyPopupBackgroundColor = Color.parseColor("#F3E5F5"),
+            virtualKeyPopupTextColor = Color.parseColor("#4A148C")
         )
 
         val ALL_THEMES = listOf(
@@ -390,7 +489,14 @@ data class StatusBarTheme(
                 iconInactiveColor = colors["iconInactiveColor"] ?: CLASSIC_DARK.iconInactiveColor,
                 ledActiveColor = colors["ledActiveColor"] ?: CLASSIC_DARK.ledActiveColor,
                 ledLockedColor = colors["ledLockedColor"] ?: CLASSIC_DARK.ledLockedColor,
-                ledInactiveColor = colors["ledInactiveColor"] ?: CLASSIC_DARK.ledInactiveColor
+                ledInactiveColor = colors["ledInactiveColor"] ?: CLASSIC_DARK.ledInactiveColor,
+                virtualKeyboardBackgroundColor = colors["virtualKeyboardBackgroundColor"] ?: CLASSIC_DARK.virtualKeyboardBackgroundColor,
+                virtualKeyBackgroundColor = colors["virtualKeyBackgroundColor"] ?: CLASSIC_DARK.virtualKeyBackgroundColor,
+                virtualKeyPressedColor = colors["virtualKeyPressedColor"] ?: CLASSIC_DARK.virtualKeyPressedColor,
+                virtualKeySpecialColor = colors["virtualKeySpecialColor"] ?: CLASSIC_DARK.virtualKeySpecialColor,
+                virtualKeyTextColor = colors["virtualKeyTextColor"] ?: CLASSIC_DARK.virtualKeyTextColor,
+                virtualKeyPopupBackgroundColor = colors["virtualKeyPopupBackgroundColor"] ?: CLASSIC_DARK.virtualKeyPopupBackgroundColor,
+                virtualKeyPopupTextColor = colors["virtualKeyPopupTextColor"] ?: CLASSIC_DARK.virtualKeyPopupTextColor
             )
         }
 
@@ -425,7 +531,14 @@ data class StatusBarTheme(
                 iconInactiveColor = colors["iconInactiveColor"] ?: CLASSIC_DARK.iconInactiveColor,
                 ledActiveColor = colors["ledActiveColor"] ?: CLASSIC_DARK.ledActiveColor,
                 ledLockedColor = colors["ledLockedColor"] ?: CLASSIC_DARK.ledLockedColor,
-                ledInactiveColor = colors["ledInactiveColor"] ?: CLASSIC_DARK.ledInactiveColor
+                ledInactiveColor = colors["ledInactiveColor"] ?: CLASSIC_DARK.ledInactiveColor,
+                virtualKeyboardBackgroundColor = colors["virtualKeyboardBackgroundColor"] ?: CLASSIC_DARK.virtualKeyboardBackgroundColor,
+                virtualKeyBackgroundColor = colors["virtualKeyBackgroundColor"] ?: CLASSIC_DARK.virtualKeyBackgroundColor,
+                virtualKeyPressedColor = colors["virtualKeyPressedColor"] ?: CLASSIC_DARK.virtualKeyPressedColor,
+                virtualKeySpecialColor = colors["virtualKeySpecialColor"] ?: CLASSIC_DARK.virtualKeySpecialColor,
+                virtualKeyTextColor = colors["virtualKeyTextColor"] ?: CLASSIC_DARK.virtualKeyTextColor,
+                virtualKeyPopupBackgroundColor = colors["virtualKeyPopupBackgroundColor"] ?: CLASSIC_DARK.virtualKeyPopupBackgroundColor,
+                virtualKeyPopupTextColor = colors["virtualKeyPopupTextColor"] ?: CLASSIC_DARK.virtualKeyPopupTextColor
             )
         }
 

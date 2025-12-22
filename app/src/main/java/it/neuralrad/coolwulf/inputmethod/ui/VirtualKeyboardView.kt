@@ -15,6 +15,7 @@ import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.PopupWindow
@@ -35,11 +36,6 @@ class VirtualKeyboardView(
     private val onCtrlKeyPress: ((keyCode: Int) -> Unit)? = null
 ) {
     companion object {
-        private val KEY_BG_COLOR = Color.argb(255, 60, 60, 65)
-        private val KEY_BG_PRESSED = Color.argb(255, 100, 100, 110)
-        private val KEY_BG_SPECIAL = Color.argb(255, 45, 45, 50)
-        private val KEY_TEXT_COLOR = Color.WHITE
-        private val KEYBOARD_BG_COLOR = Color.argb(255, 30, 30, 35)
         private const val SEMI_TRANSPARENT_ALPHA = 0.4f  // 40% opacity for entire UI
         private const val SOUND_COUNT = 24
 
@@ -68,6 +64,18 @@ class VirtualKeyboardView(
     // Key popup
     private var keyPopupWindow: PopupWindow? = null
     private var keyPopupTextView: TextView? = null
+
+    // Theme colors - defaults to CLASSIC_DARK values
+    private var currentTheme: StatusBarTheme = StatusBarTheme.CLASSIC_DARK
+
+    // Theme color getters
+    private val keyBgColor: Int get() = currentTheme.virtualKeyBackgroundColor
+    private val keyBgPressed: Int get() = currentTheme.virtualKeyPressedColor
+    private val keyBgSpecial: Int get() = currentTheme.virtualKeySpecialColor
+    private val keyTextColor: Int get() = currentTheme.virtualKeyTextColor
+    private val keyboardBgColor: Int get() = currentTheme.virtualKeyboardBackgroundColor
+    private val keyPopupBgColor: Int get() = currentTheme.virtualKeyPopupBackgroundColor
+    private val keyPopupTextColor: Int get() = currentTheme.virtualKeyPopupTextColor
 
     private val keyHeight: Int
         get() = TypedValue.applyDimension(
@@ -336,7 +344,7 @@ class VirtualKeyboardView(
 
         container = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(KEYBOARD_BG_COLOR)
+            setBackgroundColor(keyboardBgColor)
             // Apply transparency to entire UI when setting is enabled, otherwise full opacity
             alpha = if (isSemiTransparent) SEMI_TRANSPARENT_ALPHA else 1.0f
             val padding = TypedValue.applyDimension(
@@ -472,11 +480,11 @@ class VirtualKeyboardView(
     private fun createAltKey(): TextView {
         return TextView(context).apply {
             text = "123"
-            setTextColor(KEY_TEXT_COLOR)
+            setTextColor(keyTextColor)
             setTextSize(TypedValue.COMPLEX_UNIT_PX, specialKeyTextSize)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            background = createKeyBackground(KEY_BG_SPECIAL)
+            background = createKeyBackground(keyBgSpecial)
 
             layoutParams = LinearLayout.LayoutParams(
                 0,
@@ -490,7 +498,7 @@ class VirtualKeyboardView(
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         playKeyPressFeedback(v)
-                        background = createKeyBackground(KEY_BG_PRESSED)
+                        background = createKeyBackground(keyBgPressed)
                         true
                     }
                     MotionEvent.ACTION_UP -> {
@@ -514,7 +522,7 @@ class VirtualKeyboardView(
                             when {
                                 isAltLocked -> Color.argb(255, 100, 150, 255)  // Blue for alt lock
                                 isAltMode -> Color.argb(255, 80, 80, 90)       // Lighter for alt
-                                else -> KEY_BG_SPECIAL
+                                else -> keyBgSpecial
                             }
                         )
                         true
@@ -536,7 +544,7 @@ class VirtualKeyboardView(
                 when {
                     isAltLocked -> Color.argb(255, 100, 150, 255)  // Blue for alt lock (same as caps lock)
                     isAltMode -> Color.argb(255, 80, 80, 90)       // Lighter for alt (same as shift)
-                    else -> KEY_BG_SPECIAL
+                    else -> keyBgSpecial
                 }
             )
         }
@@ -545,11 +553,11 @@ class VirtualKeyboardView(
     private fun createCtrlKey(): TextView {
         return TextView(context).apply {
             text = "Ctrl"
-            setTextColor(KEY_TEXT_COLOR)
+            setTextColor(keyTextColor)
             setTextSize(TypedValue.COMPLEX_UNIT_PX, specialKeyTextSize)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            background = createKeyBackground(KEY_BG_SPECIAL)
+            background = createKeyBackground(keyBgSpecial)
 
             layoutParams = LinearLayout.LayoutParams(
                 0,
@@ -563,7 +571,7 @@ class VirtualKeyboardView(
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         playKeyPressFeedback(v)
-                        background = createKeyBackground(KEY_BG_PRESSED)
+                        background = createKeyBackground(keyBgPressed)
                         true
                     }
                     MotionEvent.ACTION_UP -> {
@@ -574,7 +582,7 @@ class VirtualKeyboardView(
                     }
                     MotionEvent.ACTION_CANCEL -> {
                         background = createKeyBackground(
-                            if (isCtrlActive) Color.argb(255, 80, 80, 90) else KEY_BG_SPECIAL
+                            if (isCtrlActive) Color.argb(255, 80, 80, 90) else keyBgSpecial
                         )
                         true
                     }
@@ -587,7 +595,7 @@ class VirtualKeyboardView(
     private fun updateCtrlKeyAppearance() {
         ctrlKey?.apply {
             background = createKeyBackground(
-                if (isCtrlActive) Color.argb(255, 80, 80, 90) else KEY_BG_SPECIAL
+                if (isCtrlActive) Color.argb(255, 80, 80, 90) else keyBgSpecial
             )
         }
     }
@@ -597,11 +605,11 @@ class VirtualKeyboardView(
             val displayText = getDisplayText(char)
             text = displayText
             tag = char // Store original lowercase char
-            setTextColor(KEY_TEXT_COLOR)
+            setTextColor(keyTextColor)
             setTextSize(TypedValue.COMPLEX_UNIT_PX, keyTextSize)
             typeface = Typeface.DEFAULT
             gravity = Gravity.CENTER
-            background = createKeyBackground(KEY_BG_COLOR)
+            background = createKeyBackground(keyBgColor)
 
             layoutParams = LinearLayout.LayoutParams(
                 0,
@@ -615,14 +623,14 @@ class VirtualKeyboardView(
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         playKeyPressFeedback(v)
-                        background = createKeyBackground(KEY_BG_PRESSED)
+                        background = createKeyBackground(keyBgPressed)
                         // Show key popup
                         val displayChar = (v as? TextView)?.text?.toString() ?: (v.tag as? String) ?: ""
                         showKeyPopup(v, displayChar)
                         true
                     }
                     MotionEvent.ACTION_UP -> {
-                        background = createKeyBackground(KEY_BG_COLOR)
+                        background = createKeyBackground(keyBgColor)
                         dismissKeyPopup()
                         val originalChar = (v.tag as String)
 
@@ -661,7 +669,7 @@ class VirtualKeyboardView(
                         true
                     }
                     MotionEvent.ACTION_CANCEL -> {
-                        background = createKeyBackground(KEY_BG_COLOR)
+                        background = createKeyBackground(keyBgColor)
                         dismissKeyPopup()
                         true
                     }
@@ -729,11 +737,11 @@ class VirtualKeyboardView(
     private fun createSpecialKey(label: String, weight: Float, onClick: () -> Unit): TextView {
         return TextView(context).apply {
             text = label
-            setTextColor(KEY_TEXT_COLOR)
+            setTextColor(keyTextColor)
             setTextSize(TypedValue.COMPLEX_UNIT_PX, specialKeyTextSize)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            background = createKeyBackground(KEY_BG_SPECIAL)
+            background = createKeyBackground(keyBgSpecial)
 
             layoutParams = LinearLayout.LayoutParams(
                 0,
@@ -747,16 +755,16 @@ class VirtualKeyboardView(
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         playKeyPressFeedback(v)
-                        background = createKeyBackground(KEY_BG_PRESSED)
+                        background = createKeyBackground(keyBgPressed)
                         true
                     }
                     MotionEvent.ACTION_UP -> {
-                        background = createKeyBackground(KEY_BG_SPECIAL)
+                        background = createKeyBackground(keyBgSpecial)
                         onClick()
                         true
                     }
                     MotionEvent.ACTION_CANCEL -> {
-                        background = createKeyBackground(KEY_BG_SPECIAL)
+                        background = createKeyBackground(keyBgSpecial)
                         true
                     }
                     else -> false
@@ -768,11 +776,11 @@ class VirtualKeyboardView(
     private fun createSymbolKey(label: String, weight: Float, onClick: () -> Unit): TextView {
         return TextView(context).apply {
             text = label
-            setTextColor(KEY_TEXT_COLOR)
+            setTextColor(keyTextColor)
             setTextSize(TypedValue.COMPLEX_UNIT_PX, symbolKeyTextSize)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            background = createKeyBackground(KEY_BG_SPECIAL)
+            background = createKeyBackground(keyBgSpecial)
 
             layoutParams = LinearLayout.LayoutParams(
                 0,
@@ -786,16 +794,16 @@ class VirtualKeyboardView(
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         playKeyPressFeedback(v)
-                        background = createKeyBackground(KEY_BG_PRESSED)
+                        background = createKeyBackground(keyBgPressed)
                         true
                     }
                     MotionEvent.ACTION_UP -> {
-                        background = createKeyBackground(KEY_BG_SPECIAL)
+                        background = createKeyBackground(keyBgSpecial)
                         onClick()
                         true
                     }
                     MotionEvent.ACTION_CANCEL -> {
-                        background = createKeyBackground(KEY_BG_SPECIAL)
+                        background = createKeyBackground(keyBgSpecial)
                         true
                     }
                     else -> false
@@ -816,11 +824,11 @@ class VirtualKeyboardView(
 
         return TextView(context).apply {
             text = "⌫"
-            setTextColor(KEY_TEXT_COLOR)
+            setTextColor(keyTextColor)
             setTextSize(TypedValue.COMPLEX_UNIT_PX, specialKeyTextSize)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            background = createKeyBackground(KEY_BG_SPECIAL)
+            background = createKeyBackground(keyBgSpecial)
 
             layoutParams = LinearLayout.LayoutParams(
                 0,
@@ -834,7 +842,7 @@ class VirtualKeyboardView(
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         playKeyPressFeedback(v)
-                        background = createKeyBackground(KEY_BG_PRESSED)
+                        background = createKeyBackground(keyBgPressed)
                         isHolding = true
 
                         // Fire initial delete immediately
@@ -859,7 +867,7 @@ class VirtualKeyboardView(
                         deleteRepeatHandler?.removeCallbacks(deleteRepeatRunnable ?: return@setOnTouchListener true)
                         deleteRepeatHandler = null
                         deleteRepeatRunnable = null
-                        background = createKeyBackground(KEY_BG_SPECIAL)
+                        background = createKeyBackground(keyBgSpecial)
                         true
                     }
                     MotionEvent.ACTION_CANCEL -> {
@@ -867,7 +875,7 @@ class VirtualKeyboardView(
                         deleteRepeatHandler?.removeCallbacks(deleteRepeatRunnable ?: return@setOnTouchListener true)
                         deleteRepeatHandler = null
                         deleteRepeatRunnable = null
-                        background = createKeyBackground(KEY_BG_SPECIAL)
+                        background = createKeyBackground(keyBgSpecial)
                         true
                     }
                     else -> false
@@ -883,11 +891,16 @@ class VirtualKeyboardView(
 
         return TextView(context).apply {
             text = "space"
-            setTextColor(Color.argb(150, 255, 255, 255))
+            // Space bar text is slightly dimmer
+            val alpha = Color.alpha(keyTextColor)
+            val red = Color.red(keyTextColor)
+            val green = Color.green(keyTextColor)
+            val blue = Color.blue(keyTextColor)
+            setTextColor(Color.argb((alpha * 0.6f).toInt(), red, green, blue))
             setTextSize(TypedValue.COMPLEX_UNIT_PX, specialKeyTextSize)
             typeface = Typeface.DEFAULT
             gravity = Gravity.CENTER
-            background = createKeyBackground(KEY_BG_COLOR)
+            background = createKeyBackground(keyBgColor)
 
             layoutParams = LinearLayout.LayoutParams(
                 0,
@@ -901,7 +914,7 @@ class VirtualKeyboardView(
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         playKeyPressFeedback(v)
-                        background = createKeyBackground(KEY_BG_PRESSED)
+                        background = createKeyBackground(keyBgPressed)
 
                         // Start hold timer for voice input if enabled
                         if (SettingsManager.isHoldSpaceForVoice(context) && onVoiceInputRequest != null) {
@@ -924,7 +937,7 @@ class VirtualKeyboardView(
                         spaceHoldHandler = null
                         spaceHoldRunnable = null
 
-                        background = createKeyBackground(KEY_BG_COLOR)
+                        background = createKeyBackground(keyBgColor)
 
                         // Only send space if voice input was not triggered
                         if (!spaceHoldTriggeredVoice) {
@@ -940,7 +953,7 @@ class VirtualKeyboardView(
                         spaceHoldRunnable = null
                         spaceHoldTriggeredVoice = false
 
-                        background = createKeyBackground(KEY_BG_COLOR)
+                        background = createKeyBackground(keyBgColor)
                         true
                     }
                     else -> false
@@ -990,14 +1003,14 @@ class VirtualKeyboardView(
         // Create the popup background
         val popupBackground = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            setColor(Color.argb(255, 80, 80, 90))
+            setColor(keyPopupBgColor)
             cornerRadius = popupCornerRadius
         }
 
         // Create the text view for the popup
         keyPopupTextView = TextView(context).apply {
             text = keyText.uppercase()
-            setTextColor(Color.WHITE)
+            setTextColor(keyPopupTextColor)
             setTextSize(TypedValue.COMPLEX_UNIT_PX, popupTextSize)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
@@ -1057,7 +1070,7 @@ class VirtualKeyboardView(
                 when {
                     isCapsLock -> Color.argb(255, 100, 150, 255)  // Blue for caps lock
                     isShifted -> Color.argb(255, 80, 80, 90)      // Lighter for shift
-                    else -> KEY_BG_SPECIAL
+                    else -> keyBgSpecial
                 }
             )
         }
@@ -1108,10 +1121,32 @@ class VirtualKeyboardView(
     }
 
     /**
-     * Refreshes theme colors. Virtual keyboard uses fixed colors, so this is a no-op.
+     * Sets the theme for the virtual keyboard.
+     * Forces recreation of the keyboard view with new colors.
+     */
+    fun setTheme(theme: StatusBarTheme) {
+        // Always update the theme - colors may change even with the same ID (custom themes)
+        currentTheme = theme
+        // Force recreation by removing the old container and creating a new one
+        val parent = container?.parent as? ViewGroup
+        if (parent != null && container != null) {
+            val index = parent.indexOfChild(container)
+            parent.removeView(container)
+            invalidateView()
+            val newView = ensureView()
+            parent.addView(newView, index)
+        } else {
+            invalidateView()
+        }
+    }
+
+    /**
+     * Refreshes theme colors by re-reading the current theme from settings.
      */
     fun refreshTheme() {
-        // Virtual keyboard colors are independent of the status bar theme - nothing to update
+        val themeId = SettingsManager.getEffectiveTheme(context)
+        val theme = StatusBarTheme.getThemeById(themeId, context)
+        setTheme(theme)
     }
 
     /**

@@ -764,6 +764,14 @@
     <string name="theme_color_led_active">LED激活</string>
     <string name="theme_color_led_locked">LED锁定</string>
     <string name="theme_color_led_inactive">LED非活动</string>
+    <string name="theme_color_virtual_keyboard_section">虚拟键盘颜色</string>
+    <string name="theme_color_virtual_keyboard_bg">键盘背景</string>
+    <string name="theme_color_virtual_key_bg">按键背景</string>
+    <string name="theme_color_virtual_key_pressed">按键按下</string>
+    <string name="theme_color_virtual_key_special">特殊按键</string>
+    <string name="theme_color_virtual_key_text">按键文字</string>
+    <string name="theme_color_virtual_key_popup_bg">按键弹出背景</string>
+    <string name="theme_color_virtual_key_popup_text">按键弹出文字</string>
     <string name="theme_copy_from">从主题复制颜色</string>
     <string name="theme_preview">预览</string>
     <string name="theme_export">导出主题</string>

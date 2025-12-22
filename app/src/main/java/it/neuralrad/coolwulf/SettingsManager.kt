@@ -2962,7 +2962,15 @@ object SettingsManager {
             "iconInactiveColor" to prefs.getInt("${prefix}icon_inactive", android.graphics.Color.rgb(100, 100, 100)),
             "ledActiveColor" to prefs.getInt("${prefix}led_active", android.graphics.Color.rgb(100, 150, 255)),
             "ledLockedColor" to prefs.getInt("${prefix}led_locked", android.graphics.Color.rgb(247, 99, 0)),
-            "ledInactiveColor" to prefs.getInt("${prefix}led_inactive", android.graphics.Color.argb(26, 255, 255, 255))
+            "ledInactiveColor" to prefs.getInt("${prefix}led_inactive", android.graphics.Color.argb(26, 255, 255, 255)),
+            // Virtual keyboard colors
+            "virtualKeyboardBackgroundColor" to prefs.getInt("${prefix}virtual_keyboard_bg", android.graphics.Color.argb(255, 30, 30, 35)),
+            "virtualKeyBackgroundColor" to prefs.getInt("${prefix}virtual_key_bg", android.graphics.Color.argb(255, 60, 60, 65)),
+            "virtualKeyPressedColor" to prefs.getInt("${prefix}virtual_key_pressed", android.graphics.Color.argb(255, 100, 100, 110)),
+            "virtualKeySpecialColor" to prefs.getInt("${prefix}virtual_key_special", android.graphics.Color.argb(255, 45, 45, 50)),
+            "virtualKeyTextColor" to prefs.getInt("${prefix}virtual_key_text", android.graphics.Color.WHITE),
+            "virtualKeyPopupBackgroundColor" to prefs.getInt("${prefix}virtual_key_popup_bg", android.graphics.Color.argb(255, 80, 80, 90)),
+            "virtualKeyPopupTextColor" to prefs.getInt("${prefix}virtual_key_popup_text", android.graphics.Color.WHITE)
         )
     }
 
@@ -2987,6 +2995,14 @@ object SettingsManager {
             "ledActiveColor" -> "${prefix}led_active"
             "ledLockedColor" -> "${prefix}led_locked"
             "ledInactiveColor" -> "${prefix}led_inactive"
+            // Virtual keyboard colors
+            "virtualKeyboardBackgroundColor" -> "${prefix}virtual_keyboard_bg"
+            "virtualKeyBackgroundColor" -> "${prefix}virtual_key_bg"
+            "virtualKeyPressedColor" -> "${prefix}virtual_key_pressed"
+            "virtualKeySpecialColor" -> "${prefix}virtual_key_special"
+            "virtualKeyTextColor" -> "${prefix}virtual_key_text"
+            "virtualKeyPopupBackgroundColor" -> "${prefix}virtual_key_popup_bg"
+            "virtualKeyPopupTextColor" -> "${prefix}virtual_key_popup_text"
             else -> return
         }
         getPreferences(context).edit()
@@ -3015,6 +3031,13 @@ object SettingsManager {
             .putInt("${prefix}led_active", theme.ledActiveColor)
             .putInt("${prefix}led_locked", theme.ledLockedColor)
             .putInt("${prefix}led_inactive", theme.ledInactiveColor)
+            .putInt("${prefix}virtual_keyboard_bg", theme.virtualKeyboardBackgroundColor)
+            .putInt("${prefix}virtual_key_bg", theme.virtualKeyBackgroundColor)
+            .putInt("${prefix}virtual_key_pressed", theme.virtualKeyPressedColor)
+            .putInt("${prefix}virtual_key_special", theme.virtualKeySpecialColor)
+            .putInt("${prefix}virtual_key_text", theme.virtualKeyTextColor)
+            .putInt("${prefix}virtual_key_popup_bg", theme.virtualKeyPopupBackgroundColor)
+            .putInt("${prefix}virtual_key_popup_text", theme.virtualKeyPopupTextColor)
             .apply()
     }
 

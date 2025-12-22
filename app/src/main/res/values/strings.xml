@@ -767,6 +767,14 @@
     <string name="theme_color_led_active">LED Active</string>
     <string name="theme_color_led_locked">LED Locked</string>
     <string name="theme_color_led_inactive">LED Inactive</string>
+    <string name="theme_color_virtual_keyboard_section">Virtual Keyboard Colors</string>
+    <string name="theme_color_virtual_keyboard_bg">Keyboard Background</string>
+    <string name="theme_color_virtual_key_bg">Key Background</string>
+    <string name="theme_color_virtual_key_pressed">Key Pressed</string>
+    <string name="theme_color_virtual_key_special">Special Key</string>
+    <string name="theme_color_virtual_key_text">Key Text</string>
+    <string name="theme_color_virtual_key_popup_bg">Key Popup Background</string>
+    <string name="theme_color_virtual_key_popup_text">Key Popup Text</string>
     <string name="theme_copy_from">Copy colors from</string>
     <string name="theme_preview">Preview</string>
     <string name="theme_export">Export Theme</string>

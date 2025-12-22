@@ -325,11 +325,11 @@ class StatusBarController(
         // Update variation bar
         variationBarView?.refreshTheme()
 
-        // Update virtual keyboard
-        virtualKeyboardView?.refreshTheme()
+        // Update virtual keyboard - pass theme directly
+        virtualKeyboardView?.setTheme(theme)
 
-        // Update virtual keyboard container background
-        virtualKeyboardContainer?.setBackgroundColor(theme.backgroundColor)
+        // Update virtual keyboard container background to match virtual keyboard
+        virtualKeyboardContainer?.setBackgroundColor(theme.virtualKeyboardBackgroundColor)
         virtualKeyboardContainer?.invalidate()
 
         Log.d(TAG, "Theme refreshed: ${theme.id}")
@@ -509,6 +509,10 @@ class StatusBarController(
                     onVirtualCtrlKeyPressListener?.invoke(keyCode)
                 }
             )
+            // Set initial theme for virtual keyboard
+            val currentTheme = getCurrentTheme()
+            virtualKeyboardView?.setTheme(currentTheme)
+            virtualKeyboardContainer?.setBackgroundColor(currentTheme.virtualKeyboardBackgroundColor)
             virtualKeyboardContainer?.addView(virtualKeyboardView?.ensureView())
 
             statusBarLayout?.apply {
