@@ -205,7 +205,7 @@ object SettingsManager {
     private const val DEFAULT_SHIFT_ALT_SWAPPED = false  // Shift and Alt buttons are not swapped by default
     private const val DEFAULT_MAX_CANDIDATES_NON_JUYING = 9  // Default 9 candidates in non-Juying mode
     private const val DEFAULT_SHIFT_ENTER_TOGGLE_INPUT = true  // Shift+Enter toggles input methods by default
-    private const val DEFAULT_VIRTUAL_KEYBOARD_ENABLED = false  // Virtual keyboard disabled by default (for physical keyboard devices)
+    private const val DEFAULT_VIRTUAL_KEYBOARD_ENABLED = true  // Virtual keyboard enabled by default
     private const val DEFAULT_AUTO_PHRASE_MEMORY_ENABLED = true  // Auto-phrase memory enabled by default
     private const val DEFAULT_WUBI_WITH_PINYIN_ENABLED = false  // Wubi with Pinyin disabled by default
     private const val DEFAULT_WUBI_PHRASES_FIRST = false  // Single characters first by default (traditional Wubi behavior)
@@ -224,7 +224,7 @@ object SettingsManager {
     private const val DEFAULT_SUGGESTION_HEIGHT_PERCENT = 100  // Default suggestion background height as percentage of status bar
     private const val MIN_SUGGESTION_HEIGHT_PERCENT = 50
     private const val MAX_SUGGESTION_HEIGHT_PERCENT = 100
-    private const val DEFAULT_VIRTUAL_KEYBOARD_HEIGHT = 42  // Default virtual keyboard key height in DIP
+    private const val DEFAULT_VIRTUAL_KEYBOARD_HEIGHT = 60  // Default virtual keyboard key height in DIP
     private const val MIN_VIRTUAL_KEYBOARD_HEIGHT = 32
     private const val MAX_VIRTUAL_KEYBOARD_HEIGHT = 80
     private const val DEFAULT_VIRTUAL_KEYBOARD_SOUND = false  // Virtual keyboard sound disabled by default
@@ -233,7 +233,7 @@ object SettingsManager {
     private const val DEFAULT_VIRTUAL_KEYBOARD_VIBRATION = true  // Virtual keyboard vibration enabled by default
     private const val DEFAULT_PARTIAL_PINYIN_MATCHING = false  // Partial pinyin matching disabled by default
     private const val DEFAULT_ABBREVIATION_INPUT_ENABLED = true  // 首字母 input enabled by default
-    private const val DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON = false  // Virtual keyboard button hidden by default
+    private const val DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON = true  // Virtual keyboard button shown by default
     private const val DEFAULT_SEMI_TRANSPARENT_STATUS_BAR = false  // Status bar is opaque by default
     private const val DEFAULT_3D_EFFECT_ENABLED = false  // 3D effect disabled by default
     private const val DEFAULT_OFFLINE_VOICE_INPUT = false  // Online (Google) voice recognition by default
