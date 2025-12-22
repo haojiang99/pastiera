@@ -79,6 +79,25 @@ class EnglishWordPredictionController(
      */
     fun isEnabled(): Boolean = isEnabled
 
+    // Whether next-word prediction is enabled (separate from regular word prediction)
+    private var nextWordPredictionEnabled: Boolean = true
+
+    /**
+     * Enables or disables next-word prediction specifically.
+     * When disabled, only shows suggestions while typing, not after committing a word.
+     */
+    fun setNextWordPredictionEnabled(enabled: Boolean) {
+        nextWordPredictionEnabled = enabled
+        if (!enabled) {
+            clearNextWordPredictions()
+        }
+    }
+
+    /**
+     * Returns whether next-word prediction is enabled.
+     */
+    fun isNextWordPredictionEnabled(): Boolean = nextWordPredictionEnabled
+
     /**
      * Updates suggestions based on the current cursor position.
      * Extracts the word being typed from the text before cursor.
@@ -125,8 +144,8 @@ class EnglishWordPredictionController(
                 nextWordPredictor.recordCommittedWord(previousWord)
             }
 
-            // Check if we have next-word predictions to show
-            if (nextWordPredictor.isShowingPredictions()) {
+            // Check if we have next-word predictions to show (only if next-word prediction is enabled)
+            if (nextWordPredictionEnabled && nextWordPredictor.isShowingPredictions()) {
                 val nextWordSuggestions = nextWordPredictor.getSuggestions()
                 if (nextWordSuggestions.isNotEmpty()) {
                     isShowingNextWordPredictions = true

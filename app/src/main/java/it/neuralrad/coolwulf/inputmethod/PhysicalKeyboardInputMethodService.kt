@@ -826,6 +826,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
 
         englishWordPredictionController = it.neuralrad.coolwulf.core.EnglishWordPredictionController(this)
+        // Apply next word prediction setting to English controller
+        englishWordPredictionController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
+
         multiTapController = MultiTapController(
             handler = Handler(Looper.getMainLooper()),
             timeoutMs = MULTI_TAP_TIMEOUT_MS
@@ -2673,6 +2676,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         ziranmaInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
         wubiInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
         zhenmaInputController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
+        // Also apply to English word prediction controller
+        englishWordPredictionController.setNextWordPredictionEnabled(chineseNextWordPredictionEnabled)
 
         // Refresh fuzzy pinyin setting (may have changed in settings)
         val fuzzyPinyinEnabled = SettingsManager.getPinyinFuzzyEnabled(this)
