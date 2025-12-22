@@ -226,7 +226,7 @@ object SettingsManager {
     private const val MAX_SUGGESTION_HEIGHT_PERCENT = 100
     private const val DEFAULT_VIRTUAL_KEYBOARD_HEIGHT = 42  // Default virtual keyboard key height in DIP
     private const val MIN_VIRTUAL_KEYBOARD_HEIGHT = 32
-    private const val MAX_VIRTUAL_KEYBOARD_HEIGHT = 60
+    private const val MAX_VIRTUAL_KEYBOARD_HEIGHT = 80
     private const val DEFAULT_VIRTUAL_KEYBOARD_SOUND = false  // Virtual keyboard sound disabled by default
     private const val DEFAULT_KEYBOARD_SOUND_TYPE = "mechanical"  // Default sound type
     private const val DEFAULT_KEYBOARD_SOUND_VOLUME = 70  // Default sound volume (0-100)
