@@ -15,7 +15,9 @@ import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.PopupWindow
 import android.widget.TextView
 import it.neuralrad.coolwulf.SettingsManager
 import it.neuralrad.coolwulf.R
@@ -62,6 +64,10 @@ class VirtualKeyboardView(
     private var altKey: TextView? = null
     private var ctrlKey: TextView? = null
     private var useChinesePunctuation = false
+
+    // Key popup
+    private var keyPopupWindow: PopupWindow? = null
+    private var keyPopupTextView: TextView? = null
 
     private val keyHeight: Int
         get() = TypedValue.applyDimension(
@@ -610,10 +616,14 @@ class VirtualKeyboardView(
                     MotionEvent.ACTION_DOWN -> {
                         playKeyPressFeedback(v)
                         background = createKeyBackground(KEY_BG_PRESSED)
+                        // Show key popup
+                        val displayChar = (v as? TextView)?.text?.toString() ?: (v.tag as? String) ?: ""
+                        showKeyPopup(v, displayChar)
                         true
                     }
                     MotionEvent.ACTION_UP -> {
                         background = createKeyBackground(KEY_BG_COLOR)
+                        dismissKeyPopup()
                         val originalChar = (v.tag as String)
 
                         // Handle Ctrl+key combinations
@@ -652,6 +662,7 @@ class VirtualKeyboardView(
                     }
                     MotionEvent.ACTION_CANCEL -> {
                         background = createKeyBackground(KEY_BG_COLOR)
+                        dismissKeyPopup()
                         true
                     }
                     else -> false
@@ -944,6 +955,95 @@ class VirtualKeyboardView(
             setColor(color)
             cornerRadius = this@VirtualKeyboardView.cornerRadius
         }
+    }
+
+    /**
+     * Shows a popup preview of the pressed key above the key (like Gboard).
+     */
+    private fun showKeyPopup(anchorView: View, keyText: String) {
+        if (!SettingsManager.isVirtualKeyboardKeyPopupEnabled(context)) {
+            return
+        }
+
+        // Dismiss any existing popup
+        dismissKeyPopup()
+
+        // Create popup content
+        val popupSize = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            56f,
+            context.resources.displayMetrics
+        ).toInt()
+
+        val popupTextSize = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP,
+            28f,
+            context.resources.displayMetrics
+        )
+
+        val popupCornerRadius = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            8f,
+            context.resources.displayMetrics
+        )
+
+        // Create the popup background
+        val popupBackground = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(Color.argb(255, 80, 80, 90))
+            cornerRadius = popupCornerRadius
+        }
+
+        // Create the text view for the popup
+        keyPopupTextView = TextView(context).apply {
+            text = keyText.uppercase()
+            setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, popupTextSize)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            background = popupBackground
+            layoutParams = FrameLayout.LayoutParams(popupSize, popupSize)
+        }
+
+        // Create the popup window
+        keyPopupWindow = PopupWindow(
+            keyPopupTextView,
+            popupSize,
+            popupSize,
+            false // Not focusable
+        ).apply {
+            isOutsideTouchable = false
+            isTouchable = false
+            elevation = 8f
+        }
+
+        // Calculate position - show above the key, centered horizontally
+        // Use showAsDropDown with negative Y offset to show above the key
+        val xOffset = (anchorView.width - popupSize) / 2  // Center horizontally
+        val yOffset = -popupSize - anchorView.height - TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            4f,
+            context.resources.displayMetrics
+        ).toInt()
+
+        try {
+            keyPopupWindow?.showAsDropDown(anchorView, xOffset, yOffset)
+        } catch (e: Exception) {
+            // Ignore if popup can't be shown (e.g., view not attached)
+        }
+    }
+
+    /**
+     * Dismisses the key popup if it's showing.
+     */
+    private fun dismissKeyPopup() {
+        try {
+            keyPopupWindow?.dismiss()
+        } catch (e: Exception) {
+            // Ignore
+        }
+        keyPopupWindow = null
+        keyPopupTextView = null
     }
 
     private fun updateShiftKeyAppearance() {

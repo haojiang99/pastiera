@@ -731,6 +731,10 @@
     <string name="virtual_keyboard_vibration_title">按键振动</string>
     <string name="virtual_keyboard_vibration_description">按键时振动以提供触觉反馈</string>
 
+    <!-- Virtual Keyboard Key Popup -->
+    <string name="virtual_keyboard_key_popup_title">按键弹出预览</string>
+    <string name="virtual_keyboard_key_popup_description">按键时显示弹出预览（类似Gboard）</string>
+
     <!-- Status Bar Theme -->
     <string name="status_bar_theme_title">状态栏主题</string>
     <string name="status_bar_theme_description">自定义状态栏配色方案</string>

@@ -111,6 +111,7 @@ object SettingsManager {
     private const val KEY_KEYBOARD_SOUND_VOLUME = "keyboard_sound_volume" // Sound volume: 0-100
     private const val KEY_CUSTOM_SOUND_PATH = "custom_sound_path" // Path to user's custom sound file
     private const val KEY_VIRTUAL_KEYBOARD_VIBRATION = "virtual_keyboard_vibration" // Enable vibration for virtual keyboard typing
+    private const val KEY_VIRTUAL_KEYBOARD_KEY_POPUP = "virtual_keyboard_key_popup" // Show key popup when pressing virtual keyboard keys
     private const val KEY_SHOW_LED_STATUS = "show_led_status" // Show virtual LED status indicator strip
     private const val KEY_TRADITIONAL_CHINESE_TOGGLE_ENABLED = "traditional_chinese_toggle_enabled" // Show 简/繁 toggle button in status bar
     private const val KEY_SHOW_SYM_BUTTON = "show_sym_button" // Show SYM button in status bar
@@ -231,6 +232,7 @@ object SettingsManager {
     private const val DEFAULT_KEYBOARD_SOUND_TYPE = "mechanical"  // Default sound type
     private const val DEFAULT_KEYBOARD_SOUND_VOLUME = 70  // Default sound volume (0-100)
     private const val DEFAULT_VIRTUAL_KEYBOARD_VIBRATION = true  // Virtual keyboard vibration enabled by default
+    private const val DEFAULT_VIRTUAL_KEYBOARD_KEY_POPUP = true  // Key popup enabled by default
     private const val DEFAULT_PARTIAL_PINYIN_MATCHING = false  // Partial pinyin matching disabled by default
     private const val DEFAULT_ABBREVIATION_INPUT_ENABLED = true  // 首字母 input enabled by default
     private const val DEFAULT_SHOW_VIRTUAL_KEYBOARD_BUTTON = true  // Virtual keyboard button shown by default
@@ -2205,6 +2207,22 @@ object SettingsManager {
     fun setVirtualKeyboardVibrationEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_VIRTUAL_KEYBOARD_VIBRATION, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets whether virtual keyboard key popup is enabled.
+     */
+    fun isVirtualKeyboardKeyPopupEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_VIRTUAL_KEYBOARD_KEY_POPUP, DEFAULT_VIRTUAL_KEYBOARD_KEY_POPUP)
+    }
+
+    /**
+     * Sets whether virtual keyboard key popup is enabled.
+     */
+    fun setVirtualKeyboardKeyPopupEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_VIRTUAL_KEYBOARD_KEY_POPUP, enabled)
             .apply()
     }
 

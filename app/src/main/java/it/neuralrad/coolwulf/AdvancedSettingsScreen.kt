@@ -135,6 +135,9 @@ fun AdvancedSettingsScreen(
     var virtualKeyboardVibration by remember {
         mutableStateOf(SettingsManager.isVirtualKeyboardVibrationEnabled(context))
     }
+    var virtualKeyboardKeyPopup by remember {
+        mutableStateOf(SettingsManager.isVirtualKeyboardKeyPopupEnabled(context))
+    }
     var virtualKeyboardHeight by remember {
         mutableStateOf(SettingsManager.getVirtualKeyboardHeight(context))
     }
@@ -800,6 +803,50 @@ fun AdvancedSettingsScreen(
                                         onCheckedChange = { enabled ->
                                             virtualKeyboardVibration = enabled
                                             SettingsManager.setVirtualKeyboardVibrationEnabled(context, enabled)
+                                        }
+                                    )
+                                }
+                            }
+
+                            // Virtual Keyboard Key Popup
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(64.dp)
+                                    .padding(start = 32.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.TouchApp,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.virtual_keyboard_key_popup_title),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.virtual_keyboard_key_popup_description),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 2
+                                        )
+                                    }
+                                    Switch(
+                                        checked = virtualKeyboardKeyPopup,
+                                        onCheckedChange = { enabled ->
+                                            virtualKeyboardKeyPopup = enabled
+                                            SettingsManager.setVirtualKeyboardKeyPopupEnabled(context, enabled)
                                         }
                                     )
                                 }
