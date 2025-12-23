@@ -51,10 +51,10 @@
       example: '无需网络 · 语音数据不外传'
     },
     {
-      icon: '📦',
-      title: '模块化设计',
-      desc: '按需加载 AI 模型，节省存储空间',
-      example: '核心19MB · 模型可选下载'
+      icon: '🎨',
+      title: '主题自定义',
+      desc: '13款预设主题 + 3个自定义槽位，支持虚拟键盘独立配色',
+      example: '状态栏 · 虚拟键盘 · 完全可定制'
     },
     {
       icon: '🔒',
@@ -75,8 +75,8 @@
     { item: '网络依赖', mainstream: '需要联网', coolwulf: '完全离线' },
     { item: '隐私保护', mainstream: '数据上传', coolwulf: '数据不出设备' },
     { item: '语音识别', mainstream: '云端识别', coolwulf: '本地深度学习' },
+    { item: '主题定制', mainstream: '有限主题', coolwulf: '13预设+自定义+虚拟键盘' },
     { item: '数据控制', mainstream: '云端存储', coolwulf: '本地可导入导出' },
-    { item: '模块化', mainstream: '全部捆绑', coolwulf: '按需加载模型' },
     { item: '收费广告', mainstream: '广告+会员', coolwulf: '永久免费' }
   ];
 </script>
@@ -96,7 +96,7 @@
         <a href="#juying">巨硬模式</a>
         <a href="#voice">语音识别</a>
         <a href="#neural">神经网络</a>
-        <a href="/coolwulfIMEv0.81.1865.apk" class="btn-nav" download>立即下载 v0.81</a>
+        <a href="/coolwulfIMEv0.81.1883.apk" class="btn-nav" download>立即下载 v0.81</a>
       </div>
     </div>
   </nav>
@@ -121,7 +121,7 @@
         <strong>完全离线 · 无云端 · 数据自主 · 永久免费</strong>
       </p>
       <div class="hero-buttons">
-        <a href="/coolwulfIMEv0.81.1865.apk" class="btn btn-primary" download>
+        <a href="/coolwulfIMEv0.81.1883.apk" class="btn btn-primary" download>
           <span>立即下载 v0.81</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
@@ -595,7 +595,7 @@
           酷狼输入法为你提供本地 AI 驱动的智能输入体验，数据永远属于你。
         </p>
         <div class="cta-buttons">
-          <a href="/coolwulfIMEv0.81.1865.apk" class="btn btn-primary btn-large" download>
+          <a href="/coolwulfIMEv0.81.1883.apk" class="btn btn-primary btn-large" download>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
             </svg>
