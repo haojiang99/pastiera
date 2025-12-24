@@ -178,16 +178,9 @@ class T9PinyinInputController(
             return targetPage * getEffectivePageSize()
         }
 
-        // Dynamic page size mode - iterate through pages
-        var startIndex = 0
-        for (page in 0 until targetPage) {
-            if (startIndex >= allCandidates.size) break
-            val pageEndIndex = minOf(startIndex + JUYING_PAGE_SIZE, allCandidates.size)
-            val pageCandidates = allCandidates.subList(startIndex, pageEndIndex)
-            val pageLimit = calculateDynamicLimitForCandidates(pageCandidates)
-            startIndex += pageLimit
-        }
-        return startIndex
+        // Dynamic page size mode - use dynamicDisplayLimit as the page size
+        // This respects the "max 3 suggestions" setting
+        return targetPage * dynamicDisplayLimit
     }
 
     /**
@@ -198,12 +191,9 @@ class T9PinyinInputController(
             return getEffectivePageSize()
         }
 
-        // Dynamic page size mode
-        val startIndex = getPageStartIndex(targetPage)
-        if (startIndex >= allCandidates.size) return JUYING_PAGE_SIZE
-        val pageEndIndex = minOf(startIndex + JUYING_PAGE_SIZE, allCandidates.size)
-        val pageCandidates = allCandidates.subList(startIndex, pageEndIndex)
-        return calculateDynamicLimitForCandidates(pageCandidates)
+        // Dynamic page size mode - use the dynamicDisplayLimit as the limit
+        // This respects the "max 3 suggestions" setting when dynamicDisplayLimit is set to 3
+        return dynamicDisplayLimit
     }
 
     // User memory for frequency sorting
