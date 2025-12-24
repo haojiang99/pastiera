@@ -17,16 +17,17 @@ local.properties
 # Keystore files (security)
 *.jks
 *.keystore
-<<<<<<< HEAD
+keystore.properties
+
 /releases
 /.kotlin/errors
-=======
-keystore.properties
 
 # Cursor rules (workspace-specific)
 .cursor/
->>>>>>> 68a62b5a557c9498db1e930a7c17d753b744580a
+
+# Source code archives
 /src_061
+/src_081
 /landingpage/node_modules
 landingpage/dist/sherpa-onnx-paraformer-zh-small-2024-03-09.zip
 landingpage/dist/coolwulfIMEv0.77.1420.apk
