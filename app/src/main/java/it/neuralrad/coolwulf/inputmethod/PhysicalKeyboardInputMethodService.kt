@@ -1495,74 +1495,136 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
 
     /**
-     * Check if the current touch gesture is a valid swipe and trigger suggestion insertion.
+     * Check if the current touch gesture is a valid swipe and trigger the appropriate action.
+     * Swipe up = candidate selection (zone-based)
+     * Swipe down = next page
      */
     private fun checkForSwipeGesture() {
-        // deltaY positive = swipe up (startY is higher value than currentY on screen)
+        // deltaY positive = swipe up, negative = swipe down
         val deltaY = startY - currentY
         val deltaX = currentX - startX
         val absDeltaX = kotlin.math.abs(deltaX)
+        val absDeltaY = kotlin.math.abs(deltaY)
 
-        // Require primarily vertical swipe: deltaY must be positive (upward) and at least 3x larger than horizontal drift
-        if (deltaY > trackpadSwipeThreshold && absDeltaX < deltaY / 3) {
-            // Determine which zone based on starting X position
-            val inChineseMode = isChineseInputModeActive()
-            val isMaxThreeSuggestions = SettingsManager.getJuyingMaxThreeSuggestions(this)
+        // Require primarily vertical swipe: vertical movement must be at least 3x larger than horizontal drift
+        if (absDeltaY > trackpadSwipeThreshold && absDeltaX < absDeltaY / 3) {
+            if (deltaY > 0) {
+                // Swipe UP - candidate selection
+                val inChineseMode = isChineseInputModeActive()
+                val isMaxThreeSuggestions = SettingsManager.getJuyingMaxThreeSuggestions(this)
 
-            Handler(Looper.getMainLooper()).post {
-                if (inChineseMode) {
-                    if (isMaxThreeSuggestions) {
-                        // Chinese Juying mode with max 3 suggestions: 3 zones matching layout 2-1-3
-                        // Center = best suggestion (index 0, mapped to space key)
+                Handler(Looper.getMainLooper()).post {
+                    if (inChineseMode) {
+                        if (isMaxThreeSuggestions) {
+                            // Chinese Juying mode with max 3 suggestions: 3 zones matching layout 2-1-3
+                            // Center = best suggestion (index 0, mapped to space key)
+                            val zone = when {
+                                startX < trackpadMaxX / 3 -> 0           // Left third
+                                startX < (trackpadMaxX * 2) / 3 -> 1     // Center
+                                else -> 2                                  // Right third
+                            }
+                            // Zone mapping for 3-suggestion Juying layout: visual 2-1-3 from left to right
+                            val candidateIndex = when (zone) {
+                                0 -> 1  // Left third -> 2nd candidate
+                                1 -> 0  // Center -> 1st (best) candidate
+                                2 -> 2  // Right third -> 3rd candidate
+                                else -> 0
+                            }
+                            // Animate the selection (zone = display position)
+                            candidatesBarController.animateSwipeSelection(zone)
+                            acceptChineseCandidateBySwipe(candidateIndex)
+                        } else {
+                            // Chinese Juying mode: 5 zones matching visual layout 2-3-1-4-5
+                            // Center (zone 2) = best suggestion (index 0, mapped to space key)
+                            val zone = when {
+                                startX < trackpadMaxX / 5 -> 0           // Left fifth
+                                startX < (trackpadMaxX * 2) / 5 -> 1     // Second fifth
+                                startX < (trackpadMaxX * 3) / 5 -> 2     // Center
+                                startX < (trackpadMaxX * 4) / 5 -> 3     // Fourth fifth
+                                else -> 4                                  // Right fifth
+                            }
+                            // Zone mapping for Juying layout: visual 2-3-1-4-5 from left to right
+                            val candidateIndex = when (zone) {
+                                0 -> 1  // Left fifth -> 2nd candidate
+                                1 -> 2  // Second fifth -> 3rd candidate
+                                2 -> 0  // Center -> 1st (best) candidate
+                                3 -> 3  // Fourth fifth -> 4th candidate
+                                4 -> 4  // Right fifth -> 5th candidate
+                                else -> 0
+                            }
+                            // Animate the selection (zone = display position)
+                            candidatesBarController.animateSwipeSelection(zone)
+                            acceptChineseCandidateBySwipe(candidateIndex)
+                        }
+                    } else {
+                        // English Juying mode: 3 zones matching visual layout
+                        // Display: [1st best (left)] [current typed word (center)] [2nd best (right)]
                         val zone = when {
                             startX < trackpadMaxX / 3 -> 0           // Left third
                             startX < (trackpadMaxX * 2) / 3 -> 1     // Center
                             else -> 2                                  // Right third
                         }
-                        // Zone mapping for 3-suggestion Juying layout: visual 2-1-3 from left to right
-                        val candidateIndex = when (zone) {
-                            0 -> 1  // Left third -> 2nd candidate
-                            1 -> 0  // Center -> 1st (best) candidate
-                            2 -> 2  // Right third -> 3rd candidate
-                            else -> 0
-                        }
-                        acceptChineseCandidateBySwipe(candidateIndex)
-                    } else {
-                        // Chinese Juying mode: 5 zones matching visual layout 2-3-1-4-5
-                        // Center (zone 2) = best suggestion (index 0, mapped to space key)
-                        val zone = when {
-                            startX < trackpadMaxX / 5 -> 0           // Left fifth
-                            startX < (trackpadMaxX * 2) / 5 -> 1     // Second fifth
-                            startX < (trackpadMaxX * 3) / 5 -> 2     // Center
-                            startX < (trackpadMaxX * 4) / 5 -> 3     // Fourth fifth
-                            else -> 4                                  // Right fifth
-                        }
-                        // Zone mapping for Juying layout: visual 2-3-1-4-5 from left to right
-                        val candidateIndex = when (zone) {
-                            0 -> 1  // Left fifth -> 2nd candidate
-                            1 -> 2  // Second fifth -> 3rd candidate
-                            2 -> 0  // Center -> 1st (best) candidate
-                            3 -> 3  // Fourth fifth -> 4th candidate
-                            4 -> 4  // Right fifth -> 5th candidate
-                            else -> 0
-                        }
-                        acceptChineseCandidateBySwipe(candidateIndex)
+                        // Zone mapping for English Juying layout:
+                        // Left (0) -> 1st best (index 0)
+                        // Center (1) -> current typed word (index 1)
+                        // Right (2) -> 2nd best (index 2)
+                        val suggestionIndex = zone
+                        // Animate the selection (zone = display position)
+                        candidatesBarController.animateSwipeSelection(zone)
+                        acceptEnglishSuggestionBySwipe(suggestionIndex)
                     }
-                } else {
-                    // English Juying mode: 3 zones matching visual layout
-                    // Display: [1st best (left)] [current typed word (center)] [2nd best (right)]
-                    val zone = when {
-                        startX < trackpadMaxX / 3 -> 0           // Left third
-                        startX < (trackpadMaxX * 2) / 3 -> 1     // Center
-                        else -> 2                                  // Right third
-                    }
-                    // Zone mapping for English Juying layout:
-                    // Left (0) -> 1st best (index 0)
-                    // Center (1) -> current typed word (index 1)
-                    // Right (2) -> 2nd best (index 2)
-                    val suggestionIndex = zone
-                    acceptEnglishSuggestionBySwipe(suggestionIndex)
                 }
+            } else {
+                // Swipe DOWN - next page
+                Handler(Looper.getMainLooper()).post {
+                    handleSwipeDownNextPage()
+                }
+            }
+        }
+    }
+
+    /**
+     * Handle swipe down gesture for next page navigation.
+     */
+    private fun handleSwipeDownNextPage() {
+        val isPinyinMode = pinyinInputController.isPinyinMode()
+        val isShuangpinMode = shuangpinInputController.isShuangpinMode()
+        val isWubiMode = wubiInputController.isWubiMode()
+        val isZhenmaMode = zhenmaInputController.isZhenmaMode()
+        val isT9PinyinMode = t9PinyinInputController.isT9Mode()
+        val isWordPredictionActive = englishWordPredictionController.hasActivePrediction()
+
+        val hasPinyinCandidates = isPinyinMode && pinyinInputController.hasCandidates()
+        val hasShuangpinCandidates = isShuangpinMode && shuangpinInputController.hasCandidates()
+        val hasWubiCandidates = isWubiMode && wubiInputController.hasCandidates()
+        val hasZhenmaCandidates = isZhenmaMode && zhenmaInputController.hasCandidates()
+        val hasT9PinyinCandidates = isT9PinyinMode && t9PinyinInputController.hasCandidates()
+        val hasWordPredictions = isWordPredictionActive && englishWordPredictionController.hasSuggestions()
+
+        when {
+            hasPinyinCandidates -> {
+                pinyinInputController.nextPage()
+                updateStatusBarText()
+            }
+            hasShuangpinCandidates -> {
+                shuangpinInputController.nextPage()
+                updateStatusBarText()
+            }
+            hasWubiCandidates -> {
+                wubiInputController.nextPage()
+                updateStatusBarText()
+            }
+            hasZhenmaCandidates -> {
+                zhenmaInputController.nextPage()
+                updateStatusBarText()
+            }
+            hasT9PinyinCandidates -> {
+                t9PinyinInputController.nextPage()
+                updateStatusBarText()
+            }
+            hasWordPredictions -> {
+                englishWordPredictionController.nextPage()
+                updateStatusBarText()
             }
         }
     }
@@ -3280,58 +3342,72 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val hasCandidatesToPaginate = hasPinyinCandidates || hasShuangpinCandidates || hasWubiCandidates || hasZhenmaCandidates || hasT9PinyinCandidates || hasWordPredictions
 
         // Handle touchpad DPAD_DOWN/DPAD_UP for Chinese input candidate pagination
-        // Only intercept when we have candidates to paginate and touchpad page is enabled
         // Use debounce to ensure one swipe = one page change (regardless of swipe distance)
-        // IMPORTANT: When trackpad gestures are enabled, skip this DPAD pagination
-        // because the raw trackpad events will handle candidate selection directly
+        // When trackpad gestures are enabled:
+        // - DPAD_DOWN (swipe down) always triggers next page (regardless of touchpadPageEnabled setting)
+        // - DPAD_UP (swipe up) is skipped - handled by raw trackpad gesture for candidate selection
+        // When trackpad gestures are disabled:
+        // - Both DPAD_DOWN and DPAD_UP work for pagination only if touchpadPageEnabled is true
         val touchpadPageEnabled = SettingsManager.getTouchpadPageEnabled(this)
         val trackpadGesturesEnabled = SettingsManager.getTrackpadGesturesEnabled(this)
         val currentTime = System.currentTimeMillis()
         val timeSinceLastTouchpadPage = currentTime - lastTouchpadPageTime
-        if (hasCandidatesToPaginate && touchpadPageEnabled && !trackpadGesturesEnabled && timeSinceLastTouchpadPage > TOUCHPAD_PAGE_DEBOUNCE_MS) {
+
+        // Swipe down for next page: enabled when trackpadGesturesEnabled OR touchpadPageEnabled
+        val swipeDownEnabled = trackpadGesturesEnabled || touchpadPageEnabled
+        // Swipe up for prev page: only when touchpadPageEnabled AND trackpadGesturesEnabled is false
+        val swipeUpEnabled = touchpadPageEnabled && !trackpadGesturesEnabled
+
+        if (hasCandidatesToPaginate && timeSinceLastTouchpadPage > TOUCHPAD_PAGE_DEBOUNCE_MS) {
             when (translatedKeyCode) {
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    // Touchpad down = next page
-                    if (hasPinyinCandidates) {
-                        pinyinInputController.nextPage()
-                    } else if (hasShuangpinCandidates) {
-                        shuangpinInputController.nextPage()
-                    } else if (hasWubiCandidates) {
-                        wubiInputController.nextPage()
-                    } else if (hasZhenmaCandidates) {
-                        zhenmaInputController.nextPage()
-                    } else if (hasT9PinyinCandidates) {
-                        t9PinyinInputController.nextPage()
-                    } else if (hasWordPredictions) {
-                        englishWordPredictionController.nextPage()
+                    if (swipeDownEnabled) {
+                        // Touchpad down = next page
+                        if (hasPinyinCandidates) {
+                            pinyinInputController.nextPage()
+                        } else if (hasShuangpinCandidates) {
+                            shuangpinInputController.nextPage()
+                        } else if (hasWubiCandidates) {
+                            wubiInputController.nextPage()
+                        } else if (hasZhenmaCandidates) {
+                            zhenmaInputController.nextPage()
+                        } else if (hasT9PinyinCandidates) {
+                            t9PinyinInputController.nextPage()
+                        } else if (hasWordPredictions) {
+                            englishWordPredictionController.nextPage()
+                        }
+                        lastTouchpadPageTime = currentTime
+                        updateStatusBarText()
+                        return true
                     }
-                    lastTouchpadPageTime = currentTime
-                    updateStatusBarText()
-                    return true
                 }
                 KeyEvent.KEYCODE_DPAD_UP -> {
-                    // Touchpad up = previous page
-                    if (hasPinyinCandidates) {
-                        pinyinInputController.prevPage()
-                    } else if (hasShuangpinCandidates) {
-                        shuangpinInputController.prevPage()
-                    } else if (hasWubiCandidates) {
-                        wubiInputController.prevPage()
-                    } else if (hasZhenmaCandidates) {
-                        zhenmaInputController.prevPage()
-                    } else if (hasT9PinyinCandidates) {
-                        t9PinyinInputController.prevPage()
-                    } else if (hasWordPredictions) {
-                        englishWordPredictionController.prevPage()
+                    if (swipeUpEnabled) {
+                        // Touchpad up = previous page (only when trackpad gestures are disabled)
+                        if (hasPinyinCandidates) {
+                            pinyinInputController.prevPage()
+                        } else if (hasShuangpinCandidates) {
+                            shuangpinInputController.prevPage()
+                        } else if (hasWubiCandidates) {
+                            wubiInputController.prevPage()
+                        } else if (hasZhenmaCandidates) {
+                            zhenmaInputController.prevPage()
+                        } else if (hasT9PinyinCandidates) {
+                            t9PinyinInputController.prevPage()
+                        } else if (hasWordPredictions) {
+                            englishWordPredictionController.prevPage()
+                        }
+                        lastTouchpadPageTime = currentTime
+                        updateStatusBarText()
+                        return true
                     }
-                    lastTouchpadPageTime = currentTime
-                    updateStatusBarText()
-                    return true
                 }
             }
-        } else if (hasCandidatesToPaginate && touchpadPageEnabled && !trackpadGesturesEnabled &&
-                   (translatedKeyCode == KeyEvent.KEYCODE_DPAD_DOWN || translatedKeyCode == KeyEvent.KEYCODE_DPAD_UP)) {
-            // Within debounce period - consume the event but don't change page
+        } else if (hasCandidatesToPaginate && swipeDownEnabled && translatedKeyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            // Within debounce period for DPAD_DOWN - consume the event but don't change page
+            return true
+        } else if (hasCandidatesToPaginate && swipeUpEnabled && translatedKeyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            // Within debounce period for DPAD_UP - consume the event but don't change page
             return true
         }
 

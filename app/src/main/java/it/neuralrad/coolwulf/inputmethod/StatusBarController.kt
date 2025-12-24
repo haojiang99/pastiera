@@ -1389,6 +1389,14 @@ class StatusBarController(
         view.measure(widthSpec, heightSpec)
         return view.measuredHeight
     }
+
+    /**
+     * Animates a flash effect on the candidate at the given index when selected by swipe gesture.
+     * @param candidateIndex The index of the candidate to animate (0-based)
+     */
+    fun animateSwipeSelection(candidateIndex: Int) {
+        variationBarView?.animateSwipeSelection(candidateIndex)
+    }
 }
 
 

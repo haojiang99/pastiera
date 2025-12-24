@@ -2667,5 +2667,49 @@ class VariationBarView(
         wrapper?.invalidate()
         container?.invalidate()
     }
+
+    /**
+     * Animates a flash effect on the candidate at the given index when selected by swipe gesture.
+     * The animation scales up the button briefly and adds a highlight effect.
+     * @param candidateIndex The index of the candidate to animate (0-based)
+     */
+    fun animateSwipeSelection(candidateIndex: Int) {
+        if (candidateIndex < 0 || candidateIndex >= variationButtons.size) return
+
+        val button = variationButtons[candidateIndex]
+        val theme = getCurrentTheme()
+
+        // Cancel any ongoing animation
+        button.animate().cancel()
+
+        // Store original values
+        val originalScaleX = button.scaleX
+        val originalScaleY = button.scaleY
+        val originalBackground = button.background
+
+        // Create highlight background
+        val highlightDrawable = GradientDrawable().apply {
+            setColor(theme.accentColor)
+            cornerRadius = 8f * context.resources.displayMetrics.density
+        }
+
+        // Flash animation: scale up with highlight, then scale back
+        button.background = highlightDrawable
+        button.animate()
+            .scaleX(1.15f)
+            .scaleY(1.15f)
+            .setDuration(80)
+            .withEndAction {
+                button.animate()
+                    .scaleX(originalScaleX)
+                    .scaleY(originalScaleY)
+                    .setDuration(120)
+                    .withEndAction {
+                        button.background = originalBackground
+                    }
+                    .start()
+            }
+            .start()
+    }
 }
 
