@@ -1513,16 +1513,69 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val inChineseMode = isChineseInputModeActive()
                 val isMaxThreeSuggestions = SettingsManager.getJuyingMaxThreeSuggestions(this)
 
+                // Check if punctuation buttons are active
+                val punctuationButtonsEnabled = SettingsManager.isJuyingPunctuationButtons(this)
+                val fixedPositionsEnabled = SettingsManager.getJuyingFixedPositions(this)
+                val isNextWordPrediction = when {
+                    pinyinInputController.isPinyinMode() -> pinyinInputController.isShowingNextWordPredictions()
+                    shuangpinInputController.isShuangpinMode() -> shuangpinInputController.isShowingNextWordPredictions()
+                    wubiInputController.isWubiMode() -> wubiInputController.isShowingNextWordPredictions()
+                    zhenmaInputController.isZhenmaMode() -> zhenmaInputController.isShowingNextWordPredictions()
+                    else -> englishWordPredictionController.getSnapshot().isNextWordPrediction
+                }
+                val punctuationButtonsActive = punctuationButtonsEnabled && fixedPositionsEnabled && isNextWordPrediction
+
                 Handler(Looper.getMainLooper()).post {
-                    if (inChineseMode) {
+                    // Helper function to calculate zone with even spacing
+                    fun calculateZone(x: Int, maxX: Int, numZones: Int): Int {
+                        val zoneWidth = maxX.toFloat() / numZones
+                        val zone = (x.toFloat() / zoneWidth).toInt()
+                        return zone.coerceIn(0, numZones - 1)
+                    }
+
+                    if (punctuationButtonsActive) {
+                        // Punctuation buttons mode (Chinese or English next word prediction): 5 zones
+                        // Layout: [leftPunct] [2nd] [1st(best)] [3rd] [rightPunct]
+                        val zone = calculateZone(startX, trackpadMaxX, 5)
+
+                        when (zone) {
+                            0 -> {
+                                // Left punctuation
+                                candidatesBarController.animateSwipeSelection(zone)
+                                candidatesBarController.playSwipeSelectionSound()
+                                acceptPunctuationBySwipe(isLeft = true)
+                            }
+                            4 -> {
+                                // Right punctuation
+                                candidatesBarController.animateSwipeSelection(zone)
+                                candidatesBarController.playSwipeSelectionSound()
+                                acceptPunctuationBySwipe(isLeft = false)
+                            }
+                            else -> {
+                                // Suggestion (zones 1, 2, 3)
+                                // Zone 1 -> 2nd suggestion (index 1)
+                                // Zone 2 -> 1st/best suggestion (index 0)
+                                // Zone 3 -> 3rd suggestion (index 2)
+                                val suggestionIndex = when (zone) {
+                                    1 -> 1  // 2nd suggestion
+                                    2 -> 0  // 1st (best) suggestion
+                                    3 -> 2  // 3rd suggestion
+                                    else -> 0
+                                }
+                                candidatesBarController.animateSwipeSelection(zone)
+                                candidatesBarController.playSwipeSelectionSound()
+                                if (inChineseMode) {
+                                    acceptChineseCandidateBySwipe(suggestionIndex)
+                                } else {
+                                    acceptEnglishSuggestionBySwipe(suggestionIndex)
+                                }
+                            }
+                        }
+                    } else if (inChineseMode) {
                         if (isMaxThreeSuggestions) {
                             // Chinese Juying mode with max 3 suggestions: 3 zones matching layout 2-1-3
                             // Center = best suggestion (index 0, mapped to space key)
-                            val zone = when {
-                                startX < trackpadMaxX / 3 -> 0           // Left third
-                                startX < (trackpadMaxX * 2) / 3 -> 1     // Center
-                                else -> 2                                  // Right third
-                            }
+                            val zone = calculateZone(startX, trackpadMaxX, 3)
                             // Zone mapping for 3-suggestion Juying layout: visual 2-1-3 from left to right
                             val candidateIndex = when (zone) {
                                 0 -> 1  // Left third -> 2nd candidate
@@ -1537,13 +1590,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         } else {
                             // Chinese Juying mode: 5 zones matching visual layout 2-3-1-4-5
                             // Center (zone 2) = best suggestion (index 0, mapped to space key)
-                            val zone = when {
-                                startX < trackpadMaxX / 5 -> 0           // Left fifth
-                                startX < (trackpadMaxX * 2) / 5 -> 1     // Second fifth
-                                startX < (trackpadMaxX * 3) / 5 -> 2     // Center
-                                startX < (trackpadMaxX * 4) / 5 -> 3     // Fourth fifth
-                                else -> 4                                  // Right fifth
-                            }
+                            val zone = calculateZone(startX, trackpadMaxX, 5)
                             // Zone mapping for Juying layout: visual 2-3-1-4-5 from left to right
                             val candidateIndex = when (zone) {
                                 0 -> 1  // Left fifth -> 2nd candidate
@@ -1559,13 +1606,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             acceptChineseCandidateBySwipe(candidateIndex)
                         }
                     } else {
-                        // English Juying mode: 3 zones matching visual layout
+                        // English Juying mode without punctuation buttons: 3 zones matching visual layout
                         // Display: [1st best (left)] [current typed word (center)] [2nd best (right)]
-                        val zone = when {
-                            startX < trackpadMaxX / 3 -> 0           // Left third
-                            startX < (trackpadMaxX * 2) / 3 -> 1     // Center
-                            else -> 2                                  // Right third
-                        }
+                        val zone = calculateZone(startX, trackpadMaxX, 3)
                         // Zone mapping for English Juying layout:
                         // Left (0) -> 1st best (index 0)
                         // Center (1) -> current typed word (index 1)
@@ -1584,6 +1627,43 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
         }
+    }
+
+    /**
+     * Accept a punctuation character by swipe gesture.
+     */
+    private fun acceptPunctuationBySwipe(isLeft: Boolean) {
+        val ic = currentInputConnection ?: return
+
+        // Get the custom punctuation from settings
+        val punctuationEnglish = if (isLeft) {
+            SettingsManager.getJuyingPunctuationLeft(this)
+        } else {
+            SettingsManager.getJuyingPunctuationRight(this)
+        }
+
+        // Convert to Chinese punctuation if in Chinese punctuation mode
+        val punctuation = if (isChinesePunctuationModeActive()) {
+            SettingsManager.getChinesePunctuation(punctuationEnglish)
+        } else {
+            punctuationEnglish
+        }
+
+        // Commit the punctuation
+        ic.commitText(punctuation, 1)
+
+        // Clear next word predictions after punctuation
+        when {
+            pinyinInputController.isPinyinMode() -> pinyinInputController.clearNextWordPredictions()
+            shuangpinInputController.isShuangpinMode() -> shuangpinInputController.clearNextWordPredictions()
+            wubiInputController.isWubiMode() -> wubiInputController.clearNextWordPredictions()
+            zhenmaInputController.isZhenmaMode() -> zhenmaInputController.clearNextWordPredictions()
+            else -> {
+                englishWordPredictionController.clearNextWordPredictions()
+                englishWordPredictionController.clearSuggestions()
+            }
+        }
+        updateStatusBarText()
     }
 
     /**
