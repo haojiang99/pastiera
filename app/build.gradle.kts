@@ -43,10 +43,10 @@ android {
 
     defaultConfig {
         applicationId = "it.neuralrad.coolwulf"
-        minSdk = 23
+        minSdk = 24
         targetSdk = 36
-        versionCode = 18
-        versionName = "0.81"
+        versionCode = 19
+        versionName = "0.82"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -182,6 +182,10 @@ dependencies {
     // Must match the version bundled in sherpa-onnx (1.17.1)
     // The native libs are excluded via packagingOptions since we use sherpa-onnx's libonnxruntime.so
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.17.1")
+
+    // Shizuku for trackpad gesture detection (requires ADB-level access to read /dev/input/event7)
+    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation("dev.rikka.shizuku:provider:13.1.5")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -155,7 +155,15 @@ object SettingsManager {
     private const val KEY_CUSTOM_THEME_TYPE_2 = "custom_theme_type_2"
     private const val KEY_CUSTOM_THEME_TYPE_3 = "custom_theme_type_3"
 
+    // Trackpad gesture settings (Shizuku-based swipe to insert suggestions)
+    private const val KEY_TRACKPAD_GESTURES_ENABLED = "trackpad_gestures_enabled"
+    private const val KEY_TRACKPAD_SWIPE_THRESHOLD = "trackpad_swipe_threshold"
+
     // Default values
+    private const val DEFAULT_TRACKPAD_GESTURES_ENABLED = false  // Disabled by default
+    private const val DEFAULT_TRACKPAD_SWIPE_THRESHOLD = 150  // Minimum swipe distance in pixels
+    private const val MIN_TRACKPAD_SWIPE_THRESHOLD = 50
+    private const val MAX_TRACKPAD_SWIPE_THRESHOLD = 300
     private const val DEFAULT_STATUS_BAR_THEME = "classic_dark"
     private const val DEFAULT_DAY_NIGHT_THEME_ENABLED = false
     private const val DEFAULT_DAY_THEME = "charcoal_gray" // Light-ish theme for day
@@ -3626,5 +3634,52 @@ object SettingsManager {
     fun isSymKey(context: Context, keyCode: Int): Boolean {
         return keyCode == getSymKeyCode(context)
     }
+
+    // ========== Trackpad Gesture Settings ==========
+
+    /**
+     * Returns whether trackpad gesture suggestions are enabled.
+     * When enabled, swiping up on the physical trackpad will insert suggestions.
+     */
+    fun getTrackpadGesturesEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_TRACKPAD_GESTURES_ENABLED, DEFAULT_TRACKPAD_GESTURES_ENABLED)
+    }
+
+    /**
+     * Sets whether trackpad gesture suggestions are enabled.
+     */
+    fun setTrackpadGesturesEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_TRACKPAD_GESTURES_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns the trackpad swipe threshold in pixels.
+     * This is the minimum vertical distance required to trigger a swipe gesture.
+     */
+    fun getTrackpadSwipeThreshold(context: Context): Int {
+        return getPreferences(context).getInt(KEY_TRACKPAD_SWIPE_THRESHOLD, DEFAULT_TRACKPAD_SWIPE_THRESHOLD)
+    }
+
+    /**
+     * Sets the trackpad swipe threshold in pixels.
+     */
+    fun setTrackpadSwipeThreshold(context: Context, threshold: Int) {
+        val clamped = threshold.coerceIn(MIN_TRACKPAD_SWIPE_THRESHOLD, MAX_TRACKPAD_SWIPE_THRESHOLD)
+        getPreferences(context).edit()
+            .putInt(KEY_TRACKPAD_SWIPE_THRESHOLD, clamped)
+            .apply()
+    }
+
+    /**
+     * Returns the minimum allowed trackpad swipe threshold.
+     */
+    fun getMinTrackpadSwipeThreshold(): Int = MIN_TRACKPAD_SWIPE_THRESHOLD
+
+    /**
+     * Returns the maximum allowed trackpad swipe threshold.
+     */
+    fun getMaxTrackpadSwipeThreshold(): Int = MAX_TRACKPAD_SWIPE_THRESHOLD
 }
 

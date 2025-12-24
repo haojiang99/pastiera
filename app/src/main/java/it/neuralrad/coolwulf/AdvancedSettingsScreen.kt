@@ -941,7 +941,49 @@ fun AdvancedSettingsScreen(
                                 )
                             }
                         }
-                    
+
+                        // Trackpad Gestures Settings
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                                .clickable { navigateTo(AdvancedDestination.TrackpadGestures) }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.TouchApp,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.trackpad_gestures_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.trackpad_gestures_enabled_description),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
                         // Backup
                         Surface(
                             modifier = Modifier
@@ -1137,7 +1179,14 @@ fun AdvancedSettingsScreen(
                     onBack = { navigateBack() }
                 )
             }
-            
+
+            AdvancedDestination.TrackpadGestures -> {
+                TrackpadGestureSettingsScreen(
+                    modifier = modifier,
+                    onBack = { navigateBack() }
+                )
+            }
+
         }
     }
 }
@@ -1145,6 +1194,7 @@ fun AdvancedSettingsScreen(
 private sealed class AdvancedDestination {
     object Main : AdvancedDestination()
     object LauncherShortcuts : AdvancedDestination()
+    object TrackpadGestures : AdvancedDestination()
 }
 
 private enum class AdvancedNavigationDirection {

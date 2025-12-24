@@ -889,4 +889,25 @@
     <string name="sherpa_permission_denied">Microphone permission denied</string>
     <string name="sherpa_model_not_configured">Model not configured. Please select a Sherpa-ONNX model file in Settings → Text Input → Voice Model.</string>
     <string name="sherpa_library_not_available">Sherpa-ONNX library not installed. Please add the AAR file to enable recognition.</string>
+
+    <!-- Trackpad Gesture Settings -->
+    <string name="trackpad_gestures_title">Trackpad Gestures</string>
+    <string name="trackpad_gestures_enabled_title">Enable Trackpad Gestures</string>
+    <string name="trackpad_gestures_enabled_description">Swipe up on the physical trackpad to insert suggestions (requires Shizuku)</string>
+    <string name="trackpad_gestures_swipe_threshold_title">Swipe Sensitivity</string>
+    <string name="trackpad_gestures_swipe_threshold_description">Minimum swipe distance: %1$d pixels. Lower values make swipes more sensitive.</string>
+    <string name="trackpad_gestures_how_it_works_title">How It Works</string>
+    <string name="trackpad_gestures_how_it_works_english">English Mode (3 zones): Swipe up on the left third to select the 3rd suggestion, center for the 1st suggestion, right for the 2nd suggestion.</string>
+    <string name="trackpad_gestures_how_it_works_chinese">Chinese Juying Mode (5 zones): Swipe up on the trackpad to select one of 5 candidates. From left to right: positions 2, 3, 1 (best), 4, 5.</string>
+    <string name="trackpad_gestures_shizuku_title">Shizuku Required</string>
+    <string name="trackpad_gestures_shizuku_description">This feature requires Shizuku to read trackpad events. Install Shizuku and start it via Wireless ADB.</string>
+    <string name="trackpad_gestures_install_shizuku">Install Shizuku</string>
+    <string name="trackpad_gestures_install_shizuku_description">Download from shizuku.rikka.app</string>
+    <string name="trackpad_gestures_shizuku_url">https://shizuku.rikka.app/</string>
+    <string name="trackpad_gestures_shizuku_not_running">Shizuku is not running. Start Shizuku via Wireless ADB first.</string>
+    <string name="trackpad_gestures_shizuku_connected">Shizuku is connected and ready.</string>
+    <string name="trackpad_gestures_shizuku_no_permission">Shizuku is running but permission not granted.</string>
+    <string name="trackpad_gestures_grant_permission">Grant Permission</string>
+    <string name="trackpad_gestures_show_tutorial">How to Use</string>
+    <string name="trackpad_gestures_tutorial_description">Learn how trackpad gestures work</string>
 </resources>

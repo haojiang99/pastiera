@@ -35,6 +35,15 @@ import it.neuralrad.coolwulf.data.mappings.KeyMappingLoader
 import it.neuralrad.coolwulf.data.variation.VariationRepository
 import it.neuralrad.coolwulf.inputmethod.SpeechRecognitionActivity
 import it.neuralrad.coolwulf.inputmethod.SherpaSpeechActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import rikka.shizuku.Shizuku
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 /**
  * Input method service specialized for physical keyboards.
@@ -193,6 +202,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     // Track if Alt was just used for candidate selection (ignore Alt until key released)
     private var altUsedForCandidateSelection: Boolean = false
+
+    // Trackpad gesture detection (Shizuku-based)
+    private var geteventJob: Job? = null
+    private val trackpadScope = CoroutineScope(Dispatchers.IO)
+    private var touchDown = false
+    private var startX = 0
+    private var startY = 0
+    private var currentX = 0
+    private var currentY = 0
+    private var startPosSet = false
+    private val trackpadMaxX = 1440  // Trackpad width matches screen width (Titan 2)
+    private val trackpadSwipeThreshold: Int
+        get() = SettingsManager.getTrackpadSwipeThreshold(this)
 
     // Track if we just cleared next-word predictions due to Shift+letter or DEL (prevent re-triggering)
     // Uses a counter: 0 = allow updates, >0 = skip this many update cycles
@@ -1248,6 +1270,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 Log.d(TAG, "Keyboard layout changed, reloading...")
                 // Reload keyboard layout
                 loadKeyboardLayout()
+            } else if (key == "trackpad_gestures_enabled") {
+                val enabled = SettingsManager.getTrackpadGesturesEnabled(this)
+                if (enabled) {
+                    startTrackpadGestureDetection()
+                } else {
+                    stopTrackpadGestureDetection()
+                }
             }
         }
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
@@ -1342,8 +1371,286 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             registerReceiver(themeChangeReceiver, themeFilter)
         }
         Log.d(TAG, "Broadcast receiver registered for theme changes")
+
+        // Start trackpad gesture detection if enabled and Shizuku is available
+        if (SettingsManager.getTrackpadGesturesEnabled(this)) {
+            startTrackpadGestureDetection()
+        }
     }
-    
+
+    /**
+     * Start the trackpad gesture detection using Shizuku to read raw trackpad events.
+     * Uses getevent to monitor /dev/input/event7 for the Unihertz Titan 2 trackpad.
+     */
+    private fun startTrackpadGestureDetection() {
+        // Check if already running
+        if (geteventJob?.isActive == true) {
+            return
+        }
+
+        // Check if Shizuku is available and we have permission
+        try {
+            if (!Shizuku.pingBinder()) {
+                return
+            }
+            if (Shizuku.checkSelfPermission() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                return
+            }
+        } catch (e: Exception) {
+            return
+        }
+
+        geteventJob = trackpadScope.launch {
+            try {
+                // Use Shizuku to run getevent with elevated privileges
+                val newProcessMethod = Shizuku::class.java.getDeclaredMethod(
+                    "newProcess",
+                    Array<String>::class.java,
+                    Array<String>::class.java,
+                    String::class.java
+                )
+                newProcessMethod.isAccessible = true
+
+                val process = newProcessMethod.invoke(
+                    null,
+                    arrayOf("getevent", "-l", "/dev/input/event7"),
+                    null,
+                    null
+                ) as Process
+
+                BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
+                    while (isActive) {
+                        val line = reader.readLine() ?: break
+                        parseTrackpadEvent(line)
+                    }
+                }
+
+                process.destroy()
+            } catch (e: Exception) {
+                // Silently fail
+            }
+        }
+    }
+
+    /**
+     * Stop the trackpad gesture detection.
+     */
+    private fun stopTrackpadGestureDetection() {
+        geteventJob?.cancel()
+        geteventJob = null
+        touchDown = false
+        startPosSet = false
+    }
+
+    /**
+     * Parse a line of getevent output and detect swipe gestures.
+     * Format: /dev/input/event7: EV_KEY BTN_TOUCH DOWN
+     * Format: /dev/input/event7: EV_ABS ABS_MT_POSITION_X 00000123
+     */
+    private fun parseTrackpadEvent(line: String) {
+        try {
+            when {
+                line.contains("BTN_TOUCH") && line.contains("DOWN") -> {
+                    touchDown = true
+                    startPosSet = false
+                }
+                line.contains("BTN_TOUCH") && line.contains("UP") -> {
+                    if (touchDown) {
+                        checkForSwipeGesture()
+                    }
+                    touchDown = false
+                    startPosSet = false
+                }
+                line.contains("ABS_MT_POSITION_X") -> {
+                    val parts = line.trim().split(Regex("\\s+"))
+                    if (parts.size >= 3) {
+                        val hexValue = parts.last()
+                        val newX = hexValue.toIntOrNull(16)
+                        if (newX != null) {
+                            currentX = newX
+                            if (touchDown && !startPosSet) {
+                                startX = newX
+                            }
+                        }
+                    }
+                }
+                line.contains("ABS_MT_POSITION_Y") -> {
+                    val parts = line.trim().split(Regex("\\s+"))
+                    if (parts.size >= 3) {
+                        val hexValue = parts.last()
+                        val newY = hexValue.toIntOrNull(16)
+                        if (newY != null) {
+                            currentY = newY
+                            if (touchDown && !startPosSet) {
+                                startY = newY
+                                startPosSet = true
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Silently ignore parsing errors
+        }
+    }
+
+    /**
+     * Check if the current touch gesture is a valid swipe and trigger suggestion insertion.
+     */
+    private fun checkForSwipeGesture() {
+        // deltaY positive = swipe up (startY is higher value than currentY on screen)
+        val deltaY = startY - currentY
+        val deltaX = currentX - startX
+        val absDeltaX = kotlin.math.abs(deltaX)
+
+        // Require primarily vertical swipe: deltaY must be positive (upward) and at least 3x larger than horizontal drift
+        if (deltaY > trackpadSwipeThreshold && absDeltaX < deltaY / 3) {
+            // Determine which zone based on starting X position
+            val inChineseMode = isChineseInputModeActive()
+
+            Handler(Looper.getMainLooper()).post {
+                if (inChineseMode) {
+                    // Chinese mode: 5 zones - left picks left, right picks right
+                    val zone = when {
+                        startX < trackpadMaxX / 5 -> 0           // Left fifth
+                        startX < (trackpadMaxX * 2) / 5 -> 1     // Second fifth
+                        startX < (trackpadMaxX * 3) / 5 -> 2     // Center
+                        startX < (trackpadMaxX * 4) / 5 -> 3     // Fourth fifth
+                        else -> 4                                  // Right fifth
+                    }
+                    // Zone mapping matches visual layout: 0=1st (left), 1=2nd, 2=3rd (center), 3=4th, 4=5th (right)
+                    val candidateIndex = zone
+                    acceptChineseCandidateBySwipe(candidateIndex)
+                } else {
+                    // English mode: 3 zones - left picks left, middle picks middle, right picks right
+                    val zone = when {
+                        startX < trackpadMaxX / 3 -> 0           // Left third
+                        startX < (trackpadMaxX * 2) / 3 -> 1     // Center
+                        else -> 2                                  // Right third
+                    }
+                    // Zone mapping matches visual layout: 0=1st (left), 1=2nd (middle), 2=3rd (right)
+                    val suggestionIndex = zone
+                    acceptEnglishSuggestionBySwipe(suggestionIndex)
+                }
+            }
+        }
+    }
+
+    /**
+     * Accept a Chinese candidate by swipe gesture.
+     * Works with Pinyin, Shuangpin, Wubi, Zhenma, Ziranma, and T9 input modes.
+     * Commits the selected character and handles the remaining buffer.
+     */
+    private fun acceptChineseCandidateBySwipe(index: Int) {
+        val ic = currentInputConnection ?: return
+
+        when {
+            pinyinInputController.isPinyinMode() && pinyinInputController.hasCandidates() -> {
+                val candidates = pinyinInputController.getCandidates()
+                if (index < candidates.size) {
+                    val selected = pinyinInputController.selectCandidate(index)
+                    if (selected != null) {
+                        ic.commitText(selected, 1)
+                        val remainingBuffer = pinyinInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+                    }
+                    updateStatusBarText()
+                }
+            }
+            shuangpinInputController.isShuangpinMode() && shuangpinInputController.hasCandidates() -> {
+                val candidates = shuangpinInputController.getCandidates()
+                if (index < candidates.size) {
+                    val selected = shuangpinInputController.selectCandidate(index)
+                    if (selected != null) {
+                        ic.commitText(selected, 1)
+                        val remainingBuffer = shuangpinInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+                    }
+                    updateStatusBarText()
+                }
+            }
+            wubiInputController.isWubiMode() && wubiInputController.hasCandidates() -> {
+                val candidates = wubiInputController.getCandidates()
+                if (index < candidates.size) {
+                    val selected = wubiInputController.selectCandidate(index)
+                    if (selected != null) {
+                        ic.commitText(selected, 1)
+                        val remainingBuffer = wubiInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+                    }
+                    updateStatusBarText()
+                }
+            }
+            zhenmaInputController.isZhenmaMode() && zhenmaInputController.hasCandidates() -> {
+                val candidates = zhenmaInputController.getCandidates()
+                if (index < candidates.size) {
+                    val selected = zhenmaInputController.selectCandidate(index)
+                    if (selected != null) {
+                        ic.commitText(selected, 1)
+                        val remainingBuffer = zhenmaInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+                    }
+                    updateStatusBarText()
+                }
+            }
+            ziranmaInputController.isZiranmaMode() && ziranmaInputController.hasCandidates() -> {
+                val candidates = ziranmaInputController.getCandidates()
+                if (index < candidates.size) {
+                    val selected = ziranmaInputController.selectCandidate(index)
+                    if (selected != null) {
+                        ic.commitText(selected, 1)
+                        val remainingBuffer = ziranmaInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+                    }
+                    updateStatusBarText()
+                }
+            }
+            t9PinyinInputController.isT9Mode() && t9PinyinInputController.hasCandidates() -> {
+                val candidates = t9PinyinInputController.getCurrentPageCandidates()
+                if (index < candidates.size) {
+                    val selected = t9PinyinInputController.selectCandidate(index)
+                    if (selected != null) {
+                        ic.commitText(selected, 1)
+                        val remainingBuffer = t9PinyinInputController.getBuffer()
+                        if (remainingBuffer.isNotEmpty()) {
+                            ic.setComposingText(remainingBuffer, 1)
+                        }
+                    }
+                    updateStatusBarText()
+                }
+            }
+        }
+    }
+
+    /**
+     * Accept an English suggestion by swipe gesture.
+     */
+    private fun acceptEnglishSuggestionBySwipe(index: Int) {
+        val ic = currentInputConnection ?: return
+
+        if (!englishWordPredictionController.hasSuggestions()) {
+            return
+        }
+
+        val result = englishWordPredictionController.selectSuggestion(index)
+        if (result != null) {
+            ic.deleteSurroundingText(result.prefixLength, 0)
+            ic.commitText(result.word + " ", 1)
+            englishWordPredictionController.updateFromCursor(ic)
+            updateStatusBarText()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         // Remove listener when service is destroyed
@@ -1378,6 +1685,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         soundPool?.release()
         soundPool = null
         soundLoaded = false
+
+        // Stop trackpad gesture detection
+        stopTrackpadGestureDetection()
+        trackpadScope.cancel()
     }
 
     // Track the last known UI mode to detect theme changes
@@ -2934,10 +3245,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Handle touchpad DPAD_DOWN/DPAD_UP for Chinese input candidate pagination
         // Only intercept when we have candidates to paginate and touchpad page is enabled
         // Use debounce to ensure one swipe = one page change (regardless of swipe distance)
+        // IMPORTANT: When trackpad gestures are enabled, skip this DPAD pagination
+        // because the raw trackpad events will handle candidate selection directly
         val touchpadPageEnabled = SettingsManager.getTouchpadPageEnabled(this)
+        val trackpadGesturesEnabled = SettingsManager.getTrackpadGesturesEnabled(this)
         val currentTime = System.currentTimeMillis()
         val timeSinceLastTouchpadPage = currentTime - lastTouchpadPageTime
-        if (hasCandidatesToPaginate && touchpadPageEnabled && timeSinceLastTouchpadPage > TOUCHPAD_PAGE_DEBOUNCE_MS) {
+        if (hasCandidatesToPaginate && touchpadPageEnabled && !trackpadGesturesEnabled && timeSinceLastTouchpadPage > TOUCHPAD_PAGE_DEBOUNCE_MS) {
             when (translatedKeyCode) {
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
                     // Touchpad down = next page
@@ -2978,7 +3292,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     return true
                 }
             }
-        } else if (hasCandidatesToPaginate && touchpadPageEnabled &&
+        } else if (hasCandidatesToPaginate && touchpadPageEnabled && !trackpadGesturesEnabled &&
                    (translatedKeyCode == KeyEvent.KEYCODE_DPAD_DOWN || translatedKeyCode == KeyEvent.KEYCODE_DPAD_UP)) {
             // Within debounce period - consume the event but don't change page
             return true

@@ -886,4 +886,25 @@
     <string name="sherpa_permission_denied">麦克风权限被拒绝</string>
     <string name="sherpa_model_not_configured">未配置模型。请在设置 → 文本输入 → 语音模型中选择 Sherpa-ONNX 模型文件。</string>
     <string name="sherpa_library_not_available">Sherpa-ONNX 库未安装。请添加 AAR 文件以启用语音识别。</string>
+
+    <!-- Trackpad Gesture Settings -->
+    <string name="trackpad_gestures_title">触控板手势</string>
+    <string name="trackpad_gestures_enabled_title">启用触控板手势</string>
+    <string name="trackpad_gestures_enabled_description">在物理触控板上向上滑动以插入建议（需要 Shizuku）</string>
+    <string name="trackpad_gestures_swipe_threshold_title">滑动灵敏度</string>
+    <string name="trackpad_gestures_swipe_threshold_description">最小滑动距离：%1$d 像素。数值越低，滑动越灵敏。</string>
+    <string name="trackpad_gestures_how_it_works_title">使用方法</string>
+    <string name="trackpad_gestures_how_it_works_english">英文模式（3个区域）：在左侧三分之一向上滑动选择第3个建议，中间选择第1个建议，右侧选择第2个建议。</string>
+    <string name="trackpad_gestures_how_it_works_chinese">中文巨硬模式（5个区域）：在触控板上向上滑动选择5个候选字之一。从左到右的位置：2、3、1（最佳）、4、5。</string>
+    <string name="trackpad_gestures_shizuku_title">需要 Shizuku</string>
+    <string name="trackpad_gestures_shizuku_description">此功能需要 Shizuku 来读取触控板事件。请安装 Shizuku 并通过无线 ADB 启动。</string>
+    <string name="trackpad_gestures_install_shizuku">安装 Shizuku</string>
+    <string name="trackpad_gestures_install_shizuku_description">从 shizuku.rikka.app 下载</string>
+    <string name="trackpad_gestures_shizuku_url">https://shizuku.rikka.app/</string>
+    <string name="trackpad_gestures_shizuku_not_running">Shizuku 未运行。请先通过无线 ADB 启动 Shizuku。</string>
+    <string name="trackpad_gestures_shizuku_connected">Shizuku 已连接并准备就绪。</string>
+    <string name="trackpad_gestures_shizuku_no_permission">Shizuku 正在运行但未授予权限。</string>
+    <string name="trackpad_gestures_grant_permission">授予权限</string>
+    <string name="trackpad_gestures_show_tutorial">使用说明</string>
+    <string name="trackpad_gestures_tutorial_description">了解触控板手势的使用方法</string>
 </resources>
