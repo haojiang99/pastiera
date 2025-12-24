@@ -160,13 +160,15 @@ object SettingsManager {
     private const val KEY_TRACKPAD_GESTURES_ENABLED = "trackpad_gestures_enabled"
     private const val KEY_TRACKPAD_SWIPE_THRESHOLD = "trackpad_swipe_threshold"
     private const val KEY_SWIPE_SELECTION_SOUND_ENABLED = "swipe_selection_sound_enabled"
+    private const val KEY_SWIPE_SELECTION_ANIMATION_ENABLED = "swipe_selection_animation_enabled"
 
     // Default values
     private const val DEFAULT_TRACKPAD_GESTURES_ENABLED = false  // Disabled by default
-    private const val DEFAULT_TRACKPAD_SWIPE_THRESHOLD = 150  // Minimum swipe distance in pixels
+    private const val DEFAULT_TRACKPAD_SWIPE_THRESHOLD = 300  // Minimum swipe distance in pixels
     private const val DEFAULT_SWIPE_SELECTION_SOUND_ENABLED = true  // Sound on by default
-    private const val MIN_TRACKPAD_SWIPE_THRESHOLD = 50
-    private const val MAX_TRACKPAD_SWIPE_THRESHOLD = 300
+    private const val DEFAULT_SWIPE_SELECTION_ANIMATION_ENABLED = true  // Animation on by default
+    private const val MIN_TRACKPAD_SWIPE_THRESHOLD = 100
+    private const val MAX_TRACKPAD_SWIPE_THRESHOLD = 500
     private const val DEFAULT_STATUS_BAR_THEME = "classic_dark"
     private const val DEFAULT_DAY_NIGHT_THEME_ENABLED = false
     private const val DEFAULT_DAY_THEME = "charcoal_gray" // Light-ish theme for day
@@ -3715,6 +3717,22 @@ object SettingsManager {
     fun setSwipeSelectionSoundEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_SWIPE_SELECTION_SOUND_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether swipe selection animation is enabled.
+     */
+    fun getSwipeSelectionAnimationEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SWIPE_SELECTION_ANIMATION_ENABLED, DEFAULT_SWIPE_SELECTION_ANIMATION_ENABLED)
+    }
+
+    /**
+     * Sets whether swipe selection animation is enabled.
+     */
+    fun setSwipeSelectionAnimationEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SWIPE_SELECTION_ANIMATION_ENABLED, enabled)
             .apply()
     }
 }

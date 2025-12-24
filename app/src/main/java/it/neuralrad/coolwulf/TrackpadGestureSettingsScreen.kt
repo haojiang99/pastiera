@@ -56,6 +56,9 @@ fun TrackpadGestureSettingsScreen(
     var swipeSelectionSoundEnabled by remember {
         mutableStateOf(SettingsManager.getSwipeSelectionSoundEnabled(context))
     }
+    var swipeSelectionAnimationEnabled by remember {
+        mutableStateOf(SettingsManager.getSwipeSelectionAnimationEnabled(context))
+    }
     var showTutorialDialog by remember { mutableStateOf(false) }
 
     // Check Shizuku status and permission
@@ -277,7 +280,7 @@ fun TrackpadGestureSettingsScreen(
                             SettingsManager.setTrackpadSwipeThreshold(context, swipeThreshold)
                         },
                         valueRange = SettingsManager.getMinTrackpadSwipeThreshold().toFloat()..SettingsManager.getMaxTrackpadSwipeThreshold().toFloat(),
-                        steps = 24
+                        steps = 19  // (500-100)/20 = 20 steps, so 19 intermediate steps
                     )
                 }
             }
@@ -310,6 +313,39 @@ fun TrackpadGestureSettingsScreen(
                         onCheckedChange = { enabled ->
                             swipeSelectionSoundEnabled = enabled
                             SettingsManager.setSwipeSelectionSoundEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
+
+            // Swipe Selection Animation Toggle
+            Surface(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.swipe_selection_animation_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = stringResource(R.string.swipe_selection_animation_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = swipeSelectionAnimationEnabled,
+                        onCheckedChange = { enabled ->
+                            swipeSelectionAnimationEnabled = enabled
+                            SettingsManager.setSwipeSelectionAnimationEnabled(context, enabled)
                         }
                     )
                 }

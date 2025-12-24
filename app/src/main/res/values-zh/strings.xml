@@ -911,4 +911,6 @@
     <string name="trackpad_gestures_tutorial_description">了解触控板手势的使用方法</string>
     <string name="swipe_selection_sound_title">滑动选词音效</string>
     <string name="swipe_selection_sound_description">滑动选词时播放音效</string>
+    <string name="swipe_selection_animation_title">滑动选词动画</string>
+    <string name="swipe_selection_animation_description">滑动选词时显示飞字动画</string>
 </resources>

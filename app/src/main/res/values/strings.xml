@@ -914,4 +914,6 @@
     <string name="trackpad_gestures_tutorial_description">Learn how trackpad gestures work</string>
     <string name="swipe_selection_sound_title">Swipe Selection Sound</string>
     <string name="swipe_selection_sound_description">Play a sound effect when selecting a word via swipe gesture</string>
+    <string name="swipe_selection_animation_title">Swipe Selection Animation</string>
+    <string name="swipe_selection_animation_description">Show flying word animation when selecting via swipe gesture</string>
 </resources>

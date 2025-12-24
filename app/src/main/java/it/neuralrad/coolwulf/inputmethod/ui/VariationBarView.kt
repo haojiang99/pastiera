@@ -2675,6 +2675,8 @@ class VariationBarView(
      * @param candidateIndex The index of the candidate to animate (0-based)
      */
     fun animateSwipeSelection(candidateIndex: Int) {
+        // Check if animation is enabled in settings
+        if (!SettingsManager.getSwipeSelectionAnimationEnabled(context)) return
         if (candidateIndex < 0 || candidateIndex >= variationButtons.size) return
 
         val button = variationButtons[candidateIndex]
