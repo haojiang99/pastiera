@@ -2688,28 +2688,33 @@ class VariationBarView(
         // Get button position in screen coordinates
         val buttonLocation = IntArray(2)
         button.getLocationOnScreen(buttonLocation)
-        val buttonCenterX = buttonLocation[0] + button.width / 2f
-        val buttonCenterY = buttonLocation[1] + button.height / 2f
 
-        // Create a floating TextView that will animate
+        // Create a floating TextView that will animate - larger and more visible
         val floatingText = TextView(context).apply {
             text = selectedText
-            setTextColor(theme.textColor)
-            textSize = button.textSize / density  // Convert px back to sp
-            typeface = button.typeface
+            setTextColor(Color.WHITE)
+            // Make the text larger for better visibility
+            textSize = (button.textSize / density) * 1.4f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
 
-            // Match button styling
+            // Elevation for shadow effect
+            elevation = 12f * density
+
+            // Create a more prominent background with gradient
             val floatingBg = GradientDrawable().apply {
+                // Use a vibrant accent color
                 setColor(theme.accentColor)
-                cornerRadius = 8f * density
+                cornerRadius = 12f * density
+                // Add a subtle stroke
+                setStroke((1.5f * density).toInt(), Color.WHITE)
             }
             background = floatingBg
             setPadding(
-                (12 * density).toInt(),
-                (6 * density).toInt(),
-                (12 * density).toInt(),
-                (6 * density).toInt()
+                (16 * density).toInt(),
+                (10 * density).toInt(),
+                (16 * density).toInt(),
+                (10 * density).toInt()
             )
         }
 
@@ -2718,9 +2723,9 @@ class VariationBarView(
         val wrapperLocation = IntArray(2)
         wrapperView.getLocationOnScreen(wrapperLocation)
 
-        // Calculate position relative to wrapper
-        val startX = buttonCenterX - wrapperLocation[0] - (button.width / 2f)
-        val startY = buttonCenterY - wrapperLocation[1] - (button.height / 2f)
+        // Calculate position relative to wrapper - center on the button
+        val startX = buttonLocation[0] - wrapperLocation[0].toFloat()
+        val startY = buttonLocation[1] - wrapperLocation[1].toFloat()
 
         val layoutParams = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -2733,40 +2738,85 @@ class VariationBarView(
 
         wrapperView.addView(floatingText)
 
-        // Animation parameters - BlackBerry-style fly up with arc
-        val flyDistance = 150f * density  // How far the word flies up
-        val arcOffset = 30f * density      // Horizontal arc movement
-        val duration = 250L
+        // Animation parameters - BlackBerry-style fly up with smooth arc
+        val flyDistance = 450f * density  // How far the word flies up
+        val duration = 1200L  // Very slow animation for clear visibility
 
-        // Animate the floating text flying upward with arc motion
-        floatingText.animate()
-            .translationY(-flyDistance)
-            .translationX(arcOffset * if (candidateIndex % 2 == 0) -0.5f else 0.5f)  // Slight arc
-            .scaleX(1.3f)
-            .scaleY(1.3f)
-            .alpha(0f)
-            .setDuration(duration)
-            .setInterpolator(android.view.animation.DecelerateInterpolator(1.5f))
-            .withEndAction {
-                // Remove the floating view after animation
+        // Use ValueAnimator for smooth curved arc motion
+        val animator = ValueAnimator.ofFloat(0f, 1f)
+        animator.duration = duration
+        animator.interpolator = android.view.animation.LinearInterpolator()  // Constant speed
+
+        // Calculate arc direction based on position (words fly toward center-top)
+        val screenCenterX = wrapperView.width / 2f
+        val buttonCenterX = startX + button.width / 2f
+        val arcDirection = if (buttonCenterX < screenCenterX) 1f else -1f
+        val arcWidth = 80f * density * arcDirection  // Wider arc
+
+        animator.addUpdateListener { animation ->
+            val progress = animation.animatedValue as Float
+
+            // Parabolic arc motion - smooth curve
+            val arcProgress = kotlin.math.sin(progress * Math.PI).toFloat()  // Arc peaks at middle
+
+            // Y translation - flies upward smoothly
+            floatingText.translationY = -flyDistance * progress
+
+            // X translation - curved arc motion (wider)
+            floatingText.translationX = arcWidth * arcProgress
+
+            // Scale - grows bigger initially, holds longer, then shrinks
+            val scale = when {
+                progress < 0.2f -> 1f + (progress / 0.2f) * 0.6f  // Grow to 1.6x quickly
+                progress < 0.75f -> 1.6f  // Hold at 1.6x for most of animation
+                else -> 1.6f - ((progress - 0.75f) / 0.25f) * 0.4f  // Shrink to 1.2x at end
+            }
+            floatingText.scaleX = scale
+            floatingText.scaleY = scale
+
+            // Alpha - stay fully visible much longer, quick fade at the very end
+            floatingText.alpha = when {
+                progress < 0.75f -> 1f  // Fully visible for first 75%
+                else -> 1f - ((progress - 0.75f) / 0.25f)  // Fade out in last 25%
+            }
+
+            // Rotation - slight rotation for dynamic feel
+            floatingText.rotation = arcDirection * 10f * arcProgress
+        }
+
+        animator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
                 wrapperView.removeView(floatingText)
             }
-            .start()
+        })
 
-        // Also animate the original button with a subtle pulse
+        animator.start()
+
+        // Also animate the original button with a more visible pulse effect
         button.animate().cancel()
         val originalScaleX = button.scaleX
         val originalScaleY = button.scaleY
+        val originalBackground = button.background
+
+        // Flash the button with accent color
+        val flashBg = GradientDrawable().apply {
+            setColor(theme.accentColor)
+            cornerRadius = 8f * density
+        }
+        button.background = flashBg
 
         button.animate()
-            .scaleX(0.9f)
-            .scaleY(0.9f)
-            .setDuration(80)
+            .scaleX(0.85f)
+            .scaleY(0.85f)
+            .setDuration(100)
             .withEndAction {
                 button.animate()
                     .scaleX(originalScaleX)
                     .scaleY(originalScaleY)
-                    .setDuration(100)
+                    .setDuration(150)
+                    .withEndAction {
+                        button.background = originalBackground
+                    }
                     .start()
             }
             .start()
