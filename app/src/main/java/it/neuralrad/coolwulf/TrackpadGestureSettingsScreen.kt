@@ -319,7 +319,7 @@ fun TrackpadGestureSettingsScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 3-zone visualization - left picks 1st (left), middle picks 2nd, right picks 3rd (right)
+                // 3-zone visualization - Juying layout: 2-1-3 (center is best)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -333,19 +333,19 @@ fun TrackpadGestureSettingsScreen(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("1", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onPrimary)
+                        Text("2", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     }
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("2", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text("1", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onPrimary)
                     }
                     Box(
                         modifier = Modifier
@@ -377,7 +377,7 @@ fun TrackpadGestureSettingsScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 5-zone visualization - left picks 1st (left), right picks 5th (right)
+                // 5-zone visualization - Juying layout: 2-3-1-4-5 (center is best)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -387,15 +387,6 @@ fun TrackpadGestureSettingsScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("1", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onPrimary)
-                    }
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -413,6 +404,15 @@ fun TrackpadGestureSettingsScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text("3", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("1", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onPrimary)
                     }
                     Box(
                         modifier = Modifier

@@ -1510,7 +1510,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
             Handler(Looper.getMainLooper()).post {
                 if (inChineseMode) {
-                    // Chinese mode: 5 zones - left picks left, right picks right
+                    // Chinese Juying mode: 5 zones matching visual layout 2-3-1-4-5
+                    // Center (zone 2) = best suggestion (index 0, mapped to space key)
                     val zone = when {
                         startX < trackpadMaxX / 5 -> 0           // Left fifth
                         startX < (trackpadMaxX * 2) / 5 -> 1     // Second fifth
@@ -1518,18 +1519,31 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         startX < (trackpadMaxX * 4) / 5 -> 3     // Fourth fifth
                         else -> 4                                  // Right fifth
                     }
-                    // Zone mapping matches visual layout: 0=1st (left), 1=2nd, 2=3rd (center), 3=4th, 4=5th (right)
-                    val candidateIndex = zone
+                    // Zone mapping for Juying layout: visual 2-3-1-4-5 from left to right
+                    val candidateIndex = when (zone) {
+                        0 -> 1  // Left fifth -> 2nd candidate
+                        1 -> 2  // Second fifth -> 3rd candidate
+                        2 -> 0  // Center -> 1st (best) candidate
+                        3 -> 3  // Fourth fifth -> 4th candidate
+                        4 -> 4  // Right fifth -> 5th candidate
+                        else -> 0
+                    }
                     acceptChineseCandidateBySwipe(candidateIndex)
                 } else {
-                    // English mode: 3 zones - left picks left, middle picks middle, right picks right
+                    // English Juying mode: 3 zones matching visual layout 2-1-3
+                    // Center (zone 1) = best suggestion (index 0)
                     val zone = when {
                         startX < trackpadMaxX / 3 -> 0           // Left third
                         startX < (trackpadMaxX * 2) / 3 -> 1     // Center
                         else -> 2                                  // Right third
                     }
-                    // Zone mapping matches visual layout: 0=1st (left), 1=2nd (middle), 2=3rd (right)
-                    val suggestionIndex = zone
+                    // Zone mapping for Juying layout: visual 2-1-3 from left to right
+                    val suggestionIndex = when (zone) {
+                        0 -> 1  // Left third -> 2nd suggestion
+                        1 -> 0  // Center -> 1st (best) suggestion
+                        2 -> 2  // Right third -> 3rd suggestion
+                        else -> 0
+                    }
                     acceptEnglishSuggestionBySwipe(suggestionIndex)
                 }
             }
