@@ -1534,90 +1534,223 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
 
                     if (punctuationButtonsActive) {
-                        // Punctuation buttons mode (Chinese or English next word prediction): 5 zones
-                        // Layout: [leftPunct] [2nd] [1st(best)] [3rd] [rightPunct]
-                        val zone = calculateZone(startX, trackpadMaxX, 5)
-
-                        when (zone) {
-                            0 -> {
-                                // Left punctuation
-                                candidatesBarController.animateSwipeSelection(zone)
-                                candidatesBarController.playSwipeSelectionSound()
-                                acceptPunctuationBySwipe(isLeft = true)
+                        // Punctuation buttons mode (Chinese or English next word prediction)
+                        // Get actual suggestion count to adapt layout
+                        val suggestionCount = if (inChineseMode) {
+                            when {
+                                pinyinInputController.isPinyinMode() -> pinyinInputController.getCurrentPageCandidates().size
+                                shuangpinInputController.isShuangpinMode() -> shuangpinInputController.getCurrentPageCandidates().size
+                                wubiInputController.isWubiMode() -> wubiInputController.getCurrentPageCandidates().size
+                                zhenmaInputController.isZhenmaMode() -> zhenmaInputController.getCurrentPageCandidates().size
+                                ziranmaInputController.isZiranmaMode() -> ziranmaInputController.getCurrentPageCandidates().size
+                                t9PinyinInputController.isT9Mode() -> t9PinyinInputController.getCurrentPageCandidates().size
+                                else -> 3
                             }
-                            4 -> {
-                                // Right punctuation
+                        } else {
+                            englishWordPredictionController.getSnapshot().suggestions.size
+                        }
+
+                        // Layout adapts based on suggestion count:
+                        // 0 suggestions: [leftPunct] [rightPunct] -> 2 zones
+                        // 1 suggestion:  [leftPunct] [1st(best)] [rightPunct] -> 3 zones
+                        // 2 suggestions: [leftPunct] [2nd] [1st(best)] [rightPunct] -> 4 zones
+                        // 3+ suggestions: [leftPunct] [2nd] [1st(best)] [3rd] [rightPunct] -> 5 zones
+                        when (minOf(3, suggestionCount)) {
+                            0 -> {
+                                // No suggestions: 2 zones for punctuation only
+                                val zone = calculateZone(startX, trackpadMaxX, 2)
                                 candidatesBarController.animateSwipeSelection(zone)
                                 candidatesBarController.playSwipeSelectionSound()
-                                acceptPunctuationBySwipe(isLeft = false)
+                                acceptPunctuationBySwipe(isLeft = zone == 0)
+                            }
+                            1 -> {
+                                // 1 suggestion: 3 zones [leftPunct] [1st] [rightPunct]
+                                val zone = calculateZone(startX, trackpadMaxX, 3)
+                                when (zone) {
+                                    0 -> {
+                                        candidatesBarController.animateSwipeSelection(zone)
+                                        candidatesBarController.playSwipeSelectionSound()
+                                        acceptPunctuationBySwipe(isLeft = true)
+                                    }
+                                    2 -> {
+                                        candidatesBarController.animateSwipeSelection(zone)
+                                        candidatesBarController.playSwipeSelectionSound()
+                                        acceptPunctuationBySwipe(isLeft = false)
+                                    }
+                                    else -> {
+                                        candidatesBarController.animateSwipeSelection(zone)
+                                        candidatesBarController.playSwipeSelectionSound()
+                                        if (inChineseMode) acceptChineseCandidateBySwipe(0) else acceptEnglishSuggestionBySwipe(0)
+                                    }
+                                }
+                            }
+                            2 -> {
+                                // 2 suggestions: 4 zones [leftPunct] [2nd] [1st(best)] [rightPunct]
+                                val zone = calculateZone(startX, trackpadMaxX, 4)
+                                when (zone) {
+                                    0 -> {
+                                        candidatesBarController.animateSwipeSelection(zone)
+                                        candidatesBarController.playSwipeSelectionSound()
+                                        acceptPunctuationBySwipe(isLeft = true)
+                                    }
+                                    3 -> {
+                                        candidatesBarController.animateSwipeSelection(zone)
+                                        candidatesBarController.playSwipeSelectionSound()
+                                        acceptPunctuationBySwipe(isLeft = false)
+                                    }
+                                    1 -> {
+                                        // 2nd suggestion (index 1)
+                                        candidatesBarController.animateSwipeSelection(zone)
+                                        candidatesBarController.playSwipeSelectionSound()
+                                        if (inChineseMode) acceptChineseCandidateBySwipe(1) else acceptEnglishSuggestionBySwipe(1)
+                                    }
+                                    else -> {
+                                        // 1st/best suggestion (index 0)
+                                        candidatesBarController.animateSwipeSelection(zone)
+                                        candidatesBarController.playSwipeSelectionSound()
+                                        if (inChineseMode) acceptChineseCandidateBySwipe(0) else acceptEnglishSuggestionBySwipe(0)
+                                    }
+                                }
                             }
                             else -> {
-                                // Suggestion (zones 1, 2, 3)
-                                // Zone 1 -> 2nd suggestion (index 1)
-                                // Zone 2 -> 1st/best suggestion (index 0)
-                                // Zone 3 -> 3rd suggestion (index 2)
-                                val suggestionIndex = when (zone) {
-                                    1 -> 1  // 2nd suggestion
-                                    2 -> 0  // 1st (best) suggestion
-                                    3 -> 2  // 3rd suggestion
-                                    else -> 0
-                                }
-                                candidatesBarController.animateSwipeSelection(zone)
-                                candidatesBarController.playSwipeSelectionSound()
-                                if (inChineseMode) {
-                                    acceptChineseCandidateBySwipe(suggestionIndex)
-                                } else {
-                                    acceptEnglishSuggestionBySwipe(suggestionIndex)
+                                // 3+ suggestions: 5 zones [leftPunct] [2nd] [1st(best)] [3rd] [rightPunct]
+                                val zone = calculateZone(startX, trackpadMaxX, 5)
+                                when (zone) {
+                                    0 -> {
+                                        candidatesBarController.animateSwipeSelection(zone)
+                                        candidatesBarController.playSwipeSelectionSound()
+                                        acceptPunctuationBySwipe(isLeft = true)
+                                    }
+                                    4 -> {
+                                        candidatesBarController.animateSwipeSelection(zone)
+                                        candidatesBarController.playSwipeSelectionSound()
+                                        acceptPunctuationBySwipe(isLeft = false)
+                                    }
+                                    else -> {
+                                        val suggestionIndex = when (zone) {
+                                            1 -> 1  // 2nd suggestion
+                                            2 -> 0  // 1st (best) suggestion
+                                            3 -> 2  // 3rd suggestion
+                                            else -> 0
+                                        }
+                                        candidatesBarController.animateSwipeSelection(zone)
+                                        candidatesBarController.playSwipeSelectionSound()
+                                        if (inChineseMode) acceptChineseCandidateBySwipe(suggestionIndex) else acceptEnglishSuggestionBySwipe(suggestionIndex)
+                                    }
                                 }
                             }
                         }
                     } else if (inChineseMode) {
-                        if (isMaxThreeSuggestions) {
-                            // Chinese Juying mode with max 3 suggestions: 3 zones matching layout 2-1-3
-                            // Center = best suggestion (index 0, mapped to space key)
-                            val zone = calculateZone(startX, trackpadMaxX, 3)
-                            // Zone mapping for 3-suggestion Juying layout: visual 2-1-3 from left to right
-                            val candidateIndex = when (zone) {
-                                0 -> 1  // Left third -> 2nd candidate
-                                1 -> 0  // Center -> 1st (best) candidate
-                                2 -> 2  // Right third -> 3rd candidate
-                                else -> 0
+                        // Get actual candidate count to determine zone layout
+                        val candidateCount = when {
+                            pinyinInputController.isPinyinMode() -> pinyinInputController.getCurrentPageCandidates().size
+                            shuangpinInputController.isShuangpinMode() -> shuangpinInputController.getCurrentPageCandidates().size
+                            wubiInputController.isWubiMode() -> wubiInputController.getCurrentPageCandidates().size
+                            zhenmaInputController.isZhenmaMode() -> zhenmaInputController.getCurrentPageCandidates().size
+                            ziranmaInputController.isZiranmaMode() -> ziranmaInputController.getCurrentPageCandidates().size
+                            t9PinyinInputController.isT9Mode() -> t9PinyinInputController.getCurrentPageCandidates().size
+                            else -> 5
+                        }
+
+                        // Determine max zones based on settings and actual candidate count
+                        val maxZones = if (isMaxThreeSuggestions) minOf(3, candidateCount) else minOf(5, candidateCount)
+
+                        when (maxZones) {
+                            0 -> {
+                                // No candidates, do nothing
                             }
-                            // Animate the selection and play sound (zone = display position)
-                            candidatesBarController.animateSwipeSelection(zone)
-                            candidatesBarController.playSwipeSelectionSound()
-                            acceptChineseCandidateBySwipe(candidateIndex)
-                        } else {
-                            // Chinese Juying mode: 5 zones matching visual layout 2-3-1-4-5
-                            // Center (zone 2) = best suggestion (index 0, mapped to space key)
-                            val zone = calculateZone(startX, trackpadMaxX, 5)
-                            // Zone mapping for Juying layout: visual 2-3-1-4-5 from left to right
-                            val candidateIndex = when (zone) {
-                                0 -> 1  // Left fifth -> 2nd candidate
-                                1 -> 2  // Second fifth -> 3rd candidate
-                                2 -> 0  // Center -> 1st (best) candidate
-                                3 -> 3  // Fourth fifth -> 4th candidate
-                                4 -> 4  // Right fifth -> 5th candidate
-                                else -> 0
+                            1 -> {
+                                // Only 1 candidate: full width selects it
+                                candidatesBarController.animateSwipeSelection(0)
+                                candidatesBarController.playSwipeSelectionSound()
+                                acceptChineseCandidateBySwipe(0)
                             }
-                            // Animate the selection and play sound (zone = display position)
-                            candidatesBarController.animateSwipeSelection(zone)
-                            candidatesBarController.playSwipeSelectionSound()
-                            acceptChineseCandidateBySwipe(candidateIndex)
+                            2 -> {
+                                // 2 candidates: layout [2nd, 1st] -> 2 zones
+                                val zone = calculateZone(startX, trackpadMaxX, 2)
+                                val candidateIndex = when (zone) {
+                                    0 -> 1  // Left half -> 2nd candidate
+                                    1 -> 0  // Right half -> 1st (best) candidate
+                                    else -> 0
+                                }
+                                candidatesBarController.animateSwipeSelection(zone)
+                                candidatesBarController.playSwipeSelectionSound()
+                                acceptChineseCandidateBySwipe(candidateIndex)
+                            }
+                            3 -> {
+                                // 3 candidates: layout [2nd, 1st, 3rd] -> 3 zones
+                                val zone = calculateZone(startX, trackpadMaxX, 3)
+                                val candidateIndex = when (zone) {
+                                    0 -> 1  // Left third -> 2nd candidate
+                                    1 -> 0  // Center -> 1st (best) candidate
+                                    2 -> 2  // Right third -> 3rd candidate
+                                    else -> 0
+                                }
+                                candidatesBarController.animateSwipeSelection(zone)
+                                candidatesBarController.playSwipeSelectionSound()
+                                acceptChineseCandidateBySwipe(candidateIndex)
+                            }
+                            4 -> {
+                                // 4 candidates: layout [2nd, 3rd, 1st, 4th] -> 4 zones
+                                val zone = calculateZone(startX, trackpadMaxX, 4)
+                                val candidateIndex = when (zone) {
+                                    0 -> 1  // 1st quarter -> 2nd candidate
+                                    1 -> 2  // 2nd quarter -> 3rd candidate
+                                    2 -> 0  // 3rd quarter -> 1st (best) candidate
+                                    3 -> 3  // 4th quarter -> 4th candidate
+                                    else -> 0
+                                }
+                                candidatesBarController.animateSwipeSelection(zone)
+                                candidatesBarController.playSwipeSelectionSound()
+                                acceptChineseCandidateBySwipe(candidateIndex)
+                            }
+                            else -> {
+                                // 5+ candidates: layout [2nd, 3rd, 1st, 4th, 5th] -> 5 zones
+                                val zone = calculateZone(startX, trackpadMaxX, 5)
+                                val candidateIndex = when (zone) {
+                                    0 -> 1  // Left fifth -> 2nd candidate
+                                    1 -> 2  // Second fifth -> 3rd candidate
+                                    2 -> 0  // Center -> 1st (best) candidate
+                                    3 -> 3  // Fourth fifth -> 4th candidate
+                                    4 -> 4  // Right fifth -> 5th candidate
+                                    else -> 0
+                                }
+                                candidatesBarController.animateSwipeSelection(zone)
+                                candidatesBarController.playSwipeSelectionSound()
+                                acceptChineseCandidateBySwipe(candidateIndex)
+                            }
                         }
                     } else {
-                        // English Juying mode without punctuation buttons: 3 zones matching visual layout
-                        // Display: [1st best (left)] [current typed word (center)] [2nd best (right)]
-                        val zone = calculateZone(startX, trackpadMaxX, 3)
-                        // Zone mapping for English Juying layout:
-                        // Left (0) -> 1st best (index 0)
-                        // Center (1) -> current typed word (index 1)
-                        // Right (2) -> 2nd best (index 2)
-                        val suggestionIndex = zone
-                        // Animate the selection and play sound (zone = display position)
-                        candidatesBarController.animateSwipeSelection(zone)
-                        candidatesBarController.playSwipeSelectionSound()
-                        acceptEnglishSuggestionBySwipe(suggestionIndex)
+                        // English Juying mode without punctuation buttons
+                        // Display layout: [1st best (left)] [current typed word (center)] [2nd best (right)]
+                        val suggestionCount = englishWordPredictionController.getSnapshot().suggestions.size
+                        val maxZones = minOf(3, suggestionCount)
+
+                        when (maxZones) {
+                            0 -> {
+                                // No suggestions, do nothing
+                            }
+                            1 -> {
+                                // Only 1 suggestion: full width selects it
+                                candidatesBarController.animateSwipeSelection(0)
+                                candidatesBarController.playSwipeSelectionSound()
+                                acceptEnglishSuggestionBySwipe(0)
+                            }
+                            2 -> {
+                                // 2 suggestions: [1st best (left), 2nd (right)] -> 2 zones
+                                val zone = calculateZone(startX, trackpadMaxX, 2)
+                                candidatesBarController.animateSwipeSelection(zone)
+                                candidatesBarController.playSwipeSelectionSound()
+                                acceptEnglishSuggestionBySwipe(zone)
+                            }
+                            else -> {
+                                // 3 suggestions: [1st best (left)] [typed word (center)] [2nd best (right)] -> 3 zones
+                                val zone = calculateZone(startX, trackpadMaxX, 3)
+                                candidatesBarController.animateSwipeSelection(zone)
+                                candidatesBarController.playSwipeSelectionSound()
+                                acceptEnglishSuggestionBySwipe(zone)
+                            }
+                        }
                     }
                 }
             } else {
