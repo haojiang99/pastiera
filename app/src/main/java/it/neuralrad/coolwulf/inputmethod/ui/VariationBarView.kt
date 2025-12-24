@@ -2824,14 +2824,53 @@ class VariationBarView(
 
     /**
      * Plays a swipe selection sound effect if enabled in settings.
+     * Creates a "swoosh" flying sound using ascending tones.
      */
     fun playSwipeSelectionSound() {
         if (!SettingsManager.getSwipeSelectionSoundEnabled(context)) return
 
         try {
-            // Use Android's keyboard click sound
-            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
-            audioManager?.playSoundEffect(android.media.AudioManager.FX_KEYPRESS_STANDARD)
+            // Create a swoosh/flying sound effect using AudioTrack
+            Thread {
+                try {
+                    val sampleRate = 22050
+                    val durationMs = 150  // Short swoosh
+                    val numSamples = (sampleRate * durationMs / 1000)
+                    val samples = ShortArray(numSamples)
+
+                    // Generate an ascending frequency sweep (swoosh/flying up effect)
+                    val startFreq = 300.0   // Start frequency (low)
+                    val endFreq = 1400.0    // End frequency (high = flying up sound)
+
+                    for (i in 0 until numSamples) {
+                        val progress = i.toDouble() / numSamples
+                        // Ascending frequency for "flying up" feel
+                        val freq = startFreq + (endFreq - startFreq) * progress * progress
+                        // Bell curve envelope - fade in then fade out
+                        val envelope = kotlin.math.sin(progress * Math.PI)
+                        val angle = 2.0 * Math.PI * freq * i / sampleRate
+                        samples[i] = (Short.MAX_VALUE * 0.5 * envelope * kotlin.math.sin(angle)).toInt().toShort()
+                    }
+
+                    val audioTrack = android.media.AudioTrack(
+                        android.media.AudioManager.STREAM_MUSIC,
+                        sampleRate,
+                        android.media.AudioFormat.CHANNEL_OUT_MONO,
+                        android.media.AudioFormat.ENCODING_PCM_16BIT,
+                        samples.size * 2,
+                        android.media.AudioTrack.MODE_STATIC
+                    )
+
+                    audioTrack.write(samples, 0, samples.size)
+                    audioTrack.play()
+
+                    // Release after playback
+                    Thread.sleep(durationMs.toLong() + 50)
+                    audioTrack.release()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to play swoosh sound", e)
+                }
+            }.start()
         } catch (e: Exception) {
             Log.w(TAG, "Failed to play swipe selection sound", e)
         }
