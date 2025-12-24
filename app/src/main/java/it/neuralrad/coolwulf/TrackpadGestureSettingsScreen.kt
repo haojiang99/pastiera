@@ -319,7 +319,7 @@ fun TrackpadGestureSettingsScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 3-zone visualization - Juying layout: 2-1-3 (center is best)
+                // 3-zone visualization - English Juying layout: 1st best (left), typed word (center), 2nd best (right)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -333,15 +333,6 @@ fun TrackpadGestureSettingsScreen(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("2", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
                         contentAlignment = Alignment.Center
                     ) {
@@ -351,15 +342,24 @@ fun TrackpadGestureSettingsScreen(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)),
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("3", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text("abc", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("2", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     }
                 }
 
                 Text(
-                    text = "English: 3 suggestions",
+                    text = "English: [1st best] [typed word] [2nd best]",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth(),

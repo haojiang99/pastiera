@@ -1507,43 +1507,60 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         if (deltaY > trackpadSwipeThreshold && absDeltaX < deltaY / 3) {
             // Determine which zone based on starting X position
             val inChineseMode = isChineseInputModeActive()
+            val isMaxThreeSuggestions = SettingsManager.getJuyingMaxThreeSuggestions(this)
 
             Handler(Looper.getMainLooper()).post {
                 if (inChineseMode) {
-                    // Chinese Juying mode: 5 zones matching visual layout 2-3-1-4-5
-                    // Center (zone 2) = best suggestion (index 0, mapped to space key)
-                    val zone = when {
-                        startX < trackpadMaxX / 5 -> 0           // Left fifth
-                        startX < (trackpadMaxX * 2) / 5 -> 1     // Second fifth
-                        startX < (trackpadMaxX * 3) / 5 -> 2     // Center
-                        startX < (trackpadMaxX * 4) / 5 -> 3     // Fourth fifth
-                        else -> 4                                  // Right fifth
+                    if (isMaxThreeSuggestions) {
+                        // Chinese Juying mode with max 3 suggestions: 3 zones matching layout 2-1-3
+                        // Center = best suggestion (index 0, mapped to space key)
+                        val zone = when {
+                            startX < trackpadMaxX / 3 -> 0           // Left third
+                            startX < (trackpadMaxX * 2) / 3 -> 1     // Center
+                            else -> 2                                  // Right third
+                        }
+                        // Zone mapping for 3-suggestion Juying layout: visual 2-1-3 from left to right
+                        val candidateIndex = when (zone) {
+                            0 -> 1  // Left third -> 2nd candidate
+                            1 -> 0  // Center -> 1st (best) candidate
+                            2 -> 2  // Right third -> 3rd candidate
+                            else -> 0
+                        }
+                        acceptChineseCandidateBySwipe(candidateIndex)
+                    } else {
+                        // Chinese Juying mode: 5 zones matching visual layout 2-3-1-4-5
+                        // Center (zone 2) = best suggestion (index 0, mapped to space key)
+                        val zone = when {
+                            startX < trackpadMaxX / 5 -> 0           // Left fifth
+                            startX < (trackpadMaxX * 2) / 5 -> 1     // Second fifth
+                            startX < (trackpadMaxX * 3) / 5 -> 2     // Center
+                            startX < (trackpadMaxX * 4) / 5 -> 3     // Fourth fifth
+                            else -> 4                                  // Right fifth
+                        }
+                        // Zone mapping for Juying layout: visual 2-3-1-4-5 from left to right
+                        val candidateIndex = when (zone) {
+                            0 -> 1  // Left fifth -> 2nd candidate
+                            1 -> 2  // Second fifth -> 3rd candidate
+                            2 -> 0  // Center -> 1st (best) candidate
+                            3 -> 3  // Fourth fifth -> 4th candidate
+                            4 -> 4  // Right fifth -> 5th candidate
+                            else -> 0
+                        }
+                        acceptChineseCandidateBySwipe(candidateIndex)
                     }
-                    // Zone mapping for Juying layout: visual 2-3-1-4-5 from left to right
-                    val candidateIndex = when (zone) {
-                        0 -> 1  // Left fifth -> 2nd candidate
-                        1 -> 2  // Second fifth -> 3rd candidate
-                        2 -> 0  // Center -> 1st (best) candidate
-                        3 -> 3  // Fourth fifth -> 4th candidate
-                        4 -> 4  // Right fifth -> 5th candidate
-                        else -> 0
-                    }
-                    acceptChineseCandidateBySwipe(candidateIndex)
                 } else {
-                    // English Juying mode: 3 zones matching visual layout 2-1-3
-                    // Center (zone 1) = best suggestion (index 0)
+                    // English Juying mode: 3 zones matching visual layout
+                    // Display: [1st best (left)] [current typed word (center)] [2nd best (right)]
                     val zone = when {
                         startX < trackpadMaxX / 3 -> 0           // Left third
                         startX < (trackpadMaxX * 2) / 3 -> 1     // Center
                         else -> 2                                  // Right third
                     }
-                    // Zone mapping for Juying layout: visual 2-1-3 from left to right
-                    val suggestionIndex = when (zone) {
-                        0 -> 1  // Left third -> 2nd suggestion
-                        1 -> 0  // Center -> 1st (best) suggestion
-                        2 -> 2  // Right third -> 3rd suggestion
-                        else -> 0
-                    }
+                    // Zone mapping for English Juying layout:
+                    // Left (0) -> 1st best (index 0)
+                    // Center (1) -> current typed word (index 1)
+                    // Right (2) -> 2nd best (index 2)
+                    val suggestionIndex = zone
                     acceptEnglishSuggestionBySwipe(suggestionIndex)
                 }
             }
@@ -2636,9 +2653,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // In Juying mode, limit candidates based on suggestion length
         val isJuyingMode = SettingsManager.getJuyingModeEnabled(this)
         val isDynamicCandidateCount = SettingsManager.getJuyingDynamicCandidateCount(this)
+        val isMaxThreeSuggestions = SettingsManager.getJuyingMaxThreeSuggestions(this)
 
         // Helper to calculate dynamic candidate limit based on max candidate length in a list
         fun calculateLimitFromCandidates(candidates: List<String>): Int {
+            // If max 3 suggestions is enabled, always return 3
+            if (isMaxThreeSuggestions) return 3
             // If dynamic candidate count is disabled, return 0 to signal fixed mode
             if (!isDynamicCandidateCount) return 0
             if (candidates.isEmpty()) return 5
@@ -2653,6 +2673,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Helper to calculate dynamic candidate limit for a specific page
         // This iterates through pages with variable page sizes to find the correct start index
         fun calculateJuyingCandidateLimit(allCandidates: List<String>, targetPage: Int): Int {
+            // If max 3 suggestions is enabled, always return 3
+            if (isMaxThreeSuggestions) return 3
             // If dynamic candidate count is disabled, return 0 to signal fixed mode
             // This prevents the controller from using dynamic page sizes
             if (!isDynamicCandidateCount) return 0
@@ -2677,7 +2699,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             return 5
         }
 
-        val defaultCandidateLimit = if (isJuyingMode) 5 else 9
+        // Default candidate limit: 3 if max three setting enabled, otherwise 5 for Juying, 9 for non-Juying
+        val defaultCandidateLimit = if (isMaxThreeSuggestions) 3 else if (isJuyingMode) 5 else 9
 
         // Helper to reorder candidates for Juying+Chinese mode display:
         // 1 candidate: [1st] - Space picks it

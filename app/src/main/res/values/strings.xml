@@ -168,6 +168,8 @@
     <string name="juying_sound_description">Play keyboard sound when pressing Juying keys (Shift/Sym/Space/Ctrl/Alt) to select candidates.</string>
     <string name="juying_dynamic_count_title">Dynamic Candidate Count</string>
     <string name="juying_dynamic_count_description">Adjust the number of candidates per page based on phrase length. Longer phrases show fewer candidates.</string>
+    <string name="juying_max_three_title">Limit to 3 Suggestions</string>
+    <string name="juying_max_three_description">Show only 3 candidates (Sym/Space/Ctrl) instead of 5. Works with trackpad swipe gesture (left/center/right zones).</string>
     <string name="juying_punctuation_buttons_title">Quick Punctuation Buttons</string>
     <string name="juying_punctuation_buttons_description">Show punctuation buttons on the sides when next word predictions are displayed.</string>
     <string name="punctuation_left_title">Left Punctuation (Shift)</string>

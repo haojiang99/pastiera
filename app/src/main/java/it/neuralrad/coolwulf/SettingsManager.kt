@@ -64,6 +64,7 @@ object SettingsManager {
     private const val KEY_JUYING_FIXED_POSITIONS = "juying_fixed_positions" // Fixed suggestion positions with reserved arrow spaces
     private const val KEY_JUYING_SOUND_ENABLED = "juying_sound_enabled" // Enable sound when Juying keys select candidates
     private const val KEY_JUYING_DYNAMIC_CANDIDATE_COUNT = "juying_dynamic_candidate_count" // Dynamically adjust candidate count based on phrase length
+    private const val KEY_JUYING_MAX_THREE_SUGGESTIONS = "juying_max_three_suggestions" // Limit Juying mode to max 3 suggestions (Sym/Space/Ctrl)
     private const val KEY_TOUCHPAD_PAGE_ENABLED = "touchpad_page_enabled" // Enable touchpad swipe up/down for candidate page navigation
     private const val KEY_ALT_DOUBLE_CLICK_DELAY = "alt_double_click_delay" // Delay in ms for Alt double-click next page detection
     private const val KEY_JUYING_KEY_1 = "juying_key_1" // First Juying key (default: Shift)
@@ -1663,6 +1664,23 @@ object SettingsManager {
     fun setJuyingDynamicCandidateCount(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_JUYING_DYNAMIC_CANDIDATE_COUNT, enabled)
+            .apply()
+    }
+
+    /**
+     * Gets whether Juying mode is limited to max 3 suggestions.
+     * When enabled, only 3 suggestions are shown (mapped to Sym/Space/Ctrl keys).
+     */
+    fun getJuyingMaxThreeSuggestions(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_JUYING_MAX_THREE_SUGGESTIONS, false)
+    }
+
+    /**
+     * Sets whether Juying mode is limited to max 3 suggestions.
+     */
+    fun setJuyingMaxThreeSuggestions(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_JUYING_MAX_THREE_SUGGESTIONS, enabled)
             .apply()
     }
 
