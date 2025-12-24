@@ -216,6 +216,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private val trackpadSwipeThreshold: Int
         get() = SettingsManager.getTrackpadSwipeThreshold(this)
 
+    // Track key presses during touch gesture to suppress swipe gestures during typing
+    private var keyPressedDuringTouch = false  // True if any key was pressed while touch is active
+
     // Track if we just cleared next-word predictions due to Shift+letter or DEL (prevent re-triggering)
     // Uses a counter: 0 = allow updates, >0 = skip this many update cycles
     private var skipNextWordPredictionUpdates: Int = 0
@@ -1453,6 +1456,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 line.contains("BTN_TOUCH") && line.contains("DOWN") -> {
                     touchDown = true
                     startPosSet = false
+                    keyPressedDuringTouch = false  // Reset flag on new touch
                 }
                 line.contains("BTN_TOUCH") && line.contains("UP") -> {
                     if (touchDown) {
@@ -1500,6 +1504,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      * Swipe down = next page
      */
     private fun checkForSwipeGesture() {
+        // Suppress swipe gestures if any key was pressed during this touch gesture
+        // This prevents false triggers when typing vertically aligned keys like "ni"
+        if (keyPressedDuringTouch) {
+            return
+        }
+
         // deltaY positive = swipe up, negative = swipe down
         val deltaY = startY - currentY
         val deltaX = currentX - startX
@@ -3487,6 +3497,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         // Translate device-specific keycodes to standard Android keycodes
         val translatedKeyCode = translateKeyCode(keyCode)
+
+        // Mark that a key was pressed during touch (to suppress swipe gestures when typing)
+        if (touchDown) {
+            keyPressedDuringTouch = true
+        }
 
         // Check if we have an editable field at the very start
         val info = currentInputEditorInfo
@@ -7368,6 +7383,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        // Clear gesture state on key up to prevent false swipe triggers when typing
+        touchDown = false
+        startPosSet = false
+        keyPressedDuringTouch = false
+
         // Check if we have an editable field at the start (same logic as onKeyDown)
         val info = currentInputEditorInfo
         val ic = currentInputConnection
