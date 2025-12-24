@@ -2669,8 +2669,9 @@ class VariationBarView(
     }
 
     /**
-     * Animates a flash effect on the candidate at the given index when selected by swipe gesture.
-     * The animation scales up the button briefly and adds a highlight effect.
+     * Animates a BlackBerry Key2-style flick effect when selecting a candidate via swipe gesture.
+     * The word visually "flies up" from the suggestion bar toward the text field with an arc motion,
+     * scaling up and fading out as it moves upward.
      * @param candidateIndex The index of the candidate to animate (0-based)
      */
     fun animateSwipeSelection(candidateIndex: Int) {
@@ -2678,38 +2679,112 @@ class VariationBarView(
 
         val button = variationButtons[candidateIndex]
         val theme = getCurrentTheme()
+        val density = context.resources.displayMetrics.density
 
-        // Cancel any ongoing animation
-        button.animate().cancel()
+        // Get the text from the button
+        val selectedText = button.text.toString()
+        if (selectedText.isEmpty()) return
 
-        // Store original values
-        val originalScaleX = button.scaleX
-        val originalScaleY = button.scaleY
-        val originalBackground = button.background
+        // Get button position in screen coordinates
+        val buttonLocation = IntArray(2)
+        button.getLocationOnScreen(buttonLocation)
+        val buttonCenterX = buttonLocation[0] + button.width / 2f
+        val buttonCenterY = buttonLocation[1] + button.height / 2f
 
-        // Create highlight background
-        val highlightDrawable = GradientDrawable().apply {
-            setColor(theme.accentColor)
-            cornerRadius = 8f * context.resources.displayMetrics.density
+        // Create a floating TextView that will animate
+        val floatingText = TextView(context).apply {
+            text = selectedText
+            setTextColor(theme.textColor)
+            textSize = button.textSize / density  // Convert px back to sp
+            typeface = button.typeface
+            gravity = Gravity.CENTER
+
+            // Match button styling
+            val floatingBg = GradientDrawable().apply {
+                setColor(theme.accentColor)
+                cornerRadius = 8f * density
+            }
+            background = floatingBg
+            setPadding(
+                (12 * density).toInt(),
+                (6 * density).toInt(),
+                (12 * density).toInt(),
+                (6 * density).toInt()
+            )
         }
 
-        // Flash animation: scale up with highlight, then scale back
-        button.background = highlightDrawable
+        // Add the floating text to the wrapper (above other views)
+        val wrapperView = wrapper ?: return
+        val wrapperLocation = IntArray(2)
+        wrapperView.getLocationOnScreen(wrapperLocation)
+
+        // Calculate position relative to wrapper
+        val startX = buttonCenterX - wrapperLocation[0] - (button.width / 2f)
+        val startY = buttonCenterY - wrapperLocation[1] - (button.height / 2f)
+
+        val layoutParams = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply {
+            leftMargin = startX.toInt()
+            topMargin = startY.toInt()
+        }
+        floatingText.layoutParams = layoutParams
+
+        wrapperView.addView(floatingText)
+
+        // Animation parameters - BlackBerry-style fly up with arc
+        val flyDistance = 150f * density  // How far the word flies up
+        val arcOffset = 30f * density      // Horizontal arc movement
+        val duration = 250L
+
+        // Animate the floating text flying upward with arc motion
+        floatingText.animate()
+            .translationY(-flyDistance)
+            .translationX(arcOffset * if (candidateIndex % 2 == 0) -0.5f else 0.5f)  // Slight arc
+            .scaleX(1.3f)
+            .scaleY(1.3f)
+            .alpha(0f)
+            .setDuration(duration)
+            .setInterpolator(android.view.animation.DecelerateInterpolator(1.5f))
+            .withEndAction {
+                // Remove the floating view after animation
+                wrapperView.removeView(floatingText)
+            }
+            .start()
+
+        // Also animate the original button with a subtle pulse
+        button.animate().cancel()
+        val originalScaleX = button.scaleX
+        val originalScaleY = button.scaleY
+
         button.animate()
-            .scaleX(1.15f)
-            .scaleY(1.15f)
+            .scaleX(0.9f)
+            .scaleY(0.9f)
             .setDuration(80)
             .withEndAction {
                 button.animate()
                     .scaleX(originalScaleX)
                     .scaleY(originalScaleY)
-                    .setDuration(120)
-                    .withEndAction {
-                        button.background = originalBackground
-                    }
+                    .setDuration(100)
                     .start()
             }
             .start()
+    }
+
+    /**
+     * Plays a swipe selection sound effect if enabled in settings.
+     */
+    fun playSwipeSelectionSound() {
+        if (!SettingsManager.getSwipeSelectionSoundEnabled(context)) return
+
+        try {
+            // Use Android's keyboard click sound
+            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+            audioManager?.playSoundEffect(android.media.AudioManager.FX_KEYPRESS_STANDARD)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to play swipe selection sound", e)
+        }
     }
 }
 

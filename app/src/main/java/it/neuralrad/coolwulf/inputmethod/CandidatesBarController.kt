@@ -215,5 +215,12 @@ class CandidatesBarController(
         inputStatusBar.animateSwipeSelection(candidateIndex)
         candidatesStatusBar.animateSwipeSelection(candidateIndex)
     }
+
+    /**
+     * Plays swipe selection sound effect if enabled in settings.
+     */
+    fun playSwipeSelectionSound() {
+        inputStatusBar.playSwipeSelectionSound()
+    }
 }
 

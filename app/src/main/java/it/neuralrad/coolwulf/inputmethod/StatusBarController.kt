@@ -1397,6 +1397,13 @@ class StatusBarController(
     fun animateSwipeSelection(candidateIndex: Int) {
         variationBarView?.animateSwipeSelection(candidateIndex)
     }
+
+    /**
+     * Plays swipe selection sound effect if enabled in settings.
+     */
+    fun playSwipeSelectionSound() {
+        variationBarView?.playSwipeSelectionSound()
+    }
 }
 
 

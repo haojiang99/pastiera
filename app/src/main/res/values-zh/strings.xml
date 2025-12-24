@@ -909,4 +909,6 @@
     <string name="trackpad_gestures_grant_permission">授予权限</string>
     <string name="trackpad_gestures_show_tutorial">使用说明</string>
     <string name="trackpad_gestures_tutorial_description">了解触控板手势的使用方法</string>
+    <string name="swipe_selection_sound_title">滑动选词音效</string>
+    <string name="swipe_selection_sound_description">滑动选词时播放音效</string>
 </resources>

@@ -53,6 +53,9 @@ fun TrackpadGestureSettingsScreen(
     var swipeThreshold by remember {
         mutableStateOf(SettingsManager.getTrackpadSwipeThreshold(context))
     }
+    var swipeSelectionSoundEnabled by remember {
+        mutableStateOf(SettingsManager.getSwipeSelectionSoundEnabled(context))
+    }
     var showTutorialDialog by remember { mutableStateOf(false) }
 
     // Check Shizuku status and permission
@@ -275,6 +278,39 @@ fun TrackpadGestureSettingsScreen(
                         },
                         valueRange = SettingsManager.getMinTrackpadSwipeThreshold().toFloat()..SettingsManager.getMaxTrackpadSwipeThreshold().toFloat(),
                         steps = 24
+                    )
+                }
+            }
+
+            // Swipe Selection Sound Toggle
+            Surface(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.swipe_selection_sound_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = stringResource(R.string.swipe_selection_sound_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = swipeSelectionSoundEnabled,
+                        onCheckedChange = { enabled ->
+                            swipeSelectionSoundEnabled = enabled
+                            SettingsManager.setSwipeSelectionSoundEnabled(context, enabled)
+                        }
                     )
                 }
             }

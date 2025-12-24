@@ -1530,8 +1530,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 2 -> 2  // Right third -> 3rd candidate
                                 else -> 0
                             }
-                            // Animate the selection (zone = display position)
+                            // Animate the selection and play sound (zone = display position)
                             candidatesBarController.animateSwipeSelection(zone)
+                            candidatesBarController.playSwipeSelectionSound()
                             acceptChineseCandidateBySwipe(candidateIndex)
                         } else {
                             // Chinese Juying mode: 5 zones matching visual layout 2-3-1-4-5
@@ -1552,8 +1553,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                                 4 -> 4  // Right fifth -> 5th candidate
                                 else -> 0
                             }
-                            // Animate the selection (zone = display position)
+                            // Animate the selection and play sound (zone = display position)
                             candidatesBarController.animateSwipeSelection(zone)
+                            candidatesBarController.playSwipeSelectionSound()
                             acceptChineseCandidateBySwipe(candidateIndex)
                         }
                     } else {
@@ -1569,8 +1571,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         // Center (1) -> current typed word (index 1)
                         // Right (2) -> 2nd best (index 2)
                         val suggestionIndex = zone
-                        // Animate the selection (zone = display position)
+                        // Animate the selection and play sound (zone = display position)
                         candidatesBarController.animateSwipeSelection(zone)
+                        candidatesBarController.playSwipeSelectionSound()
                         acceptEnglishSuggestionBySwipe(suggestionIndex)
                     }
                 }

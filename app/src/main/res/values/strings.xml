@@ -912,4 +912,6 @@
     <string name="trackpad_gestures_grant_permission">Grant Permission</string>
     <string name="trackpad_gestures_show_tutorial">How to Use</string>
     <string name="trackpad_gestures_tutorial_description">Learn how trackpad gestures work</string>
+    <string name="swipe_selection_sound_title">Swipe Selection Sound</string>
+    <string name="swipe_selection_sound_description">Play a sound effect when selecting a word via swipe gesture</string>
 </resources>
