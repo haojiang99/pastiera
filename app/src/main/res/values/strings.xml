@@ -917,6 +917,10 @@
     <string name="swipe_selection_sound_volume_title">Sound Volume</string>
     <string name="swipe_selection_animation_title">Swipe Selection Animation</string>
     <string name="swipe_selection_animation_description">Show flying word animation when selecting via swipe gesture</string>
+    <string name="overlay_permission_title">Full-Screen Animation</string>
+    <string name="overlay_permission_description">Grant overlay permission for words to fly across the screen</string>
+    <string name="overlay_permission_granted">Permission granted - full-screen animation enabled</string>
+    <string name="grant_permission">Grant</string>
     <string name="split_swipe_down_title">Split Swipe Down for Page Navigation</string>
     <string name="split_swipe_down_description">Left half swipe down = previous page, right half = next page. When off, swipe down anywhere = next page.</string>
 

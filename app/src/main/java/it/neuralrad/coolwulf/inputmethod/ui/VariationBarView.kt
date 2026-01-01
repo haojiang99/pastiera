@@ -2669,15 +2669,25 @@ class VariationBarView(
     }
 
     /**
-     * Animates a BlackBerry Key2-style flick effect when selecting a candidate via swipe gesture.
-     * The word visually "flies up" from the suggestion bar toward the text field with an arc motion,
-     * scaling up and fading out as it moves upward.
+     * Animates a flying word effect when selecting a candidate via swipe gesture.
+     * The word visually "flies up" from the suggestion bar toward the middle of the screen,
+     * transitioning from solid to faded transparency like an airplane flying upward.
+     * Uses WindowManager to create an overlay that can fly above the keyboard to 1/3-1/2 screen height.
      * @param candidateIndex The index of the candidate to animate (0-based)
      */
     fun animateSwipeSelection(candidateIndex: Int) {
+        Log.e(TAG, "animateSwipeSelection called with candidateIndex=$candidateIndex")
+
         // Check if animation is enabled in settings
-        if (!SettingsManager.getSwipeSelectionAnimationEnabled(context)) return
-        if (candidateIndex < 0 || candidateIndex >= variationButtons.size) return
+        val animationEnabled = SettingsManager.getSwipeSelectionAnimationEnabled(context)
+        Log.e(TAG, "Animation enabled: $animationEnabled")
+        if (!animationEnabled) return
+
+        Log.e(TAG, "variationButtons.size=${variationButtons.size}")
+        if (candidateIndex < 0 || candidateIndex >= variationButtons.size) {
+            Log.e(TAG, "candidateIndex out of bounds, returning")
+            return
+        }
 
         val button = variationButtons[candidateIndex]
         val theme = getCurrentTheme()
@@ -2685,122 +2695,138 @@ class VariationBarView(
 
         // Get the text from the button
         val selectedText = button.text.toString()
-        if (selectedText.isEmpty()) return
+        Log.e(TAG, "selectedText='$selectedText'")
+        if (selectedText.isEmpty()) {
+            Log.e(TAG, "selectedText is empty, returning")
+            return
+        }
 
         // Get button position in screen coordinates
         val buttonLocation = IntArray(2)
         button.getLocationOnScreen(buttonLocation)
 
-        // Create a floating TextView that will animate - larger and more visible
+        // Get screen dimensions
+        val displayMetrics = context.resources.displayMetrics
+        val screenHeight = displayMetrics.heightPixels
+        val screenWidth = displayMetrics.widthPixels
+
+        // Create a floating TextView that will animate - text only, no background
         val floatingText = TextView(context).apply {
             text = selectedText
             setTextColor(Color.WHITE)
             // Make the text larger for better visibility
-            textSize = (button.textSize / density) * 1.4f
+            textSize = (button.textSize / density) * 2.0f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-
-            // Elevation for shadow effect
-            elevation = 12f * density
-
-            // Create a more prominent background with gradient
-            val floatingBg = GradientDrawable().apply {
-                // Use a vibrant accent color
-                setColor(theme.accentColor)
-                cornerRadius = 12f * density
-                // Add a subtle stroke
-                setStroke((1.5f * density).toInt(), Color.WHITE)
-            }
-            background = floatingBg
-            setPadding(
-                (16 * density).toInt(),
-                (10 * density).toInt(),
-                (16 * density).toInt(),
-                (10 * density).toInt()
-            )
+            // Add text shadow for better visibility against any background
+            setShadowLayer(8f * density, 0f, 2f * density, Color.BLACK)
+            // No background - just the text
+            background = null
         }
 
-        // Add the floating text to the wrapper (above other views)
-        val wrapperView = wrapper ?: return
-        val wrapperLocation = IntArray(2)
-        wrapperView.getLocationOnScreen(wrapperLocation)
+        // Check if we have overlay permission
+        val canDrawOverlays = android.provider.Settings.canDrawOverlays(context)
+        Log.e(TAG, "canDrawOverlays=$canDrawOverlays")
 
-        // Calculate position relative to wrapper - center on the button
-        val startX = buttonLocation[0] - wrapperLocation[0].toFloat()
-        val startY = buttonLocation[1] - wrapperLocation[1].toFloat()
+        if (!canDrawOverlays) {
+            // Fallback to wrapper-based animation if no overlay permission
+            Log.e(TAG, "No overlay permission, using fallback animation")
+            animateSwipeSelectionFallback(candidateIndex)
+            return
+        }
 
-        val layoutParams = FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
+        // Use WindowManager with TYPE_APPLICATION_OVERLAY for full-screen animation
+        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+
+        val layoutParams = android.view.WindowManager.LayoutParams(
+            android.view.WindowManager.LayoutParams.WRAP_CONTENT,
+            android.view.WindowManager.LayoutParams.WRAP_CONTENT,
+            android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            android.graphics.PixelFormat.TRANSLUCENT
         ).apply {
-            leftMargin = startX.toInt()
-            topMargin = startY.toInt()
+            gravity = Gravity.TOP or Gravity.START
+            x = buttonLocation[0]
+            y = buttonLocation[1]
         }
-        floatingText.layoutParams = layoutParams
 
-        wrapperView.addView(floatingText)
+        Log.e(TAG, "buttonLocation=[${buttonLocation[0]}, ${buttonLocation[1]}]")
 
-        // Animation parameters - BlackBerry-style fly up with smooth arc
-        val flyDistance = 450f * density  // How far the word flies up
-        val duration = 1200L  // Very slow animation for clear visibility
+        try {
+            windowManager.addView(floatingText, layoutParams)
+            Log.e(TAG, "WindowManager addView with TYPE_APPLICATION_OVERLAY succeeded")
+        } catch (e: Exception) {
+            Log.e(TAG, "WindowManager addView failed: ${e.message}, using fallback")
+            animateSwipeSelectionFallback(candidateIndex)
+            return
+        }
 
-        // Use ValueAnimator for smooth curved arc motion
+        // Animation parameters - fly vertically to 1/3 of screen height from bottom
+        val startY = buttonLocation[1].toFloat()
+        val targetY = screenHeight / 3f  // Fly to 1/3 from top
+        val flyDistance = startY - targetY
+        val duration = 600L  // Smooth animation
+
+        Log.e(TAG, "screenHeight=$screenHeight, startY=$startY, targetY=$targetY, flyDistance=$flyDistance")
+
+        // Use ValueAnimator for smooth vertical motion
         val animator = ValueAnimator.ofFloat(0f, 1f)
         animator.duration = duration
-        animator.interpolator = android.view.animation.LinearInterpolator()  // Constant speed
-
-        // Calculate arc direction based on position (words fly toward center-top)
-        val screenCenterX = wrapperView.width / 2f
-        val buttonCenterX = startX + button.width / 2f
-        val arcDirection = if (buttonCenterX < screenCenterX) 1f else -1f
-        val arcWidth = 80f * density * arcDirection  // Wider arc
+        // Use decelerate interpolator for smooth flight
+        animator.interpolator = android.view.animation.DecelerateInterpolator(1.2f)
 
         animator.addUpdateListener { animation ->
             val progress = animation.animatedValue as Float
 
-            // Parabolic arc motion - smooth curve
-            val arcProgress = kotlin.math.sin(progress * Math.PI).toFloat()  // Arc peaks at middle
+            // Calculate new Y position - fly straight up
+            val newY = startY - (flyDistance * progress)
 
-            // Y translation - flies upward smoothly
-            floatingText.translationY = -flyDistance * progress
+            if (progress < 0.1f || progress > 0.9f) {
+                Log.e(TAG, "Animation progress=$progress, newY=$newY")
+            }
 
-            // X translation - curved arc motion (wider)
-            floatingText.translationX = arcWidth * arcProgress
+            // Update window position - vertical only
+            try {
+                layoutParams.y = newY.toInt()
+                windowManager.updateViewLayout(floatingText, layoutParams)
+            } catch (e: Exception) {
+                Log.e(TAG, "updateViewLayout failed: ${e.message}")
+            }
 
-            // Scale - grows bigger initially, holds longer, then shrinks
+            // Scale - slight grow then shrink
             val scale = when {
-                progress < 0.2f -> 1f + (progress / 0.2f) * 0.6f  // Grow to 1.6x quickly
-                progress < 0.75f -> 1.6f  // Hold at 1.6x for most of animation
-                else -> 1.6f - ((progress - 0.75f) / 0.25f) * 0.4f  // Shrink to 1.2x at end
+                progress < 0.3f -> 1f + (progress / 0.3f) * 0.2f  // Grow to 1.2x
+                else -> 1.2f - ((progress - 0.3f) / 0.7f) * 0.2f  // Shrink back to 1.0x
             }
             floatingText.scaleX = scale
             floatingText.scaleY = scale
 
-            // Alpha - stay fully visible much longer, quick fade at the very end
-            floatingText.alpha = when {
-                progress < 0.75f -> 1f  // Fully visible for first 75%
-                else -> 1f - ((progress - 0.75f) / 0.25f)  // Fade out in last 25%
-            }
-
-            // Rotation - slight rotation for dynamic feel
-            floatingText.rotation = arcDirection * 10f * arcProgress
+            // Alpha - start solid (1.0), fade to semi-transparent (0.3)
+            // Smooth linear fade from solid to semi-transparent
+            floatingText.alpha = 1f - (progress * 0.7f)  // 1.0 -> 0.3
         }
 
         animator.addListener(object : AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator) {
-                wrapperView.removeView(floatingText)
+                try {
+                    windowManager.removeView(floatingText)
+                } catch (e: Exception) {
+                    // View may already be removed
+                }
             }
         })
 
         animator.start()
+        Log.e(TAG, "Animator started, isRunning=${animator.isRunning}")
 
-        // Also animate the original button with a more visible pulse effect
+        // Also animate the original button with a pulse effect
         button.animate().cancel()
         val originalScaleX = button.scaleX
         val originalScaleY = button.scaleY
         val originalBackground = button.background
 
-        // Flash the button with accent color
         val flashBg = GradientDrawable().apply {
             setColor(theme.accentColor)
             cornerRadius = 8f * density
@@ -2822,6 +2848,93 @@ class VariationBarView(
                     .start()
             }
             .start()
+    }
+
+    /**
+     * Fallback animation that animates within the wrapper view when WindowManager fails.
+     */
+    private fun animateSwipeSelectionFallback(candidateIndex: Int) {
+        if (candidateIndex < 0 || candidateIndex >= variationButtons.size) return
+
+        val button = variationButtons[candidateIndex]
+        val theme = getCurrentTheme()
+        val density = context.resources.displayMetrics.density
+
+        val selectedText = button.text.toString()
+        if (selectedText.isEmpty()) return
+
+        val buttonLocation = IntArray(2)
+        button.getLocationOnScreen(buttonLocation)
+
+        val floatingText = TextView(context).apply {
+            text = selectedText
+            setTextColor(Color.WHITE)
+            textSize = (button.textSize / density) * 1.6f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            // Add text shadow for better visibility
+            setShadowLayer(6f * density, 0f, 2f * density, Color.BLACK)
+            // No background - just the text
+            background = null
+        }
+
+        val wrapperView = wrapper ?: return
+        val wrapperLocation = IntArray(2)
+        wrapperView.getLocationOnScreen(wrapperLocation)
+
+        val startX = buttonLocation[0] - wrapperLocation[0].toFloat()
+        val startY = buttonLocation[1] - wrapperLocation[1].toFloat()
+
+        val layoutParams = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply {
+            leftMargin = startX.toInt()
+            topMargin = startY.toInt()
+        }
+        floatingText.layoutParams = layoutParams
+
+        wrapperView.addView(floatingText)
+
+        val flyDistance = 300f * density
+        val duration = 600L
+
+        val animator = ValueAnimator.ofFloat(0f, 1f)
+        animator.duration = duration
+        animator.interpolator = android.view.animation.DecelerateInterpolator()
+
+        val screenCenterX = wrapperView.width / 2f
+        val buttonCenterX = startX + button.width / 2f
+        val arcDirection = if (buttonCenterX < screenCenterX) 1f else -1f
+        val arcWidth = 50f * density * arcDirection
+
+        animator.addUpdateListener { animation ->
+            val progress = animation.animatedValue as Float
+            val arcProgress = kotlin.math.sin(progress * Math.PI).toFloat()
+
+            floatingText.translationY = -flyDistance * progress
+            floatingText.translationX = arcWidth * arcProgress
+
+            val scale = when {
+                progress < 0.3f -> 1f + (progress / 0.3f) * 0.3f
+                else -> 1.3f - ((progress - 0.3f) / 0.7f) * 0.2f
+            }
+            floatingText.scaleX = scale
+            floatingText.scaleY = scale
+
+            floatingText.alpha = when {
+                progress < 0.5f -> 1f
+                else -> 1f - ((progress - 0.5f) / 0.5f)
+            }
+        }
+
+        animator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                wrapperView.removeView(floatingText)
+            }
+        })
+
+        animator.start()
     }
 
     /**

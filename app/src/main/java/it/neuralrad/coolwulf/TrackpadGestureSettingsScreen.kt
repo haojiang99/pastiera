@@ -67,6 +67,9 @@ fun TrackpadGestureSettingsScreen(
     var swipeSelectionAnimationEnabled by remember {
         mutableStateOf(SettingsManager.getSwipeSelectionAnimationEnabled(context))
     }
+    var overlayPermissionGranted by remember {
+        mutableStateOf(Settings.canDrawOverlays(context))
+    }
     var splitSwipeDownEnabled by remember {
         mutableStateOf(SettingsManager.getSplitSwipeDownEnabled(context))
     }
@@ -99,6 +102,20 @@ fun TrackpadGestureSettingsScreen(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             wirelessDebuggingEnabled = embeddedAdb.isWirelessDebuggingEnabled()
             embeddedAdbConnected = embeddedAdb.isConnected()
+        }
+    }
+
+    // Refresh overlay permission status when returning from system settings
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                overlayPermissionGranted = Settings.canDrawOverlays(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -650,6 +667,69 @@ fun TrackpadGestureSettingsScreen(
                             SettingsManager.setSwipeSelectionAnimationEnabled(context, enabled)
                         }
                     )
+                }
+            }
+        }
+
+        // Overlay permission for full-screen animation (only shown when animation is enabled)
+        if (swipeSelectionAnimationEnabled) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.overlay_permission_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = if (overlayPermissionGranted) {
+                                stringResource(R.string.overlay_permission_granted)
+                            } else {
+                                stringResource(R.string.overlay_permission_description)
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (overlayPermissionGranted) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
+                    if (overlayPermissionGranted) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    } else {
+                        Button(
+                            onClick = {
+                                val intent = Intent(
+                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    android.net.Uri.parse("package:${context.packageName}")
+                                )
+                                context.startActivity(intent)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text(stringResource(R.string.grant_permission))
+                        }
+                    }
                 }
             }
         }
