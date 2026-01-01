@@ -15,15 +15,18 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 /**
- * Discovers the ADB wireless debugging port using mDNS/DNS-SD.
- * The wireless debugging feature broadcasts its connection port via the
- * "_adb-tls-connect._tcp" service type.
+ * Discovers the ADB wireless debugging ports using mDNS/DNS-SD.
+ *
+ * Android broadcasts two service types:
+ * - "_adb-tls-connect._tcp": The connection port (always available when wireless debugging is on)
+ * - "_adb-tls-pairing._tcp": The pairing port (only available when "Pair device with pairing code" dialog is open)
  */
 class AdbPortDiscovery(private val context: Context) {
 
     companion object {
         private const val TAG = "AdbPortDiscovery"
-        private const val SERVICE_TYPE = "_adb-tls-connect._tcp"
+        private const val SERVICE_TYPE_CONNECT = "_adb-tls-connect._tcp"
+        private const val SERVICE_TYPE_PAIRING = "_adb-tls-pairing._tcp"
         private const val DISCOVERY_TIMEOUT_MS = 8000L
     }
 
@@ -146,9 +149,98 @@ class AdbPortDiscovery(private val context: Context) {
         }
 
         try {
-            nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
+            nsdManager.discoverServices(SERVICE_TYPE_CONNECT, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start discovery", e)
+            isDiscovering.set(false)
+            resumeOnce(null)
+        }
+    }
+
+    /**
+     * Discover the ADB pairing port using mDNS.
+     * The pairing port is only broadcast when the "Pair device with pairing code" dialog is open.
+     *
+     * @return The discovered pairing port, or null if not found
+     */
+    suspend fun discoverPairingPort(): Int? = suspendCoroutine { continuation ->
+        if (isDiscovering.getAndSet(true)) {
+            Log.w(TAG, "Discovery already in progress")
+            continuation.resume(null)
+            return@suspendCoroutine
+        }
+
+        discoveredPort.set(0)
+        pendingServices.clear()
+
+        val localIp = getLocalIpAddress()
+        Log.d(TAG, "Discovering pairing port, local IP: $localIp")
+
+        var hasResumed = false
+        val resumeOnce: (Int?) -> Unit = { port ->
+            if (!hasResumed) {
+                hasResumed = true
+                stopDiscovery()
+                continuation.resume(port)
+            }
+        }
+
+        // Timeout handler - pairing discovery should be quick
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            if (!hasResumed) {
+                Log.d(TAG, "Pairing port discovery timeout, returning: ${discoveredPort.get()}")
+                val port = discoveredPort.get().takeIf { it > 0 }
+                resumeOnce(port)
+            }
+        }, DISCOVERY_TIMEOUT_MS)
+
+        val pairingDiscoveryListener = object : NsdManager.DiscoveryListener {
+            override fun onDiscoveryStarted(regType: String) {
+                Log.d(TAG, "Pairing port discovery started for $regType")
+            }
+
+            override fun onServiceFound(service: NsdServiceInfo) {
+                Log.d(TAG, "Pairing service found: ${service.serviceName}")
+                pendingServices.add(service)
+                resolveService(service, localIp) { port ->
+                    if (port != null && port > 0) {
+                        discoveredPort.set(port)
+                        Log.d(TAG, "Found valid ADB pairing port: $port")
+                        // Resume immediately for pairing port since we want it ASAP
+                        resumeOnce(port)
+                    }
+                }
+            }
+
+            override fun onServiceLost(service: NsdServiceInfo) {
+                Log.d(TAG, "Pairing service lost: ${service.serviceName}")
+                pendingServices.removeIf { it.serviceName == service.serviceName }
+            }
+
+            override fun onDiscoveryStopped(serviceType: String) {
+                Log.d(TAG, "Pairing port discovery stopped: $serviceType")
+                isDiscovering.set(false)
+            }
+
+            override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
+                Log.e(TAG, "Pairing port discovery start failed: $errorCode")
+                isDiscovering.set(false)
+                resumeOnce(null)
+            }
+
+            override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
+                Log.e(TAG, "Pairing port discovery stop failed: $errorCode")
+                isDiscovering.set(false)
+            }
+        }
+
+        // Store as our discovery listener so stopDiscovery() works
+        discoveryListener = pairingDiscoveryListener
+
+        try {
+            nsdManager.discoverServices(SERVICE_TYPE_PAIRING, NsdManager.PROTOCOL_DNS_SD, pairingDiscoveryListener)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start pairing port discovery", e)
             isDiscovering.set(false)
             resumeOnce(null)
         }

@@ -972,11 +972,12 @@
     <string name="adb_pairing_notification_channel">ADB配对</string>
     <string name="adb_pairing_notification_channel_desc">ADB无线配对通知</string>
     <string name="adb_pairing_notification_title">输入配对信息</string>
-    <string name="adb_pairing_notification_text">点击输入开发者设置中的端口和配对码</string>
-    <string name="adb_pairing_notification_instructions">输入 端口:配对码（如 42021:123456）来自开发者设置 → 无线调试 → 使用配对码配对设备</string>
-    <string name="adb_pairing_enter_code">端口:配对码（如 42021:123456）</string>
-    <string name="adb_pairing_invalid_format">格式无效。请输入 端口:配对码（如 42021:123456）</string>
-    <string name="adb_pairing_need_port">请包含端口（端口:配对码 格式）</string>
+    <string name="adb_pairing_notification_text">打开配对对话框，端口将自动检测</string>
+    <string name="adb_pairing_notification_instructions">前往开发者设置 → 无线调试 → 使用配对码配对设备。端口将自动检测，然后只需输入6位配对码。</string>
+    <string name="adb_pairing_enter_code">6位配对码（或端口:配对码）</string>
+    <string name="adb_pairing_invalid_format">格式无效。请输入6位配对码或端口:配对码</string>
+    <string name="adb_pairing_need_port">未检测到端口。请输入端口:配对码格式或打开配对对话框</string>
+    <string name="adb_pairing_port_discovered">已检测到端口 %1$d！只需输入6位配对码</string>
     <string name="adb_pairing_submit">配对</string>
     <string name="adb_pairing_cancel">取消</string>
     <string name="adb_pairing_in_progress">配对中...</string>

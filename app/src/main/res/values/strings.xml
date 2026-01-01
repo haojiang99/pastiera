@@ -975,11 +975,12 @@
     <string name="adb_pairing_notification_channel">ADB Pairing</string>
     <string name="adb_pairing_notification_channel_desc">Notifications for ADB wireless pairing</string>
     <string name="adb_pairing_notification_title">Enter Pairing Info</string>
-    <string name="adb_pairing_notification_text">Tap to enter PORT:CODE from Developer Settings</string>
-    <string name="adb_pairing_notification_instructions">Enter PORT:CODE (e.g., 42021:123456) from Developer Settings → Wireless debugging → Pair device with pairing code</string>
-    <string name="adb_pairing_enter_code">PORT:CODE (e.g., 42021:123456)</string>
-    <string name="adb_pairing_invalid_format">Invalid format. Enter PORT:CODE (e.g., 42021:123456)</string>
-    <string name="adb_pairing_need_port">Please include the port (PORT:CODE format)</string>
+    <string name="adb_pairing_notification_text">Open pairing dialog, port will auto-detect</string>
+    <string name="adb_pairing_notification_instructions">Go to Developer Settings → Wireless debugging → Pair device with pairing code. The port will be auto-detected. Then enter just the 6-digit code here.</string>
+    <string name="adb_pairing_enter_code">6-digit code (or PORT:CODE)</string>
+    <string name="adb_pairing_invalid_format">Invalid format. Enter 6-digit code or PORT:CODE</string>
+    <string name="adb_pairing_need_port">Port not detected. Please include PORT:CODE format or open pairing dialog</string>
+    <string name="adb_pairing_port_discovered">Port %1$d detected! Enter the 6-digit code only</string>
     <string name="adb_pairing_submit">Pair</string>
     <string name="adb_pairing_cancel">Cancel</string>
     <string name="adb_pairing_in_progress">Pairing in progress...</string>
