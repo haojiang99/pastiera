@@ -711,6 +711,7 @@
     <string name="keyboard_sound_description">打字时播放按键声音</string>
     <string name="keyboard_sound_type_title">声音类型</string>
     <string name="keyboard_sound_type_mechanical">机械键盘</string>
+    <string name="keyboard_sound_type_blackberry">黑莓键盘</string>
     <string name="keyboard_sound_type_bucklespring">弹簧键盘</string>
     <string name="keyboard_sound_type_video">短视频</string>
     <string name="keyboard_sound_type_mario">马里奥</string>

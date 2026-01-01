@@ -714,6 +714,7 @@
     <string name="keyboard_sound_description">Play click sound when typing</string>
     <string name="keyboard_sound_type_title">Sound Type</string>
     <string name="keyboard_sound_type_mechanical">Mechanical</string>
+    <string name="keyboard_sound_type_blackberry">Blackberry</string>
     <string name="keyboard_sound_type_bucklespring">Bucklespring</string>
     <string name="keyboard_sound_type_video">Video</string>
     <string name="keyboard_sound_type_mario">Mario</string>

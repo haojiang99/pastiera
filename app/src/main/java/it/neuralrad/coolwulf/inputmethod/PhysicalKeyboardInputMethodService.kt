@@ -429,9 +429,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             }
         } else {
-            // Single sound type (mechanical)
+            // Single sound type (mechanical, blackberry)
             if (!soundLoaded && keyClickSoundId == 0) {
-                keyClickSoundId = soundPool!!.load(this, it.neuralrad.coolwulf.R.raw.key_click, 1)
+                val soundResource = when (soundType) {
+                    "blackberry" -> it.neuralrad.coolwulf.R.raw.blackberry
+                    else -> it.neuralrad.coolwulf.R.raw.key_click  // mechanical (default)
+                }
+                keyClickSoundId = soundPool!!.load(this, soundResource, 1)
                 loadedSoundType = soundType
                 soundPool!!.setOnLoadCompleteListener { _, _, status ->
                     if (status == 0) {

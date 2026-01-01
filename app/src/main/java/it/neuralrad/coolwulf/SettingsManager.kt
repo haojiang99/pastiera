@@ -108,7 +108,7 @@ object SettingsManager {
     private const val KEY_SUGGESTION_HEIGHT_PERCENT = "suggestion_height_percent" // Height of suggestion word background as percentage of status bar (50-100)
     private const val KEY_VIRTUAL_KEYBOARD_HEIGHT = "virtual_keyboard_height" // Height of virtual keyboard keys in DIP
     private const val KEY_KEYBOARD_SOUND = "virtual_keyboard_sound" // Enable sound effect for keyboard typing (both physical and virtual)
-    private const val KEY_KEYBOARD_SOUND_TYPE = "keyboard_sound_type" // Sound type: "mechanical", "bucklespring", "video", "mario", "piano", "custom"
+    private const val KEY_KEYBOARD_SOUND_TYPE = "keyboard_sound_type" // Sound type: "mechanical", "blackberry", "bucklespring", "video", "mario", "piano", "custom"
     private const val KEY_KEYBOARD_SOUND_VOLUME = "keyboard_sound_volume" // Sound volume: 0-100
     private const val KEY_CUSTOM_SOUND_PATH = "custom_sound_path" // Path to user's custom sound file
     private const val KEY_VIRTUAL_KEYBOARD_VIBRATION = "virtual_keyboard_vibration" // Enable vibration for virtual keyboard typing

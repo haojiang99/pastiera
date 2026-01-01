@@ -501,6 +501,7 @@ fun AdvancedSettingsScreen(
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         listOf(
                                             "mechanical" to R.string.keyboard_sound_type_mechanical,
+                                            "blackberry" to R.string.keyboard_sound_type_blackberry,
                                             "bucklespring" to R.string.keyboard_sound_type_bucklespring,
                                             "video" to R.string.keyboard_sound_type_video,
                                             "mario" to R.string.keyboard_sound_type_mario,

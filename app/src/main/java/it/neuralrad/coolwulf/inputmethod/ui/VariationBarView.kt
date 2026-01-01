@@ -2710,16 +2710,22 @@ class VariationBarView(
         val screenHeight = displayMetrics.heightPixels
         val screenWidth = displayMetrics.widthPixels
 
+        // Determine text color based on system theme (dark/light mode)
+        val nightModeFlags = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        val isDarkMode = nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val textColor = if (isDarkMode) Color.WHITE else Color.BLACK
+        val shadowColor = if (isDarkMode) Color.BLACK else Color.WHITE
+
         // Create a floating TextView that will animate - text only, no background
         val floatingText = TextView(context).apply {
             text = selectedText
-            setTextColor(Color.WHITE)
+            setTextColor(textColor)
             // Make the text larger for better visibility
             textSize = (button.textSize / density) * 2.0f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             // Add text shadow for better visibility against any background
-            setShadowLayer(8f * density, 0f, 2f * density, Color.BLACK)
+            setShadowLayer(8f * density, 0f, 2f * density, shadowColor)
             // No background - just the text
             background = null
         }
@@ -2866,14 +2872,20 @@ class VariationBarView(
         val buttonLocation = IntArray(2)
         button.getLocationOnScreen(buttonLocation)
 
+        // Determine text color based on system theme (dark/light mode)
+        val nightModeFlags = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        val isDarkMode = nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val textColor = if (isDarkMode) Color.WHITE else Color.BLACK
+        val shadowColor = if (isDarkMode) Color.BLACK else Color.WHITE
+
         val floatingText = TextView(context).apply {
             text = selectedText
-            setTextColor(Color.WHITE)
+            setTextColor(textColor)
             textSize = (button.textSize / density) * 1.6f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             // Add text shadow for better visibility
-            setShadowLayer(6f * density, 0f, 2f * density, Color.BLACK)
+            setShadowLayer(6f * density, 0f, 2f * density, shadowColor)
             // No background - just the text
             background = null
         }
