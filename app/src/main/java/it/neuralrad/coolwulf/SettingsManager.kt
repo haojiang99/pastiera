@@ -160,6 +160,7 @@ object SettingsManager {
     private const val KEY_TRACKPAD_GESTURES_ENABLED = "trackpad_gestures_enabled"
     private const val KEY_TRACKPAD_SWIPE_THRESHOLD = "trackpad_swipe_threshold"
     private const val KEY_SWIPE_SELECTION_SOUND_ENABLED = "swipe_selection_sound_enabled"
+    private const val KEY_SWIPE_SELECTION_SOUND_VOLUME = "swipe_selection_sound_volume"
     private const val KEY_SWIPE_SELECTION_ANIMATION_ENABLED = "swipe_selection_animation_enabled"
     private const val KEY_SPLIT_SWIPE_DOWN_ENABLED = "split_swipe_down_enabled"
 
@@ -173,6 +174,7 @@ object SettingsManager {
     private const val DEFAULT_TRACKPAD_SWIPE_THRESHOLD = 300  // Minimum swipe distance in pixels
     private const val DEFAULT_USE_EMBEDDED_ADB = true  // Use embedded ADB by default
     private const val DEFAULT_SWIPE_SELECTION_SOUND_ENABLED = true  // Sound on by default
+    private const val DEFAULT_SWIPE_SELECTION_SOUND_VOLUME = 0.5f  // 50% volume by default
     private const val DEFAULT_SWIPE_SELECTION_ANIMATION_ENABLED = true  // Animation on by default
     private const val DEFAULT_SPLIT_SWIPE_DOWN_ENABLED = false  // Off by default, swipe down = next page
     private const val MIN_TRACKPAD_SWIPE_THRESHOLD = 100
@@ -3725,6 +3727,22 @@ object SettingsManager {
     fun setSwipeSelectionSoundEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_SWIPE_SELECTION_SOUND_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns the swipe selection sound volume (0.0 to 1.0).
+     */
+    fun getSwipeSelectionSoundVolume(context: Context): Float {
+        return getPreferences(context).getFloat(KEY_SWIPE_SELECTION_SOUND_VOLUME, DEFAULT_SWIPE_SELECTION_SOUND_VOLUME)
+    }
+
+    /**
+     * Sets the swipe selection sound volume (0.0 to 1.0).
+     */
+    fun setSwipeSelectionSoundVolume(context: Context, volume: Float) {
+        getPreferences(context).edit()
+            .putFloat(KEY_SWIPE_SELECTION_SOUND_VOLUME, volume.coerceIn(0f, 1f))
             .apply()
     }
 

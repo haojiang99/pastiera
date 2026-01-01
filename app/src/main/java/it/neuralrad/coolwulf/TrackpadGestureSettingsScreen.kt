@@ -61,6 +61,9 @@ fun TrackpadGestureSettingsScreen(
     var swipeSelectionSoundEnabled by remember {
         mutableStateOf(SettingsManager.getSwipeSelectionSoundEnabled(context))
     }
+    var swipeSelectionSoundVolume by remember {
+        mutableStateOf(SettingsManager.getSwipeSelectionSoundVolume(context))
+    }
     var swipeSelectionAnimationEnabled by remember {
         mutableStateOf(SettingsManager.getSwipeSelectionAnimationEnabled(context))
     }
@@ -578,6 +581,41 @@ fun TrackpadGestureSettingsScreen(
                             swipeSelectionSoundEnabled = enabled
                             SettingsManager.setSwipeSelectionSoundEnabled(context, enabled)
                         }
+                    )
+                }
+            }
+
+            // Swipe Selection Sound Volume Slider (only shown when sound is enabled)
+            if (swipeSelectionSoundEnabled) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.swipe_selection_sound_volume_title),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "${(swipeSelectionSoundVolume * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Slider(
+                        value = swipeSelectionSoundVolume,
+                        onValueChange = { volume ->
+                            swipeSelectionSoundVolume = volume
+                            SettingsManager.setSwipeSelectionSoundVolume(context, volume)
+                        },
+                        valueRange = 0f..1f,
+                        steps = 9,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }

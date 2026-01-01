@@ -1555,6 +1555,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      * Swipe down = next page
      */
     private fun checkForSwipeGesture() {
+        // Only process swipe gestures when in IME mode (actively editing text)
+        if (currentInputConnection == null) {
+            return
+        }
+
         // Suppress swipe gestures if any key was pressed during this touch gesture
         // This prevents false triggers when typing vertically aligned keys like "ni"
         if (keyPressedDuringTouch) {

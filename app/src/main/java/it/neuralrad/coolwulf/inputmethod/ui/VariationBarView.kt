@@ -2831,6 +2831,9 @@ class VariationBarView(
     fun playSwipeSelectionSound() {
         if (!SettingsManager.getSwipeSelectionSoundEnabled(context)) return
 
+        val volume = SettingsManager.getSwipeSelectionSoundVolume(context)
+        if (volume <= 0f) return
+
         try {
             // Create a swoosh/flying sound effect using AudioTrack
             Thread {
@@ -2851,7 +2854,8 @@ class VariationBarView(
                         // Bell curve envelope - fade in then fade out
                         val envelope = kotlin.math.sin(progress * Math.PI)
                         val angle = 2.0 * Math.PI * freq * i / sampleRate
-                        samples[i] = (Short.MAX_VALUE * 0.5 * envelope * kotlin.math.sin(angle)).toInt().toShort()
+                        // Apply volume setting (0.0 to 1.0)
+                        samples[i] = (Short.MAX_VALUE * volume * envelope * kotlin.math.sin(angle)).toInt().toShort()
                     }
 
                     val audioTrack = android.media.AudioTrack(
