@@ -923,6 +923,8 @@
     <string name="grant_permission">Grant</string>
     <string name="split_swipe_down_title">Split Swipe Down for Page Navigation</string>
     <string name="split_swipe_down_description">Left half swipe down = previous page, right half = next page. When off, swipe down anywhere = next page.</string>
+    <string name="page_flip_mode_title">Page Flip Only Mode</string>
+    <string name="page_flip_mode_description">Only use swipe for page navigation. Swipe down = next page, swipe up = previous page. Horizontal swipes are ignored.</string>
 
     <!-- Embedded ADB Settings -->
     <string name="embedded_adb_title">Embedded ADB (No Shizuku)</string>

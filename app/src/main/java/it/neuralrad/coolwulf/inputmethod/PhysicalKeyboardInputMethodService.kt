@@ -1677,8 +1677,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val absDeltaX = kotlin.math.abs(deltaX)
         val absDeltaY = kotlin.math.abs(deltaY)
 
+        // Check if page flip mode is enabled - in this mode, only vertical swipes for page navigation
+        val pageFlipModeEnabled = SettingsManager.getPageFlipModeEnabled(this)
+
         // Require primarily vertical swipe: vertical movement must be at least 3x larger than horizontal drift
         if (absDeltaY > trackpadSwipeThreshold && absDeltaX < absDeltaY / 3) {
+            if (pageFlipModeEnabled) {
+                // Page flip mode: swipe down = next page, swipe up = previous page
+                Handler(Looper.getMainLooper()).post {
+                    if (deltaY > 0) {
+                        // Swipe UP in page flip mode = previous page
+                        handleSwipeDownPrevPage()
+                    } else {
+                        // Swipe DOWN in page flip mode = next page
+                        handleSwipeDownNextPage()
+                    }
+                }
+                return
+            }
+
             if (deltaY > 0) {
                 // Swipe UP - candidate selection
                 val inChineseMode = isChineseInputModeActive()

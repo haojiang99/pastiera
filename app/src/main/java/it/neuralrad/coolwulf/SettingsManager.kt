@@ -163,6 +163,7 @@ object SettingsManager {
     private const val KEY_SWIPE_SELECTION_SOUND_VOLUME = "swipe_selection_sound_volume"
     private const val KEY_SWIPE_SELECTION_ANIMATION_ENABLED = "swipe_selection_animation_enabled"
     private const val KEY_SPLIT_SWIPE_DOWN_ENABLED = "split_swipe_down_enabled"
+    private const val KEY_PAGE_FLIP_MODE_ENABLED = "page_flip_mode_enabled"
 
     // Embedded ADB settings (alternative to Shizuku for trackpad gestures)
     private const val KEY_USE_EMBEDDED_ADB = "use_embedded_adb"
@@ -177,6 +178,7 @@ object SettingsManager {
     private const val DEFAULT_SWIPE_SELECTION_SOUND_VOLUME = 0.5f  // 50% volume by default
     private const val DEFAULT_SWIPE_SELECTION_ANIMATION_ENABLED = true  // Animation on by default
     private const val DEFAULT_SPLIT_SWIPE_DOWN_ENABLED = false  // Off by default, swipe down = next page
+    private const val DEFAULT_PAGE_FLIP_MODE_ENABLED = false  // Off by default, normal selection mode
     private const val MIN_TRACKPAD_SWIPE_THRESHOLD = 100
     private const val MAX_TRACKPAD_SWIPE_THRESHOLD = 500
     private const val DEFAULT_STATUS_BAR_THEME = "classic_dark"
@@ -3777,6 +3779,24 @@ object SettingsManager {
     fun setSplitSwipeDownEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_SPLIT_SWIPE_DOWN_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether page flip mode is enabled.
+     * When enabled, swipe down = next page, swipe up = previous page.
+     * In this mode, horizontal swipes are ignored and only vertical swipes for page navigation work.
+     */
+    fun getPageFlipModeEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_PAGE_FLIP_MODE_ENABLED, DEFAULT_PAGE_FLIP_MODE_ENABLED)
+    }
+
+    /**
+     * Sets whether page flip mode is enabled.
+     */
+    fun setPageFlipModeEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_PAGE_FLIP_MODE_ENABLED, enabled)
             .apply()
     }
 

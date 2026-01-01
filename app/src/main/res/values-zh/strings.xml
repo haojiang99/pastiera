@@ -920,6 +920,8 @@
     <string name="grant_permission">授权</string>
     <string name="split_swipe_down_title">分区下滑翻页</string>
     <string name="split_swipe_down_description">左半区下滑=上一页，右半区下滑=下一页。关闭时，任意位置下滑=下一页。</string>
+    <string name="page_flip_mode_title">仅翻页模式</string>
+    <string name="page_flip_mode_description">仅使用滑动翻页。下滑=下一页，上滑=上一页。水平滑动无效。</string>
 
     <!-- Embedded ADB Settings -->
     <string name="embedded_adb_title">内置ADB（无需Shizuku）</string>

@@ -73,6 +73,9 @@ fun TrackpadGestureSettingsScreen(
     var splitSwipeDownEnabled by remember {
         mutableStateOf(SettingsManager.getSplitSwipeDownEnabled(context))
     }
+    var pageFlipModeEnabled by remember {
+        mutableStateOf(SettingsManager.getPageFlipModeEnabled(context))
+    }
 
     // Embedded ADB state
     var embeddedAdbPaired by remember {
@@ -736,7 +739,7 @@ fun TrackpadGestureSettingsScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Split Swipe Down Toggle
+        // Page Flip Mode Toggle
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -754,23 +757,71 @@ fun TrackpadGestureSettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = stringResource(R.string.split_swipe_down_title),
+                            text = stringResource(R.string.page_flip_mode_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = stringResource(R.string.split_swipe_down_description),
+                            text = stringResource(R.string.page_flip_mode_description),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Switch(
-                        checked = splitSwipeDownEnabled,
+                        checked = pageFlipModeEnabled,
                         onCheckedChange = { enabled ->
-                            splitSwipeDownEnabled = enabled
-                            SettingsManager.setSplitSwipeDownEnabled(context, enabled)
+                            pageFlipModeEnabled = enabled
+                            SettingsManager.setPageFlipModeEnabled(context, enabled)
+                            // When page flip mode is enabled, disable split swipe down as it's not relevant
+                            if (enabled) {
+                                splitSwipeDownEnabled = false
+                                SettingsManager.setSplitSwipeDownEnabled(context, false)
+                            }
                         }
                     )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Split Swipe Down Toggle (only shown when page flip mode is disabled)
+        if (!pageFlipModeEnabled) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.split_swipe_down_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = stringResource(R.string.split_swipe_down_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = splitSwipeDownEnabled,
+                            onCheckedChange = { enabled ->
+                                splitSwipeDownEnabled = enabled
+                                SettingsManager.setSplitSwipeDownEnabled(context, enabled)
+                            }
+                        )
+                    }
                 }
             }
         }
