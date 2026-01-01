@@ -39,8 +39,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import it.neuralrad.coolwulf.core.adb.AdbPairingService
 import it.neuralrad.coolwulf.core.adb.EmbeddedADB
 import it.neuralrad.coolwulf.core.adb.AdbPortDiscovery
@@ -1421,7 +1423,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     /**
      * Start trackpad gesture detection using embedded ADB.
-     * Requires wireless debugging to be enabled and paired.
+     *
+     * Two modes of operation:
+     * 1. Daemon mode (preferred): If a gesture daemon is running on localhost, connect to it.
+     *    The daemon runs with shell privileges and survives WiFi disconnection.
+     * 2. Direct ADB mode (fallback): Use ADB shell to run getevent directly.
+     *    This requires WiFi connectivity but is used for initial setup or if daemon isn't running.
+     *
+     * After initial ADB pairing, we start the daemon so gestures work without WiFi.
      */
     private fun startTrackpadGestureDetectionEmbeddedADB() {
         val embeddedAdb = EmbeddedADB.getInstance(this)
@@ -1431,58 +1440,154 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             return
         }
 
-        if (!embeddedAdb.isWirelessDebuggingEnabled()) {
-            Log.w(TAG, "Wireless debugging not enabled")
+        geteventJob = trackpadScope.launch {
+            val baseDelayMs = 2000L
+            val maxDelayMs = 30000L
+            var retryCount = 0
+
+            while (isActive) {
+                try {
+                    // First, try to connect directly to the local daemon (no WiFi needed)
+                    // Don't check isGestureDaemonRunning() first as that would consume the connection
+                    Log.d(TAG, "Attempting to connect to gesture daemon via localhost")
+                    val connected = connectToGestureDaemon(embeddedAdb)
+                    if (connected) {
+                        retryCount = 0
+                        // connectToGestureDaemon blocks until disconnection
+                        // When it returns, we'll retry
+                        Log.d(TAG, "Daemon connection ended, will retry")
+                        delay(baseDelayMs)
+                        continue
+                    }
+
+                    // Daemon connection failed - try to start it via ADB (requires WiFi)
+                    Log.d(TAG, "Daemon not running, attempting ADB connection")
+
+                    if (!embeddedAdb.isWirelessDebuggingEnabled()) {
+                        Log.w(TAG, "Wireless debugging not enabled, waiting...")
+                        delay(maxDelayMs)
+                        continue
+                    }
+
+                    // Try to connect via ADB
+                    if (!embeddedAdb.isConnected()) {
+                        val portDiscovery = AdbPortDiscovery(this@PhysicalKeyboardInputMethodService)
+                        val discoveredPort = portDiscovery.discoverPort()
+
+                        val connected = if (discoveredPort == null) {
+                            val lastPort = SettingsManager.getEmbeddedAdbPort(this@PhysicalKeyboardInputMethodService)
+                            if (lastPort > 0) embeddedAdb.connect(lastPort) else false
+                        } else {
+                            SettingsManager.setEmbeddedAdbPort(this@PhysicalKeyboardInputMethodService, discoveredPort)
+                            embeddedAdb.connect(discoveredPort)
+                        }
+
+                        if (!connected) {
+                            val delayMs = minOf(baseDelayMs * (retryCount + 1), maxDelayMs)
+                            Log.w(TAG, "ADB connection failed, retrying in ${delayMs}ms")
+                            delay(delayMs)
+                            retryCount++
+                            continue
+                        }
+                    }
+
+                    // ADB connected - start the daemon for future WiFi-independent operation
+                    Log.d(TAG, "ADB connected, starting gesture daemon")
+                    val daemonStarted = embeddedAdb.startGestureDaemon()
+
+                    if (daemonStarted) {
+                        Log.d(TAG, "Gesture daemon started successfully")
+                        // Give daemon time to start listening
+                        delay(1000)
+                        // Now connect to the daemon
+                        continue  // Loop back to connect to daemon
+                    }
+
+                    // Daemon failed to start, fall back to direct ADB mode
+                    Log.w(TAG, "Daemon failed to start, using direct ADB mode")
+                    retryCount = 0
+                    runDirectAdbGetevent(embeddedAdb)
+
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    Log.d(TAG, "Trackpad detection coroutine cancelled")
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Trackpad detection error", e)
+                    embeddedAdb.markDisconnected()
+                    val delayMs = minOf(baseDelayMs * (retryCount + 1), maxDelayMs)
+                    delay(delayMs)
+                    retryCount++
+                }
+            }
+        }
+    }
+
+    /**
+     * Connect to the gesture daemon via localhost socket and read events.
+     * This method blocks until the connection is lost.
+     *
+     * @return true if we successfully connected and received events, false otherwise
+     */
+    private suspend fun connectToGestureDaemon(embeddedAdb: EmbeddedADB): Boolean = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        try {
+            val socket = embeddedAdb.connectToDaemon()
+            if (socket == null) {
+                Log.w(TAG, "Failed to connect to gesture daemon")
+                return@withContext false
+            }
+
+            Log.d(TAG, "Connected to gesture daemon, reading events")
+            val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
+
+            try {
+                while (true) {
+                    val line = reader.readLine()
+                    if (line == null) {
+                        Log.w(TAG, "Daemon connection closed")
+                        break
+                    }
+                    parseTrackpadEvent(line)
+                }
+            } finally {
+                try { socket.close() } catch (e: Exception) {}
+            }
+
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading from daemon: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Run getevent directly via ADB shell.
+     * This is the fallback mode when daemon isn't available.
+     * Requires WiFi/ADB connectivity.
+     */
+    private suspend fun runDirectAdbGetevent(embeddedAdb: EmbeddedADB) {
+        val process = embeddedAdb.startShellCommand("getevent -l /dev/input/event7")
+        if (process == null) {
+            Log.w(TAG, "Failed to start getevent command")
+            embeddedAdb.markDisconnected()
             return
         }
 
-        geteventJob = trackpadScope.launch {
-            try {
-                // Try to connect if not already connected
-                if (!embeddedAdb.isConnected()) {
-                    // Discover the ADB port via mDNS
-                    val portDiscovery = AdbPortDiscovery(this@PhysicalKeyboardInputMethodService)
-                    val discoveredPort = portDiscovery.discoverPort()
+        Log.d(TAG, "Direct ADB getevent started")
 
-                    if (discoveredPort == null) {
-                        // Try last known port
-                        val lastPort = SettingsManager.getEmbeddedAdbPort(this@PhysicalKeyboardInputMethodService)
-                        if (lastPort > 0) {
-                            if (!embeddedAdb.connect(lastPort)) {
-                                Log.w(TAG, "Failed to connect to embedded ADB on port $lastPort")
-                                return@launch
-                            }
-                        } else {
-                            Log.w(TAG, "No ADB port discovered and no last known port")
-                            return@launch
-                        }
-                    } else {
-                        SettingsManager.setEmbeddedAdbPort(this@PhysicalKeyboardInputMethodService, discoveredPort)
-                        if (!embeddedAdb.connect(discoveredPort)) {
-                            Log.w(TAG, "Failed to connect to embedded ADB on port $discoveredPort")
-                            return@launch
-                        }
+        try {
+            BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
+                while (true) {
+                    val line = reader.readLine()
+                    if (line == null) {
+                        Log.w(TAG, "Getevent stream ended")
+                        break
                     }
+                    parseTrackpadEvent(line)
                 }
-
-                // Start getevent command
-                val process = embeddedAdb.startShellCommand("getevent -l /dev/input/event7")
-                if (process == null) {
-                    Log.w(TAG, "Failed to start getevent command")
-                    return@launch
-                }
-
-                BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
-                    while (isActive) {
-                        val line = reader.readLine() ?: break
-                        parseTrackpadEvent(line)
-                    }
-                }
-
-                process.destroyForcibly()
-            } catch (e: Exception) {
-                Log.e(TAG, "Embedded ADB trackpad detection error", e)
             }
+        } finally {
+            process.destroyForcibly()
+            embeddedAdb.markDisconnected()
         }
     }
 

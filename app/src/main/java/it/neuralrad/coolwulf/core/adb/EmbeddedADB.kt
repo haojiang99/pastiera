@@ -23,6 +23,9 @@ class EmbeddedADB private constructor(private val context: Context) {
     companion object {
         private const val TAG = "EmbeddedADB"
 
+        /** Port used by the gesture daemon for local TCP communication */
+        const val GESTURE_DAEMON_PORT = 5123
+
         @Volatile
         private var instance: EmbeddedADB? = null
 
@@ -92,6 +95,16 @@ class EmbeddedADB private constructor(private val context: Context) {
      * Get the current connection status
      */
     fun isConnected(): Boolean = isConnected
+
+    /**
+     * Mark the connection as disconnected.
+     * Called when the connection is lost (e.g., WiFi disconnected).
+     */
+    fun markDisconnected() {
+        isConnected = false
+        connectedPort = null
+        stopShellProcess()
+    }
 
     /**
      * Pair with the device using the pairing code from Wireless Debugging settings.
@@ -349,6 +362,116 @@ class EmbeddedADB private constructor(private val context: Context) {
             Log.d(TAG, "Cleared ADB keys")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to clear ADB keys", e)
+        }
+    }
+
+    /**
+     * Start the gesture daemon that runs with shell privileges.
+     * The daemon reads /dev/input/event7 and serves events via a local TCP socket on localhost.
+     * This allows gesture detection to work without WiFi after initial setup.
+     *
+     * The daemon listens on 127.0.0.1:GESTURE_DAEMON_PORT and the app can connect
+     * to receive events without needing ADB/WiFi connectivity.
+     *
+     * @return true if daemon was started successfully
+     */
+    suspend fun startGestureDaemon(): Boolean = withContext(Dispatchers.IO) {
+        if (!isConnected) {
+            Log.w(TAG, "Cannot start daemon: not connected")
+            return@withContext false
+        }
+
+        try {
+            // First, kill any existing daemon
+            runAdbCommand(listOf("shell", "pkill -f 'gesture_daemon_loop' || true"), timeoutSeconds = 3)
+            delay(500)
+
+            // Start the daemon that:
+            // 1. Listens on localhost:$GESTURE_DAEMON_PORT using nc (netcat)
+            // 2. Pipes getevent output to connected clients
+            // 3. Runs in a loop to accept new connections after client disconnects
+            //
+            // The while loop with nc -l creates a server that accepts one connection at a time
+            // and streams getevent output. When client disconnects, it accepts a new connection.
+            // Note: Android's toybox nc uses -s for source address and -p for port
+            val daemonCommand = """nohup sh -c 'while true; do getevent -l /dev/input/event7 2>/dev/null | nc -l -s 127.0.0.1 -p $GESTURE_DAEMON_PORT; sleep 0.5; done' >/dev/null 2>&1 & echo gesture_daemon_loop"""
+
+            val result = runAdbCommand(listOf("shell", daemonCommand), timeoutSeconds = 5)
+            Log.d(TAG, "Daemon start result: $result")
+
+            // Verify the daemon started by checking if port is listening
+            delay(1500)
+            val checkResult = runAdbCommand(listOf("shell", "netstat -tln 2>/dev/null | grep $GESTURE_DAEMON_PORT || ss -tln 2>/dev/null | grep $GESTURE_DAEMON_PORT || echo 'not listening'"), timeoutSeconds = 3)
+            val daemonRunning = !checkResult.contains("not listening") && (checkResult.contains(GESTURE_DAEMON_PORT.toString()) || checkResult.contains("127.0.0.1"))
+
+            Log.d(TAG, "Daemon port check: $checkResult, running=$daemonRunning")
+
+            if (!daemonRunning) {
+                // Also check if process is running
+                val procCheck = runAdbCommand(listOf("shell", "pgrep -f 'gesture_daemon_loop' || echo 'not running'"), timeoutSeconds = 3)
+                Log.d(TAG, "Daemon process check: $procCheck")
+            }
+
+            daemonRunning
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start gesture daemon", e)
+            false
+        }
+    }
+
+    /**
+     * Check if the gesture daemon is running by checking if it's listening on the port.
+     * This check doesn't require ADB connection - we can directly try to connect to the port.
+     */
+    fun isGestureDaemonRunning(): Boolean {
+        return try {
+            // Try to connect to the daemon's port on localhost
+            val socket = java.net.Socket()
+            socket.connect(java.net.InetSocketAddress("127.0.0.1", GESTURE_DAEMON_PORT), 1000)
+            socket.close()
+            Log.d(TAG, "Daemon is running (port $GESTURE_DAEMON_PORT is listening)")
+            true
+        } catch (e: Exception) {
+            Log.d(TAG, "Daemon not running: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Stop the gesture daemon.
+     */
+    suspend fun stopGestureDaemon() = withContext(Dispatchers.IO) {
+        if (!isConnected) {
+            Log.w(TAG, "Cannot stop daemon: not connected to ADB")
+            return@withContext
+        }
+
+        try {
+            runAdbCommand(listOf("shell", "pkill -f 'gesture_daemon_loop' || true"), timeoutSeconds = 3)
+            Log.d(TAG, "Gesture daemon stopped")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to stop gesture daemon", e)
+        }
+    }
+
+    /**
+     * Connect to the gesture daemon and return a socket for reading events.
+     * This method connects directly to localhost, no ADB required.
+     *
+     * @return Socket connected to the daemon, or null if connection failed
+     */
+    fun connectToDaemon(): java.net.Socket? {
+        return try {
+            val socket = java.net.Socket()
+            // Use a short timeout (1 second) to quickly fail if daemon isn't running
+            socket.connect(java.net.InetSocketAddress("127.0.0.1", GESTURE_DAEMON_PORT), 1000)
+            socket.soTimeout = 0 // No timeout for reading
+            Log.d(TAG, "Connected to gesture daemon on port $GESTURE_DAEMON_PORT")
+            socket
+        } catch (e: Exception) {
+            // Only log at debug level since this is expected when daemon isn't running
+            Log.d(TAG, "Daemon not available: ${e.message}")
+            null
         }
     }
 }
