@@ -156,16 +156,22 @@ object SettingsManager {
     private const val KEY_CUSTOM_THEME_TYPE_2 = "custom_theme_type_2"
     private const val KEY_CUSTOM_THEME_TYPE_3 = "custom_theme_type_3"
 
-    // Trackpad gesture settings (Shizuku-based swipe to insert suggestions)
+    // Trackpad gesture settings (swipe to insert suggestions)
     private const val KEY_TRACKPAD_GESTURES_ENABLED = "trackpad_gestures_enabled"
     private const val KEY_TRACKPAD_SWIPE_THRESHOLD = "trackpad_swipe_threshold"
     private const val KEY_SWIPE_SELECTION_SOUND_ENABLED = "swipe_selection_sound_enabled"
     private const val KEY_SWIPE_SELECTION_ANIMATION_ENABLED = "swipe_selection_animation_enabled"
     private const val KEY_SPLIT_SWIPE_DOWN_ENABLED = "split_swipe_down_enabled"
 
+    // Embedded ADB settings (alternative to Shizuku for trackpad gestures)
+    private const val KEY_USE_EMBEDDED_ADB = "use_embedded_adb"
+    private const val KEY_EMBEDDED_ADB_PAIRED = "embedded_adb_paired"
+    private const val KEY_EMBEDDED_ADB_PORT = "embedded_adb_port"
+
     // Default values
     private const val DEFAULT_TRACKPAD_GESTURES_ENABLED = false  // Disabled by default
     private const val DEFAULT_TRACKPAD_SWIPE_THRESHOLD = 300  // Minimum swipe distance in pixels
+    private const val DEFAULT_USE_EMBEDDED_ADB = true  // Use embedded ADB by default
     private const val DEFAULT_SWIPE_SELECTION_SOUND_ENABLED = true  // Sound on by default
     private const val DEFAULT_SWIPE_SELECTION_ANIMATION_ENABLED = true  // Animation on by default
     private const val DEFAULT_SPLIT_SWIPE_DOWN_ENABLED = false  // Off by default, swipe down = next page
@@ -3753,6 +3759,54 @@ object SettingsManager {
     fun setSplitSwipeDownEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_SPLIT_SWIPE_DOWN_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether embedded ADB is used instead of Shizuku for trackpad gestures.
+     */
+    fun getUseEmbeddedAdb(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_USE_EMBEDDED_ADB, DEFAULT_USE_EMBEDDED_ADB)
+    }
+
+    /**
+     * Sets whether to use embedded ADB instead of Shizuku.
+     */
+    fun setUseEmbeddedAdb(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_USE_EMBEDDED_ADB, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether embedded ADB has been successfully paired.
+     */
+    fun getEmbeddedAdbPaired(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_EMBEDDED_ADB_PAIRED, false)
+    }
+
+    /**
+     * Sets whether embedded ADB is paired.
+     */
+    fun setEmbeddedAdbPaired(context: Context, paired: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_EMBEDDED_ADB_PAIRED, paired)
+            .apply()
+    }
+
+    /**
+     * Returns the last known ADB connection port.
+     */
+    fun getEmbeddedAdbPort(context: Context): Int {
+        return getPreferences(context).getInt(KEY_EMBEDDED_ADB_PORT, 0)
+    }
+
+    /**
+     * Sets the ADB connection port.
+     */
+    fun setEmbeddedAdbPort(context: Context, port: Int) {
+        getPreferences(context).edit()
+            .putInt(KEY_EMBEDDED_ADB_PORT, port)
             .apply()
     }
 }

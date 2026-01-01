@@ -41,7 +41,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import rikka.shizuku.Shizuku
+import it.neuralrad.coolwulf.core.adb.AdbPairingService
+import it.neuralrad.coolwulf.core.adb.EmbeddedADB
+import it.neuralrad.coolwulf.core.adb.AdbPortDiscovery
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
@@ -66,6 +68,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private var speechResultReceiver: BroadcastReceiver? = null
     // Broadcast receiver for theme changes
     private var themeChangeReceiver: BroadcastReceiver? = null
+    // Broadcast receiver for ADB pairing result
+    private var adbPairingReceiver: BroadcastReceiver? = null
     private lateinit var candidatesBarController: CandidatesBarController
 
     // Keycode for the SYM key (device-specific, initialized in onCreate)
@@ -203,7 +207,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     // Track if Alt was just used for candidate selection (ignore Alt until key released)
     private var altUsedForCandidateSelection: Boolean = false
 
-    // Trackpad gesture detection (Shizuku-based)
+    // Trackpad gesture detection (embedded ADB-based)
     private var geteventJob: Job? = null
     private val trackpadScope = CoroutineScope(Dispatchers.IO)
     private var touchDown = false
@@ -1375,15 +1379,36 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
         Log.d(TAG, "Broadcast receiver registered for theme changes")
 
-        // Start trackpad gesture detection if enabled and Shizuku is available
+        // Register ADB pairing result receiver to restart trackpad detection after pairing
+        adbPairingReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == AdbPairingService.ACTION_PAIRING_RESULT) {
+                    val success = intent.getBooleanExtra(AdbPairingService.EXTRA_RESULT_SUCCESS, false)
+                    if (success && SettingsManager.getTrackpadGesturesEnabled(this@PhysicalKeyboardInputMethodService)) {
+                        startTrackpadGestureDetection()
+                    }
+                }
+            }
+        }
+
+        val adbPairingFilter = IntentFilter(AdbPairingService.ACTION_PAIRING_RESULT)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(adbPairingReceiver, adbPairingFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(adbPairingReceiver, adbPairingFilter)
+        }
+        Log.d(TAG, "Broadcast receiver registered for ADB pairing results")
+
+        // Start trackpad gesture detection if enabled
         if (SettingsManager.getTrackpadGesturesEnabled(this)) {
             startTrackpadGestureDetection()
         }
     }
 
     /**
-     * Start the trackpad gesture detection using Shizuku to read raw trackpad events.
+     * Start the trackpad gesture detection using embedded ADB.
      * Uses getevent to monitor /dev/input/event7 for the Unihertz Titan 2 trackpad.
+     * Requires wireless debugging to be enabled and paired.
      */
     private fun startTrackpadGestureDetection() {
         // Check if already running
@@ -1391,35 +1416,61 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             return
         }
 
-        // Check if Shizuku is available and we have permission
-        try {
-            if (!Shizuku.pingBinder()) {
-                return
-            }
-            if (Shizuku.checkSelfPermission() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                return
-            }
-        } catch (e: Exception) {
+        startTrackpadGestureDetectionEmbeddedADB()
+    }
+
+    /**
+     * Start trackpad gesture detection using embedded ADB.
+     * Requires wireless debugging to be enabled and paired.
+     */
+    private fun startTrackpadGestureDetectionEmbeddedADB() {
+        val embeddedAdb = EmbeddedADB.getInstance(this)
+
+        if (!embeddedAdb.isAdbAvailable()) {
+            Log.w(TAG, "Embedded ADB binary not available")
+            return
+        }
+
+        if (!embeddedAdb.isWirelessDebuggingEnabled()) {
+            Log.w(TAG, "Wireless debugging not enabled")
             return
         }
 
         geteventJob = trackpadScope.launch {
             try {
-                // Use Shizuku to run getevent with elevated privileges
-                val newProcessMethod = Shizuku::class.java.getDeclaredMethod(
-                    "newProcess",
-                    Array<String>::class.java,
-                    Array<String>::class.java,
-                    String::class.java
-                )
-                newProcessMethod.isAccessible = true
+                // Try to connect if not already connected
+                if (!embeddedAdb.isConnected()) {
+                    // Discover the ADB port via mDNS
+                    val portDiscovery = AdbPortDiscovery(this@PhysicalKeyboardInputMethodService)
+                    val discoveredPort = portDiscovery.discoverPort()
 
-                val process = newProcessMethod.invoke(
-                    null,
-                    arrayOf("getevent", "-l", "/dev/input/event7"),
-                    null,
-                    null
-                ) as Process
+                    if (discoveredPort == null) {
+                        // Try last known port
+                        val lastPort = SettingsManager.getEmbeddedAdbPort(this@PhysicalKeyboardInputMethodService)
+                        if (lastPort > 0) {
+                            if (!embeddedAdb.connect(lastPort)) {
+                                Log.w(TAG, "Failed to connect to embedded ADB on port $lastPort")
+                                return@launch
+                            }
+                        } else {
+                            Log.w(TAG, "No ADB port discovered and no last known port")
+                            return@launch
+                        }
+                    } else {
+                        SettingsManager.setEmbeddedAdbPort(this@PhysicalKeyboardInputMethodService, discoveredPort)
+                        if (!embeddedAdb.connect(discoveredPort)) {
+                            Log.w(TAG, "Failed to connect to embedded ADB on port $discoveredPort")
+                            return@launch
+                        }
+                    }
+                }
+
+                // Start getevent command
+                val process = embeddedAdb.startShellCommand("getevent -l /dev/input/event7")
+                if (process == null) {
+                    Log.w(TAG, "Failed to start getevent command")
+                    return@launch
+                }
 
                 BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
                     while (isActive) {
@@ -1428,9 +1479,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
                 }
 
-                process.destroy()
+                process.destroyForcibly()
             } catch (e: Exception) {
-                // Silently fail
+                Log.e(TAG, "Embedded ADB trackpad detection error", e)
             }
         }
     }
@@ -2054,6 +2105,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
         themeChangeReceiver = null
+
+        // Unregister ADB pairing receiver
+        adbPairingReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error while unregistering ADB pairing receiver", e)
+            }
+        }
+        adbPairingReceiver = null
 
         // Stop clipboard history listener
         it.neuralrad.coolwulf.core.ClipboardHistoryManager.stopListening(this)

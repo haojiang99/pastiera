@@ -915,4 +915,68 @@
     <string name="swipe_selection_animation_description">滑动选词时显示飞字动画</string>
     <string name="split_swipe_down_title">分区下滑翻页</string>
     <string name="split_swipe_down_description">左半区下滑=上一页，右半区下滑=下一页。关闭时，任意位置下滑=下一页。</string>
+
+    <!-- Embedded ADB Settings -->
+    <string name="embedded_adb_title">内置ADB（无需Shizuku）</string>
+    <string name="embedded_adb_description">使用内置ADB实现触控板手势，无需安装其他应用</string>
+    <string name="embedded_adb_use_title">使用内置ADB</string>
+    <string name="embedded_adb_use_description">启用后将使用内置ADB代替Shizuku来实现触控板手势</string>
+    <string name="embedded_adb_status_not_paired">未配对。点击设置无线调试。</string>
+    <string name="embedded_adb_status_paired">已配对，准备就绪。</string>
+    <string name="embedded_adb_status_connecting">连接中…</string>
+    <string name="embedded_adb_status_connected">已连接</string>
+    <string name="embedded_adb_status_disconnected">已断开。点击重新连接。</string>
+    <string name="embedded_adb_setup_title">设置无线调试</string>
+    <string name="embedded_adb_setup_step1">1. 前往 设置 → 开发者选项 → 无线调试</string>
+    <string name="embedded_adb_setup_step2">2. 开启无线调试</string>
+    <string name="embedded_adb_setup_step3">3. 点击「使用配对码配对设备」</string>
+    <string name="embedded_adb_setup_step4">4. 在下方输入配对码和端口</string>
+    <string name="embedded_adb_pairing_port">配对端口</string>
+    <string name="embedded_adb_pairing_code">配对码（6位数字）</string>
+    <string name="embedded_adb_pair_button">配对</string>
+    <string name="embedded_adb_pairing_success">配对成功！</string>
+    <string name="embedded_adb_pairing_failed">配对失败，请重试。</string>
+    <string name="embedded_adb_connect_button">连接</string>
+    <string name="embedded_adb_disconnect_button">断开</string>
+    <string name="embedded_adb_wireless_not_enabled">无线调试未开启。请在开发者选项中开启。</string>
+    <string name="embedded_adb_open_settings">打开开发者设置</string>
+    <string name="embedded_adb_requires_android11">内置ADB需要Android 11或更高版本。</string>
+    <string name="embedded_adb_connected">已连接，准备就绪</string>
+    <string name="embedded_adb_connecting">连接中…</string>
+    <string name="embedded_adb_paired_not_connected">已配对但未连接。点击连接。</string>
+    <string name="embedded_adb_wireless_debugging_disabled">无线调试已关闭。请先开启。</string>
+    <string name="embedded_adb_not_paired">尚未配对。点击配对无线调试。</string>
+    <string name="embedded_adb_ready">准备连接</string>
+    <string name="embedded_adb_open_dev_settings">打开开发者设置</string>
+    <string name="embedded_adb_repair_button">重新配对设备</string>
+    <string name="embedded_adb_pairing_dialog_title">与无线调试配对</string>
+    <string name="embedded_adb_pairing_instructions">1. 打开 设置 → 开发者选项 → 无线调试\n2. 记下「IP地址和端口」后的端口号（连接端口）\n3. 点击「使用配对码配对设备」，在下方输入配对端口/配对码和连接端口</string>
+    <string name="embedded_adb_pairing_in_progress">配对中…</string>
+    <string name="embedded_adb_invalid_port">请输入有效的端口号</string>
+    <string name="embedded_adb_invalid_code">请输入6位配对码</string>
+    <string name="embedded_adb_setup_instructions">1. 启用开发者选项（在关于手机中点击版本号7次）\n2. 前往开发者选项 → 无线调试\n3. 开启无线调试并点击「使用配对码配对设备」\n4. 在应用中输入端口和6位配对码</string>
+    <string name="embedded_adb_connection_port">连接端口</string>
+    <string name="embedded_adb_connection_port_hint">无线调试中「IP地址和端口」下显示的端口号</string>
+    <string name="embedded_adb_invalid_connection_port">请输入连接端口</string>
+    <string name="embedded_adb_connection_failed">连接失败。请确保无线调试已开启。</string>
+    <string name="embedded_adb_no_port_saved">未保存连接端口。请重新配对。</string>
+
+    <!-- ADB Pairing Notification -->
+    <string name="adb_pairing_notification_channel">ADB配对</string>
+    <string name="adb_pairing_notification_channel_desc">ADB无线配对通知</string>
+    <string name="adb_pairing_notification_title">输入配对信息</string>
+    <string name="adb_pairing_notification_text">点击输入开发者设置中的端口和配对码</string>
+    <string name="adb_pairing_notification_instructions">输入 端口:配对码（如 42021:123456）来自开发者设置 → 无线调试 → 使用配对码配对设备</string>
+    <string name="adb_pairing_enter_code">端口:配对码（如 42021:123456）</string>
+    <string name="adb_pairing_invalid_format">格式无效。请输入 端口:配对码（如 42021:123456）</string>
+    <string name="adb_pairing_need_port">请包含端口（端口:配对码 格式）</string>
+    <string name="adb_pairing_submit">配对</string>
+    <string name="adb_pairing_cancel">取消</string>
+    <string name="adb_pairing_in_progress">配对中...</string>
+    <string name="adb_pairing_success_connecting">配对成功！正在连接...</string>
+    <string name="adb_pairing_complete">配对完成！已成功连接。</string>
+    <string name="adb_pairing_success_connect_failed">已配对但连接失败。请尝试重新连接。</string>
+    <string name="adb_pairing_failed_retry">配对失败。请重试。</string>
+    <string name="embedded_adb_start_pairing_notification">启动通知配对</string>
+    <string name="embedded_adb_start_pairing_notification_desc">显示通知以便在开发者设置中直接输入配对码</string>
 </resources>

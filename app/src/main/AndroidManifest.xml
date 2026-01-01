@@ -14,6 +14,10 @@
     <!-- Permesso per la vibrazione (feedback tattile) -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Permesso per foreground service (ADB pairing notification) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
     <!-- Query per vedere tutte le app installate che possono essere avviate -->
     <queries>
         <intent>
@@ -121,6 +125,16 @@
             android:enabled="true"
             android:exported="true"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <!-- ADB Pairing Service for notification-based pairing -->
+        <service
+            android:name=".core.adb.AdbPairingService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="ADB wireless pairing notification for entering pairing code without leaving Developer Settings" />
+        </service>
     </application>
 
 </manifest>

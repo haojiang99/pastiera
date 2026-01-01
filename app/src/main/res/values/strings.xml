@@ -918,4 +918,68 @@
     <string name="swipe_selection_animation_description">Show flying word animation when selecting via swipe gesture</string>
     <string name="split_swipe_down_title">Split Swipe Down for Page Navigation</string>
     <string name="split_swipe_down_description">Left half swipe down = previous page, right half = next page. When off, swipe down anywhere = next page.</string>
+
+    <!-- Embedded ADB Settings -->
+    <string name="embedded_adb_title">Embedded ADB (No Shizuku)</string>
+    <string name="embedded_adb_description">Use built-in ADB for trackpad gestures. No external app needed.</string>
+    <string name="embedded_adb_use_title">Use Embedded ADB</string>
+    <string name="embedded_adb_use_description">Enable to use built-in ADB instead of Shizuku for trackpad gestures</string>
+    <string name="embedded_adb_status_not_paired">Not paired. Tap to set up wireless debugging.</string>
+    <string name="embedded_adb_status_paired">Paired and ready.</string>
+    <string name="embedded_adb_status_connecting">Connecting…</string>
+    <string name="embedded_adb_status_connected">Connected</string>
+    <string name="embedded_adb_status_disconnected">Disconnected. Tap to reconnect.</string>
+    <string name="embedded_adb_setup_title">Set Up Wireless Debugging</string>
+    <string name="embedded_adb_setup_step1">1. Go to Settings → Developer options → Wireless debugging</string>
+    <string name="embedded_adb_setup_step2">2. Enable Wireless debugging</string>
+    <string name="embedded_adb_setup_step3">3. Tap \"Pair device with pairing code\"</string>
+    <string name="embedded_adb_setup_step4">4. Enter the pairing code and port below</string>
+    <string name="embedded_adb_pairing_port">Pairing Port</string>
+    <string name="embedded_adb_pairing_code">Pairing Code (6 digits)</string>
+    <string name="embedded_adb_pair_button">Pair</string>
+    <string name="embedded_adb_pairing_success">Pairing successful!</string>
+    <string name="embedded_adb_pairing_failed">Pairing failed. Please try again.</string>
+    <string name="embedded_adb_connect_button">Connect</string>
+    <string name="embedded_adb_disconnect_button">Disconnect</string>
+    <string name="embedded_adb_wireless_not_enabled">Wireless debugging is not enabled. Enable it in Developer options.</string>
+    <string name="embedded_adb_open_settings">Open Developer Settings</string>
+    <string name="embedded_adb_requires_android11">Embedded ADB requires Android 11 or higher.</string>
+    <string name="embedded_adb_connected">Connected and ready</string>
+    <string name="embedded_adb_connecting">Connecting…</string>
+    <string name="embedded_adb_paired_not_connected">Paired but not connected. Tap to connect.</string>
+    <string name="embedded_adb_wireless_debugging_disabled">Wireless debugging is disabled. Enable it first.</string>
+    <string name="embedded_adb_not_paired">Not paired yet. Tap to pair with wireless debugging.</string>
+    <string name="embedded_adb_ready">Ready to connect</string>
+    <string name="embedded_adb_open_dev_settings">Open Developer Settings</string>
+    <string name="embedded_adb_repair_button">Re-pair Device</string>
+    <string name="embedded_adb_pairing_dialog_title">Pair with Wireless Debugging</string>
+    <string name="embedded_adb_pairing_instructions">1. Open Settings → Developer options → Wireless debugging\n2. Note the port after \"IP address &amp; Port\" (Connection Port)\n3. Tap \"Pair device with pairing code\" and enter both the pairing port/code and the connection port below</string>
+    <string name="embedded_adb_pairing_in_progress">Pairing…</string>
+    <string name="embedded_adb_invalid_port">Please enter a valid port number</string>
+    <string name="embedded_adb_invalid_code">Please enter a 6-digit pairing code</string>
+    <string name="embedded_adb_setup_instructions">1. Enable Developer options (tap Build number 7 times in About phone)\n2. Go to Developer options → Wireless debugging\n3. Enable Wireless debugging and tap \"Pair device with pairing code\"\n4. Enter the port and 6-digit code in the app</string>
+    <string name="embedded_adb_connection_port">Connection Port</string>
+    <string name="embedded_adb_connection_port_hint">The port shown under \"IP address &amp; Port\" in Wireless debugging</string>
+    <string name="embedded_adb_invalid_connection_port">Please enter the connection port</string>
+    <string name="embedded_adb_connection_failed">Connection failed. Make sure Wireless debugging is enabled.</string>
+    <string name="embedded_adb_no_port_saved">No connection port saved. Please re-pair.</string>
+
+    <!-- ADB Pairing Notification -->
+    <string name="adb_pairing_notification_channel">ADB Pairing</string>
+    <string name="adb_pairing_notification_channel_desc">Notifications for ADB wireless pairing</string>
+    <string name="adb_pairing_notification_title">Enter Pairing Info</string>
+    <string name="adb_pairing_notification_text">Tap to enter PORT:CODE from Developer Settings</string>
+    <string name="adb_pairing_notification_instructions">Enter PORT:CODE (e.g., 42021:123456) from Developer Settings → Wireless debugging → Pair device with pairing code</string>
+    <string name="adb_pairing_enter_code">PORT:CODE (e.g., 42021:123456)</string>
+    <string name="adb_pairing_invalid_format">Invalid format. Enter PORT:CODE (e.g., 42021:123456)</string>
+    <string name="adb_pairing_need_port">Please include the port (PORT:CODE format)</string>
+    <string name="adb_pairing_submit">Pair</string>
+    <string name="adb_pairing_cancel">Cancel</string>
+    <string name="adb_pairing_in_progress">Pairing in progress...</string>
+    <string name="adb_pairing_success_connecting">Paired! Connecting...</string>
+    <string name="adb_pairing_complete">Pairing complete! Connected successfully.</string>
+    <string name="adb_pairing_success_connect_failed">Paired but connection failed. Try reconnecting.</string>
+    <string name="adb_pairing_failed_retry">Pairing failed. Please try again.</string>
+    <string name="embedded_adb_start_pairing_notification">Start Notification Pairing</string>
+    <string name="embedded_adb_start_pairing_notification_desc">Show a notification to enter pairing code without leaving Developer Settings</string>
 </resources>
