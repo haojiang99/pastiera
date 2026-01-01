@@ -916,4 +916,6 @@
     <string name="swipe_selection_sound_description">Play a sound effect when selecting a word via swipe gesture</string>
     <string name="swipe_selection_animation_title">Swipe Selection Animation</string>
     <string name="swipe_selection_animation_description">Show flying word animation when selecting via swipe gesture</string>
+    <string name="split_swipe_down_title">Split Swipe Down for Page Navigation</string>
+    <string name="split_swipe_down_description">Left half swipe down = previous page, right half = next page. When off, swipe down anywhere = next page.</string>
 </resources>

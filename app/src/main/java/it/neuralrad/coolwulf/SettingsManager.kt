@@ -161,12 +161,14 @@ object SettingsManager {
     private const val KEY_TRACKPAD_SWIPE_THRESHOLD = "trackpad_swipe_threshold"
     private const val KEY_SWIPE_SELECTION_SOUND_ENABLED = "swipe_selection_sound_enabled"
     private const val KEY_SWIPE_SELECTION_ANIMATION_ENABLED = "swipe_selection_animation_enabled"
+    private const val KEY_SPLIT_SWIPE_DOWN_ENABLED = "split_swipe_down_enabled"
 
     // Default values
     private const val DEFAULT_TRACKPAD_GESTURES_ENABLED = false  // Disabled by default
     private const val DEFAULT_TRACKPAD_SWIPE_THRESHOLD = 300  // Minimum swipe distance in pixels
     private const val DEFAULT_SWIPE_SELECTION_SOUND_ENABLED = true  // Sound on by default
     private const val DEFAULT_SWIPE_SELECTION_ANIMATION_ENABLED = true  // Animation on by default
+    private const val DEFAULT_SPLIT_SWIPE_DOWN_ENABLED = false  // Off by default, swipe down = next page
     private const val MIN_TRACKPAD_SWIPE_THRESHOLD = 100
     private const val MAX_TRACKPAD_SWIPE_THRESHOLD = 500
     private const val DEFAULT_STATUS_BAR_THEME = "classic_dark"
@@ -3733,6 +3735,24 @@ object SettingsManager {
     fun setSwipeSelectionAnimationEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_SWIPE_SELECTION_ANIMATION_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether split swipe down is enabled.
+     * When enabled, left half swipe down = prev page, right half = next page.
+     * When disabled, swipe down anywhere = next page.
+     */
+    fun getSplitSwipeDownEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SPLIT_SWIPE_DOWN_ENABLED, DEFAULT_SPLIT_SWIPE_DOWN_ENABLED)
+    }
+
+    /**
+     * Sets whether split swipe down is enabled.
+     */
+    fun setSplitSwipeDownEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SPLIT_SWIPE_DOWN_ENABLED, enabled)
             .apply()
     }
 }

@@ -913,4 +913,6 @@
     <string name="swipe_selection_sound_description">滑动选词时播放音效</string>
     <string name="swipe_selection_animation_title">滑动选词动画</string>
     <string name="swipe_selection_animation_description">滑动选词时显示飞字动画</string>
+    <string name="split_swipe_down_title">分区下滑翻页</string>
+    <string name="split_swipe_down_description">左半区下滑=上一页，右半区下滑=下一页。关闭时，任意位置下滑=下一页。</string>
 </resources>

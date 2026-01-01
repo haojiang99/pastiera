@@ -7,6 +7,7 @@
     problem: false,
     features: false,
     juying: false,
+    feizi: false,
     voice: false,
     neural: false,
     learning: false,
@@ -94,9 +95,10 @@
       <div class="nav-links">
         <a href="#features">功能特色</a>
         <a href="#juying">巨硬模式</a>
+        <a href="#feizi">飞字动效</a>
         <a href="#voice">语音识别</a>
         <a href="#neural">神经网络</a>
-        <a href="/coolwulfIMEv0.81.1883.apk" class="btn-nav" download>立即下载 v0.81</a>
+        <a href="/coolwulfIMEv0.82.1931.apk" class="btn-nav" download>立即下载 v0.82</a>
       </div>
     </div>
   </nav>
@@ -121,8 +123,8 @@
         <strong>完全离线 · 无云端 · 数据自主 · 永久免费</strong>
       </p>
       <div class="hero-buttons">
-        <a href="/coolwulfIMEv0.81.1883.apk" class="btn btn-primary" download>
-          <span>立即下载 v0.81</span>
+        <a href="/coolwulfIMEv0.82.1931.apk" class="btn btn-primary" download>
+          <span>立即下载 v0.82</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
           </svg>
@@ -288,6 +290,76 @@
               <span class="demo-label">按下 Shift</span>
               <span class="demo-output">你好我们今天开会</span>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feizi (Flying Word) Section -->
+  <section id="feizi" class="feizi" data-section="feizi" class:visible={visible.feizi}>
+    <div class="container">
+      <div class="feizi-content">
+        <div class="feizi-visual">
+          <div class="feizi-demo">
+            <div class="feizi-candidates">
+              <span class="feizi-word">你好</span>
+              <span class="feizi-word">尼豪</span>
+              <span class="feizi-word feizi-flying">世界</span>
+              <span class="feizi-word">泥号</span>
+              <span class="feizi-word">你号</span>
+            </div>
+            <div class="feizi-animation">
+              <div class="flying-word">世界</div>
+            </div>
+            <div class="feizi-trackpad">
+              <div class="trackpad-surface">
+                <div class="swipe-indicator">↑</div>
+              </div>
+              <span class="trackpad-label">触控板滑动选词</span>
+            </div>
+          </div>
+        </div>
+        <div class="feizi-text">
+          <div class="badge badge-orange">视觉盛宴</div>
+          <h2><span class="highlight">飞字</span>动效</h2>
+          <p class="feizi-desc">
+            灵感来自 BlackBerry Key2 的经典滑动选词体验。
+            在触控板上轻轻一划，候选词如精灵般飞入光标，
+            配合悦耳的音效，让每一次输入都成为享受。
+          </p>
+          <div class="feizi-features">
+            <div class="feizi-feature">
+              <span class="ff-icon">✨</span>
+              <div>
+                <h4>弧线飞行动画</h4>
+                <p>候选词沿优雅弧线飞向光标，动感十足</p>
+              </div>
+            </div>
+            <div class="feizi-feature">
+              <span class="ff-icon">🎵</span>
+              <div>
+                <h4>悦耳音效反馈</h4>
+                <p>清脆的"嗖"声，让选词更有仪式感</p>
+              </div>
+            </div>
+            <div class="feizi-feature">
+              <span class="ff-icon">👆</span>
+              <div>
+                <h4>精准区域识别</h4>
+                <p>触控板智能分区，滑动即选，无需抬手</p>
+              </div>
+            </div>
+            <div class="feizi-feature">
+              <span class="ff-icon">⚡</span>
+              <div>
+                <h4>极速响应</h4>
+                <p>毫秒级响应，丝滑流畅不卡顿</p>
+              </div>
+            </div>
+          </div>
+          <div class="feizi-quote">
+            "触控板滑动选词 + 飞字动效，这才是实体键盘手机应有的输入体验"
           </div>
         </div>
       </div>
@@ -595,11 +667,11 @@
           酷狼输入法为你提供本地 AI 驱动的智能输入体验，数据永远属于你。
         </p>
         <div class="cta-buttons">
-          <a href="/coolwulfIMEv0.81.1883.apk" class="btn btn-primary btn-large" download>
+          <a href="/coolwulfIMEv0.82.1931.apk" class="btn btn-primary btn-large" download>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
             </svg>
-            <span>下载 APK (v0.81)</span>
+            <span>下载 APK (v0.82)</span>
           </a>
         </div>
         <div class="cta-model-downloads">
@@ -1317,6 +1389,220 @@
   .demo-output {
     font-size: 1.25rem;
     color: #fff;
+  }
+
+  /* Feizi (Flying Word) Section */
+  .feizi {
+    padding: 120px 24px;
+    background: linear-gradient(180deg, #0a0a0f 0%, #0f0a15 100%);
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s ease;
+  }
+
+  .feizi.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .feizi-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+
+  .feizi-visual {
+    display: flex;
+    justify-content: center;
+  }
+
+  .feizi-demo {
+    position: relative;
+    background: rgba(20, 20, 30, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 32px;
+    backdrop-filter: blur(10px);
+  }
+
+  .feizi-candidates {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 40px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .feizi-word {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #e0e0e0;
+    transition: all 0.3s ease;
+  }
+
+  .feizi-word.feizi-flying {
+    background: linear-gradient(135deg, rgba(251, 146, 60, 0.3), rgba(251, 146, 60, 0.1));
+    border-color: rgba(251, 146, 60, 0.5);
+    color: #fdba74;
+    animation: pulse-orange 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-orange {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.4); }
+    50% { box-shadow: 0 0 20px 5px rgba(251, 146, 60, 0.2); }
+  }
+
+  .feizi-animation {
+    position: relative;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+
+  .flying-word {
+    position: absolute;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fb923c;
+    text-shadow: 0 0 20px rgba(251, 146, 60, 0.5);
+    animation: fly-up 2s ease-in-out infinite;
+  }
+
+  @keyframes fly-up {
+    0% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: translateY(-30px) scale(1.2) rotate(-5deg);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-60px) scale(0.8);
+    }
+  }
+
+  .feizi-trackpad {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .trackpad-surface {
+    width: 180px;
+    height: 60px;
+    background: linear-gradient(180deg, rgba(40, 40, 50, 0.8), rgba(30, 30, 40, 0.8));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .trackpad-surface::before {
+    content: '';
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background: rgba(251, 146, 60, 0.3);
+    border-radius: 50%;
+    animation: swipe-up 2s ease-in-out infinite;
+  }
+
+  @keyframes swipe-up {
+    0% {
+      transform: translateY(20px);
+      opacity: 0.8;
+    }
+    50% {
+      transform: translateY(-20px);
+      opacity: 0.3;
+    }
+    100% {
+      transform: translateY(20px);
+      opacity: 0.8;
+    }
+  }
+
+  .swipe-indicator {
+    font-size: 1.5rem;
+    color: rgba(251, 146, 60, 0.8);
+    animation: bounce-up 1s ease-in-out infinite;
+    z-index: 1;
+  }
+
+  @keyframes bounce-up {
+    0%, 100% { transform: translateY(5px); }
+    50% { transform: translateY(-5px); }
+  }
+
+  .trackpad-label {
+    font-size: 0.85rem;
+    color: #888;
+  }
+
+  .feizi-text h2 {
+    text-align: left;
+  }
+
+  .feizi-desc {
+    font-size: 1.1rem;
+    color: #aaa;
+    line-height: 1.8;
+    margin-bottom: 32px;
+  }
+
+  .feizi-features {
+    display: grid;
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+
+  .feizi-feature {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .ff-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+
+  .feizi-feature h4 {
+    font-size: 1rem;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+
+  .feizi-feature p {
+    font-size: 0.9rem;
+    color: #888;
+  }
+
+  .feizi-quote {
+    font-style: italic;
+    color: #fb923c;
+    padding: 16px 24px;
+    border-left: 3px solid #fb923c;
+    background: rgba(251, 146, 60, 0.05);
+    border-radius: 0 8px 8px 0;
+    font-size: 1rem;
+  }
+
+  .badge-orange {
+    background: rgba(251, 146, 60, 0.2);
+    color: #fb923c;
   }
 
   /* Voice Section */
@@ -2094,6 +2380,7 @@
     }
 
     .juying-content,
+    .feizi-content,
     .voice-content,
     .neural-content,
     .learning-content {
@@ -2105,6 +2392,10 @@
     }
 
     .juying-visual {
+      order: -1;
+    }
+
+    .feizi-visual {
       order: -1;
     }
 
@@ -2142,6 +2433,14 @@
 
     .neural-features {
       grid-template-columns: 1fr;
+    }
+
+    .feizi-features {
+      grid-template-columns: 1fr;
+    }
+
+    .feizi-text h2 {
+      text-align: center;
     }
 
     .neural-download-options {

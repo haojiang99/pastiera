@@ -1764,9 +1764,21 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     }
                 }
             } else {
-                // Swipe DOWN - next page
+                // Swipe DOWN - page navigation
                 Handler(Looper.getMainLooper()).post {
-                    handleSwipeDownNextPage()
+                    val splitSwipeDownEnabled = SettingsManager.getSplitSwipeDownEnabled(this@PhysicalKeyboardInputMethodService)
+                    if (splitSwipeDownEnabled) {
+                        // Split mode: left half = prev page, right half = next page
+                        val isLeftHalf = startX < trackpadMaxX / 2
+                        if (isLeftHalf) {
+                            handleSwipeDownPrevPage()
+                        } else {
+                            handleSwipeDownNextPage()
+                        }
+                    } else {
+                        // Default: swipe down anywhere = next page
+                        handleSwipeDownNextPage()
+                    }
                 }
             }
         }
@@ -1850,6 +1862,52 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
             hasWordPredictions -> {
                 englishWordPredictionController.nextPage()
+                updateStatusBarText()
+            }
+        }
+    }
+
+    /**
+     * Handle swipe down gesture for previous page navigation (left half of trackpad).
+     */
+    private fun handleSwipeDownPrevPage() {
+        val isPinyinMode = pinyinInputController.isPinyinMode()
+        val isShuangpinMode = shuangpinInputController.isShuangpinMode()
+        val isWubiMode = wubiInputController.isWubiMode()
+        val isZhenmaMode = zhenmaInputController.isZhenmaMode()
+        val isT9PinyinMode = t9PinyinInputController.isT9Mode()
+        val isWordPredictionActive = englishWordPredictionController.hasActivePrediction()
+
+        val hasPinyinCandidates = isPinyinMode && pinyinInputController.hasCandidates()
+        val hasShuangpinCandidates = isShuangpinMode && shuangpinInputController.hasCandidates()
+        val hasWubiCandidates = isWubiMode && wubiInputController.hasCandidates()
+        val hasZhenmaCandidates = isZhenmaMode && zhenmaInputController.hasCandidates()
+        val hasT9PinyinCandidates = isT9PinyinMode && t9PinyinInputController.hasCandidates()
+        val hasWordPredictions = isWordPredictionActive && englishWordPredictionController.hasSuggestions()
+
+        when {
+            hasPinyinCandidates -> {
+                pinyinInputController.prevPage()
+                updateStatusBarText()
+            }
+            hasShuangpinCandidates -> {
+                shuangpinInputController.prevPage()
+                updateStatusBarText()
+            }
+            hasWubiCandidates -> {
+                wubiInputController.prevPage()
+                updateStatusBarText()
+            }
+            hasZhenmaCandidates -> {
+                zhenmaInputController.prevPage()
+                updateStatusBarText()
+            }
+            hasT9PinyinCandidates -> {
+                t9PinyinInputController.prevPage()
+                updateStatusBarText()
+            }
+            hasWordPredictions -> {
+                englishWordPredictionController.prevPage()
                 updateStatusBarText()
             }
         }

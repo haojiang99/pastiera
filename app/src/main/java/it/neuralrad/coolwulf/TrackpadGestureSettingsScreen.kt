@@ -59,6 +59,9 @@ fun TrackpadGestureSettingsScreen(
     var swipeSelectionAnimationEnabled by remember {
         mutableStateOf(SettingsManager.getSwipeSelectionAnimationEnabled(context))
     }
+    var splitSwipeDownEnabled by remember {
+        mutableStateOf(SettingsManager.getSplitSwipeDownEnabled(context))
+    }
     var showTutorialDialog by remember { mutableStateOf(false) }
 
     // Check Shizuku status and permission
@@ -346,6 +349,47 @@ fun TrackpadGestureSettingsScreen(
                         onCheckedChange = { enabled ->
                             swipeSelectionAnimationEnabled = enabled
                             SettingsManager.setSwipeSelectionAnimationEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Split Swipe Down Toggle
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.split_swipe_down_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = stringResource(R.string.split_swipe_down_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = splitSwipeDownEnabled,
+                        onCheckedChange = { enabled ->
+                            splitSwipeDownEnabled = enabled
+                            SettingsManager.setSplitSwipeDownEnabled(context, enabled)
                         }
                     )
                 }
