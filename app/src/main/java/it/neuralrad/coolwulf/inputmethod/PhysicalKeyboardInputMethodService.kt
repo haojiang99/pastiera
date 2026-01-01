@@ -1444,6 +1444,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val baseDelayMs = 2000L
             val maxDelayMs = 30000L
             var retryCount = 0
+            var daemonWasConnected = false  // Track if daemon was ever successfully connected
+            var daemonFailureCount = 0  // Track consecutive daemon connection failures
 
             while (isActive) {
                 try {
@@ -1453,6 +1455,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     val connected = connectToGestureDaemon(embeddedAdb)
                     if (connected) {
                         retryCount = 0
+                        daemonFailureCount = 0
+                        daemonWasConnected = true  // Mark that daemon was successfully connected
                         // connectToGestureDaemon blocks until disconnection
                         // When it returns, we'll retry
                         Log.d(TAG, "Daemon connection ended, will retry")
@@ -1460,8 +1464,62 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         continue
                     }
 
-                    // Daemon connection failed - try to start it via ADB (requires WiFi)
-                    Log.d(TAG, "Daemon not running, attempting ADB connection")
+                    // Daemon connection failed
+                    daemonFailureCount++
+                    Log.d(TAG, "Daemon connection failed (attempt $daemonFailureCount)")
+
+                    // If daemon was previously connected but now isn't, and WiFi/ADB is available,
+                    // try to restart the daemon
+                    if (daemonWasConnected && daemonFailureCount >= 3) {
+                        Log.d(TAG, "Daemon appears to have stopped, attempting to restart via ADB")
+
+                        if (embeddedAdb.isWirelessDebuggingEnabled()) {
+                            // Try to connect via ADB to restart daemon
+                            if (!embeddedAdb.isConnected()) {
+                                val portDiscovery = AdbPortDiscovery(this@PhysicalKeyboardInputMethodService)
+                                val discoveredPort = portDiscovery.discoverPort()
+
+                                val adbConnected = if (discoveredPort == null) {
+                                    val lastPort = SettingsManager.getEmbeddedAdbPort(this@PhysicalKeyboardInputMethodService)
+                                    if (lastPort > 0) embeddedAdb.connect(lastPort) else false
+                                } else {
+                                    SettingsManager.setEmbeddedAdbPort(this@PhysicalKeyboardInputMethodService, discoveredPort)
+                                    embeddedAdb.connect(discoveredPort)
+                                }
+
+                                if (adbConnected) {
+                                    Log.d(TAG, "ADB reconnected, restarting gesture daemon")
+                                    val daemonStarted = embeddedAdb.startGestureDaemon()
+                                    if (daemonStarted) {
+                                        Log.d(TAG, "Gesture daemon restarted successfully")
+                                        daemonFailureCount = 0
+                                        delay(1000)
+                                        continue
+                                    }
+                                }
+                            } else {
+                                // Already connected to ADB, just restart daemon
+                                Log.d(TAG, "ADB already connected, restarting gesture daemon")
+                                val daemonStarted = embeddedAdb.startGestureDaemon()
+                                if (daemonStarted) {
+                                    Log.d(TAG, "Gesture daemon restarted successfully")
+                                    daemonFailureCount = 0
+                                    delay(1000)
+                                    continue
+                                }
+                            }
+                        }
+
+                        // Failed to restart daemon, keep retrying connection
+                        // (daemon might come back on its own or WiFi might become available)
+                        val delayMs = minOf(baseDelayMs * 2, maxDelayMs)
+                        Log.w(TAG, "Could not restart daemon, will retry in ${delayMs}ms")
+                        delay(delayMs)
+                        continue
+                    }
+
+                    // Daemon not running and wasn't previously connected - try initial setup via ADB
+                    Log.d(TAG, "Daemon not running, attempting ADB connection for initial setup")
 
                     if (!embeddedAdb.isWirelessDebuggingEnabled()) {
                         Log.w(TAG, "Wireless debugging not enabled, waiting...")
@@ -1474,7 +1532,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                         val portDiscovery = AdbPortDiscovery(this@PhysicalKeyboardInputMethodService)
                         val discoveredPort = portDiscovery.discoverPort()
 
-                        val connected = if (discoveredPort == null) {
+                        val adbConnected = if (discoveredPort == null) {
                             val lastPort = SettingsManager.getEmbeddedAdbPort(this@PhysicalKeyboardInputMethodService)
                             if (lastPort > 0) embeddedAdb.connect(lastPort) else false
                         } else {
@@ -1482,7 +1540,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             embeddedAdb.connect(discoveredPort)
                         }
 
-                        if (!connected) {
+                        if (!adbConnected) {
                             val delayMs = minOf(baseDelayMs * (retryCount + 1), maxDelayMs)
                             Log.w(TAG, "ADB connection failed, retrying in ${delayMs}ms")
                             delay(delayMs)
