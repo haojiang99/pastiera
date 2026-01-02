@@ -3016,21 +3016,31 @@ class VariationBarView(
     }
 
     /**
-     * Data class to hold particle animation state for better performance.
+     * Lightweight class to hold particle animation state.
+     * Using a regular class instead of data class avoids equals/hashCode/toString overhead.
      */
-    private data class ParticleData(
-        val view: View,
-        val params: android.view.WindowManager.LayoutParams,
-        val startX: Float,
-        val startY: Float,
-        val velocityX: Float,
-        val velocityY: Float,
-        val delay: Float = 0f,           // Staggered start (0-0.1)
-        val twinkleSpeed: Float = 1f,    // How fast it twinkles
-        val gravity: Float = 0f,         // Downward pull
-        val rotationSpeed: Float = 0f,   // Rotation during flight
-        val isSpark: Boolean = false     // Secondary small spark
+    private class ParticleState(
+        @JvmField val view: View,
+        @JvmField val params: android.view.WindowManager.LayoutParams,
+        @JvmField val startX: Float,
+        @JvmField val startY: Float,
+        @JvmField val velocityX: Float,
+        @JvmField val velocityY: Float,
+        @JvmField val gravity: Float
     )
+
+    // Pre-computed colors to avoid Color.rgb() calls during animation setup
+    private val fireworkColors = intArrayOf(
+        -10496,     // Gold (0xFFFFD700)
+        -10066176,  // Coral (0xFF646464 -> actually 0xFFFF6464)
+        -10158336,  // Mint (0xFF64FF96)
+        -10193921,  // Sky Blue (0xFF64C8FF)
+        -6881536,   // Pink (0xFF9696C8 -> actually 0xFF96C8)
+        -4923392    // Orange (0xFFB45050 -> actually 0xFFB450)
+    )
+
+    // Reusable random instance
+    private val animRandom = java.util.Random()
 
     /**
      * Creates a stunning fireworks explosion effect optimized for smooth 60fps animation.
@@ -3045,14 +3055,28 @@ class VariationBarView(
         // Get screen dimensions
         val screenHeight = context.resources.displayMetrics.heightPixels
 
-        // Explosion center is at 1/2 screen height (from top)
-        val explosionCenterY = screenHeight / 2
+        // Explosion center is at 1/3 screen height (from top) - higher position
+        val explosionCenterY = screenHeight / 3
         val explosionCenterX = centerX
 
-        // Spread radius for particles
-        val spreadRadius = 80 * density
+        // Spread radius for particles - bigger explosion
+        val spreadRadius = 120 * density
 
-        // Vibrant colors - pre-defined array for fast lookup
+        // Pre-computed constants
+        val startX = explosionCenterX.toFloat()
+        val startY = explosionCenterY.toFloat()
+        val twoPi = Math.PI * 2
+        val windowFlags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
+        val gravityFlags = Gravity.TOP or Gravity.START
+
+        // Use array instead of ArrayList for faster iteration
+        val particles = arrayOfNulls<ParticleState>(18)
+        var particleCount = 0
+
+        // Vibrant colors
         val colors = intArrayOf(
             Color.rgb(255, 215, 0),    // Gold
             Color.rgb(255, 100, 100),  // Coral
@@ -3062,115 +3086,92 @@ class VariationBarView(
             Color.rgb(255, 180, 80)    // Orange
         )
 
-        val random = java.util.Random()
-        val startX = explosionCenterX.toFloat()
-        val startY = explosionCenterY.toFloat()
-
-        // Reduced particle count for smoother animation (10 main + 8 sparks = 18 total)
-        val particleDataList = ArrayList<ParticleData>(18)
+        val random = animRandom
 
         // Create main burst particles - exploding outward in all directions
         val numMainParticles = 10
         for (i in 0 until numMainParticles) {
             // Full circle spread
-            val angle = (i.toDouble() / numMainParticles) * Math.PI * 2 + (random.nextDouble() - 0.5) * 0.3
+            val angle = (i.toDouble() / numMainParticles) * twoPi + (random.nextDouble() - 0.5) * 0.3
             val distance = spreadRadius * (0.6f + random.nextFloat() * 0.4f)
 
             // Velocity outward from center
             val velocityX = (kotlin.math.cos(angle) * distance).toFloat()
             val velocityY = (kotlin.math.sin(angle) * distance).toFloat()
 
-            val baseSize = (8 + random.nextInt(5)) * density
-            val color = colors[i % colors.size]
+            val baseSize = ((8 + random.nextInt(5)) * density).toInt()
 
             val particle = View(context).apply {
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
-                    setColor(color)
+                    setColor(colors[i % 6])
                 }
                 setLayerType(View.LAYER_TYPE_HARDWARE, null)
             }
 
             val params = android.view.WindowManager.LayoutParams(
-                baseSize.toInt(),
-                baseSize.toInt(),
+                baseSize, baseSize,
                 android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                        android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                        android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                        android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                windowFlags,
                 android.graphics.PixelFormat.TRANSLUCENT
             ).apply {
-                gravity = Gravity.TOP or Gravity.START
+                gravity = gravityFlags
                 x = explosionCenterX
                 y = explosionCenterY
             }
 
             try {
                 windowManager.addView(particle, params)
-                particleDataList.add(ParticleData(
-                    view = particle,
-                    params = params,
-                    startX = startX,
-                    startY = startY,
-                    velocityX = velocityX,
-                    velocityY = velocityY,
-                    gravity = 30 * density + random.nextFloat() * 20 * density  // Slight downward drift
-                ))
+                particles[particleCount++] = ParticleState(
+                    particle, params, startX, startY, velocityX, velocityY,
+                    30 * density + random.nextFloat() * 20 * density
+                )
             } catch (e: Exception) {}
         }
 
         // Create trailing sparks (smaller, spread more randomly)
         val numSparks = 8
         for (i in 0 until numSparks) {
-            val angle = random.nextDouble() * Math.PI * 2
+            val angle = random.nextDouble() * twoPi
             val distance = spreadRadius * (0.3f + random.nextFloat() * 0.5f)
 
             val velocityX = (kotlin.math.cos(angle) * distance).toFloat()
             val velocityY = (kotlin.math.sin(angle) * distance).toFloat()
 
-            val sparkSize = (4 + random.nextInt(3)) * density
-            val sparkColor = colors[random.nextInt(colors.size)]
+            val sparkSize = ((4 + random.nextInt(3)) * density).toInt()
 
             val spark = View(context).apply {
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
-                    setColor(sparkColor)
+                    setColor(colors[random.nextInt(6)])
                 }
                 setLayerType(View.LAYER_TYPE_HARDWARE, null)
             }
 
             val params = android.view.WindowManager.LayoutParams(
-                sparkSize.toInt(),
-                sparkSize.toInt(),
+                sparkSize, sparkSize,
                 android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                        android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                        android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                        android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                windowFlags,
                 android.graphics.PixelFormat.TRANSLUCENT
             ).apply {
-                gravity = Gravity.TOP or Gravity.START
+                gravity = gravityFlags
                 x = explosionCenterX
                 y = explosionCenterY
             }
 
             try {
                 windowManager.addView(spark, params)
-                particleDataList.add(ParticleData(
-                    view = spark,
-                    params = params,
-                    startX = startX,
-                    startY = startY,
-                    velocityX = velocityX,
-                    velocityY = velocityY,
-                    gravity = 40 * density + random.nextFloat() * 30 * density,
-                    isSpark = true
-                ))
+                particles[particleCount++] = ParticleState(
+                    spark, params, startX, startY, velocityX, velocityY,
+                    40 * density + random.nextFloat() * 30 * density
+                )
             } catch (e: Exception) {}
         }
 
-        if (particleDataList.isEmpty()) return
+        if (particleCount == 0) return
+
+        // Cache final count for animation loop
+        val finalParticleCount = particleCount
 
         // Animation with optimized update loop
         val animationSpeed = SettingsManager.getSwipeSelectionAnimationSpeed(context)
@@ -3185,39 +3186,38 @@ class VariationBarView(
         animator.addUpdateListener { animation ->
             val progress = animation.animatedValue as Float
             val progressSq = progress * progress
+            val scale = 1f - progress * 0.7f
+            val alpha = 1f - progress
 
-            for (i in particleDataList.indices) {
-                val data = particleDataList[i]
+            var i = 0
+            while (i < finalParticleCount) {
+                val data = particles[i]!!
 
                 // Position: spread outward + slight gravity pull down
-                val newX = data.startX + data.velocityX * progress
-                val newY = data.startY + data.velocityY * progress + data.gravity * progressSq
-
-                // Scale and alpha
-                val scale = 1f - progress * 0.7f
-                val alpha = 1f - progress
+                data.params.x = (data.startX + data.velocityX * progress).toInt()
+                data.params.y = (data.startY + data.velocityY * progress + data.gravity * progressSq).toInt()
 
                 data.view.scaleX = scale
                 data.view.scaleY = scale
                 data.view.alpha = alpha
 
-                data.params.x = newX.toInt()
-                data.params.y = newY.toInt()
-
                 try {
                     windowManager.updateViewLayout(data.view, data.params)
                 } catch (e: Exception) {}
+                i++
             }
         }
 
         animator.addListener(object : AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator) {
-                for (i in particleDataList.indices) {
-                    val data = particleDataList[i]
+                var i = 0
+                while (i < finalParticleCount) {
+                    val data = particles[i]!!
                     try {
                         data.view.setLayerType(View.LAYER_TYPE_NONE, null)
                         windowManager.removeView(data.view)
                     } catch (e: Exception) {}
+                    i++
                 }
             }
         })
