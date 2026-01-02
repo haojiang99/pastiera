@@ -893,7 +893,7 @@
     <!-- Trackpad Gesture Settings -->
     <string name="trackpad_gestures_title">触控板手势</string>
     <string name="trackpad_gestures_enabled_title">启用触控板手势</string>
-    <string name="trackpad_gestures_enabled_description">在物理触控板上向上滑动以插入建议（需要 Shizuku）</string>
+    <string name="trackpad_gestures_enabled_description">在物理触控板上向上滑动以插入建议</string>
     <string name="trackpad_gestures_swipe_threshold_title">滑动灵敏度</string>
     <string name="trackpad_gestures_swipe_threshold_description">最小滑动距离：%1$d 像素。数值越低，滑动越灵敏。</string>
     <string name="trackpad_gestures_how_it_works_title">使用方法</string>
@@ -914,7 +914,14 @@
     <string name="swipe_selection_sound_description">滑动选词时播放音效</string>
     <string name="swipe_selection_sound_volume_title">音量</string>
     <string name="swipe_selection_animation_title">滑动选词动画</string>
-    <string name="swipe_selection_animation_description">滑动选词时显示飞字动画</string>
+    <string name="swipe_selection_animation_description">滑动选词时显示动画效果</string>
+    <string name="animation_type_title">动画样式</string>
+    <string name="animation_type_flying">飞字</string>
+    <string name="animation_type_fireworks">烟花</string>
+    <string name="animation_speed_title">动画速度</string>
+    <string name="animation_speed_slow">慢</string>
+    <string name="animation_speed_normal">正常</string>
+    <string name="animation_speed_fast">快</string>
     <string name="overlay_permission_title">全屏动画</string>
     <string name="overlay_permission_description">授权悬浮窗权限，让文字飞跃全屏</string>
     <string name="overlay_permission_granted">已授权 - 全屏动画已启用</string>
@@ -925,10 +932,10 @@
     <string name="page_flip_mode_description">仅使用滑动翻页。下滑=下一页，上滑=上一页。水平滑动无效。</string>
 
     <!-- Embedded ADB Settings -->
-    <string name="embedded_adb_title">内置ADB（无需Shizuku）</string>
+    <string name="embedded_adb_title">内置ADB</string>
     <string name="embedded_adb_description">使用内置ADB实现触控板手势，无需安装其他应用</string>
     <string name="embedded_adb_use_title">使用内置ADB</string>
-    <string name="embedded_adb_use_description">启用后将使用内置ADB代替Shizuku来实现触控板手势</string>
+    <string name="embedded_adb_use_description">启用内置ADB实现触控板手势</string>
     <string name="embedded_adb_status_not_paired">未配对。点击设置无线调试。</string>
     <string name="embedded_adb_status_paired">已配对，准备就绪。</string>
     <string name="embedded_adb_status_connecting">连接中…</string>

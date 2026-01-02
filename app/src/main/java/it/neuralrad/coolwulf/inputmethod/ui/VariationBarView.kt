@@ -2666,10 +2666,10 @@ class VariationBarView(
     }
 
     /**
-     * Animates a flying word effect when selecting a candidate via swipe gesture.
-     * The word visually "flies up" from the suggestion bar toward the middle of the screen,
-     * transitioning from solid to faded transparency like an airplane flying upward.
-     * Uses WindowManager to create an overlay that can fly above the keyboard to 1/3-1/2 screen height.
+     * Animates a word effect when selecting a candidate via swipe gesture.
+     * Supports two animation types:
+     * - "flying": Word flies up from the suggestion bar toward the middle of the screen
+     * - "fireworks": Word flies up briefly then explodes into colorful particles
      * @param candidateIndex The index of the candidate to animate (0-based)
      */
     fun animateSwipeSelection(candidateIndex: Int) {
@@ -2680,6 +2680,15 @@ class VariationBarView(
         if (candidateIndex < 0 || candidateIndex >= variationButtons.size) {
             return
         }
+
+        // Check animation type
+        val animationType = SettingsManager.getSwipeSelectionAnimationType(context)
+        if (animationType == "fireworks") {
+            animateFireworksSelection(candidateIndex)
+            return
+        }
+
+        // Default: flying animation
 
         val button = variationButtons[candidateIndex]
         val theme = getCurrentTheme()
@@ -2763,7 +2772,8 @@ class VariationBarView(
         val startY = buttonLocation[1].toFloat()
         val targetY = screenHeight / 3f  // Fly to 1/3 from top
         val flyDistance = startY - targetY
-        val duration = 600L  // Smooth animation
+        val animationSpeed = SettingsManager.getSwipeSelectionAnimationSpeed(context)
+        val duration = (600L / animationSpeed).toLong()  // Smooth animation, adjusted for speed
 
         Log.e(TAG, "screenHeight=$screenHeight, startY=$startY, targetY=$targetY, flyDistance=$flyDistance")
 
@@ -2847,6 +2857,291 @@ class VariationBarView(
     }
 
     /**
+     * Fireworks explosion animation: word flies up briefly, then explodes into colorful particles.
+     * Each character becomes a separate particle that shoots outward in different directions.
+     * @param candidateIndex The index of the candidate to animate
+     */
+    private fun animateFireworksSelection(candidateIndex: Int) {
+        if (candidateIndex < 0 || candidateIndex >= variationButtons.size) return
+
+        val button = variationButtons[candidateIndex]
+        val density = context.resources.displayMetrics.density
+
+        val selectedText = button.text.toString()
+        if (selectedText.isEmpty()) return
+
+        // Get button position in screen coordinates
+        val buttonLocation = IntArray(2)
+        button.getLocationOnScreen(buttonLocation)
+
+        // Check overlay permission
+        val canDrawOverlays = android.provider.Settings.canDrawOverlays(context)
+        if (!canDrawOverlays) {
+            return  // No fallback, just skip animation
+        }
+
+        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+
+        // Explosion position: centered above the word
+        val explosionX = buttonLocation[0] + button.width / 2
+        val explosionY = buttonLocation[1] - (30 * density).toInt()  // A little above the word
+
+        // Just show the upward spread explosion directly
+        createFireworksExplosionOnly(windowManager, explosionX, explosionY, density)
+    }
+
+    /**
+     * Creates the fireworks explosion effect with small sparkle particles around the text.
+     * The text itself flashes and fades while colorful sparkles burst outward in a small region.
+     */
+    private fun createFireworksExplosion(
+        windowManager: android.view.WindowManager,
+        floatingText: TextView,
+        centerX: Int,
+        centerY: Int,
+        density: Float,
+        isDarkMode: Boolean
+    ) {
+        // Fireworks colors - vibrant and celebratory
+        val fireworkColors = listOf(
+            Color.rgb(255, 69, 0),    // Red-Orange
+            Color.rgb(255, 215, 0),   // Gold
+            Color.rgb(0, 255, 127),   // Spring Green
+            Color.rgb(0, 191, 255),   // Deep Sky Blue
+            Color.rgb(255, 0, 255),   // Magenta
+            Color.rgb(255, 105, 180), // Hot Pink
+            Color.rgb(127, 255, 0),   // Chartreuse
+            Color.rgb(255, 255, 0)    // Yellow
+        )
+
+        val particles = mutableListOf<View>()
+        val random = java.util.Random()
+
+        // Create only sparkle particles (small colored dots) - no text splitting
+        val numParticles = 12
+
+        for (i in 0 until numParticles) {
+            val size = (6 + random.nextInt(6)) * density
+            val particle = View(context).apply {
+                val sparkleDrawable = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(fireworkColors[random.nextInt(fireworkColors.size)])
+                }
+                background = sparkleDrawable
+                layoutParams = ViewGroup.LayoutParams(size.toInt(), size.toInt())
+            }
+
+            val particleParams = android.view.WindowManager.LayoutParams(
+                size.toInt(),
+                size.toInt(),
+                android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                        android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                        android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                android.graphics.PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                x = centerX
+                y = centerY
+            }
+
+            try {
+                windowManager.addView(particle, particleParams)
+                particles.add(particle)
+            } catch (e: Exception) {}
+        }
+
+        // Animate sparkle particles flying outward in a small region
+        val explosionDuration = 250L  // Faster explosion
+        val maxDistance = 40 * density  // Small explosion radius
+
+        for ((index, particle) in particles.withIndex()) {
+            // Calculate explosion direction - spread upward in a fan pattern
+            val spreadAngle = Math.PI * 0.8  // 144 degrees upward arc
+            val startAngle = Math.PI * 1.1   // Start from upper-left
+            val angle = startAngle + (index.toDouble() / numParticles) * spreadAngle + (random.nextDouble() - 0.5) * 0.2
+            val distance = (maxDistance * 0.6f) + (random.nextFloat() * maxDistance * 0.4f)
+
+            val velocityX = (kotlin.math.cos(angle) * distance).toFloat()
+            val velocityY = (kotlin.math.sin(angle) * distance).toFloat() - 15 * density  // Bias upward
+
+            val animator = ValueAnimator.ofFloat(0f, 1f)
+            animator.duration = explosionDuration
+            animator.interpolator = android.view.animation.DecelerateInterpolator(2f)
+
+            val startX = centerX.toFloat()
+            val startY = centerY.toFloat()
+
+            animator.addUpdateListener { animation ->
+                val progress = animation.animatedValue as Float
+
+                val newX = startX + velocityX * progress
+                val newY = startY + velocityY * progress
+
+                // Scale - start normal, shrink as they fly
+                val scale = 1f - (progress * 0.7f)
+                particle.scaleX = scale
+                particle.scaleY = scale
+
+                // Alpha - fade out
+                particle.alpha = 1f - progress
+
+                try {
+                    val params = particle.layoutParams as android.view.WindowManager.LayoutParams
+                    params.x = newX.toInt()
+                    params.y = newY.toInt()
+                    windowManager.updateViewLayout(particle, params)
+                } catch (e: Exception) {}
+            }
+
+            animator.addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    try {
+                        windowManager.removeView(particle)
+                    } catch (e: Exception) {}
+                }
+            })
+
+            // Start immediately for snappy explosion
+            animator.start()
+        }
+
+        // Animate the main text: just fade out (no color change)
+        val textAnimator = ValueAnimator.ofFloat(0f, 1f)
+        textAnimator.duration = explosionDuration
+        textAnimator.interpolator = android.view.animation.AccelerateInterpolator()
+
+        textAnimator.addUpdateListener { animation ->
+            val progress = animation.animatedValue as Float
+            // Just fade out, no color change
+            floatingText.alpha = 1f - progress
+        }
+
+        textAnimator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                try {
+                    windowManager.removeView(floatingText)
+                } catch (e: Exception) {}
+            }
+        })
+
+        textAnimator.start()
+    }
+
+    /**
+     * Creates fireworks explosion effect with only particles (no text).
+     */
+    private fun createFireworksExplosionOnly(
+        windowManager: android.view.WindowManager,
+        centerX: Int,
+        centerY: Int,
+        density: Float
+    ) {
+        // Fireworks colors - vibrant and celebratory
+        val fireworkColors = listOf(
+            Color.rgb(255, 69, 0),    // Red-Orange
+            Color.rgb(255, 215, 0),   // Gold
+            Color.rgb(0, 255, 127),   // Spring Green
+            Color.rgb(0, 191, 255),   // Deep Sky Blue
+            Color.rgb(255, 0, 255),   // Magenta
+            Color.rgb(255, 105, 180), // Hot Pink
+            Color.rgb(127, 255, 0),   // Chartreuse
+            Color.rgb(255, 255, 0)    // Yellow
+        )
+
+        val particles = mutableListOf<View>()
+        val random = java.util.Random()
+
+        // Create sparkle particles
+        val numParticles = 8
+
+        for (i in 0 until numParticles) {
+            val size = (6 + random.nextInt(8)) * density
+            val particle = View(context).apply {
+                val sparkleDrawable = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(fireworkColors[random.nextInt(fireworkColors.size)])
+                }
+                background = sparkleDrawable
+            }
+
+            val particleParams = android.view.WindowManager.LayoutParams(
+                size.toInt(),
+                size.toInt(),
+                android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                        android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                        android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                android.graphics.PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                x = centerX
+                y = centerY
+            }
+
+            try {
+                windowManager.addView(particle, particleParams)
+                particles.add(particle)
+            } catch (e: Exception) {}
+        }
+
+        // Animate sparkle particles flying outward - upward spread
+        val animationSpeed = SettingsManager.getSwipeSelectionAnimationSpeed(context)
+        val explosionDuration = (300L / animationSpeed).toLong()
+        val maxDistance = 60 * density
+
+        for ((index, particle) in particles.withIndex()) {
+            // Spread upward in a fan pattern
+            val spreadAngle = Math.PI * 0.9  // Wide upward arc
+            val startAngle = Math.PI * 1.05  // Start from upper-left
+            val angle = startAngle + (index.toDouble() / numParticles) * spreadAngle + (random.nextDouble() - 0.5) * 0.3
+            val distance = (maxDistance * 0.5f) + (random.nextFloat() * maxDistance * 0.5f)
+
+            val velocityX = (kotlin.math.cos(angle) * distance).toFloat()
+            val velocityY = (kotlin.math.sin(angle) * distance).toFloat() - 20 * density  // Strong upward bias
+
+            val animator = ValueAnimator.ofFloat(0f, 1f)
+            animator.duration = explosionDuration
+            animator.interpolator = android.view.animation.DecelerateInterpolator(2f)
+
+            val startX = centerX.toFloat()
+            val startY = centerY.toFloat()
+
+            animator.addUpdateListener { animation ->
+                val progress = animation.animatedValue as Float
+
+                val newX = startX + velocityX * progress
+                val newY = startY + velocityY * progress
+
+                // Scale - start normal, shrink as they fly
+                val scale = 1f - (progress * 0.6f)
+                particle.scaleX = scale
+                particle.scaleY = scale
+
+                // Alpha - fade out
+                particle.alpha = 1f - (progress * 0.8f)
+
+                try {
+                    val params = particle.layoutParams as android.view.WindowManager.LayoutParams
+                    params.x = newX.toInt()
+                    params.y = newY.toInt()
+                    windowManager.updateViewLayout(particle, params)
+                } catch (e: Exception) {}
+            }
+
+            animator.addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    try {
+                        windowManager.removeView(particle)
+                    } catch (e: Exception) {}
+                }
+            })
+
+            animator.start()
+        }
+    }
+
+    /**
      * Fallback animation that animates within the wrapper view when WindowManager fails.
      */
     private fun animateSwipeSelectionFallback(candidateIndex: Int) {
@@ -2899,7 +3194,8 @@ class VariationBarView(
         wrapperView.addView(floatingText)
 
         val flyDistance = 300f * density
-        val duration = 600L
+        val animationSpeed = SettingsManager.getSwipeSelectionAnimationSpeed(context)
+        val duration = (600L / animationSpeed).toLong()
 
         val animator = ValueAnimator.ofFloat(0f, 1f)
         animator.duration = duration

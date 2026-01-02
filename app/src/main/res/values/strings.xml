@@ -896,7 +896,7 @@
     <!-- Trackpad Gesture Settings -->
     <string name="trackpad_gestures_title">Trackpad Gestures</string>
     <string name="trackpad_gestures_enabled_title">Enable Trackpad Gestures</string>
-    <string name="trackpad_gestures_enabled_description">Swipe up on the physical trackpad to insert suggestions (requires Shizuku)</string>
+    <string name="trackpad_gestures_enabled_description">Swipe up on the physical trackpad to insert suggestions</string>
     <string name="trackpad_gestures_swipe_threshold_title">Swipe Sensitivity</string>
     <string name="trackpad_gestures_swipe_threshold_description">Minimum swipe distance: %1$d pixels. Lower values make swipes more sensitive.</string>
     <string name="trackpad_gestures_how_it_works_title">How It Works</string>
@@ -917,7 +917,14 @@
     <string name="swipe_selection_sound_description">Play a sound effect when selecting a word via swipe gesture</string>
     <string name="swipe_selection_sound_volume_title">Sound Volume</string>
     <string name="swipe_selection_animation_title">Swipe Selection Animation</string>
-    <string name="swipe_selection_animation_description">Show flying word animation when selecting via swipe gesture</string>
+    <string name="swipe_selection_animation_description">Show visual animation when selecting via swipe gesture</string>
+    <string name="animation_type_title">Animation Style</string>
+    <string name="animation_type_flying">Flying</string>
+    <string name="animation_type_fireworks">Fireworks</string>
+    <string name="animation_speed_title">Animation Speed</string>
+    <string name="animation_speed_slow">Slow</string>
+    <string name="animation_speed_normal">Normal</string>
+    <string name="animation_speed_fast">Fast</string>
     <string name="overlay_permission_title">Full-Screen Animation</string>
     <string name="overlay_permission_description">Grant overlay permission for words to fly across the screen</string>
     <string name="overlay_permission_granted">Permission granted - full-screen animation enabled</string>
@@ -928,10 +935,10 @@
     <string name="page_flip_mode_description">Only use swipe for page navigation. Swipe down = next page, swipe up = previous page. Horizontal swipes are ignored.</string>
 
     <!-- Embedded ADB Settings -->
-    <string name="embedded_adb_title">Embedded ADB (No Shizuku)</string>
+    <string name="embedded_adb_title">Embedded ADB</string>
     <string name="embedded_adb_description">Use built-in ADB for trackpad gestures. No external app needed.</string>
     <string name="embedded_adb_use_title">Use Embedded ADB</string>
-    <string name="embedded_adb_use_description">Enable to use built-in ADB instead of Shizuku for trackpad gestures</string>
+    <string name="embedded_adb_use_description">Enable built-in ADB for trackpad gestures</string>
     <string name="embedded_adb_status_not_paired">Not paired. Tap to set up wireless debugging.</string>
     <string name="embedded_adb_status_paired">Paired and ready.</string>
     <string name="embedded_adb_status_connecting">Connecting…</string>

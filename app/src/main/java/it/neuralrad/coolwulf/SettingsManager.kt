@@ -162,6 +162,8 @@ object SettingsManager {
     private const val KEY_SWIPE_SELECTION_SOUND_ENABLED = "swipe_selection_sound_enabled"
     private const val KEY_SWIPE_SELECTION_SOUND_VOLUME = "swipe_selection_sound_volume"
     private const val KEY_SWIPE_SELECTION_ANIMATION_ENABLED = "swipe_selection_animation_enabled"
+    private const val KEY_SWIPE_SELECTION_ANIMATION_TYPE = "swipe_selection_animation_type"
+    private const val KEY_SWIPE_SELECTION_ANIMATION_SPEED = "swipe_selection_animation_speed"
     private const val KEY_SPLIT_SWIPE_DOWN_ENABLED = "split_swipe_down_enabled"
     private const val KEY_PAGE_FLIP_MODE_ENABLED = "page_flip_mode_enabled"
 
@@ -177,6 +179,8 @@ object SettingsManager {
     private const val DEFAULT_SWIPE_SELECTION_SOUND_ENABLED = true  // Sound on by default
     private const val DEFAULT_SWIPE_SELECTION_SOUND_VOLUME = 0.5f  // 50% volume by default
     private const val DEFAULT_SWIPE_SELECTION_ANIMATION_ENABLED = true  // Animation on by default
+    private const val DEFAULT_SWIPE_SELECTION_ANIMATION_TYPE = "flying"  // "flying" or "fireworks"
+    private const val DEFAULT_SWIPE_SELECTION_ANIMATION_SPEED = 1.0f  // 1.0 = normal speed, 0.5 = slow, 2.0 = fast
     private const val DEFAULT_SPLIT_SWIPE_DOWN_ENABLED = false  // Off by default, swipe down = next page
     private const val DEFAULT_PAGE_FLIP_MODE_ENABLED = false  // Off by default, normal selection mode
     private const val MIN_TRACKPAD_SWIPE_THRESHOLD = 100
@@ -3761,6 +3765,41 @@ object SettingsManager {
     fun setSwipeSelectionAnimationEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_SWIPE_SELECTION_ANIMATION_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns the swipe selection animation type.
+     * @return "flying" for fly-up animation, "fireworks" for fireworks explosion animation
+     */
+    fun getSwipeSelectionAnimationType(context: Context): String {
+        return getPreferences(context).getString(KEY_SWIPE_SELECTION_ANIMATION_TYPE, DEFAULT_SWIPE_SELECTION_ANIMATION_TYPE) ?: DEFAULT_SWIPE_SELECTION_ANIMATION_TYPE
+    }
+
+    /**
+     * Sets the swipe selection animation type.
+     * @param type "flying" or "fireworks"
+     */
+    fun setSwipeSelectionAnimationType(context: Context, type: String) {
+        getPreferences(context).edit()
+            .putString(KEY_SWIPE_SELECTION_ANIMATION_TYPE, type)
+            .apply()
+    }
+
+    /**
+     * Returns the animation speed multiplier.
+     * 0.5 = slow, 1.0 = normal, 2.0 = fast
+     */
+    fun getSwipeSelectionAnimationSpeed(context: Context): Float {
+        return getPreferences(context).getFloat(KEY_SWIPE_SELECTION_ANIMATION_SPEED, DEFAULT_SWIPE_SELECTION_ANIMATION_SPEED)
+    }
+
+    /**
+     * Sets the animation speed multiplier.
+     */
+    fun setSwipeSelectionAnimationSpeed(context: Context, speed: Float) {
+        getPreferences(context).edit()
+            .putFloat(KEY_SWIPE_SELECTION_ANIMATION_SPEED, speed)
             .apply()
     }
 

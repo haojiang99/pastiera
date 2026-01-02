@@ -9,6 +9,7 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import it.neuralrad.coolwulf.core.adb.AdbPairingService
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -66,6 +67,9 @@ fun TrackpadGestureSettingsScreen(
     }
     var swipeSelectionAnimationEnabled by remember {
         mutableStateOf(SettingsManager.getSwipeSelectionAnimationEnabled(context))
+    }
+    var swipeSelectionAnimationType by remember {
+        mutableStateOf(SettingsManager.getSwipeSelectionAnimationType(context))
     }
     var overlayPermissionGranted by remember {
         mutableStateOf(Settings.canDrawOverlays(context))
@@ -666,6 +670,160 @@ fun TrackpadGestureSettingsScreen(
                             swipeSelectionAnimationEnabled = enabled
                             SettingsManager.setSwipeSelectionAnimationEnabled(context, enabled)
                         }
+                    )
+                }
+            }
+        }
+
+        // Animation type selector (only shown when animation is enabled)
+        if (swipeSelectionAnimationEnabled) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.animation_type_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Flying animation option
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    swipeSelectionAnimationType = "flying"
+                                    SettingsManager.setSwipeSelectionAnimationType(context, "flying")
+                                },
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (swipeSelectionAnimationType == "flying") {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            },
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = if (swipeSelectionAnimationType == "flying") 2.dp else 1.dp,
+                                color = if (swipeSelectionAnimationType == "flying") {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.outline
+                                }
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "✈️",
+                                    fontSize = 24.sp
+                                )
+                                Text(
+                                    text = stringResource(R.string.animation_type_flying),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = if (swipeSelectionAnimationType == "flying") FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+
+                        // Fireworks animation option
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    swipeSelectionAnimationType = "fireworks"
+                                    SettingsManager.setSwipeSelectionAnimationType(context, "fireworks")
+                                },
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (swipeSelectionAnimationType == "fireworks") {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            },
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = if (swipeSelectionAnimationType == "fireworks") 2.dp else 1.dp,
+                                color = if (swipeSelectionAnimationType == "fireworks") {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.outline
+                                }
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "🎆",
+                                    fontSize = 24.sp
+                                )
+                                Text(
+                                    text = stringResource(R.string.animation_type_fireworks),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = if (swipeSelectionAnimationType == "fireworks") FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+
+                    // Animation speed slider
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = stringResource(R.string.animation_speed_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    var animationSpeed by remember {
+                        mutableStateOf(SettingsManager.getSwipeSelectionAnimationSpeed(context))
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.animation_speed_slow),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = animationSpeed,
+                            onValueChange = { newValue ->
+                                animationSpeed = newValue
+                                SettingsManager.setSwipeSelectionAnimationSpeed(context, newValue)
+                            },
+                            valueRange = 0.5f..2.0f,
+                            steps = 5,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 8.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.animation_speed_fast),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        text = "%.1fx".format(animationSpeed),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
                     )
                 }
             }
