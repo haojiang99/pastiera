@@ -2727,15 +2727,15 @@ class VariationBarView(
             setShadowLayer(8f * density, 0f, 2f * density, shadowColor)
             // No background - just the text
             background = null
+            // Use hardware layer for smoother animation
+            setLayerType(View.LAYER_TYPE_HARDWARE, null)
         }
 
         // Check if we have overlay permission
         val canDrawOverlays = android.provider.Settings.canDrawOverlays(context)
-        Log.e(TAG, "canDrawOverlays=$canDrawOverlays")
 
         if (!canDrawOverlays) {
             // Fallback to wrapper-based animation if no overlay permission
-            Log.e(TAG, "No overlay permission, using fallback animation")
             animateSwipeSelectionFallback(candidateIndex)
             return
         }
@@ -2749,7 +2749,8 @@ class VariationBarView(
             android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                    android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                    android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                    android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
             android.graphics.PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -2757,13 +2758,9 @@ class VariationBarView(
             y = buttonLocation[1]
         }
 
-        Log.e(TAG, "buttonLocation=[${buttonLocation[0]}, ${buttonLocation[1]}]")
-
         try {
             windowManager.addView(floatingText, layoutParams)
-            Log.e(TAG, "WindowManager addView with TYPE_APPLICATION_OVERLAY succeeded")
         } catch (e: Exception) {
-            Log.e(TAG, "WindowManager addView failed: ${e.message}, using fallback")
             animateSwipeSelectionFallback(candidateIndex)
             return
         }
@@ -2775,13 +2772,11 @@ class VariationBarView(
         val animationSpeed = SettingsManager.getSwipeSelectionAnimationSpeed(context)
         val duration = (600L / animationSpeed).toLong()  // Smooth animation, adjusted for speed
 
-        Log.e(TAG, "screenHeight=$screenHeight, startY=$startY, targetY=$targetY, flyDistance=$flyDistance")
-
         // Use ValueAnimator for smooth vertical motion
-        val animator = ValueAnimator.ofFloat(0f, 1f)
-        animator.duration = duration
-        // Use decelerate interpolator for smooth flight
-        animator.interpolator = android.view.animation.DecelerateInterpolator(1.2f)
+        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
+            this.duration = duration
+            interpolator = android.view.animation.DecelerateInterpolator(1.2f)
+        }
 
         animator.addUpdateListener { animation ->
             val progress = animation.animatedValue as Float
@@ -2789,43 +2784,35 @@ class VariationBarView(
             // Calculate new Y position - fly straight up
             val newY = startY - (flyDistance * progress)
 
-            if (progress < 0.1f || progress > 0.9f) {
-                Log.e(TAG, "Animation progress=$progress, newY=$newY")
-            }
-
             // Update window position - vertical only
+            layoutParams.y = newY.toInt()
             try {
-                layoutParams.y = newY.toInt()
                 windowManager.updateViewLayout(floatingText, layoutParams)
-            } catch (e: Exception) {
-                Log.e(TAG, "updateViewLayout failed: ${e.message}")
-            }
+            } catch (e: Exception) {}
 
             // Scale - slight grow then shrink
-            val scale = when {
-                progress < 0.3f -> 1f + (progress / 0.3f) * 0.2f  // Grow to 1.2x
-                else -> 1.2f - ((progress - 0.3f) / 0.7f) * 0.2f  // Shrink back to 1.0x
+            val scale = if (progress < 0.3f) {
+                1f + (progress / 0.3f) * 0.2f  // Grow to 1.2x
+            } else {
+                1.2f - ((progress - 0.3f) / 0.7f) * 0.2f  // Shrink back to 1.0x
             }
             floatingText.scaleX = scale
             floatingText.scaleY = scale
 
             // Alpha - start solid (1.0), fade to semi-transparent (0.3)
-            // Smooth linear fade from solid to semi-transparent
-            floatingText.alpha = 1f - (progress * 0.7f)  // 1.0 -> 0.3
+            floatingText.alpha = 1f - (progress * 0.7f)
         }
 
         animator.addListener(object : AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator) {
                 try {
+                    floatingText.setLayerType(View.LAYER_TYPE_NONE, null)
                     windowManager.removeView(floatingText)
-                } catch (e: Exception) {
-                    // View may already be removed
-                }
+                } catch (e: Exception) {}
             }
         })
 
         animator.start()
-        Log.e(TAG, "Animator started, isRunning=${animator.isRunning}")
 
         // Also animate the original button with a pulse effect
         button.animate().cancel()
@@ -3029,7 +3016,20 @@ class VariationBarView(
     }
 
     /**
+     * Data class to hold particle animation state for better performance.
+     */
+    private data class ParticleData(
+        val view: View,
+        val params: android.view.WindowManager.LayoutParams,
+        val startX: Float,
+        val startY: Float,
+        val velocityX: Float,
+        val velocityY: Float
+    )
+
+    /**
      * Creates fireworks explosion effect with only particles (no text).
+     * Optimized for smooth animation using a single animator for all particles.
      */
     private fun createFireworksExplosionOnly(
         windowManager: android.view.WindowManager,
@@ -3038,7 +3038,7 @@ class VariationBarView(
         density: Float
     ) {
         // Fireworks colors - vibrant and celebratory
-        val fireworkColors = listOf(
+        val fireworkColors = intArrayOf(
             Color.rgb(255, 69, 0),    // Red-Orange
             Color.rgb(255, 215, 0),   // Gold
             Color.rgb(0, 255, 127),   // Spring Green
@@ -3049,20 +3049,34 @@ class VariationBarView(
             Color.rgb(255, 255, 0)    // Yellow
         )
 
-        val particles = mutableListOf<View>()
         val random = java.util.Random()
-
-        // Create sparkle particles
         val numParticles = 8
+        val maxDistance = 60 * density
+        val startX = centerX.toFloat()
+        val startY = centerY.toFloat()
+
+        // Pre-compute all particle data
+        val particleDataList = mutableListOf<ParticleData>()
 
         for (i in 0 until numParticles) {
             val size = (6 + random.nextInt(8)) * density
+
+            // Pre-compute velocity
+            val spreadAngle = Math.PI * 0.9
+            val startAngle = Math.PI * 1.05
+            val angle = startAngle + (i.toDouble() / numParticles) * spreadAngle + (random.nextDouble() - 0.5) * 0.3
+            val distance = (maxDistance * 0.5f) + (random.nextFloat() * maxDistance * 0.5f)
+            val velocityX = (kotlin.math.cos(angle) * distance).toFloat()
+            val velocityY = (kotlin.math.sin(angle) * distance).toFloat() - 20 * density
+
             val particle = View(context).apply {
                 val sparkleDrawable = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(fireworkColors[random.nextInt(fireworkColors.size)])
                 }
                 background = sparkleDrawable
+                // Use hardware layer for smoother animation
+                setLayerType(View.LAYER_TYPE_HARDWARE, null)
             }
 
             val particleParams = android.view.WindowManager.LayoutParams(
@@ -3071,7 +3085,8 @@ class VariationBarView(
                 android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                         android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                        android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                        android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                        android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
                 android.graphics.PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
@@ -3081,64 +3096,55 @@ class VariationBarView(
 
             try {
                 windowManager.addView(particle, particleParams)
-                particles.add(particle)
+                particleDataList.add(ParticleData(particle, particleParams, startX, startY, velocityX, velocityY))
             } catch (e: Exception) {}
         }
 
-        // Animate sparkle particles flying outward - upward spread
+        if (particleDataList.isEmpty()) return
+
+        // Use a single animator for all particles
         val animationSpeed = SettingsManager.getSwipeSelectionAnimationSpeed(context)
         val explosionDuration = (300L / animationSpeed).toLong()
-        val maxDistance = 60 * density
 
-        for ((index, particle) in particles.withIndex()) {
-            // Spread upward in a fan pattern
-            val spreadAngle = Math.PI * 0.9  // Wide upward arc
-            val startAngle = Math.PI * 1.05  // Start from upper-left
-            val angle = startAngle + (index.toDouble() / numParticles) * spreadAngle + (random.nextDouble() - 0.5) * 0.3
-            val distance = (maxDistance * 0.5f) + (random.nextFloat() * maxDistance * 0.5f)
+        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = explosionDuration
+            interpolator = android.view.animation.DecelerateInterpolator(2f)
+        }
 
-            val velocityX = (kotlin.math.cos(angle) * distance).toFloat()
-            val velocityY = (kotlin.math.sin(angle) * distance).toFloat() - 20 * density  // Strong upward bias
+        animator.addUpdateListener { animation ->
+            val progress = animation.animatedValue as Float
+            val scale = 1f - (progress * 0.6f)
+            val alpha = 1f - (progress * 0.8f)
 
-            val animator = ValueAnimator.ofFloat(0f, 1f)
-            animator.duration = explosionDuration
-            animator.interpolator = android.view.animation.DecelerateInterpolator(2f)
+            for (data in particleDataList) {
+                val newX = data.startX + data.velocityX * progress
+                val newY = data.startY + data.velocityY * progress
 
-            val startX = centerX.toFloat()
-            val startY = centerY.toFloat()
+                data.view.scaleX = scale
+                data.view.scaleY = scale
+                data.view.alpha = alpha
 
-            animator.addUpdateListener { animation ->
-                val progress = animation.animatedValue as Float
-
-                val newX = startX + velocityX * progress
-                val newY = startY + velocityY * progress
-
-                // Scale - start normal, shrink as they fly
-                val scale = 1f - (progress * 0.6f)
-                particle.scaleX = scale
-                particle.scaleY = scale
-
-                // Alpha - fade out
-                particle.alpha = 1f - (progress * 0.8f)
+                data.params.x = newX.toInt()
+                data.params.y = newY.toInt()
 
                 try {
-                    val params = particle.layoutParams as android.view.WindowManager.LayoutParams
-                    params.x = newX.toInt()
-                    params.y = newY.toInt()
-                    windowManager.updateViewLayout(particle, params)
+                    windowManager.updateViewLayout(data.view, data.params)
                 } catch (e: Exception) {}
             }
+        }
 
-            animator.addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
+        animator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                for (data in particleDataList) {
                     try {
-                        windowManager.removeView(particle)
+                        data.view.setLayerType(View.LAYER_TYPE_NONE, null)
+                        windowManager.removeView(data.view)
                     } catch (e: Exception) {}
                 }
-            })
+            }
+        })
 
-            animator.start()
-        }
+        animator.start()
     }
 
     /**
