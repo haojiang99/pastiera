@@ -131,6 +131,39 @@ class AutoPhraseMemory(context: Context) {
     }
 
     /**
+     * Gets learned phrases that match abbreviated/partial pinyin input.
+     * For example, "shrfa" can match a learned phrase with pinyin "shurufa".
+     *
+     * Uses PinyinDictionary.couldPartialMatchFull() to check if abbreviated input
+     * could match each stored full pinyin.
+     *
+     * @param abbreviatedPinyin The abbreviated pinyin input (e.g., "shrfa")
+     * @return List of matching phrases sorted by frequency
+     */
+    fun getLearnedPhrasesForAbbreviatedPinyin(abbreviatedPinyin: String): List<String> {
+        val normalized = abbreviatedPinyin.lowercase().trim()
+        if (normalized.length < 2) return emptyList()
+
+        val results = mutableListOf<Pair<String, Int>>()  // phrase to frequency
+
+        for ((fullPinyin, phraseMap) in learnedPhrases) {
+            // Check if abbreviated input could match this full pinyin
+            if (PinyinDictionary.couldPartialMatchFull(normalized, fullPinyin)) {
+                for ((phrase, frequency) in phraseMap) {
+                    results.add(phrase to frequency)
+                }
+            }
+        }
+
+        // Sort by frequency descending and return phrases
+        return results
+            .sortedByDescending { it.second }
+            .map { it.first }
+            .distinct()
+            .take(9)
+    }
+
+    /**
      * Checks if a specific phrase is learned for a given pinyin.
      */
     fun isLearnedPhrase(pinyin: String, phrase: String): Boolean {

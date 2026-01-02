@@ -129,8 +129,6 @@ fun TrackpadGestureSettingsScreen(
                 if (intent?.action == AdbPairingService.ACTION_PAIRING_RESULT) {
                     val success = intent.getBooleanExtra(AdbPairingService.EXTRA_RESULT_SUCCESS, false)
                     val message = intent.getStringExtra(AdbPairingService.EXTRA_RESULT_MESSAGE)
-                    Log.d("TrackpadGestures", "Pairing result: success=$success, message=$message")
-
                     if (success) {
                         embeddedAdbPaired = SettingsManager.getEmbeddedAdbPaired(context)
                         embeddedAdbConnected = embeddedAdb.isConnected()
@@ -152,7 +150,7 @@ fun TrackpadGestureSettingsScreen(
             try {
                 context.unregisterReceiver(receiver)
             } catch (e: Exception) {
-                Log.e("TrackpadGestures", "Error unregistering receiver", e)
+                // Ignore unregister errors
             }
         }
     }
@@ -249,7 +247,7 @@ fun TrackpadGestureSettingsScreen(
                                 val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
                                 context.startActivity(intent)
                             } catch (e: Exception) {
-                                Log.e("TrackpadGestures", "Failed to open developer settings", e)
+                                // Ignore if developer settings can't be opened
                             }
                         },
                         enabled = !pairingInProgress && connectionPort.isNotEmpty(),
@@ -377,7 +375,7 @@ fun TrackpadGestureSettingsScreen(
                                 val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
                                 context.startActivity(intent)
                             } catch (e: Exception) {
-                                Log.e("TrackpadGestures", "Failed to open developer settings", e)
+                                // Ignore if developer settings can't be opened
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -430,7 +428,6 @@ fun TrackpadGestureSettingsScreen(
                                         connectionError = context.getString(R.string.embedded_adb_no_port_saved)
                                     }
                                 } catch (e: Exception) {
-                                    Log.e("TrackpadGestures", "Connection failed", e)
                                     connectionError = context.getString(R.string.embedded_adb_connection_failed)
                                 } finally {
                                     embeddedAdbConnecting = false

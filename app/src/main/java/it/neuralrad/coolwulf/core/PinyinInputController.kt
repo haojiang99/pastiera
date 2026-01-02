@@ -1227,6 +1227,47 @@ class PinyinInputController(
         val skipAutoLearnedForAbbrev = isAbbreviationInput(bufferWithoutSep) && !isAbbreviationInputEnabled()
         val autoLearnedPhrases = if (isAutoPhraseMemoryEnabled() && !skipAutoLearnedForAbbrev) autoPhraseMemory.getLearnedPhrases(bufferWithoutSep) else emptyList()
 
+        // Get partial pinyin matches for abbreviated input (e.g., "shrfa" -> "输入法")
+        // This allows typing abbreviated pinyin directly without needing prior selections
+        // Includes: dictionary phrases, learned phrases, and custom dictionary phrases
+        // All sources are merged and sorted by dictionary frequency (highest frequency first)
+        val abbreviatedPinyinPhrases = if (SettingsManager.isPartialPinyinMatchingEnabled(context) && bufferWithoutSep.length >= 2) {
+            // Get all matches with their frequency scores
+            val dictMatches = PinyinDictionary.getPartialPinyinMatches(bufferWithoutSep, maxResults = 20)
+            val learnedPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrasesForAbbreviatedPinyin(bufferWithoutSep) else emptyList()
+            val customPhrases = customDictionary.getPinyinPhrasesForAbbreviatedPinyin(bufferWithoutSep)
+
+            // Create a map of phrase to frequency score (lower = higher frequency)
+            val phraseScores = mutableMapOf<String, Int>()
+
+            // Add dictionary matches with their frequency scores
+            for (match in dictMatches) {
+                phraseScores[match.phrase] = match.frequencyScore
+            }
+
+            // Custom phrases get highest priority (score 0)
+            for (phrase in customPhrases) {
+                if (phrase !in phraseScores || phraseScores[phrase]!! > 0) {
+                    phraseScores[phrase] = 0
+                }
+            }
+
+            // Learned phrases get high priority (score 1-10 based on position)
+            for ((index, phrase) in learnedPhrases.withIndex()) {
+                if (phrase !in phraseScores || phraseScores[phrase]!! > index + 1) {
+                    phraseScores[phrase] = index + 1
+                }
+            }
+
+            // Sort by frequency score (lower = higher priority) and return top 9
+            phraseScores.entries
+                .sortedBy { it.value }
+                .take(9)
+                .map { it.key }
+        } else {
+            emptyList()
+        }
+
         // Check for dictionary exact phrase match
         // Only for single-segment input where dictionary might have the exact phrase
         val dictExactMatch = if (segments.size == 1) {
@@ -1245,54 +1286,68 @@ class PinyinInputController(
         // This ensures the most-used candidate appears first, regardless of source.
 
         // Add partial/prefix matching phrases (e.g., "wos" matches "woshi" → "我是")
-        // Only activate AFTER at least one character has been selected in the current session
-        // This prevents showing "woshi" candidates when user is still typing "wo"
-        // IMPORTANT: Strip already-committed characters from suggestions
+        // Two modes:
+        // 1. After character selection: uses session context (e.g., already typed "wo", now typing "shi")
+        // 2. Direct abbreviated input: uses the new getPartialMatchPhrases algorithm (e.g., "shrfa" → "输入法")
+        // IMPORTANT: Strip already-committed characters from suggestions when in session mode
         val partialMatchPhrases: List<String>
         val dictPartialPhrases: List<String>
         val partialMatchingEnabled = SettingsManager.isPartialPinyinMatchingEnabled(context)
-        if (partialMatchingEnabled && sessionSelections.isNotEmpty()) {
-            // Build the full pinyin from session + current buffer
-            val sessionPinyin = sessionSelections.joinToString("") { it.first }
-            val fullPinyin = sessionPinyin + bufferWithoutSep
-            // Get already-committed characters to strip from suggestions
-            val committedChars = sessionSelections.joinToString("") { it.second }
+        if (partialMatchingEnabled) {
+            if (sessionSelections.isNotEmpty()) {
+                // Session mode: build the full pinyin from session + current buffer
+                val sessionPinyin = sessionSelections.joinToString("") { it.first }
+                val fullPinyin = sessionPinyin + bufferWithoutSep
+                // Get already-committed characters to strip from suggestions
+                val committedChars = sessionSelections.joinToString("") { it.second }
 
-            // Get partial matches using the full pinyin
-            val rawPartialPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrasesWithPrefix(fullPinyin) else emptyList()
-            // Strip already-committed prefix from each phrase
-            partialMatchPhrases = rawPartialPhrases.mapNotNull { phrase ->
-                if (phrase.startsWith(committedChars) && phrase.length > committedChars.length) {
-                    phrase.substring(committedChars.length)  // Return only the remaining part
+                // Get partial matches using the full pinyin
+                val rawPartialPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrasesWithPrefix(fullPinyin) else emptyList()
+                // Strip already-committed prefix from each phrase
+                partialMatchPhrases = rawPartialPhrases.mapNotNull { phrase ->
+                    if (phrase.startsWith(committedChars) && phrase.length > committedChars.length) {
+                        phrase.substring(committedChars.length)  // Return only the remaining part
+                    } else {
+                        null  // Skip phrases that don't start with committed chars
+                    }
+                }
+
+                // Add dictionary partial matches (common phrases sorted by frequency)
+                val rawDictPhrases = PinyinDictionary.getPhraseCandidatesWithPrefix(fullPinyin)
+                dictPartialPhrases = rawDictPhrases.mapNotNull { phrase ->
+                    if (phrase.startsWith(committedChars) && phrase.length > committedChars.length) {
+                        phrase.substring(committedChars.length)
+                    } else {
+                        null
+                    }
+                }
+            } else {
+                // Direct mode: no session, use prefix matching on current buffer only
+                partialMatchPhrases = if (isAutoPhraseMemoryEnabled() && bufferWithoutSep.length >= 2) {
+                    autoPhraseMemory.getLearnedPhrasesWithPrefix(bufferWithoutSep)
                 } else {
-                    null  // Skip phrases that don't start with committed chars
+                    emptyList()
+                }
+                dictPartialPhrases = if (bufferWithoutSep.length >= 2) {
+                    PinyinDictionary.getPhraseCandidatesWithPrefix(bufferWithoutSep)
+                } else {
+                    emptyList()
                 }
             }
-            // Note: partialMatchPhrases are added to frequency sorting below
-
-            // Add dictionary partial matches (common phrases sorted by frequency)
-            val rawDictPhrases = PinyinDictionary.getPhraseCandidatesWithPrefix(fullPinyin)
-            dictPartialPhrases = rawDictPhrases.mapNotNull { phrase ->
-                if (phrase.startsWith(committedChars) && phrase.length > committedChars.length) {
-                    phrase.substring(committedChars.length)
-                } else {
-                    null
-                }
-            }
-            // Note: dictPartialPhrases are added to frequency sorting below
         } else {
             partialMatchPhrases = emptyList()
             dictPartialPhrases = emptyList()
         }
 
-        // If no regular candidates but we have abbreviation/custom/auto-learned/neural matches, use them
+        // If no regular candidates but we have abbreviation/custom/auto-learned/neural/abbreviated-pinyin matches, use them
         if (!allHaveCandidates && firstSyllableCharCandidates.isEmpty()) {
             val hasPhraseSourceCandidates = abbreviationCandidates.isNotEmpty() ||
                 customPhrases.isNotEmpty() ||
                 autoLearnedPhrases.isNotEmpty() ||
                 neuralSuggestions.isNotEmpty() ||
                 partialMatchPhrases.isNotEmpty() ||
-                dictPartialPhrases.isNotEmpty()
+                dictPartialPhrases.isNotEmpty() ||
+                abbreviatedPinyinPhrases.isNotEmpty()
 
             if (hasPhraseSourceCandidates) {
                 // Build candidates sorted by frequency for this fallback case
@@ -1328,6 +1383,14 @@ class PinyinInputController(
                     }
                 }
                 for (phrase in dictPartialPhrases) {
+                    if (phrase !in addedToFallback) {
+                        val freq = userFreqMap[phrase] ?: 0
+                        fallbackCandidates.add(phrase to (freq + if (freq == 0) 2 else 0))
+                        addedToFallback.add(phrase)
+                    }
+                }
+                // Add abbreviated pinyin phrases (e.g., "shrfa" -> "输入法")
+                for (phrase in abbreviatedPinyinPhrases) {
                     if (phrase !in addedToFallback) {
                         val freq = userFreqMap[phrase] ?: 0
                         fallbackCandidates.add(phrase to (freq + if (freq == 0) 2 else 0))
@@ -1390,8 +1453,10 @@ class PinyinInputController(
         val ABBREVIATION_PHRASE_BOOST = 2
         // Partial match phrases get +2 boost when frequency is 0
         val PARTIAL_MATCH_PHRASE_BOOST = 2
+        // Abbreviated pinyin matches get +2 boost when frequency is 0
+        val ABBREVIATED_PINYIN_PHRASE_BOOST = 2
 
-        // Merge ALL candidates (abbreviation, custom, auto-learned, dictionary phrases, partial matches, and single chars)
+        // Merge ALL candidates (abbreviation, custom, auto-learned, dictionary phrases, partial matches, abbreviated pinyin, and single chars)
         // sorted by effective user frequency. This ensures fair competition based on actual usage.
         // Phrases get +2 boost when frequency is 0
         // Custom phrases get +2 boost always (on top of any user frequency)
@@ -1451,6 +1516,16 @@ class PinyinInputController(
             if (phrase !in addedPhrases) {
                 val freq = userFreqMap[phrase] ?: 0
                 val boost = if (freq == 0) PARTIAL_MATCH_PHRASE_BOOST else 0
+                allCandidatesWithFreq.add(phrase to (freq + boost))
+                addedPhrases.add(phrase)
+            }
+        }
+
+        // Add abbreviated pinyin phrases (e.g., "shrfa" -> "输入法") with +2 boost when freq is 0
+        for (phrase in abbreviatedPinyinPhrases) {
+            if (phrase !in addedPhrases) {
+                val freq = userFreqMap[phrase] ?: 0
+                val boost = if (freq == 0) ABBREVIATED_PINYIN_PHRASE_BOOST else 0
                 allCandidatesWithFreq.add(phrase to (freq + boost))
                 addedPhrases.add(phrase)
             }
@@ -1516,6 +1591,8 @@ class PinyinInputController(
         phraseSet.addAll(dictPartialPhrases)   // Include dictionary partial matches
         // Include neural pinyin suggestions as phrases (consume entire buffer)
         phraseSet.addAll(neuralSuggestions)
+        // Include abbreviated pinyin phrases (e.g., "shrfa" -> "输入法")
+        phraseSet.addAll(abbreviatedPinyinPhrases)
         phraseCandidateSet = phraseSet
 
         // phraseCandidateCount for compatibility (used in some places)
@@ -1594,35 +1671,90 @@ class PinyinInputController(
         val skipAutoLearnedForAbbrev = isAbbreviationInput(cleanBuffer) && !isAbbreviationInputEnabled()
         val autoLearnedPhrases = if (isAutoPhraseMemoryEnabled() && !skipAutoLearnedForAbbrev) autoPhraseMemory.getLearnedPhrases(cleanBuffer) else emptyList()
 
-        // Check partial/prefix matching phrases - only after first character selected
-        // Strip already-committed characters from suggestions
+        // Get partial pinyin matches for abbreviated input (e.g., "shrfa" -> "输入法")
+        // This works even without prior selections - allows typing abbreviated pinyin directly
+        // Includes: dictionary phrases, learned phrases, and custom dictionary phrases
+        // All sources are merged and sorted by dictionary frequency (highest frequency first)
+        val partialPinyinMatchingEnabled = SettingsManager.isPartialPinyinMatchingEnabled(context)
+        val abbreviatedPinyinPhrases = if (partialPinyinMatchingEnabled && cleanBuffer.length >= 2) {
+            // Get all matches with their frequency scores
+            val dictMatches = PinyinDictionary.getPartialPinyinMatches(cleanBuffer, maxResults = 20)
+            val learnedAbbrPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrasesForAbbreviatedPinyin(cleanBuffer) else emptyList()
+            val customAbbrPhrases = customDictionary.getPinyinPhrasesForAbbreviatedPinyin(cleanBuffer)
+
+            // Create a map of phrase to frequency score (lower = higher frequency)
+            val phraseScores = mutableMapOf<String, Int>()
+
+            // Add dictionary matches with their frequency scores
+            for (match in dictMatches) {
+                phraseScores[match.phrase] = match.frequencyScore
+            }
+
+            // Custom phrases get highest priority (score 0)
+            for (phrase in customAbbrPhrases) {
+                if (phrase !in phraseScores || phraseScores[phrase]!! > 0) {
+                    phraseScores[phrase] = 0
+                }
+            }
+
+            // Learned phrases get high priority (score 1-10 based on position)
+            for ((index, phrase) in learnedAbbrPhrases.withIndex()) {
+                if (phrase !in phraseScores || phraseScores[phrase]!! > index + 1) {
+                    phraseScores[phrase] = index + 1
+                }
+            }
+
+            // Sort by frequency score (lower = higher priority) and return top 9
+            phraseScores.entries
+                .sortedBy { it.value }
+                .take(9)
+                .map { it.key }
+        } else {
+            emptyList()
+        }
+
+        // Check partial/prefix matching phrases
+        // Two modes: with session context or direct abbreviated input
         val partialMatchPhrases: List<String>
         val dictPartialPhrases: List<String>
         val partialMatchingEnabled = SettingsManager.isPartialPinyinMatchingEnabled(context)
-        if (partialMatchingEnabled && sessionSelections.isNotEmpty()) {
-            val sessionPinyin = sessionSelections.joinToString("") { it.first }
-            val fullPinyin = sessionPinyin + cleanBuffer
-            val committedChars = sessionSelections.joinToString("") { it.second }
+        if (partialMatchingEnabled) {
+            if (sessionSelections.isNotEmpty()) {
+                // Session mode: use session context
+                val sessionPinyin = sessionSelections.joinToString("") { it.first }
+                val fullPinyin = sessionPinyin + cleanBuffer
+                val committedChars = sessionSelections.joinToString("") { it.second }
 
-            val rawPartialPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrasesWithPrefix(fullPinyin) else emptyList()
-            partialMatchPhrases = rawPartialPhrases.mapNotNull { phrase ->
-                if (phrase.startsWith(committedChars) && phrase.length > committedChars.length) {
-                    phrase.substring(committedChars.length)
+                val rawPartialPhrases = if (isAutoPhraseMemoryEnabled()) autoPhraseMemory.getLearnedPhrasesWithPrefix(fullPinyin) else emptyList()
+                partialMatchPhrases = rawPartialPhrases.mapNotNull { phrase ->
+                    if (phrase.startsWith(committedChars) && phrase.length > committedChars.length) {
+                        phrase.substring(committedChars.length)
+                    } else {
+                        null
+                    }
+                }
+
+                val rawDictPhrases = PinyinDictionary.getPhraseCandidatesWithPrefix(fullPinyin)
+                dictPartialPhrases = rawDictPhrases.mapNotNull { phrase ->
+                    if (phrase.startsWith(committedChars) && phrase.length > committedChars.length) {
+                        phrase.substring(committedChars.length)
+                    } else {
+                        null
+                    }
+                }
+            } else {
+                // Direct mode: no session, use prefix matching on current buffer only
+                partialMatchPhrases = if (isAutoPhraseMemoryEnabled() && cleanBuffer.length >= 2) {
+                    autoPhraseMemory.getLearnedPhrasesWithPrefix(cleanBuffer)
                 } else {
-                    null
+                    emptyList()
+                }
+                dictPartialPhrases = if (cleanBuffer.length >= 2) {
+                    PinyinDictionary.getPhraseCandidatesWithPrefix(cleanBuffer)
+                } else {
+                    emptyList()
                 }
             }
-            // Note: partialMatchPhrases are added to frequency sorting below
-
-            val rawDictPhrases = PinyinDictionary.getPhraseCandidatesWithPrefix(fullPinyin)
-            dictPartialPhrases = rawDictPhrases.mapNotNull { phrase ->
-                if (phrase.startsWith(committedChars) && phrase.length > committedChars.length) {
-                    phrase.substring(committedChars.length)
-                } else {
-                    null
-                }
-            }
-            // Note: dictPartialPhrases are added to frequency sorting below
         } else {
             partialMatchPhrases = emptyList()
             dictPartialPhrases = emptyList()
@@ -1630,7 +1762,7 @@ class PinyinInputController(
 
         val prefixCandidates = PinyinDictionary.getCandidatesForPrefix(cleanBuffer)
 
-        if (prefixCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty() || abbreviationCandidates.isNotEmpty() || neuralSuggestions.isNotEmpty() || partialMatchPhrases.isNotEmpty() || dictPartialPhrases.isNotEmpty()) {
+        if (prefixCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty() || abbreviationCandidates.isNotEmpty() || neuralSuggestions.isNotEmpty() || partialMatchPhrases.isNotEmpty() || dictPartialPhrases.isNotEmpty() || abbreviatedPinyinPhrases.isNotEmpty()) {
             // Get user frequency for accurate merging
             val userFreqMap = if (isMemoryEnabled()) userMemory.getFrequencyMap(cleanBuffer) else emptyMap()
 
@@ -1642,6 +1774,8 @@ class PinyinInputController(
             val ABBREVIATION_PHRASE_BOOST = 2
             // Partial match phrases get +2 boost when frequency is 0
             val PARTIAL_MATCH_PHRASE_BOOST = 2
+            // Abbreviated pinyin matches get +2 boost when frequency is 0
+            val ABBREVIATED_PINYIN_PHRASE_BOOST = 2
 
             // Merge ALL candidates sorted by effective user frequency
             val allCandidatesWithFreq = mutableListOf<Pair<String, Int>>()
@@ -1694,6 +1828,16 @@ class PinyinInputController(
                 }
             }
 
+            // Add abbreviated pinyin phrases (e.g., "shrfa" -> "输入法") with +2 boost when freq is 0
+            for (phrase in abbreviatedPinyinPhrases) {
+                if (phrase !in addedToMerge) {
+                    val freq = userFreqMap[phrase] ?: 0
+                    val boost = if (freq == 0) ABBREVIATED_PINYIN_PHRASE_BOOST else 0
+                    allCandidatesWithFreq.add(phrase to (freq + boost))
+                    addedToMerge.add(phrase)
+                }
+            }
+
             // Add prefix candidates (single characters from prefix matching - no boost)
             for (candidate in prefixCandidates) {
                 if (candidate !in addedToMerge) {
@@ -1737,9 +1881,9 @@ class PinyinInputController(
             }
 
             allCandidates = resultCandidates
-            // If we have phrase candidates (abbreviation, custom, auto-learned, neural), use full buffer for phrase matching
+            // If we have phrase candidates (abbreviation, custom, auto-learned, neural, abbreviated pinyin), use full buffer for phrase matching
             // Otherwise fall back to first syllable for single-character selection
-            val hasPhraseCandidates = abbreviationCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty() || neuralSuggestions.isNotEmpty()
+            val hasPhraseCandidates = abbreviationCandidates.isNotEmpty() || customPhrases.isNotEmpty() || autoLearnedPhrases.isNotEmpty() || neuralSuggestions.isNotEmpty() || abbreviatedPinyinPhrases.isNotEmpty()
             matchedPinyin = if (hasPhraseCandidates) cleanBuffer else (PinyinDictionary.getFirstSyllableForPrefix(cleanBuffer) ?: cleanBuffer)
             firstSyllable = PinyinDictionary.getFirstSyllableForPrefix(cleanBuffer) ?: cleanBuffer
             // Build phrase set for accurate detection
@@ -1751,6 +1895,8 @@ class PinyinInputController(
             phraseSet.addAll(dictPartialPhrases)
             // Include neural pinyin suggestions as phrases
             phraseSet.addAll(neuralSuggestions)
+            // Include abbreviated pinyin phrases (e.g., "shrfa" -> "输入法")
+            phraseSet.addAll(abbreviatedPinyinPhrases)
             phraseCandidateSet = phraseSet
             phraseCandidateCount = phraseSet.size
         } else if (resultCandidates.isNotEmpty()) {

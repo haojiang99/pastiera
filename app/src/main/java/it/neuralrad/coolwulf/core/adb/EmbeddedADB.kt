@@ -396,25 +396,15 @@ class EmbeddedADB private constructor(private val context: Context) {
             // Note: Android's toybox nc uses -s for source address and -p for port
             val daemonCommand = """nohup sh -c 'while true; do getevent -l /dev/input/event7 2>/dev/null | nc -l -s 127.0.0.1 -p $GESTURE_DAEMON_PORT; sleep 0.5; done' >/dev/null 2>&1 & echo gesture_daemon_loop"""
 
-            val result = runAdbCommand(listOf("shell", daemonCommand), timeoutSeconds = 5)
-            Log.d(TAG, "Daemon start result: $result")
+            runAdbCommand(listOf("shell", daemonCommand), timeoutSeconds = 5)
 
             // Verify the daemon started by checking if port is listening
             delay(1500)
             val checkResult = runAdbCommand(listOf("shell", "netstat -tln 2>/dev/null | grep $GESTURE_DAEMON_PORT || ss -tln 2>/dev/null | grep $GESTURE_DAEMON_PORT || echo 'not listening'"), timeoutSeconds = 3)
             val daemonRunning = !checkResult.contains("not listening") && (checkResult.contains(GESTURE_DAEMON_PORT.toString()) || checkResult.contains("127.0.0.1"))
 
-            Log.d(TAG, "Daemon port check: $checkResult, running=$daemonRunning")
-
-            if (!daemonRunning) {
-                // Also check if process is running
-                val procCheck = runAdbCommand(listOf("shell", "pgrep -f 'gesture_daemon_loop' || echo 'not running'"), timeoutSeconds = 3)
-                Log.d(TAG, "Daemon process check: $procCheck")
-            }
-
             daemonRunning
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start gesture daemon", e)
             false
         }
     }
@@ -429,10 +419,8 @@ class EmbeddedADB private constructor(private val context: Context) {
             val socket = java.net.Socket()
             socket.connect(java.net.InetSocketAddress("127.0.0.1", GESTURE_DAEMON_PORT), 1000)
             socket.close()
-            Log.d(TAG, "Daemon is running (port $GESTURE_DAEMON_PORT is listening)")
             true
         } catch (e: Exception) {
-            Log.d(TAG, "Daemon not running: ${e.message}")
             false
         }
     }
@@ -442,15 +430,13 @@ class EmbeddedADB private constructor(private val context: Context) {
      */
     suspend fun stopGestureDaemon() = withContext(Dispatchers.IO) {
         if (!isConnected) {
-            Log.w(TAG, "Cannot stop daemon: not connected to ADB")
             return@withContext
         }
 
         try {
             runAdbCommand(listOf("shell", "pkill -f 'gesture_daemon_loop' || true"), timeoutSeconds = 3)
-            Log.d(TAG, "Gesture daemon stopped")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to stop gesture daemon", e)
+            // Ignore stop errors
         }
     }
 
@@ -466,11 +452,8 @@ class EmbeddedADB private constructor(private val context: Context) {
             // Use a short timeout (1 second) to quickly fail if daemon isn't running
             socket.connect(java.net.InetSocketAddress("127.0.0.1", GESTURE_DAEMON_PORT), 1000)
             socket.soTimeout = 0 // No timeout for reading
-            Log.d(TAG, "Connected to gesture daemon on port $GESTURE_DAEMON_PORT")
             socket
         } catch (e: Exception) {
-            // Only log at debug level since this is expected when daemon isn't running
-            Log.d(TAG, "Daemon not available: ${e.message}")
             null
         }
     }

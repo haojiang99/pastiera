@@ -818,7 +818,7 @@
 
     <!-- Partial Pinyin Matching -->
     <string name="partial_pinyin_matching_title">Partial Pinyin Matching</string>
-    <string name="partial_pinyin_matching_description">Show phrase suggestions while typing partial pinyin (after first character selected)</string>
+    <string name="partial_pinyin_matching_description">Show phrase suggestions for abbreviated pinyin (e.g., \"shrfa\" → \"输入法\")</string>
 
     <!-- Abbreviation Input -->
     <string name="abbreviation_input_title">Abbreviation Input (首字母)</string>

@@ -815,7 +815,7 @@
 
     <!-- Partial Pinyin Matching -->
     <string name="partial_pinyin_matching_title">部分拼音匹配</string>
-    <string name="partial_pinyin_matching_description">输入部分拼音时显示词组建议（需先选择第一个字）</string>
+    <string name="partial_pinyin_matching_description">输入简拼时显示词组建议（如\"shrfa\"→\"输入法\"）</string>
 
     <!-- Abbreviation Input -->
     <string name="abbreviation_input_title">首字母输入</string>

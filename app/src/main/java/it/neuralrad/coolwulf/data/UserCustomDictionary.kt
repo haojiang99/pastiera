@@ -192,6 +192,29 @@ class UserCustomDictionary(context: Context) {
     }
 
     /**
+     * Gets custom Pinyin phrases that match abbreviated/partial pinyin input.
+     * For example, "shrfa" can match a custom phrase with pinyin "shurufa".
+     *
+     * @param abbreviatedPinyin The abbreviated pinyin input (e.g., "shrfa")
+     * @return List of matching phrases
+     */
+    fun getPinyinPhrasesForAbbreviatedPinyin(abbreviatedPinyin: String): List<String> {
+        val normalized = abbreviatedPinyin.lowercase().trim()
+        if (normalized.length < 2) return emptyList()
+
+        val results = mutableListOf<String>()
+
+        for ((fullPinyin, phrases) in pinyinMappings) {
+            // Check if abbreviated input could match this full pinyin
+            if (it.neuralrad.coolwulf.data.pinyin.PinyinDictionary.couldPartialMatchFull(normalized, fullPinyin)) {
+                results.addAll(phrases)
+            }
+        }
+
+        return results.distinct().take(9)
+    }
+
+    /**
      * Gets custom Shuangpin phrases for a code.
      * Returns phrases that should be prioritized in candidates.
      */

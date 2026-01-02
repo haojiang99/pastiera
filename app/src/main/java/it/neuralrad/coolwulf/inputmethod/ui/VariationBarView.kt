@@ -1548,12 +1548,10 @@ class VariationBarView(
                             swipeDirection = if (deltaX > 0) 1 else -1
                             // Show swipe indicator when swipe starts
                             revealSwipeIndicator(overlayView, motionEvent.x)
-                            Log.d(TAG, "Swipe started: ${if (swipeDirection == 1) "RIGHT" else "LEFT"}")
                         } else {
                             val currentDirection = if (incrementalDeltaX > 0) 1 else -1
                             if (currentDirection != swipeDirection && abs(incrementalDeltaX) > swipeThreshold) {
                                 swipeDirection = currentDirection
-                                Log.d(TAG, "Swipe direction changed: ${if (swipeDirection == 1) "RIGHT" else "LEFT"}")
                             }
                         }
 
@@ -1588,7 +1586,6 @@ class VariationBarView(
                     if (isSwipeInProgress) {
                         isSwipeInProgress = false
                         swipeDirection = null
-                        Log.d(TAG, "Swipe ended on overlay")
                         true
                     } else {
                         val x = motionEvent.x
@@ -2676,16 +2673,11 @@ class VariationBarView(
      * @param candidateIndex The index of the candidate to animate (0-based)
      */
     fun animateSwipeSelection(candidateIndex: Int) {
-        Log.e(TAG, "animateSwipeSelection called with candidateIndex=$candidateIndex")
-
         // Check if animation is enabled in settings
         val animationEnabled = SettingsManager.getSwipeSelectionAnimationEnabled(context)
-        Log.e(TAG, "Animation enabled: $animationEnabled")
         if (!animationEnabled) return
 
-        Log.e(TAG, "variationButtons.size=${variationButtons.size}")
         if (candidateIndex < 0 || candidateIndex >= variationButtons.size) {
-            Log.e(TAG, "candidateIndex out of bounds, returning")
             return
         }
 
@@ -2695,9 +2687,7 @@ class VariationBarView(
 
         // Get the text from the button
         val selectedText = button.text.toString()
-        Log.e(TAG, "selectedText='$selectedText'")
         if (selectedText.isEmpty()) {
-            Log.e(TAG, "selectedText is empty, returning")
             return
         }
 
