@@ -2709,11 +2709,12 @@ class VariationBarView(
         val screenHeight = displayMetrics.heightPixels
         val screenWidth = displayMetrics.widthPixels
 
-        // Determine text color based on system theme (dark/light mode)
+        // Determine text color based on user setting or system theme
         val nightModeFlags = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
         val isDarkMode = nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
-        val textColor = if (isDarkMode) Color.WHITE else Color.BLACK
-        val shadowColor = if (isDarkMode) Color.BLACK else Color.WHITE
+        val colorSetting = SettingsManager.getSwipeSelectionAnimationColor(context)
+        val textColor = getAnimationColor(colorSetting, isDarkMode)
+        val shadowColor = getShadowColorForAnimation(textColor, isDarkMode)
 
         // Create a floating TextView that will animate - text only, no background
         val floatingText = TextView(context).apply {
@@ -3241,11 +3242,12 @@ class VariationBarView(
         val buttonLocation = IntArray(2)
         button.getLocationOnScreen(buttonLocation)
 
-        // Determine text color based on system theme (dark/light mode)
+        // Determine text color based on user setting or system theme
         val nightModeFlags = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
         val isDarkMode = nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
-        val textColor = if (isDarkMode) Color.WHITE else Color.BLACK
-        val shadowColor = if (isDarkMode) Color.BLACK else Color.WHITE
+        val colorSetting = SettingsManager.getSwipeSelectionAnimationColor(context)
+        val textColor = getAnimationColor(colorSetting, isDarkMode)
+        val shadowColor = getShadowColorForAnimation(textColor, isDarkMode)
 
         val floatingText = TextView(context).apply {
             text = selectedText
@@ -3375,6 +3377,46 @@ class VariationBarView(
         } catch (e: Exception) {
             Log.w(TAG, "Failed to play swipe selection sound", e)
         }
+    }
+
+    /**
+     * Converts color setting string to actual Color value.
+     * @param colorSetting The color setting from preferences ("auto", "white", "black", etc.)
+     * @param isDarkMode Whether the system is in dark mode (used for "auto" setting)
+     * @return The Color int value to use
+     */
+    private fun getAnimationColor(colorSetting: String, isDarkMode: Boolean): Int {
+        return when (colorSetting) {
+            "auto" -> if (isDarkMode) Color.WHITE else Color.BLACK
+            "white" -> Color.WHITE
+            "black" -> Color.BLACK
+            "red" -> Color.RED
+            "orange" -> Color.rgb(255, 152, 0)  // Material Orange
+            "yellow" -> Color.YELLOW
+            "green" -> Color.rgb(76, 175, 80)   // Material Green
+            "blue" -> Color.rgb(33, 150, 243)   // Material Blue
+            "purple" -> Color.rgb(156, 39, 176) // Material Purple
+            "pink" -> Color.rgb(233, 30, 99)    // Material Pink
+            else -> if (isDarkMode) Color.WHITE else Color.BLACK
+        }
+    }
+
+    /**
+     * Determines the appropriate shadow color for the animation text.
+     * The shadow should contrast with the text color for visibility.
+     * @param textColor The color of the text
+     * @param isDarkMode Whether the system is in dark mode
+     * @return The shadow Color int value to use
+     */
+    private fun getShadowColorForAnimation(textColor: Int, isDarkMode: Boolean): Int {
+        // Calculate luminance to determine if text is light or dark
+        val r = Color.red(textColor)
+        val g = Color.green(textColor)
+        val b = Color.blue(textColor)
+        val luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+
+        // Use contrasting shadow: dark shadow for light text, light shadow for dark text
+        return if (luminance > 0.5) Color.BLACK else Color.WHITE
     }
 }
 

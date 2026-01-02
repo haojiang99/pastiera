@@ -605,6 +605,10 @@
     <string name="custom_dictionary_empty">No custom mappings yet. Tap + to add one.</string>
     <string name="custom_dictionary_settings_title">Custom Dictionary</string>
     <string name="custom_dictionary_settings_description">Define custom letter → phrase mappings</string>
+    <string name="custom_dictionary_search_placeholder">Search mappings...</string>
+    <string name="custom_dictionary_search_description">Search</string>
+    <string name="custom_dictionary_clear_search">Clear search</string>
+    <string name="custom_dictionary_no_results">No mappings found</string>
 
     <!-- Import/Export Custom Dictionary and User Memory -->
     <string name="custom_dictionary_export">Export</string>
@@ -683,6 +687,10 @@
     <string name="learned_phrases_export_failed">Failed to export phrases</string>
     <string name="learned_phrases_import_success">Imported %1$d phrases</string>
     <string name="learned_phrases_import_failed">Failed to import phrases</string>
+    <string name="learned_phrases_search_placeholder">Search phrases...</string>
+    <string name="learned_phrases_search_description">Search</string>
+    <string name="learned_phrases_clear_search">Clear search</string>
+    <string name="learned_phrases_no_results">No phrases found</string>
     <string name="delete_all">Delete All</string>
 
     <!-- Candidate Font Size -->
@@ -925,6 +933,17 @@
     <string name="animation_speed_slow">Slow</string>
     <string name="animation_speed_normal">Normal</string>
     <string name="animation_speed_fast">Fast</string>
+    <string name="animation_color_title">Text Color</string>
+    <string name="animation_color_auto">Auto</string>
+    <string name="animation_color_white">White</string>
+    <string name="animation_color_black">Black</string>
+    <string name="animation_color_red">Red</string>
+    <string name="animation_color_orange">Orange</string>
+    <string name="animation_color_yellow">Yellow</string>
+    <string name="animation_color_green">Green</string>
+    <string name="animation_color_blue">Blue</string>
+    <string name="animation_color_purple">Purple</string>
+    <string name="animation_color_pink">Pink</string>
     <string name="overlay_permission_title">Full-Screen Animation</string>
     <string name="overlay_permission_description">Grant overlay permission for words to fly across the screen</string>
     <string name="overlay_permission_granted">Permission granted - full-screen animation enabled</string>

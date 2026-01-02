@@ -12,10 +12,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -489,6 +491,19 @@ private fun PinyinPhrasesTab(
     onDeletePhrase: (AutoPhraseMemory.LearnedPhrase) -> Unit
 ) {
     var showPendingDialog by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    // Filter phrases based on search query
+    val filteredPhrases = remember(phrases, searchQuery) {
+        if (searchQuery.isBlank()) {
+            phrases
+        } else {
+            val query = searchQuery.lowercase()
+            phrases.filter {
+                it.phrase.contains(query) || it.pinyin.lowercase().contains(query)
+            }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         // Stats header
@@ -500,17 +515,28 @@ private fun PinyinPhrasesTab(
             onPendingClick = { showPendingDialog = true }
         )
 
+        // Search bar
+        if (phrases.isNotEmpty()) {
+            SearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                placeholder = stringResource(R.string.learned_phrases_search_placeholder)
+            )
+        }
+
         HorizontalDivider()
 
         // Phrases list
         if (phrases.isEmpty()) {
             EmptyPhrasesMessage()
+        } else if (filteredPhrases.isEmpty()) {
+            NoResultsMessage()
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                items(phrases, key = { "${it.pinyin}_${it.phrase}" }) { phrase ->
+                items(filteredPhrases, key = { "${it.pinyin}_${it.phrase}" }) { phrase ->
                     PinyinPhraseItem(
                         phrase = phrase,
                         onDelete = { onDeletePhrase(phrase) }
@@ -538,6 +564,19 @@ private fun ShuangpinPhrasesTab(
     onDeletePhrase: (ShuangpinPhraseMemory.LearnedPhrase) -> Unit
 ) {
     var showPendingDialog by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    // Filter phrases based on search query
+    val filteredPhrases = remember(phrases, searchQuery) {
+        if (searchQuery.isBlank()) {
+            phrases
+        } else {
+            val query = searchQuery.lowercase()
+            phrases.filter {
+                it.phrase.contains(query) || it.shuangpinCode.lowercase().contains(query)
+            }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         // Stats header
@@ -549,17 +588,28 @@ private fun ShuangpinPhrasesTab(
             onPendingClick = { showPendingDialog = true }
         )
 
+        // Search bar
+        if (phrases.isNotEmpty()) {
+            SearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                placeholder = stringResource(R.string.learned_phrases_search_placeholder)
+            )
+        }
+
         HorizontalDivider()
 
         // Phrases list
         if (phrases.isEmpty()) {
             EmptyPhrasesMessage()
+        } else if (filteredPhrases.isEmpty()) {
+            NoResultsMessage()
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                items(phrases, key = { "${it.shuangpinCode}_${it.phrase}" }) { phrase ->
+                items(filteredPhrases, key = { "${it.shuangpinCode}_${it.phrase}" }) { phrase ->
                     ShuangpinPhraseItem(
                         phrase = phrase,
                         onDelete = { onDeletePhrase(phrase) }
@@ -587,6 +637,19 @@ private fun WubiPhrasesTab(
     onDeletePhrase: (WubiPhraseMemory.LearnedPhrase) -> Unit
 ) {
     var showPendingDialog by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    // Filter phrases based on search query
+    val filteredPhrases = remember(phrases, searchQuery) {
+        if (searchQuery.isBlank()) {
+            phrases
+        } else {
+            val query = searchQuery.lowercase()
+            phrases.filter {
+                it.phrase.contains(query) || it.wubiCode.lowercase().contains(query)
+            }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         // Stats header
@@ -598,17 +661,28 @@ private fun WubiPhrasesTab(
             onPendingClick = { showPendingDialog = true }
         )
 
+        // Search bar
+        if (phrases.isNotEmpty()) {
+            SearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                placeholder = stringResource(R.string.learned_phrases_search_placeholder)
+            )
+        }
+
         HorizontalDivider()
 
         // Phrases list
         if (phrases.isEmpty()) {
             EmptyPhrasesMessage()
+        } else if (filteredPhrases.isEmpty()) {
+            NoResultsMessage()
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                items(phrases, key = { "${it.wubiCode}_${it.phrase}" }) { phrase ->
+                items(filteredPhrases, key = { "${it.wubiCode}_${it.phrase}" }) { phrase ->
                     WubiPhraseItem(
                         phrase = phrase,
                         onDelete = { onDeletePhrase(phrase) }
@@ -947,4 +1021,53 @@ private fun PendingPhrasesDialog(
             }
         }
     )
+}
+
+@Composable
+private fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    placeholder: String
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        placeholder = { Text(placeholder) },
+        leadingIcon = {
+            Icon(
+                Icons.Filled.Search,
+                contentDescription = stringResource(R.string.learned_phrases_search_description)
+            )
+        },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        Icons.Filled.Clear,
+                        contentDescription = stringResource(R.string.learned_phrases_clear_search)
+                    )
+                }
+            }
+        },
+        singleLine = true
+    )
+}
+
+@Composable
+private fun NoResultsMessage() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = stringResource(R.string.learned_phrases_no_results),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }

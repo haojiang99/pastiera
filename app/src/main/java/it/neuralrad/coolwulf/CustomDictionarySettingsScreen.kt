@@ -11,8 +11,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -62,6 +64,9 @@ fun CustomDictionarySettingsScreen(
     var showImportModeDialog by remember { mutableStateOf(false) }
     var pendingImportUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var importType by remember { mutableStateOf("") }  // "dictionary" or "memory"
+
+    // Search state
+    var searchQuery by remember { mutableStateOf("") }
 
     // Export launcher for custom dictionary
     val exportDictionaryLauncher = rememberLauncherForActivityResult(
@@ -266,6 +271,47 @@ fun CustomDictionarySettingsScreen(
                 else -> zhenmaMappings
             }
 
+            // Filter mappings based on search query
+            val filteredMappings = remember(currentMappings, searchQuery) {
+                if (searchQuery.isBlank()) {
+                    currentMappings
+                } else {
+                    val query = searchQuery.lowercase()
+                    currentMappings.filter { (code, phrase) ->
+                        code.lowercase().contains(query) || phrase.contains(query)
+                    }
+                }
+            }
+
+            // Search bar (only show if there are mappings)
+            if (currentMappings.isNotEmpty()) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    placeholder = { Text(stringResource(R.string.custom_dictionary_search_placeholder)) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Filled.Search,
+                            contentDescription = stringResource(R.string.custom_dictionary_search_description)
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    Icons.Filled.Clear,
+                                    contentDescription = stringResource(R.string.custom_dictionary_clear_search)
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true
+                )
+            }
+
             if (currentMappings.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -279,13 +325,26 @@ fun CustomDictionarySettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            } else if (filteredMappings.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.custom_dictionary_no_results),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
                 ) {
-                    items(currentMappings) { (code, phrase) ->
+                    items(filteredMappings) { (code, phrase) ->
                         MappingItem(
                             code = code,
                             phrase = phrase,

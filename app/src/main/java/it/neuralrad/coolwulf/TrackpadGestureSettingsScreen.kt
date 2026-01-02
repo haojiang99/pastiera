@@ -9,6 +9,7 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import it.neuralrad.coolwulf.core.adb.AdbPairingService
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -825,6 +826,73 @@ fun TrackpadGestureSettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Center
                     )
+
+                    // Animation color selector (only for flying animation)
+                    if (swipeSelectionAnimationType == "flying") {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = stringResource(R.string.animation_color_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        var animationColor by remember {
+                            mutableStateOf(SettingsManager.getSwipeSelectionAnimationColor(context))
+                        }
+
+                        // Color options
+                        val colorOptions = listOf(
+                            "auto" to null,  // null means auto (follows dark/light mode)
+                            "white" to androidx.compose.ui.graphics.Color.White,
+                            "black" to androidx.compose.ui.graphics.Color.Black,
+                            "red" to androidx.compose.ui.graphics.Color.Red,
+                            "orange" to androidx.compose.ui.graphics.Color(0xFFFF9800),
+                            "yellow" to androidx.compose.ui.graphics.Color.Yellow,
+                            "green" to androidx.compose.ui.graphics.Color(0xFF4CAF50),
+                            "blue" to androidx.compose.ui.graphics.Color(0xFF2196F3),
+                            "purple" to androidx.compose.ui.graphics.Color(0xFF9C27B0),
+                            "pink" to androidx.compose.ui.graphics.Color(0xFFE91E63)
+                        )
+
+                        // First row: auto, white, black, red, orange
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            colorOptions.take(5).forEach { (colorName, color) ->
+                                ColorOptionCircle(
+                                    colorName = colorName,
+                                    color = color,
+                                    isSelected = animationColor == colorName,
+                                    onClick = {
+                                        animationColor = colorName
+                                        SettingsManager.setSwipeSelectionAnimationColor(context, colorName)
+                                    }
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Second row: yellow, green, blue, purple, pink
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            colorOptions.drop(5).forEach { (colorName, color) ->
+                                ColorOptionCircle(
+                                    colorName = colorName,
+                                    color = color,
+                                    isSelected = animationColor == colorName,
+                                    onClick = {
+                                        animationColor = colorName
+                                        SettingsManager.setSwipeSelectionAnimationColor(context, colorName)
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1146,5 +1214,78 @@ fun TrackpadGestureSettingsScreen(
         }
 
         Spacer(modifier = Modifier.height(32.dp))
+    }
+}
+
+/**
+ * Composable for a color option circle in the animation color picker.
+ */
+@Composable
+private fun ColorOptionCircle(
+    colorName: String,
+    color: androidx.compose.ui.graphics.Color?,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(
+                    if (color != null) {
+                        color
+                    } else {
+                        // Auto: show a gradient-like appearance
+                        androidx.compose.ui.graphics.Brush.linearGradient(
+                            colors = listOf(
+                                androidx.compose.ui.graphics.Color.White,
+                                androidx.compose.ui.graphics.Color.Black
+                            )
+                        ).let { brush ->
+                            androidx.compose.ui.graphics.Color.Gray
+                        }
+                    }
+                )
+                .border(
+                    width = if (isSelected) 3.dp else 1.dp,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    shape = androidx.compose.foundation.shape.CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            // For "auto", show a special indicator
+            if (color == null) {
+                Text(
+                    text = "A",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = androidx.compose.ui.graphics.Color.White
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = stringResource(
+                when (colorName) {
+                    "auto" -> R.string.animation_color_auto
+                    "white" -> R.string.animation_color_white
+                    "black" -> R.string.animation_color_black
+                    "red" -> R.string.animation_color_red
+                    "orange" -> R.string.animation_color_orange
+                    "yellow" -> R.string.animation_color_yellow
+                    "green" -> R.string.animation_color_green
+                    "blue" -> R.string.animation_color_blue
+                    "purple" -> R.string.animation_color_purple
+                    "pink" -> R.string.animation_color_pink
+                    else -> R.string.animation_color_auto
+                }
+            ),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

@@ -164,6 +164,7 @@ object SettingsManager {
     private const val KEY_SWIPE_SELECTION_ANIMATION_ENABLED = "swipe_selection_animation_enabled"
     private const val KEY_SWIPE_SELECTION_ANIMATION_TYPE = "swipe_selection_animation_type"
     private const val KEY_SWIPE_SELECTION_ANIMATION_SPEED = "swipe_selection_animation_speed"
+    private const val KEY_SWIPE_SELECTION_ANIMATION_COLOR = "swipe_selection_animation_color"
     private const val KEY_SPLIT_SWIPE_DOWN_ENABLED = "split_swipe_down_enabled"
     private const val KEY_PAGE_FLIP_MODE_ENABLED = "page_flip_mode_enabled"
 
@@ -181,6 +182,7 @@ object SettingsManager {
     private const val DEFAULT_SWIPE_SELECTION_ANIMATION_ENABLED = true  // Animation on by default
     private const val DEFAULT_SWIPE_SELECTION_ANIMATION_TYPE = "flying"  // "flying" or "fireworks"
     private const val DEFAULT_SWIPE_SELECTION_ANIMATION_SPEED = 1.0f  // 1.0 = normal speed, 0.5 = slow, 2.0 = fast
+    private const val DEFAULT_SWIPE_SELECTION_ANIMATION_COLOR = "auto"  // "auto" follows dark/light mode, or specific colors
     private const val DEFAULT_SPLIT_SWIPE_DOWN_ENABLED = false  // Off by default, swipe down = next page
     private const val DEFAULT_PAGE_FLIP_MODE_ENABLED = false  // Off by default, normal selection mode
     private const val MIN_TRACKPAD_SWIPE_THRESHOLD = 100
@@ -3800,6 +3802,24 @@ object SettingsManager {
     fun setSwipeSelectionAnimationSpeed(context: Context, speed: Float) {
         getPreferences(context).edit()
             .putFloat(KEY_SWIPE_SELECTION_ANIMATION_SPEED, speed)
+            .apply()
+    }
+
+    /**
+     * Returns the animation text color.
+     * @return "auto" for dark/light mode adaptive, or specific color names like "white", "black", "red", etc.
+     */
+    fun getSwipeSelectionAnimationColor(context: Context): String {
+        return getPreferences(context).getString(KEY_SWIPE_SELECTION_ANIMATION_COLOR, DEFAULT_SWIPE_SELECTION_ANIMATION_COLOR) ?: DEFAULT_SWIPE_SELECTION_ANIMATION_COLOR
+    }
+
+    /**
+     * Sets the animation text color.
+     * @param color "auto", "white", "black", "red", "orange", "yellow", "green", "blue", "purple", "pink"
+     */
+    fun setSwipeSelectionAnimationColor(context: Context, color: String) {
+        getPreferences(context).edit()
+            .putString(KEY_SWIPE_SELECTION_ANIMATION_COLOR, color)
             .apply()
     }
 
